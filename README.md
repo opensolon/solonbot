@@ -20,7 +20,7 @@ Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 
 * 网络能力：自带 Webfetch、Websearch 工具，方便感知网络（基于 `mcp.exa.ai/mcp` 封装）
 * 开源定制：（MIT 开源协议）方便企业基于 Java 生态去定制自己的 Agent
 
-## 多态运行
+## 多态运行支持
 
 * CLI：沉浸式的终端开发体验。
 * Web API：标准化的 HTTP/JSON 接口，便于集成。
