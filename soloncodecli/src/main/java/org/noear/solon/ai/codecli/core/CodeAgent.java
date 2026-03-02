@@ -67,7 +67,7 @@ public class CodeAgent {
     }
 
     public String getVersion() {
-        return "v0.0.15-M4";
+        return "v0.0.15";
     }
 
     public String getWorkDir() {
@@ -185,10 +185,11 @@ public class CodeAgent {
             agentBuilder.defaultSkillAdd(new TodoSkill());
 
             //上下文摘要
-//            SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(12,
-//                    new HierarchicalSummarizationStrategy(chatModel));
-//
-//            agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
+            SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
+                    12,
+                    new HierarchicalSummarizationStrategy(chatModel));
+
+            agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
             if (enableHitl) {
                 agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
