@@ -26,6 +26,7 @@ solon.code.cli:
     apiUrl: "https://ai.gitee.com/v1/chat/completions"
     apiKey: "******"
     model: "glm-5.0"
+    timeout: "120s"
     userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; SolonCode/1.0; +https://solon.noear.org/)"
 #    defaultOptions:
 #      enable_thinking: false #不同模型可能不同
@@ -39,6 +40,7 @@ solon.code.cli:
 #    gitee:
 #      url: "http://..."
 #      headers: { API_KEY: "xxx" }
+#      timeout: "120s"
 #    memory:
 #      command: "npx"
 #      args: [ "-y", "@modelcontextprotocol/server-memory" ]
