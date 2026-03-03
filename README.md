@@ -19,6 +19,10 @@ Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 
 * 广泛兼容：支持 Java 8 ~ 25 全环境运行（即便在老旧企业级项目中也能起飞）。
 * 网络能力：自带 Webfetch、Websearch 工具，方便感知网络（基于 `mcp.exa.ai/mcp` 封装）
 * 开源定制：（MIT 开源协议）方便企业基于 Java 生态去定制自己的 Agent
+* 兼容第三方规范：
+  * 支持自动加载 `.opencode/skills` 作为 `@opencode_skills` 只读池
+  * 支持自动加载 `.claude/skills` 作为 `@claude_skills` 只读池
+  * 支持自动加载 `CLAUDE.md` 作为代码项目规范
 
 ## 多态运行支持
 
@@ -50,7 +54,7 @@ Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 
 
 * 下载程序包
 
-[发布包](../../../../opensolon/soloncode/releases)
+[程序发布包（跨平台通用）](../../../../opensolon/soloncode/releases)
 
 * Bilibili 入门视频
 
@@ -58,7 +62,17 @@ Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 
 
 ## 扩展技能 (Skills)：
 
-* https://github.com/zrt-ai-lab/opencode-skills
+* https://github.com/zrt-ai-lab/opencode-skills 
 * https://github.com/openclaw/skills
 * https://github.com/ComposioHQ/awesome-claude-skills
+
+重要提醒：
+
+* 如果有跨技能 `.opencode` 或 `.claude` 开头的脚本调用，要放到工作区的规范目录下
+* 如果没有（跨技能），按普通技能池配置挂载
+
+兼容第三方规范（v0.0.16 后支持）：
+
+* 支持自动加载 `.opencode/skills` 作为 `@opencode_skills` 只读池
+* 支持自动加载 `.claude/skills` 作为 `@claude_skills` 只读池
 
