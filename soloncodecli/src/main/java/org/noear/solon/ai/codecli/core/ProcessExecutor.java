@@ -47,17 +47,14 @@ import java.util.function.Consumer;
 public class ProcessExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(ProcessExecutor.class);
 
+    private static final int DEFAULT_TIMEOUT_MS = 120_000; //120s
+
     private int maxOutputSize = 1024 * 1024; // 默认 1MB
-    private int timeoutSeconds = 120;        // 默认 120s
     private Charset scriptCharset = StandardCharsets.UTF_8;
     private Charset outputCharset = StandardCharsets.UTF_8;
 
     public int getMaxOutputSize() {
         return maxOutputSize;
-    }
-
-    public int getTimeoutSeconds() {
-        return timeoutSeconds;
     }
 
     public Charset getScriptCharset() {
@@ -75,13 +72,6 @@ public class ProcessExecutor {
         this.maxOutputSize = maxOutputSize;
     }
 
-    /**
-     * 配置超时时间（秒）
-     */
-    public void setTimeoutSeconds(int timeoutSeconds) {
-        this.timeoutSeconds = timeoutSeconds;
-    }
-
     public void setScriptCharset(Charset scriptCharset) {
         this.scriptCharset = scriptCharset;
     }
@@ -91,9 +81,32 @@ public class ProcessExecutor {
     }
 
     /**
+     * 探测系统命令是否可用
+     */
+    public boolean isCommandAvailable(String cmd) {
+        try {
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+            ProcessBuilder pb = new ProcessBuilder(isWindows ? Arrays.asList("where", cmd) : Arrays.asList("which", cmd));
+            Process process = pb.start();
+            return process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+
+    public String probePythonCommand() {
+        return isCommandAvailable("python3") ? "python3" : "python";
+    }
+
+    public String probeNodeCommand() {
+        return isCommandAvailable("node") ? "node" : "nodejs";
+    }
+
+    /**
      * 执行代码脚本（持久化为临时文件后执行）
      */
-    public String executeCode(Path rootPath, String code, String cmd, String ext, Map<String, String> envs, Consumer<String> onOutput) {
+    public String executeCode(Path rootPath, String code, String cmd, String ext, Map<String, String> envs, Integer timeoutMs, Consumer<String> onOutput) {
         Path tempScript = null;
         try {
             // 1. 持久化脚本
@@ -104,7 +117,7 @@ public class ProcessExecutor {
             List<String> fullCmd = new ArrayList<>(Arrays.asList(cmd.split("\\s+")));
             fullCmd.add(tempScript.toAbsolutePath().toString());
 
-            return executeCmd(rootPath, fullCmd, envs, onOutput);
+            return executeCmd(rootPath, fullCmd, envs, timeoutMs, onOutput);
         } catch (Exception e) {
             LOG.error("Code execution failed", e);
             return "代码执行失败: " + e.getMessage();
@@ -112,7 +125,8 @@ public class ProcessExecutor {
             if (tempScript != null) {
                 try {
                     Files.deleteIfExists(tempScript);
-                } catch (IOException ignored) {}
+                } catch (IOException ignored) {
+                }
             }
         }
     }
@@ -120,7 +134,11 @@ public class ProcessExecutor {
     /**
      * 执行完整命令，支持实时输出回调
      */
-    public String executeCmd(Path rootPath, List<String> fullCmd, Map<String, String> envs, Consumer<String> onOutput) {
+    public String executeCmd(Path rootPath, List<String> fullCmd, Map<String, String> envs, Integer timeoutMs, Consumer<String> onOutput) {
+        if (timeoutMs == null || timeoutMs < 0) {
+            timeoutMs = DEFAULT_TIMEOUT_MS;
+        }
+
         try {
             ProcessBuilder pb = new ProcessBuilder(fullCmd);
             pb.directory(rootPath.toFile());
@@ -164,9 +182,9 @@ public class ProcessExecutor {
             });
 
             // 2. 超时控制
-            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+            if (!process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
                 process.destroyForcibly();
-                return "执行超时：运行时间超过 " + timeoutSeconds + " 秒。";
+                return "执行超时：运行时间超过 " + timeoutMs + " 毫秒。";
             }
 
             // 3. 获取输出结果
