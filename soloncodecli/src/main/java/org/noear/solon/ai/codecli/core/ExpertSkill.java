@@ -153,13 +153,14 @@ public class ExpertSkill extends AbsSkill {
 
         try {
             String content = Files.exists(md) ? new String(Files.readAllBytes(md), StandardCharsets.UTF_8) : "";
+
             StringBuilder sb = new StringBuilder("\n<skill_content name=\"" + skill.aliasPath + "\">\n");
-            sb.append("[SYSTEM NOTE: You have successfully accessed this skill specification. Do not re-read unless necessary.]\n");
+            sb.append("[SYSTEM NOTE: Access granted. Use the <alias> paths in 'bash' tool for execution.]\n");
+
             sb.append(content.trim()).append("\n\n");
-            sb.append("Base Directory: ").append(skill.aliasPath).append("\n");
 
             if (includeFiles) {
-                sb.append("<skill_files>\n").append(sampleFiles(skill.realPath)).append("</skill_files>\n");
+                sb.append("<skill_files>\n").append(sampleFiles(skill)).append("</skill_files>\n");
             }
             sb.append("</skill_content>\n");
             return sb.toString();
@@ -168,12 +169,37 @@ public class ExpertSkill extends AbsSkill {
         }
     }
 
-    private String sampleFiles(Path dir) throws IOException {
-        try (Stream<Path> stream = Files.walk(dir, 2)) {
+    private String sampleFiles(PoolManager.SkillDir skill) throws IOException {
+        Path dir = skill.realPath;
+        String aliasBase = skill.aliasPath;
+
+        // 定义忽略列表，过滤掉干扰项
+        Set<String> ignorePatterns = new HashSet<>(Arrays.asList(
+                ".DS_Store", "__pycache__", ".git", ".idea", ".vscode", "node_modules", "venv"
+        ));
+
+        try (Stream<Path> stream = Files.walk(dir, 3)) { // 深度增至 3，以便看到 scripts/ 下的内容
             return stream.filter(Files::isRegularFile)
-                    .filter(p -> !p.getFileName().toString().equalsIgnoreCase("SKILL.md"))
-                    .limit(10) // 增加到 10 个展示
-                    .map(p -> "  <file>" + dir.relativize(p).toString().replace("\\", "/") + "</file>")
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        // 过滤 SKILL.md 本身和隐藏文件/杂质
+                        return !name.equalsIgnoreCase("SKILL.md") &&
+                                !ignorePatterns.contains(name) &&
+                                !name.startsWith(".");
+                    })
+                    .map(p -> {
+                        String relative = dir.relativize(p).toString().replace("\\", "/");
+                        String logical = (aliasBase + "/" + relative).replace("//", "/");
+
+                        // 返回结构化标签
+                        return String.format(
+                                "  <file>\n" +
+                                        "    <rel>%s</rel>\n" +
+                                        "    <alias>%s</alias>\n" +
+                                        "  </file>",
+                                relative, logical
+                        );
+                    })
                     .collect(Collectors.joining("\n"));
         }
     }
