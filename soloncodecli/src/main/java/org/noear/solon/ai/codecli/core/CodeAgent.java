@@ -11,7 +11,6 @@ import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
 import org.noear.solon.ai.agent.react.intercept.summarize.*;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.hitl.HitlStrategy;
 import org.noear.solon.ai.codecli.core.tool.ApplyPatchTool;
 import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
@@ -180,6 +179,8 @@ public class CodeAgent {
                     cliSkillProvider.skillPool(entry.getKey(), entry.getValue());
                 }
             }
+
+            cliSkillProvider.getTerminalSkill().setSandboxMode(config.sandboxMode);
 
             cliSkillProvider.skillPool("@soloncode_skills", config.workDir + CodeAgent.SOLONCODE_SKILLS);
             cliSkillProvider.skillPool("@opencode_skills", config.workDir + CodeAgent.OPENCODE_SKILLS);

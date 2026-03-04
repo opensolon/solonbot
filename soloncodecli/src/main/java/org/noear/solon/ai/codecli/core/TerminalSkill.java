@@ -37,8 +37,11 @@ public class TerminalSkill extends AbsSkill {
     private final String extension;
     private final ShellMode shellMode;
     private final String envExample; // 增加范例字段
-    private final PoolManager skillManager; // 引入技能管理器
     private final Map<String, String> undoHistory = new ConcurrentHashMap<>();
+
+    //沙盒模式：只能访问相对咱径或逻辑路径；（否则为）开放模式：可以访问绝对路径
+    private boolean sandboxMode = true;
+    private final PoolManager skillManager; // 引入技能管理器
 
     private final String pythonCmd;
     private final String nodeCmd;
@@ -47,8 +50,14 @@ public class TerminalSkill extends AbsSkill {
     protected final ProcessExecutor executor = new ProcessExecutor();
 
     private final List<String> DEFAULT_IGNORES = Arrays.asList(
-            ".soloncode", ".claude", ".opencode", ".git", "node_modules", ".DS_Store"
+            ".soloncode", ".claude", ".opencode", ".git", ".DS_Store",
+            "node_modules", "target", "bin",
+            "venv", "vendor", "build"
     );
+
+    public void setSandboxMode(boolean sandboxMode) {
+        this.sandboxMode = sandboxMode;
+    }
 
     public TerminalSkill(PoolManager skillManager) {
         this(null, skillManager);

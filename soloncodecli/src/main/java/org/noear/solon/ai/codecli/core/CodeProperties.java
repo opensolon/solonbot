@@ -39,6 +39,9 @@ public class CodeProperties {
     public int sessionWindowSize = 10;
     public int summaryWindowSize = 15;
 
+    public boolean sandboxMode = true;
+    public boolean hitlEnabled = false;
+
     public boolean cliEnabled = true;
     public boolean cliPrintSimplified = true;
 
@@ -48,8 +51,6 @@ public class CodeProperties {
     public boolean acpEnabled = false;
     public String acpTransport = "stdio";
     public String acpEndpoint = "/acp";
-
-    public boolean hitlEnabled = false;
 
     public Map<String, McpServerParameters> mcpServers;
     public ChatConfig chatModel;
