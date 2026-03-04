@@ -78,7 +78,7 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
     }
 
     @Override
-    protected String buildSystemPrompt() {
+    protected String getDefaultSystemPrompt() {
         return "## 通用任务代理\n\n" +
                 "你是一个功能全面的任务执行专家，能够处理各种复杂的多步骤任务。\n" +
                 "\n" +

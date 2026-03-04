@@ -69,7 +69,7 @@ public class ExploreSubAgent extends AbstractSubAgent {
     }
 
     @Override
-    protected String buildSystemPrompt() {
+    protected String getDefaultSystemPrompt() {
         return "## 探索代理\n\n" +
                 "你是一个快速的代码库探索专家。你的任务是：\n" +
                 "\n" +

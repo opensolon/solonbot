@@ -53,6 +53,8 @@ public class CodeProperties {
     public String acpTransport = "stdio";
     public String acpEndpoint = "/acp";
 
+    public boolean subAgentEnabled = false;
+
     public Map<String, McpServerParameters> mcpServers;
     public ChatConfig chatModel;
     @Deprecated

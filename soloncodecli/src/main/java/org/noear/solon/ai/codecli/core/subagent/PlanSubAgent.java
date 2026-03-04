@@ -50,7 +50,7 @@ public class PlanSubAgent extends AbstractSubAgent {
     }
 
     @Override
-    protected String buildSystemPrompt() {
+    protected String getDefaultSystemPrompt() {
         return "## 计划代理（软件架构师）\n\n" +
                 "你是一个经验丰富的软件架构师，负责设计实现方案和制定执行计划。\n" +
                 "\n" +

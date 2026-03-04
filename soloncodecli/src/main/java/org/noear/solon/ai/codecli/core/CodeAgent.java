@@ -61,8 +61,6 @@ public class CodeAgent {
     private final Map<String, String> skillPools = new LinkedHashMap<>();
     private final McpProviders mcpProviders;
     private Consumer<ReActAgent.Builder> configurator;
-    private boolean enableHitl = true;
-    private boolean enableSubAgent = true; // 默认启用子代理
     private SubAgentManager subAgentManager;
 
     public CodeAgent(ChatModel chatModel, AgentSessionProvider sessionProvider, CodeProperties config) {
@@ -114,22 +112,6 @@ public class CodeAgent {
 
     public CodeAgent config(Consumer<ReActAgent.Builder> configurator) {
         this.configurator = configurator;
-        return this;
-    }
-
-    /**
-     * 是否启用 HITL 交互
-     */
-    public CodeAgent enableHitl(boolean enableHitl) {
-        this.enableHitl = enableHitl;
-        return this;
-    }
-
-    /**
-     * 是否启用子代理功能
-     */
-    public CodeAgent enableSubAgent(boolean enableSubAgent) {
-        this.enableSubAgent = enableSubAgent;
         return this;
     }
 
@@ -226,7 +208,7 @@ public class CodeAgent {
             agentBuilder.defaultSkillAdd(new TodoSkill());
 
             // 添加子代理工具
-            if (enableSubAgent) {
+            if (config.subAgentEnabled) {
                 subAgentManager = new SubAgentManager(
                         sessionProvider,
                         config.workDir,
@@ -247,8 +229,7 @@ public class CodeAgent {
             agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
             // HITL 交互干预（优先使用实例字段，否则使用配置）
-            boolean hitlEnabled = this.enableHitl || config.hitlEnabled;
-            if (hitlEnabled) {
+            if (config.hitlEnabled) {
                 agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
                         .onTool("bash", new HitlStrategy()));
                 LOG.info("HITL 交互干预已启用");

@@ -64,7 +64,7 @@ public class BashSubAgent extends AbstractSubAgent {
     }
 
     @Override
-    protected String buildSystemPrompt() {
+    protected String getDefaultSystemPrompt() {
         return "## Bash 命令代理\n\n" +
                 "你是一个命令行执行专家，专门负责执行各种 shell 命令和操作。\n" +
                 "\n" +
