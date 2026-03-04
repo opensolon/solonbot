@@ -2,8 +2,8 @@
 
 ### v0.0.17
 
-* 添加 summaryWindowSize 摘要窗口大小（即，工作上下文压缩时保留几条消息）
-* 添加 sandboxMode （沙盒模式）配置（之前只能是沙盒模式，现在可关闭）
+* 添加 summaryWindowSize 摘要窗口大小（即，工作上下文压缩时保留几条消息），一般 12 或 15（更吃 token，但保留更多最近交互）
+* 添加 sandboxMode 配置。`:true`（沙盒模式，只能访问工作区内的相对路径）, `:false`（开放模式，支持工作区外的绝对路径）
 * 添加 thinkPrinted 配置（关闭界面更清爽）
 * 优化 CodeSkill 增加三级扫描（之前为二级）
 
