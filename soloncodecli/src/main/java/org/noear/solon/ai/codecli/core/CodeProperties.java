@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.ai.codecli;
+package org.noear.solon.ai.codecli.core;
 
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
@@ -30,12 +30,14 @@ import java.util.Map;
  */
 @Configuration
 @BindProps(prefix="solon.code.cli")
-public class Config {
+public class CodeProperties {
     public String workDir = "./work";
 
     public int maxSteps = 30;
     public boolean maxStepsAutoExtensible = false;
+
     public int sessionWindowSize = 10;
+    public int summaryWindowSize = 15;
 
     public boolean cliEnabled = true;
     public boolean cliPrintSimplified = true;

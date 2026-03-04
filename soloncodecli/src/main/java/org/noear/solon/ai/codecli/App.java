@@ -24,6 +24,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.codecli.core.CodeProperties;
 import org.noear.solon.ai.codecli.portal.AcpLink;
 import org.noear.solon.ai.codecli.core.CodeAgent;
 import org.noear.solon.ai.codecli.portal.CliShell;
@@ -34,7 +35,6 @@ import org.noear.solon.core.util.Assert;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -48,7 +48,7 @@ public class App {
 
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
-            Config c = app.cfg().toBean("solon.code.cli", Config.class);
+            CodeProperties c = app.cfg().toBean("solon.code.cli", CodeProperties.class);
 
             app.enableHttp(false); //默认不启用 http
 
@@ -62,15 +62,16 @@ public class App {
             }
         });
 
-        Config config = Solon.context().getBean(Config.class);
+        CodeProperties config = Solon.context().getBean(CodeProperties.class);
 
         if (config == null || config.chatModel == null) {
             throw new RuntimeException("ChatModel config not found");
         }
 
         ChatModel chatModel = ChatModel.of(config.chatModel).build();
-        Map<String, AgentSession> store = new ConcurrentHashMap<>();
-        AgentSessionProvider sessionProvider = (sessionId) -> store.computeIfAbsent(sessionId, key ->
+        Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
+
+        AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
                 new FileAgentSession(key, config.workDir + CodeAgent.SOLONCODE_SESSIONS + key));
 
         File skillsDir = new File(config.workDir + CodeAgent.SOLONCODE_SKILLS);
@@ -78,48 +79,9 @@ public class App {
             skillsDir.mkdirs();
         }
 
-        final McpProviders mcpProviders;
 
-        try {
-            if (Assert.isNotEmpty(config.mcpServers)) {
-                mcpProviders = McpProviders.fromMcpServers(config.mcpServers);
-            } else {
-                mcpProviders = null;
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Mcp servers load failure", e);
-        }
+        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider, config);
 
-        CodeAgent codeAgent = new CodeAgent(chatModel)
-                .workDir(config.workDir)
-                .session(sessionProvider)
-                .enableHitl(config.hitlEnabled)
-                .config(agent -> {
-                    if (mcpProviders != null) {
-                        for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
-                            agent.defaultToolAdd(mcpProvider);
-                        }
-                    }
-
-                    // 添加步数
-                    agent.maxSteps(config.maxSteps);
-                    // 添加步数自动扩展
-                    agent.maxStepsExtensible(config.maxStepsAutoExtensible);
-                    // 添加会话窗口大小
-                    agent.sessionWindowSize(config.sessionWindowSize);
-                });
-
-        if (Assert.isNotEmpty(config.mountPool)) {
-            config.mountPool.forEach((alias, dir) -> {
-                codeAgent.skillPool(alias, dir);
-            });
-        }
-
-        if (Assert.isNotEmpty(config.skillPools)) {
-            config.skillPools.forEach((alias, dir) -> {
-                codeAgent.skillPool(alias, dir);
-            });
-        }
 
         if (config.cliEnabled) {
             new Thread(new CliShell(codeAgent, config.cliPrintSimplified), "CLI-Interactive-Thread").start();

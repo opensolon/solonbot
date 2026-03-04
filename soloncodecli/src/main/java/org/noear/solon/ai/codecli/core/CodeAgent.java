@@ -9,7 +9,6 @@ import org.noear.solon.ai.agent.react.ReActRequest;
 import org.noear.solon.ai.agent.react.intercept.HITLInterceptor;
 import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
 import org.noear.solon.ai.agent.react.intercept.summarize.*;
-import org.noear.solon.ai.agent.session.InMemoryAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.codecli.core.hitl.HitlStrategy;
@@ -17,6 +16,8 @@ import org.noear.solon.ai.codecli.core.tool.ApplyPatchTool;
 import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
+import org.noear.solon.ai.mcp.client.McpClientProvider;
+import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.core.util.ResourceUtil;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
@@ -32,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -53,19 +54,39 @@ public class CodeAgent {
     public final static String CLAUDE_SKILLS = "/.claude/skills/";
 
     private final ChatModel chatModel;
-    private AgentSessionProvider sessionProvider;
-    private String workDir = ".";
+    private final AgentSessionProvider sessionProvider;
+    private final CodeProperties config;
+
     private final Map<String, String> skillPools = new LinkedHashMap<>();
+    private final McpProviders mcpProviders;
     private Consumer<ReActAgent.Builder> configurator;
-    private boolean enableHitl = false;
 
-    public CodeAgent(ChatModel chatModel) {
+    public CodeAgent(ChatModel chatModel, AgentSessionProvider sessionProvider, CodeProperties config) {
         this.chatModel = chatModel;
-    }
+        this.sessionProvider = sessionProvider;
+        this.config = config;
 
-    public CodeAgent workDir(String workDir) {
-        this.workDir = workDir;
-        return this;
+        if (Assert.isNotEmpty(config.mountPool)) {
+            config.mountPool.forEach((alias, dir) -> {
+                skillPool(alias, dir);
+            });
+        }
+
+        if (Assert.isNotEmpty(config.skillPools)) {
+            config.skillPools.forEach((alias, dir) -> {
+                skillPool(alias, dir);
+            });
+        }
+
+        try {
+            if (Assert.isNotEmpty(config.mcpServers)) {
+                mcpProviders = McpProviders.fromMcpServers(config.mcpServers);
+            } else {
+                mcpProviders = null;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Mcp servers load failure", e);
+        }
     }
 
     public String getVersion() {
@@ -73,7 +94,7 @@ public class CodeAgent {
     }
 
     public String getWorkDir() {
-        return workDir;
+        return config.workDir;
     }
 
     public CodeAgent skillPool(String alias, String dir) {
@@ -83,28 +104,15 @@ public class CodeAgent {
         return this;
     }
 
-    public CodeAgent session(AgentSessionProvider sessionProvider) {
-        this.sessionProvider = sessionProvider;
-        return this;
-    }
-
     public CodeAgent config(Consumer<ReActAgent.Builder> configurator) {
         this.configurator = configurator;
-        return this;
-    }
-
-    /**
-     * 是否启用 HITL 交互
-     */
-    public CodeAgent enableHitl(boolean enableHitl) {
-        this.enableHitl = enableHitl;
         return this;
     }
 
     private ReActAgent reActAgent;
 
     public CodeSkill getCodeSkill(AgentSession session) {
-        String effectiveWorkDir = (String) session.attrs().getOrDefault("context:cwd", this.workDir);
+        String effectiveWorkDir = (String) session.attrs().getOrDefault("context:cwd", config.workDir);
 
         return (CodeSkill) session.attrs().computeIfAbsent("CodeSkill", x -> {
             CodeSkill skill = new CodeSkill(effectiveWorkDir);
@@ -126,7 +134,7 @@ public class CodeAgent {
         URL agentsUrl;
 
         try {
-            Path path = Paths.get(workDir).toAbsolutePath().normalize().resolve("AGENTS.md");
+            Path path = Paths.get(config.workDir).toAbsolutePath().normalize().resolve("AGENTS.md");
             if (Files.exists(path)) {
                 //如果工作区有
                 agentsUrl = path.toUri().toURL();
@@ -155,11 +163,6 @@ public class CodeAgent {
 
     public void prepare() {
         if (reActAgent == null) {
-            if (sessionProvider == null) {
-                Map<String, AgentSession> store = new ConcurrentHashMap<>();
-                sessionProvider = (k) -> store.computeIfAbsent(k, InMemoryAgentSession::new);
-            }
-
             final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel);
             final String agentsMd = getAgentsMd();
 
@@ -178,9 +181,9 @@ public class CodeAgent {
                 }
             }
 
-            cliSkillProvider.skillPool("@soloncode_skills", workDir + CodeAgent.SOLONCODE_SKILLS);
-            cliSkillProvider.skillPool("@opencode_skills", workDir + CodeAgent.OPENCODE_SKILLS);
-            cliSkillProvider.skillPool("@claude_skills", workDir + CodeAgent.CLAUDE_SKILLS);
+            cliSkillProvider.skillPool("@soloncode_skills", config.workDir + CodeAgent.SOLONCODE_SKILLS);
+            cliSkillProvider.skillPool("@opencode_skills", config.workDir + CodeAgent.OPENCODE_SKILLS);
+            cliSkillProvider.skillPool("@claude_skills", config.workDir + CodeAgent.CLAUDE_SKILLS);
 
             agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
             agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
@@ -191,14 +194,27 @@ public class CodeAgent {
 
             //上下文摘要
             SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
-                    12,
+                    config.summaryWindowSize,
                     new HierarchicalSummarizationStrategy(chatModel));
 
             agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
-            if (enableHitl) {
+            if (config.hitlEnabled) {
                 agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
                         .onTool("bash", new HitlStrategy()));
+            }
+
+            // 添加步数
+            agentBuilder.maxSteps(config.maxSteps);
+            // 添加步数自动扩展
+            agentBuilder.maxStepsExtensible(config.maxStepsAutoExtensible);
+            // 添加会话窗口大小
+            agentBuilder.sessionWindowSize(config.sessionWindowSize);
+
+            if (mcpProviders != null) {
+                for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
+                    agentBuilder.defaultToolAdd(mcpProvider);
+                }
             }
 
             if (configurator != null) {
@@ -215,7 +231,7 @@ public class CodeAgent {
         }
 
         AgentSession session = sessionProvider.getSession(sessonId);
-        String activatedWorkDir = (String) session.attrs().getOrDefault("context:cwd", workDir);
+        String activatedWorkDir = (String) session.attrs().getOrDefault("context:cwd", config.workDir);
 
         return reActAgent.prompt(prompt)
                 .session(session)
@@ -229,7 +245,7 @@ public class CodeAgent {
 
     public String init(AgentSession session) {
         String code = getCodeSkill(session).refresh();
-        String search = getLuceneSkill(session).refreshSearchIndex(workDir);
+        String search = getLuceneSkill(session).refreshSearchIndex(config.workDir);
 
         if (Assert.isNotEmpty(code)) {
             return search + "\n" + code;
