@@ -3,7 +3,7 @@
 ### v0.0.17
 
 * 添加 summaryWindowSize 摘要窗口大小（即，工作上下文压缩时保留几条消息）
-* 添加 sandboxMode （沙盒模式）配置
+* 添加 sandboxMode （沙盒模式）配置（之前只能是沙盒模式，现在可关闭）
 * 优化 CodeSkill 增加三级扫描（之前为二级）
 
 ### v0.0.16
