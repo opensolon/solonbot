@@ -14,7 +14,7 @@ import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
@@ -25,11 +25,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AcpLink implements Runnable{
-    private final CodeAgent codeAgent; // CodeCLI 内部的 Agent
+    private final AgentKernel kernel; // CodeCLI 内部的 Agent
     private final AcpAgentTransport agentTransport;
 
-    public AcpLink(CodeAgent codeAgent, AcpAgentTransport agentTransport) {
-        this.codeAgent = codeAgent;
+    public AcpLink(AgentKernel kernel, AcpAgentTransport agentTransport) {
+        this.kernel = kernel;
         this.agentTransport = agentTransport;
     }
 
@@ -66,11 +66,11 @@ public class AcpLink implements Runnable{
                     AcpSessionContext context = sessionStates.get(sessionId);
 
                     Prompt userInput = toPrompt(request);
-                    AgentSession session = codeAgent.getSession(sessionId);
+                    AgentSession session = kernel.getSession(sessionId);
                     session.attrs().put("context:cwd", context.getCwd());
 
                     // 将 ACP 的 Prompt 转发给 Solon ReActAgent
-                    return codeAgent.stream(request.sessionId(), userInput)
+                    return kernel.stream(request.sessionId(), userInput)
                             .concatMap(chunk -> {
                                 // --- 规划阶段 ---
                                 if (chunk instanceof PlanChunk) {

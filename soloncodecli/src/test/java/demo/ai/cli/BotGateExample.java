@@ -1,6 +1,6 @@
 package demo.ai.cli;
 
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.portal.BotGate;
 import org.noear.solon.ai.codecli.portal.BotChannelRegistry;
 import org.noear.solon.ai.codecli.portal.BotWebChannel;
@@ -20,7 +20,7 @@ public class BotGateExample {
         // CodeAgent codeAgent = new CodeAgent(chatModel);
         
         // 为了演示，我们使用 null（实际运行时会报错）
-        CodeAgent codeAgent = null;
+        AgentKernel codeAgent = null;
         
         // 创建 BotGate 实例
         BotGate botGate = new BotGate(codeAgent);

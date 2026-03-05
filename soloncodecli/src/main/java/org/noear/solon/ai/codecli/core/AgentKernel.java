@@ -38,15 +38,15 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Code CLI 终端 (Pool-Box 模型)
- * <p>基于 ReAct 模式的代码协作终端，提供多池挂载与任务盒隔离体验</p>
+ * 智能体内核 (Pool-Box 模型)
+ * <p>基于 ReAct 模式的终端智能助理，提供多池挂载与任务盒隔离体验</p>
  *
  * @author noear
  * @since 3.9.1
  */
 @Preview("3.9.1")
-public class CodeAgent {
-    private final static Logger LOG = LoggerFactory.getLogger(CodeAgent.class);
+public class AgentKernel {
+    private final static Logger LOG = LoggerFactory.getLogger(AgentKernel.class);
 
     public final static String SESSION_DEFAULT = "cli";
     public final static String SOLONCODE_SESSIONS = "/.soloncode/sessions/";
@@ -59,33 +59,33 @@ public class CodeAgent {
 
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
-    private final CodeProperties config;
+    private final AgentProperties properties;
 
     private final Map<String, String> skillPools = new LinkedHashMap<>();
     private final McpProviders mcpProviders;
     private Consumer<ReActAgent.Builder> configurator;
     private SubAgentManager subAgentManager;
 
-    public CodeAgent(ChatModel chatModel, AgentSessionProvider sessionProvider, CodeProperties config) {
+    public AgentKernel(ChatModel chatModel, AgentSessionProvider sessionProvider, AgentProperties properties) {
         this.chatModel = chatModel;
         this.sessionProvider = sessionProvider;
-        this.config = config;
+        this.properties = properties;
 
-        if (Assert.isNotEmpty(config.mountPool)) {
-            config.mountPool.forEach((alias, dir) -> {
+        if (Assert.isNotEmpty(properties.mountPool)) {
+            properties.mountPool.forEach((alias, dir) -> {
                 skillPool(alias, dir);
             });
         }
 
-        if (Assert.isNotEmpty(config.skillPools)) {
-            config.skillPools.forEach((alias, dir) -> {
+        if (Assert.isNotEmpty(properties.skillPools)) {
+            properties.skillPools.forEach((alias, dir) -> {
                 skillPool(alias, dir);
             });
         }
 
         try {
-            if (Assert.isNotEmpty(config.mcpServers)) {
-                mcpProviders = McpProviders.fromMcpServers(config.mcpServers);
+            if (Assert.isNotEmpty(properties.mcpServers)) {
+                mcpProviders = McpProviders.fromMcpServers(properties.mcpServers);
             } else {
                 mcpProviders = null;
             }
@@ -98,22 +98,22 @@ public class CodeAgent {
         return "v0.0.18";
     }
 
-    public CodeProperties getConfig() {
-        return config;
+    public AgentProperties getProps() {
+        return properties;
     }
 
     public String getWorkDir() {
-        return config.workDir;
+        return properties.workDir;
     }
 
-    public CodeAgent skillPool(String alias, String dir) {
+    public AgentKernel skillPool(String alias, String dir) {
         if (dir != null) {
             this.skillPools.put(alias, dir);
         }
         return this;
     }
 
-    public CodeAgent config(Consumer<ReActAgent.Builder> configurator) {
+    public AgentKernel config(Consumer<ReActAgent.Builder> configurator) {
         this.configurator = configurator;
         return this;
     }
@@ -128,7 +128,7 @@ public class CodeAgent {
     private ReActAgent reActAgent;
 
     public CodeSkill getCodeSkill(AgentSession session) {
-        String effectiveWorkDir = (String) session.attrs().getOrDefault("context:cwd", config.workDir);
+        String effectiveWorkDir = (String) session.attrs().getOrDefault("context:cwd", properties.workDir);
 
         return (CodeSkill) session.attrs().computeIfAbsent("CodeSkill", x -> {
             CodeSkill skill = new CodeSkill(effectiveWorkDir);
@@ -150,7 +150,7 @@ public class CodeAgent {
         URL agentsUrl;
 
         try {
-            Path path = Paths.get(config.workDir).toAbsolutePath().normalize().resolve("AGENTS.md");
+            Path path = Paths.get(properties.workDir).toAbsolutePath().normalize().resolve("AGENTS.md");
             if (Files.exists(path)) {
                 //如果工作区有
                 agentsUrl = path.toUri().toURL();
@@ -197,11 +197,11 @@ public class CodeAgent {
                 }
             }
 
-            cliSkillProvider.getTerminalSkill().setSandboxMode(config.sandboxMode);
+            cliSkillProvider.getTerminalSkill().setSandboxMode(properties.sandboxMode);
 
-            cliSkillProvider.skillPool("@soloncode_skills", config.workDir + CodeAgent.SOLONCODE_SKILLS);
-            cliSkillProvider.skillPool("@opencode_skills", config.workDir + CodeAgent.OPENCODE_SKILLS);
-            cliSkillProvider.skillPool("@claude_skills", config.workDir + CodeAgent.CLAUDE_SKILLS);
+            cliSkillProvider.skillPool("@soloncode_skills", properties.workDir + AgentKernel.SOLONCODE_SKILLS);
+            cliSkillProvider.skillPool("@opencode_skills", properties.workDir + AgentKernel.OPENCODE_SKILLS);
+            cliSkillProvider.skillPool("@claude_skills", properties.workDir + AgentKernel.CLAUDE_SKILLS);
 
             agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
             agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
@@ -211,10 +211,10 @@ public class CodeAgent {
             agentBuilder.defaultSkillAdd(new TodoSkill());
 
             // 添加子代理工具
-            if (config.subAgentEnabled) {
+            if (properties.subAgentEnabled) {
                 subAgentManager = new SubAgentManager(
                         sessionProvider,
-                        config.workDir,
+                        properties.workDir,
                         cliSkillProvider.getPoolManager(),
                         this,
                         chatModel
@@ -222,11 +222,11 @@ public class CodeAgent {
 
                 // 注册自定义 agents 池（类似 skillPool）
                 // 注册 soloncode agents
-                subAgentManager.agentPool("@soloncode_agents", config.workDir + CodeAgent.SOLONCODE_AGENTS);
+                subAgentManager.agentPool("@soloncode_agents", properties.workDir + AgentKernel.SOLONCODE_AGENTS);
                 // 注册 opencode agents
-                subAgentManager.agentPool("@opencode_agents",config.workDir +  CodeAgent.OPENCODE_AGENTS);
+                subAgentManager.agentPool("@opencode_agents", properties.workDir +  AgentKernel.OPENCODE_AGENTS);
                 // 注册 claude agents
-                subAgentManager.agentPool("@claude_agents",config.workDir +  CodeAgent.CLAUDE_AGENTS);
+                subAgentManager.agentPool("@claude_agents", properties.workDir +  AgentKernel.CLAUDE_AGENTS);
 
                 // SubAgentTool 会通过 @ToolMapping 自动注册为工具
                 agentBuilder.defaultToolAdd(new SubAgentTool(subAgentManager));
@@ -235,24 +235,24 @@ public class CodeAgent {
 
             //上下文摘要
             SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
-                    config.summaryWindowSize,
+                    properties.summaryWindowSize,
                     new HierarchicalSummarizationStrategy(chatModel));
 
             agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
             // HITL 交互干预（优先使用实例字段，否则使用配置）
-            if (config.hitlEnabled) {
+            if (properties.hitlEnabled) {
                 agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
                         .onTool("bash", new HitlStrategy()));
                 LOG.info("HITL 交互干预已启用");
             }
 
             // 添加步数
-            agentBuilder.maxSteps(config.maxSteps);
+            agentBuilder.maxSteps(properties.maxSteps);
             // 添加步数自动扩展
-            agentBuilder.maxStepsExtensible(config.maxStepsAutoExtensible);
+            agentBuilder.maxStepsExtensible(properties.maxStepsAutoExtensible);
             // 添加会话窗口大小
-            agentBuilder.sessionWindowSize(config.sessionWindowSize);
+            agentBuilder.sessionWindowSize(properties.sessionWindowSize);
 
             if (mcpProviders != null) {
                 for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
@@ -274,7 +274,7 @@ public class CodeAgent {
         }
 
         AgentSession session = sessionProvider.getSession(sessonId);
-        String activatedWorkDir = (String) session.attrs().getOrDefault("context:cwd", config.workDir);
+        String activatedWorkDir = (String) session.attrs().getOrDefault("context:cwd", properties.workDir);
 
         return reActAgent.prompt(prompt)
                 .session(session)
@@ -288,7 +288,7 @@ public class CodeAgent {
 
     public String init(AgentSession session) {
         String code = getCodeSkill(session).refresh();
-        String search = getLuceneSkill(session).refreshSearchIndex(config.workDir);
+        String search = getLuceneSkill(session).refreshSearchIndex(properties.workDir);
 
         if (Assert.isNotEmpty(code)) {
             return search + "\n" + code;

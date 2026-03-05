@@ -21,15 +21,13 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.MimeType;
 import org.noear.solon.lang.Preview;
 import reactor.core.publisher.Flux;
-
-import java.io.Serializable;
 
 /**
  * Code CLI 终端 (Pool-Box 模型)
@@ -40,15 +38,15 @@ import java.io.Serializable;
  */
 @Preview("3.9.1")
 public class WebGate implements Handler {
-    private final CodeAgent codeAgent;
+    private final AgentKernel kernel;
 
-    public WebGate(CodeAgent codeAgent) {
-        this.codeAgent = codeAgent;
+    public WebGate(AgentKernel kernel) {
+        this.kernel = kernel;
     }
 
     @Override
     public void handle(Context ctx) throws Throwable {
-        codeAgent.prepare();
+        kernel.prepare();
 
         String input = ctx.param("input");
         String mode = ctx.param("m");
@@ -69,14 +67,14 @@ public class WebGate implements Handler {
                 return;
             }
 
-            AgentSession session = codeAgent.getSession(sessionId);
+            AgentSession session = kernel.getSession(sessionId);
             session.attrs().putIfAbsent("context:cwd", sessionCwd);
         }
 
         if (Assert.isNotEmpty(input)) {
             if ("call".equals(mode)) {
                 ctx.contentType(MimeType.TEXT_PLAIN_UTF8_VALUE);
-                String result = codeAgent.call(sessionId, Prompt.of(input))
+                String result = kernel.call(sessionId, Prompt.of(input))
                         .getContent();
 
                 ctx.output(result);
@@ -84,7 +82,7 @@ public class WebGate implements Handler {
                 ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
 
 
-                Flux<String> stringFlux = codeAgent.stream(sessionId, Prompt.of(input))
+                Flux<String> stringFlux = kernel.stream(sessionId, Prompt.of(input))
                         .map(chunk -> {
                             if (chunk.hasContent()) {
                                 if (chunk instanceof ReasonChunk) {

@@ -17,7 +17,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.PoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +26,6 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,7 +42,7 @@ public class SubAgentManager {
     private final AgentSessionProvider sessionProvider;
     private final String workDir;
     private final PoolManager poolManager;
-    private final CodeAgent mainCodeAgent;
+    private final AgentKernel mainCodeAgent;
     private final ChatModel chatModel;
 
     // Agents 池（类似 skillPool）
@@ -53,7 +51,7 @@ public class SubAgentManager {
     public SubAgentManager(AgentSessionProvider sessionProvider,
                            String workDir,
                            PoolManager poolManager,
-                           CodeAgent mainCodeAgent,
+                           AgentKernel mainCodeAgent,
                            ChatModel chatModel) {
         this.sessionProvider = sessionProvider;
         this.workDir = workDir;

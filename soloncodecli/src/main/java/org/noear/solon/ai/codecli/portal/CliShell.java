@@ -33,7 +33,7 @@ import org.noear.solon.ai.agent.react.task.ActionChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
@@ -55,8 +55,7 @@ public class CliShell implements Runnable {
 
     private Terminal terminal;
     private LineReader reader;
-    private final CodeAgent codeAgent;
-    private final boolean cliPrintSimplified;
+    private final AgentKernel kernel;
 
     // ANSI 颜色常量 - 严格对齐 Claude 极简风
     private final static String
@@ -68,9 +67,8 @@ public class CliShell implements Runnable {
             CYAN = "\033[36m",
             RESET = "\033[0m";
 
-    public CliShell(CodeAgent codeAgent, boolean cliPrintSimplified) {
-        this.codeAgent = codeAgent;
-        this.cliPrintSimplified = cliPrintSimplified;
+    public CliShell(AgentKernel kernel) {
+        this.kernel = kernel;
 
         try {
             this.terminal = TerminalBuilder.builder()
@@ -87,12 +85,12 @@ public class CliShell implements Runnable {
 
     @Override
     public void run() {
-        codeAgent.prepare();
+        kernel.prepare();
         printWelcome();
-        AgentSession session = codeAgent.getSession("cli");
+        AgentSession session = kernel.getSession("cli");
 
         // 1. 初始化对齐
-        codeAgent.init(session);
+        kernel.init(session);
 
         // 2. 主循环
         while (true) {
@@ -137,7 +135,7 @@ public class CliShell implements Runnable {
             final AtomicBoolean isFirstReasonChunk = new AtomicBoolean(true);
 
 
-            Disposable disposable = codeAgent.stream(session.getSessionId(), Prompt.of(currentInput))
+            Disposable disposable = kernel.stream(session.getSessionId(), Prompt.of(currentInput))
                     .subscribeOn(Schedulers.boundedElastic())
                     .doOnNext(chunk -> {
                         if (chunk instanceof ReasonChunk) {
@@ -266,7 +264,7 @@ public class CliShell implements Runnable {
     private void onReasonChunk(ReasonChunk reason, AtomicBoolean isFirstReasonChunk, AtomicBoolean isFirstConversation) {
         if (!reason.isToolCalls() && reason.hasContent()) {
             //打印 think 或者 不是 think
-            if (codeAgent.getConfig().thinkPrinted || !reason.getMessage().isThinking()) {
+            if (kernel.getProps().thinkPrinted || !reason.getMessage().isThinking()) {
                 String delta = clearThink(reason.getContent());
                 onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
             }
@@ -310,7 +308,7 @@ public class CliShell implements Runnable {
             String argsStr = argsBuilder.toString().replace("\n", " ");
             boolean hasBigArgs = argsStr.length() > 100 || (args != null && args.values().stream().anyMatch(v -> v instanceof String && ((String) v).contains("\n")));
 
-            if (cliPrintSimplified) {
+            if (kernel.getProps().cliPrintSimplified) {
                 // --- 简化风格：单行摘要模式 ---
                 String content = action.getContent() == null ? "" : action.getContent().trim();
                 String summary;
@@ -384,7 +382,7 @@ public class CliShell implements Runnable {
             return true;
         }
         if ("init".equals(cmd)) {
-            String result = codeAgent.init(session);
+            String result = kernel.init(session);
             terminal.writer().println(DIM + result + RESET);
             return true;
         }
@@ -400,9 +398,9 @@ public class CliShell implements Runnable {
         terminal.puts(InfoCmp.Capability.clear_screen);
         terminal.flush();
 
-        String path = new File(codeAgent.getWorkDir()).getAbsolutePath();
+        String path = new File(kernel.getWorkDir()).getAbsolutePath();
         // 连带版本号，紧凑排列
-        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + codeAgent.getVersion() + RESET);
+        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + kernel.getVersion() + RESET);
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().print(DIM + "Tips: " + RESET + "(esc)" + DIM + " to interrupt output. Commands: " +
                 RESET + "'exit'" + DIM + " to quit, " +

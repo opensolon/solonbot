@@ -7,7 +7,7 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.scheduler.Schedulers;
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BotGate {
     private static final Logger log = LoggerFactory.getLogger(BotGate.class);
 
-    private final CodeAgent codeAgent;
+    private final AgentKernel kernel;
     private final BotChannelRegistry channelRegistry;
 
     // 关键：维护 Session 级别的 HITL 任务状态
@@ -31,12 +31,12 @@ public class BotGate {
     // 认证管理器
     private final AuthManager authManager;
 
-    public BotGate(CodeAgent codeAgent) {
-        this(codeAgent, "data/sessions");
+    public BotGate(AgentKernel kernel) {
+        this(kernel, "data/sessions");
     }
     
-    public BotGate(CodeAgent codeAgent, String sessionStorePath) {
-        this.codeAgent = codeAgent;
+    public BotGate(AgentKernel kernel, String sessionStorePath) {
+        this.kernel = kernel;
         this.channelRegistry = new BotChannelRegistry();
         this.authManager = new AuthManager();
         initializeBuiltinChannels();
@@ -134,9 +134,9 @@ public class BotGate {
      * 任务流转处理
      */
     private void processTask(BotChannel channel, String senderId, String sessionId, String input, Map<String, Object> metadata) {
-        AgentSession session = codeAgent.getSession(sessionId);
+        AgentSession session = kernel.getSession(sessionId);
 
-        codeAgent.stream(sessionId, Prompt.of(input))
+        kernel.stream(sessionId, Prompt.of(input))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(chunk -> {
                     if (chunk instanceof ReasonChunk) {
@@ -183,7 +183,7 @@ public class BotGate {
         if (task == null) return false;
 
         String cmd = text.trim().toLowerCase();
-        AgentSession session = codeAgent.getSession(sessionId);
+        AgentSession session = kernel.getSession(sessionId);
 
         if ("y".equals(cmd) || "yes".equals(cmd)) {
             pendingHitlTasks.remove(sessionId);

@@ -8,8 +8,8 @@ import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.CodeAgent;
-import org.noear.solon.ai.codecli.core.CodeProperties;
+import org.noear.solon.ai.codecli.core.AgentKernel;
+import org.noear.solon.ai.codecli.core.AgentProperties;
 import org.noear.solon.ai.codecli.core.subagent.SubAgentManager;
 import org.noear.solon.ai.codecli.core.subagent.SubAgentType;
 import org.noear.solon.test.SolonTest;
@@ -30,17 +30,17 @@ public class SubAgentTest {
     Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
     Function<String, AgentSessionProvider> sessionProvider = (String dir) -> (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-            new FileAgentSession(key, dir+ CodeAgent.SOLONCODE_SESSIONS + key));
+            new FileAgentSession(key, dir+ AgentKernel.SOLONCODE_SESSIONS + key));
 
     /**
      * 测试探索代理
      */
     @Test
     public void testExploreAgent() throws Throwable {
-        CodeProperties config = Solon.cfg().toBean("solon.code.cli", CodeProperties.class);
+        AgentProperties config = Solon.cfg().toBean("solon.code.cli", AgentProperties.class);
         ChatModel chatModel = ChatModel.of(config.chatModel).build();
 
-        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider.apply(config.workDir), config)
+        AgentKernel codeAgent = new AgentKernel(chatModel, sessionProvider.apply(config.workDir), config)
                 ;
 
         // 准备 Agent
@@ -62,10 +62,10 @@ public class SubAgentTest {
      */
     @Test
     public void testPlanAgent() throws Throwable {
-        CodeProperties config = Solon.cfg().toBean("solon.code.cli", CodeProperties.class);
+        AgentProperties config = Solon.cfg().toBean("solon.code.cli", AgentProperties.class);
         ChatModel chatModel = ChatModel.of(config.chatModel).build();
 
-        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider.apply(config.workDir), config)
+        AgentKernel codeAgent = new AgentKernel(chatModel, sessionProvider.apply(config.workDir), config)
                ;
 
         codeAgent.prepare();
@@ -84,10 +84,10 @@ public class SubAgentTest {
      */
     @Test
     public void testBashAgent() throws Throwable {
-        CodeProperties config = Solon.cfg().toBean("solon.code.cli", CodeProperties.class);
+        AgentProperties config = Solon.cfg().toBean("solon.code.cli", AgentProperties.class);
         ChatModel chatModel = ChatModel.of(config.chatModel).build();
 
-        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider.apply(config.workDir), config)
+        AgentKernel codeAgent = new AgentKernel(chatModel, sessionProvider.apply(config.workDir), config)
               ;
 
         codeAgent.prepare();
@@ -106,17 +106,17 @@ public class SubAgentTest {
      */
     @Test
     public void testSubAgentTool() throws Throwable {
-        CodeProperties config = Solon.cfg().toBean("solon.code.cli", CodeProperties.class);
+        AgentProperties config = Solon.cfg().toBean("solon.code.cli", AgentProperties.class);
         ChatModel chatModel = ChatModel.of(config.chatModel).build();
 
-        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider.apply(config.workDir), config)
+        AgentKernel codeAgent = new AgentKernel(chatModel, sessionProvider.apply(config.workDir), config)
               ;
 
         codeAgent.prepare();
 
         // 主 Agent 可以通过 SubAgentTool 调用子代理
         String prompt = "使用 explore 子代理探索项目的核心类";
-        AgentResponse response = codeAgent.call(CodeAgent.SESSION_DEFAULT, Prompt.of(prompt));
+        AgentResponse response = codeAgent.call(AgentKernel.SESSION_DEFAULT, Prompt.of(prompt));
 
         System.out.println("主 Agent 响应：");
         System.out.println(response.getContent());

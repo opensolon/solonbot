@@ -2,7 +2,7 @@ package org.noear.solon.ai.codecli.portal;
 
 import org.noear.snack4.ONode;
 import org.noear.solon.ai.agent.react.ReActChunk;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.slf4j.Logger;
@@ -22,14 +22,14 @@ public class BotWebChannel implements BotChannel, Handler {
 
     private final String channelId;
     private final int port;
-    private final CodeAgent codeAgent;
+    private final AgentKernel kernel;
     private final Map<String, String> messageStore = new ConcurrentHashMap<>();
     private boolean isRunning = false;
 
-    public BotWebChannel(String channelId, int port, CodeAgent codeAgent) {
+    public BotWebChannel(String channelId, int port, AgentKernel kernel) {
         this.channelId = channelId;
         this.port = port;
-        this.codeAgent = codeAgent;
+        this.kernel = kernel;
     }
 
     @Override
@@ -159,7 +159,7 @@ public class BotWebChannel implements BotChannel, Handler {
                 // 处理收到的消息
                 Map<String, Object> metadata = new HashMap<>();
                 metadata.put("type", "ai_response");
-                codeAgent.stream(targetId, org.noear.solon.ai.chat.prompt.Prompt.of(input))
+                kernel.stream(targetId, org.noear.solon.ai.chat.prompt.Prompt.of(input))
                         .subscribe(chunk -> {
                             // 将 AgentChunk 转换为文本消息推送
                             if (chunk != null && chunk.hasContent()) {

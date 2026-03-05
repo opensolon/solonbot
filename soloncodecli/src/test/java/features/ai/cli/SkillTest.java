@@ -3,9 +3,7 @@ package features.ai.cli;
 import org.junit.jupiter.api.Test;
 import org.noear.solon.Solon;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
-import org.noear.solon.ai.codecli.core.CodeProperties;
-import org.noear.solon.ai.codecli.core.ExpertSkill;
-import org.noear.solon.ai.codecli.core.PoolManager;
+import org.noear.solon.ai.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.test.SolonTest;
 
@@ -20,7 +18,7 @@ import java.util.Map;
 public class SkillTest {
     @Test
     public void case1() {
-        CodeProperties config = Solon.cfg().toBean("solon.code.cli", CodeProperties.class);
+        AgentProperties config = Solon.cfg().toBean("solon.code.cli", AgentProperties.class);
 
         CliSkillProvider cliSkillProvider = new CliSkillProvider();
 

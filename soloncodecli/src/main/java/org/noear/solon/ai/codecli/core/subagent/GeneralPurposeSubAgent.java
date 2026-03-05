@@ -18,9 +18,8 @@ package org.noear.solon.ai.codecli.core.subagent;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.PoolManager;
-import org.noear.solon.ai.codecli.core.TerminalSkill;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
 
@@ -34,10 +33,10 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
 
     private final String workDir;
     private final PoolManager poolManager;
-    private final CodeAgent mainCodeAgent;
+    private final AgentKernel mainCodeAgent;
 
     public GeneralPurposeSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
-                                   String workDir, PoolManager poolManager, CodeAgent mainCodeAgent) {
+                                   String workDir, PoolManager poolManager, AgentKernel mainCodeAgent) {
         super(config, sessionProvider);
         this.workDir = workDir;
         this.poolManager = poolManager;

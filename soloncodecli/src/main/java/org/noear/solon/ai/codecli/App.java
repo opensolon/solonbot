@@ -24,17 +24,13 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.codecli.core.CodeProperties;
+import org.noear.solon.ai.codecli.core.AgentProperties;
 import org.noear.solon.ai.codecli.portal.AcpLink;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.portal.CliShell;
 import org.noear.solon.ai.codecli.portal.WebGate;
-import org.noear.solon.ai.mcp.client.McpClientProvider;
-import org.noear.solon.ai.mcp.client.McpProviders;
-import org.noear.solon.core.util.Assert;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -48,7 +44,7 @@ public class App {
 
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
-            CodeProperties c = app.cfg().toBean("solon.code.cli", CodeProperties.class);
+            AgentProperties c = app.cfg().toBean("solon.code.cli", AgentProperties.class);
 
             app.enableHttp(false); //默认不启用 http
 
@@ -62,7 +58,7 @@ public class App {
             }
         });
 
-        CodeProperties config = Solon.context().getBean(CodeProperties.class);
+        AgentProperties config = Solon.context().getBean(AgentProperties.class);
 
         if (config == null || config.chatModel == null) {
             throw new RuntimeException("ChatModel config not found");
@@ -72,28 +68,28 @@ public class App {
         Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, config.workDir + CodeAgent.SOLONCODE_SESSIONS + key));
+                new FileAgentSession(key, config.workDir + AgentKernel.SOLONCODE_SESSIONS + key));
 
-        File skillsDir = new File(config.workDir + CodeAgent.SOLONCODE_SKILLS);
+        File skillsDir = new File(config.workDir + AgentKernel.SOLONCODE_SKILLS);
         if(!skillsDir.exists()){
             skillsDir.mkdirs();
         }
 
-        File agentsDir = new File(config.workDir + CodeAgent.SOLONCODE_AGENTS);
+        File agentsDir = new File(config.workDir + AgentKernel.SOLONCODE_AGENTS);
         if(!agentsDir.exists()){
             agentsDir.mkdirs();
         }
 
 
-        CodeAgent codeAgent = new CodeAgent(chatModel, sessionProvider, config);
+        AgentKernel agentKernel = new AgentKernel(chatModel, sessionProvider, config);
 
 
         if (config.cliEnabled) {
-            new Thread(new CliShell(codeAgent, config.cliPrintSimplified), "CLI-Interactive-Thread").start();
+            new Thread(new CliShell(agentKernel), "CLI-Interactive-Thread").start();
         }
 
         if (config.webEnabled) {
-            Solon.app().router().get(config.webEndpoint, new WebGate(codeAgent));
+            Solon.app().router().get(config.webEndpoint, new WebGate(agentKernel));
         }
 
         if (config.acpEnabled) {
@@ -105,7 +101,7 @@ public class App {
                         config.acpEndpoint, McpJsonMapper.getDefault());
             }
 
-            new AcpLink(codeAgent, agentTransport).run();
+            new AcpLink(agentKernel, agentTransport).run();
         }
     }
 }

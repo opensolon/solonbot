@@ -15,13 +15,10 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
-import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.codecli.core.CodeAgent;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.PoolManager;
-import org.noear.solon.ai.codecli.core.TerminalSkill;
 
 /**
  * 探索子代理 - 快速探索代码库

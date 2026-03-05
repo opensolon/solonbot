@@ -18,7 +18,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
-import org.noear.solon.ai.codecli.core.CodeAgent;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.PoolManager;
 import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
@@ -34,12 +34,12 @@ public class DynamicSubAgent extends AbstractSubAgent {
 
     private final String workDir;
     private final PoolManager poolManager;
-    private final CodeAgent mainCodeAgent;
+    private final AgentKernel mainCodeAgent;
     private final String customPrompt;
 
     public DynamicSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
-                          String workDir, PoolManager poolManager,
-                          CodeAgent mainCodeAgent, String customPrompt) {
+                           String workDir, PoolManager poolManager,
+                           AgentKernel mainCodeAgent, String customPrompt) {
         super(config, sessionProvider);
         this.workDir = workDir;
         this.poolManager = poolManager;

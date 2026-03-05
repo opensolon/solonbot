@@ -30,7 +30,7 @@ import java.util.Map;
  */
 @Configuration
 @BindProps(prefix="solon.code.cli")
-public class CodeProperties {
+public class AgentProperties {
     public String workDir = "./work";
 
     public int maxSteps = 30;
