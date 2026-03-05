@@ -51,10 +51,7 @@ public class WebGate implements Handler {
 
         String input = ctx.param("input");
         String mode = ctx.param("m");
-        String sessionId = ctx.param("sid");
-        if(Assert.isEmpty(sessionId)) {
-            sessionId = ctx.headerOrDefault("X-Session-Id", "web");
-        }
+        String sessionId = ctx.headerOrDefault("X-Session-Id", "web");
 
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             ctx.status(400);
