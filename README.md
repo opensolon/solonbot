@@ -71,7 +71,7 @@ Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 
 * 如果有跨技能 `.opencode` 或 `.claude` 开头的脚本调用，要放到工作区的规范目录下
 * 如果没有（跨技能），按普通技能池配置挂载
 
-兼容第三方规范（v0.0.16 后支持）：
+兼容第三方规范：
 
 * 支持自动加载 `.opencode/skills` 作为 `@opencode_skills` 只读池
 * 支持自动加载 `.claude/skills` 作为 `@claude_skills` 只读池
