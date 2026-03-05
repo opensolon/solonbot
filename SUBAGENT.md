@@ -12,6 +12,7 @@ SubAgent 系统包含以下类型的子代理：
 | 计划代理 | `plan` | 软件架构师，设计实现方案和执行计划 |
 | 命令代理 | `bash` | 命令执行专家，处理 git、构建等终端任务 |
 | 通用代理 | `general-purpose` | 处理复杂的多步骤任务 |
+| Solon指南代理 | `solon-code-guide` | Solon Code、Agent SDK 和 API 专家，可从官网读取文档 |
 
 ## 启用 SubAgent
 
@@ -173,6 +174,46 @@ manager.getAgent(SubAgentType.GENERAL_PURPOSE)
 - 最多步数限制（25步）
 - 最大的会话窗口（10）
 - 功能最全面
+
+### 5. SolonCodeGuideSubAgent - Solon 指南代理
+
+**适用场景：**
+- 查询 Solon Code 相关问题
+- 学习 Solon Agent SDK 使用方法
+- 了解 Solon API 接口和用法
+- 从 Solon 官网获取最新文档
+
+**示例：**
+```java
+import org.noear.solon.ai.chat.prompt.Prompt;
+
+// 查询 Solon 快速入门文档
+manager.getAgent(SubAgentType.SOLON_CODE_GUIDE)
+    .execute(Prompt.of("Solon 的快速入门方法是什么？"));
+
+// 学习 Agent SDK
+manager.getAgent(SubAgentType.SOLON_CODE_GUIDE)
+    .execute(Prompt.of("如何在 Solon Agent SDK 中创建自定义工具？"));
+
+// 了解 API 用法
+manager.getAgent(SubAgentType.SOLON_CODE_GUIDE)
+    .execute(Prompt.of("ChatModel 接口如何使用？"));
+```
+
+**专属工具：**
+- `read_solon_doc`: 读取 Solon 官网文档（支持本地缓存）
+  - 支持文档：learn-start, agent-quick-start, agent-tools, agent-skill 等
+  - 自动缓存到 `.soloncode/cache/docs/` 目录
+  - 提供内存缓存提升性能
+- `list_solon_docs`: 列出所有可用的官方文档
+- `clear_solon_doc_cache`: 清除文档缓存
+
+**特点：**
+- 专注于 Solon 技术栈
+- 可直接从官网获取最新文档
+- 支持文档缓存，减少网络请求
+- 较少的步数限制（15步）
+- 小的会话窗口（5）
 
 ## 最佳实践
 

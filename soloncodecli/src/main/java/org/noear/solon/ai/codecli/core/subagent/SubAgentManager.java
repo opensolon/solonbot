@@ -76,7 +76,8 @@ public class SubAgentManager {
                 SubAgentType.EXPLORE,
                 SubAgentType.PLAN,
                 SubAgentType.BASH,
-                SubAgentType.GENERAL_PURPOSE
+                SubAgentType.GENERAL_PURPOSE,
+                SubAgentType.SOLON_CODE_GUIDE
         };
 
         for (SubAgentType type : implementedTypes) {
@@ -105,6 +106,8 @@ public class SubAgentManager {
                 return new PlanSubAgent(config, sessionProvider, workDir);
             case BASH:
                 return new BashSubAgent(config, sessionProvider, workDir, poolManager);
+            case SOLON_CODE_GUIDE:
+                return new SolonCodeGuideSubAgent(config, sessionProvider, workDir, poolManager);
             case GENERAL_PURPOSE:
                 return new GeneralPurposeSubAgent(config, sessionProvider, workDir, poolManager, mainCodeAgent);
             default:
@@ -196,6 +199,11 @@ public class SubAgentManager {
                 BashSubAgent bashAgent = new BashSubAgent(config, sessionProvider, workDir, poolManager);
                 bashAgent.initialize(chatModel);
                 return bashAgent;
+
+            case SOLON_CODE_GUIDE:
+                SolonCodeGuideSubAgent guideAgent = new SolonCodeGuideSubAgent(config, sessionProvider, workDir, poolManager);
+                guideAgent.initialize(chatModel);
+                return guideAgent;
 
             case GENERAL_PURPOSE:
             default:
