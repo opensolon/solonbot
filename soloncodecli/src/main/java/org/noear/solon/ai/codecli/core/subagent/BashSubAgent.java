@@ -44,13 +44,7 @@ public class BashSubAgent extends AbstractSubAgent {
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
             // 只添加终端技能（bash 工具）
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir);
-
-            if (poolManager != null) {
-                poolManager.getPoolMap().forEach((alias, path) -> {
-                    skillProvider.skillPool(alias, path);
-                });
-            }
+            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
 
             // 仅添加 bash 工具
             builder.defaultSkillAdd(skillProvider.getTerminalSkill());

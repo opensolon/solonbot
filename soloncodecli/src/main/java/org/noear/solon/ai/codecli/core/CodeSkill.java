@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
-import java.util.stream.Stream;
 
 /**
  * Claude Code 规范对齐的代码专精技能
@@ -21,14 +20,14 @@ import java.util.stream.Stream;
 public class CodeSkill extends AbsSkill {
     private static final Logger LOG = LoggerFactory.getLogger(CodeSkill.class);
 
-    private final String workSpace;
+    private final String workDir;
 
     public CodeSkill() {
         this(null);
     }
 
-    public CodeSkill(String workSpace) {
-        this.workSpace = workSpace;
+    public CodeSkill(String workDir) {
+        this.workDir = workDir;
     }
 
     @Override
@@ -82,7 +81,7 @@ public class CodeSkill extends AbsSkill {
     }
 
     private Path getRootPath(String __cwd) {
-        String path = (__cwd != null) ? __cwd : workSpace;
+        String path = (__cwd != null) ? __cwd : workDir;
         if (path == null) throw new IllegalStateException("Working directory is not set.");
         return Paths.get(path).toAbsolutePath().normalize();
     }

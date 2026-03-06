@@ -21,8 +21,6 @@ import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.PoolManager;
 import org.noear.solon.ai.codecli.core.tool.ReadSolonDocTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Solon Code 指南代理 - 回答 Solon Code、Solon Agent SDK 和 Solon API 相关问题
@@ -30,14 +28,13 @@ import org.slf4j.LoggerFactory;
  * @author bai
  * @since 3.9.5
  */
-public class SolonCodeGuideSubAgent extends AbstractSubAgent {
-    private static final Logger LOG = LoggerFactory.getLogger(SolonCodeGuideSubAgent.class);
+public class SolonGuideSubAgent extends AbstractSubAgent {
 
     private final String workDir;
     private final PoolManager poolManager;
 
-    public SolonCodeGuideSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
-                                   String workDir, PoolManager poolManager) {
+    public SolonGuideSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
+                              String workDir, PoolManager poolManager) {
         super(config, sessionProvider);
         this.workDir = workDir;
         this.poolManager = poolManager;
@@ -49,13 +46,7 @@ public class SolonCodeGuideSubAgent extends AbstractSubAgent {
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
             // 添加基础技能集
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir);
-
-            if (poolManager != null) {
-                poolManager.getPoolMap().forEach((alias, path) -> {
-                    skillProvider.skillPool(alias, path);
-                });
-            }
+            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
 
             // 添加专家技能（用于技能搜索和读取）
             builder.defaultSkillAdd(skillProvider.getExpertSkill());
@@ -84,12 +75,6 @@ public class SolonCodeGuideSubAgent extends AbstractSubAgent {
                 "- **Solon Agent SDK**：用于构建 AI Agent 的开发框架\n" +
                 "- **Solon API**：Solon 框架的应用程序接口\n" +
                 "- **ReAct 模式**：推理-行动循环，用于 Agent 决策\n" +
-                "\n" +
-                "### 可用工具\n" +
-                "- `read_solon_doc`: 读取 Solon 官网文档（支持缓存）\n" +
-                "- `webfetch`: 获取网页内容\n" +
-                "- `skillsearch`: 搜索技能文件\n" +
-                "- `skillread`: 读取技能内容\n" +
                 "\n" +
                 "### 工作流程\n" +
                 "1. 理解用户问题，识别涉及的主题（Solon Code / Agent SDK / API）\n" +

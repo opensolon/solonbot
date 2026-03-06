@@ -44,18 +44,10 @@ public class ExploreSubAgent extends AbstractSubAgent {
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
             // 添加探索专用工具
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir);
-
-            // 设置技能池
-            if (poolManager != null) {
-                poolManager.getPoolMap().forEach((alias, path) -> {
-                    skillProvider.skillPool(alias, path);
-                });
-            }
+            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
 
             // 添加技能（仅终端和专家技能，不添加代码搜索）
-            builder.defaultSkillAdd(skillProvider.getTerminalSkill());
-            builder.defaultSkillAdd(skillProvider.getExpertSkill());
+            builder.defaultSkillAdd(skillProvider);
 
             // 设置最大步数（探索任务通常需要较少步数）
             builder.maxSteps(15);

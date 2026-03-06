@@ -33,14 +33,14 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
 
     private final String workDir;
     private final PoolManager poolManager;
-    private final AgentKernel mainCodeAgent;
+    private final AgentKernel mainAgent;
 
     public GeneralPurposeSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
-                                   String workDir, PoolManager poolManager, AgentKernel mainCodeAgent) {
+                                   String workDir, PoolManager poolManager, AgentKernel mainAgent) {
         super(config, sessionProvider);
         this.workDir = workDir;
         this.poolManager = poolManager;
-        this.mainCodeAgent = mainCodeAgent;
+        this.mainAgent = mainAgent;
     }
 
     /**
@@ -49,17 +49,10 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
             // 添加完整技能集
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir);
-
-            if (poolManager != null) {
-                poolManager.getPoolMap().forEach((alias, path) -> {
-                    skillProvider.skillPool(alias, path);
-                });
-            }
+            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
 
             // 添加所有核心技能
-            builder.defaultSkillAdd(skillProvider.getTerminalSkill());
-            builder.defaultSkillAdd(skillProvider.getExpertSkill());
+            builder.defaultSkillAdd(skillProvider);
 
             // 添加网络工具
             builder.defaultToolAdd(WebfetchTool.getInstance());

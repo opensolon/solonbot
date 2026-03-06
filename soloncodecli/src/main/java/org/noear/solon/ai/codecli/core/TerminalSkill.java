@@ -5,8 +5,6 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.core.util.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -31,7 +29,7 @@ public class TerminalSkill extends AbsSkill {
         CMD, POWERSHELL, UNIX_SHELL
     }
 
-    private final String workSpace;
+    private final String workDir;
     private final String shellCmd;
     private final String extension;
     private final ShellMode shellMode;
@@ -62,8 +60,8 @@ public class TerminalSkill extends AbsSkill {
         this(null, poolManager);
     }
 
-    public TerminalSkill(String workSpace, PoolManager poolManager) {
-        this.workSpace = workSpace;
+    public TerminalSkill(String workDir, PoolManager poolManager) {
+        this.workDir = workDir;
         this.poolManager = poolManager;
 
         boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
@@ -359,7 +357,7 @@ public class TerminalSkill extends AbsSkill {
 
 
     private Path getRootPath(String __cwd) {
-        String path = (__cwd != null) ? __cwd : workSpace;
+        String path = (__cwd != null) ? __cwd : workDir;
         if (path == null) throw new IllegalStateException("Working directory is not set.");
         return Paths.get(path).toAbsolutePath().normalize();
     }

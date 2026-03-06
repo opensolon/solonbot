@@ -18,7 +18,6 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.noear.solon.ai.annotation.ToolMapping;
-import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.annotation.Param;
 import org.slf4j.Logger;
@@ -45,14 +44,14 @@ public class LuceneSkill extends AbsSkill {
 
     private final Directory indexDirectory;
     private final Analyzer analyzer;
-    private final String workSpace;
+    private final String workDir;
 
     public LuceneSkill() {
         this(null);
     }
 
-    public LuceneSkill(String workSpace) {
-        this.workSpace = workSpace;
+    public LuceneSkill(String workDir) {
+        this.workDir = workDir;
         this.indexDirectory = new ByteBuffersDirectory();
         this.analyzer = new StandardAnalyzer();
     }
@@ -89,7 +88,7 @@ public class LuceneSkill extends AbsSkill {
     }
 
     private Path getRootPath(String __cwd) {
-        String path = (__cwd != null) ? __cwd : workSpace;
+        String path = (__cwd != null) ? __cwd : workDir;
         if (path == null) throw new IllegalStateException("Working directory is not set.");
         return Paths.get(path).toAbsolutePath().normalize();
     }

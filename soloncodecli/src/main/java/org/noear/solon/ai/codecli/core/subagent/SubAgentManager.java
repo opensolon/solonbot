@@ -105,7 +105,7 @@ public class SubAgentManager {
             case BASH:
                 return new BashSubAgent(config, sessionProvider, workDir, poolManager);
             case SOLON_CODE_GUIDE:
-                return new SolonCodeGuideSubAgent(config, sessionProvider, workDir, poolManager);
+                return new SolonGuideSubAgent(config, sessionProvider, workDir, poolManager);
             case GENERAL_PURPOSE:
                 return new GeneralPurposeSubAgent(config, sessionProvider, workDir, poolManager, mainCodeAgent);
             default:
@@ -199,7 +199,7 @@ public class SubAgentManager {
                 return bashAgent;
 
             case SOLON_CODE_GUIDE:
-                SolonCodeGuideSubAgent guideAgent = new SolonCodeGuideSubAgent(config, sessionProvider, workDir, poolManager);
+                SolonGuideSubAgent guideAgent = new SolonGuideSubAgent(config, sessionProvider, workDir, poolManager);
                 guideAgent.initialize(chatModel);
                 return guideAgent;
 
