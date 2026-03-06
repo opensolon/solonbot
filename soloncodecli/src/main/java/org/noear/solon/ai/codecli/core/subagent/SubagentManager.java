@@ -35,10 +35,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author bai
  * @since 3.9.5
  */
-public class SubAgentManager {
-    private static final Logger LOG = LoggerFactory.getLogger(SubAgentManager.class);
+public class SubagentManager {
+    private static final Logger LOG = LoggerFactory.getLogger(SubagentManager.class);
 
-    private final Map<SubAgentType, SubAgent> agents = new ConcurrentHashMap<>();
+    private final Map<SubagentType, Subagent> agents = new ConcurrentHashMap<>();
     private final AgentSessionProvider sessionProvider;
     private final String workDir;
     private final PoolManager poolManager;
@@ -48,7 +48,7 @@ public class SubAgentManager {
     // Agents 池（类似 skillPool）
     private final Map<String, String> agentPools = new ConcurrentHashMap<>();
 
-    public SubAgentManager(AgentSessionProvider sessionProvider,
+    public SubagentManager(AgentSessionProvider sessionProvider,
                            String workDir,
                            PoolManager poolManager,
                            AgentKernel mainCodeAgent,
@@ -70,20 +70,20 @@ public class SubAgentManager {
         LOG.info("开始导出 SubAgent 提示词到 .soloncode/agents 目录...");
 
         // 创建所有已实现的 SubAgent 实例（仅用于导出提示词）
-        SubAgentType[] implementedTypes = {
-                SubAgentType.EXPLORE,
-                SubAgentType.PLAN,
-                SubAgentType.BASH,
-                SubAgentType.GENERAL_PURPOSE,
-                SubAgentType.SOLON_CODE_GUIDE
+        SubagentType[] implementedTypes = {
+                SubagentType.EXPLORE,
+                SubagentType.PLAN,
+                SubagentType.BASH,
+                SubagentType.GENERAL_PURPOSE,
+                SubagentType.SOLON_CODE_GUIDE
         };
 
-        for (SubAgentType type : implementedTypes) {
+        for (SubagentType type : implementedTypes) {
             try {
-                SubAgentConfig config = new SubAgentConfig(type);
+                SubagentConfig config = new SubagentConfig(type);
                 config.setWorkDir(workDir);
 
-                AbstractSubAgent agent = createAgentInstance(type, config);
+                AbstractSubagent agent = createAgentInstance(type, config);
                 agent.exportSystemPrompt(workDir);
             } catch (Throwable e) {
                 LOG.warn("导出 SubAgent '{}' 提示词失败: {}", type.getCode(), e.getMessage());
@@ -96,18 +96,18 @@ public class SubAgentManager {
     /**
      * 创建 SubAgent 实例（不初始化）
      */
-    private AbstractSubAgent createAgentInstance(SubAgentType type, SubAgentConfig config) {
+    private AbstractSubagent createAgentInstance(SubagentType type, SubagentConfig config) {
         switch (type) {
             case EXPLORE:
-                return new ExploreSubAgent(config, sessionProvider, workDir, poolManager);
+                return new ExploreSubagent(config, sessionProvider, workDir, poolManager);
             case PLAN:
-                return new PlanSubAgent(config, sessionProvider, workDir);
+                return new PlanSubagent(config, sessionProvider, workDir);
             case BASH:
-                return new BashSubAgent(config, sessionProvider, workDir, poolManager);
+                return new BashSubagent(config, sessionProvider, workDir, poolManager);
             case SOLON_CODE_GUIDE:
-                return new SolonGuideSubAgent(config, sessionProvider, workDir, poolManager);
+                return new SolonGuideSubagent(config, sessionProvider, workDir, poolManager);
             case GENERAL_PURPOSE:
-                return new GeneralPurposeSubAgent(config, sessionProvider, workDir, poolManager, mainCodeAgent);
+                return new GeneralPurposeSubagent(config, sessionProvider, workDir, poolManager, mainCodeAgent);
             default:
                 throw new IllegalArgumentException("Unsupported SubAgent type: " + type.getCode());
         }
@@ -116,7 +116,7 @@ public class SubAgentManager {
     /**
      * 获取指定类型的子代理
      */
-    public SubAgent getAgent(SubAgentType type) {
+    public Subagent getAgent(SubagentType type) {
         return agents.computeIfAbsent(type, this::createAgent);
     }
 
@@ -127,10 +127,10 @@ public class SubAgentManager {
      * @return 子代理实例
      * @throws IllegalArgumentException 如果代理不存在
      */
-    public SubAgent getAgent(String agentName) {
+    public Subagent getAgent(String agentName) {
         // 1. 首先尝试作为预定义类型
         try {
-            SubAgentType type = SubAgentType.fromCode(agentName);
+            SubagentType type = SubagentType.fromCode(agentName);
             return getAgent(type);
         } catch (IllegalArgumentException e) {
             // 不是预定义类型，继续尝试动态代理
@@ -149,13 +149,13 @@ public class SubAgentManager {
     /**
      * 创建动态子代理
      */
-    private synchronized SubAgent createDynamicAgent(String agentName, String customPrompt) {
+    private synchronized Subagent createDynamicAgent(String agentName, String customPrompt) {
         // 使用自定义代码创建一个虚拟的 SubAgentType
-        SubAgentConfig config = new SubAgentConfig(agentName, "自定义代理: " + agentName);
+        SubagentConfig config = new SubagentConfig(agentName, "自定义代理: " + agentName);
 
         LOG.info("创建动态子代理: {}", agentName);
 
-        DynamicSubAgent dynamicAgent = new DynamicSubAgent(
+        DynamicSubagent dynamicAgent = new DynamicSubagent(
                 config,
                 sessionProvider,
                 workDir,
@@ -177,35 +177,35 @@ public class SubAgentManager {
     /**
      * 创建子代理
      */
-    private SubAgent createAgent(SubAgentType type) {
+    private Subagent createAgent(SubagentType type) {
         LOG.info("创建子代理: {}", type.getCode());
 
-        SubAgentConfig config = new SubAgentConfig(type);
+        SubagentConfig config = new SubagentConfig(type);
 
         switch (type) {
             case EXPLORE:
-                ExploreSubAgent exploreAgent = new ExploreSubAgent(config, sessionProvider, workDir, poolManager);
+                ExploreSubagent exploreAgent = new ExploreSubagent(config, sessionProvider, workDir, poolManager);
                 exploreAgent.initialize(chatModel);
                 return exploreAgent;
 
             case PLAN:
-                PlanSubAgent planAgent = new PlanSubAgent(config, sessionProvider, workDir);
+                PlanSubagent planAgent = new PlanSubagent(config, sessionProvider, workDir);
                 planAgent.initialize(chatModel);
                 return planAgent;
 
             case BASH:
-                BashSubAgent bashAgent = new BashSubAgent(config, sessionProvider, workDir, poolManager);
+                BashSubagent bashAgent = new BashSubagent(config, sessionProvider, workDir, poolManager);
                 bashAgent.initialize(chatModel);
                 return bashAgent;
 
             case SOLON_CODE_GUIDE:
-                SolonGuideSubAgent guideAgent = new SolonGuideSubAgent(config, sessionProvider, workDir, poolManager);
+                SolonGuideSubagent guideAgent = new SolonGuideSubagent(config, sessionProvider, workDir, poolManager);
                 guideAgent.initialize(chatModel);
                 return guideAgent;
 
             case GENERAL_PURPOSE:
             default:
-                GeneralPurposeSubAgent generalAgent = new GeneralPurposeSubAgent(
+                GeneralPurposeSubagent generalAgent = new GeneralPurposeSubagent(
                         config, sessionProvider, workDir, poolManager, mainCodeAgent);
                 generalAgent.initialize(chatModel);
                 return generalAgent;
@@ -215,14 +215,14 @@ public class SubAgentManager {
     /**
      * 检查子代理是否已注册
      */
-    public boolean hasAgent(SubAgentType type) {
+    public boolean hasAgent(SubagentType type) {
         return agents.containsKey(type);
     }
 
     /**
      * 获取所有已注册的子代理
      */
-    public Map<SubAgentType, SubAgent> getAllAgents() {
+    public Map<SubagentType, Subagent> getAllAgents() {
         return new ConcurrentHashMap<>(agents);
     }
 
@@ -280,7 +280,7 @@ public class SubAgentManager {
      * @param type SubAgent 类型
      * @return 提示词文件的完整路径，如果不存在返回 null
      */
-    public String findAgentPromptFile(SubAgentType type) {
+    public String findAgentPromptFile(SubagentType type) {
         return findAgentPromptFile(type.getCode());
     }
 
@@ -322,7 +322,7 @@ public class SubAgentManager {
      * @param type SubAgent 类型
      * @return 提示词内容，如果不存在返回 null
      */
-    public String readAgentPrompt(SubAgentType type) {
+    public String readAgentPrompt(SubagentType type) {
         return readAgentPrompt(type.getCode());
     }
 

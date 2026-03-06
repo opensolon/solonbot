@@ -38,25 +38,25 @@ import java.util.function.Consumer;
  * @author bai
  * @since 3.9.5
  */
-public abstract class AbstractSubAgent implements SubAgent {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractSubAgent.class);
+public abstract class AbstractSubagent implements Subagent {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractSubagent.class);
 
-    protected final SubAgentConfig config;
+    protected final SubagentConfig config;
     protected final AgentSessionProvider sessionProvider;
     protected ReActAgent agent;
 
-    public AbstractSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider) {
+    public AbstractSubagent(SubagentConfig config, AgentSessionProvider sessionProvider) {
         this.config = config;
         this.sessionProvider = sessionProvider;
     }
 
     @Override
-    public SubAgentType getType() {
+    public SubagentType getType() {
         return config.getType();
     }
 
     @Override
-    public SubAgentConfig getConfig() {
+    public SubagentConfig getConfig() {
         return config;
     }
 

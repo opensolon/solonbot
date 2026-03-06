@@ -28,12 +28,12 @@ import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
  * @author bai
  * @since 3.9.5
  */
-public class SolonGuideSubAgent extends AbstractSubAgent {
+public class SolonGuideSubagent extends AbstractSubagent {
 
     private final String workDir;
     private final PoolManager poolManager;
 
-    public SolonGuideSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
+    public SolonGuideSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
                               String workDir, PoolManager poolManager) {
         super(config, sessionProvider);
         this.workDir = workDir;

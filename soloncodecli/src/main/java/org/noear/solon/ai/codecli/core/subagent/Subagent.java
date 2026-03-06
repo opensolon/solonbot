@@ -26,17 +26,17 @@ import reactor.core.publisher.Flux;
  * @author bai
  * @since 3.9.5
  */
-public interface SubAgent {
+public interface Subagent {
 
     /**
      * 获取代理类型
      */
-    SubAgentType getType();
+    SubagentType getType();
 
     /**
      * 获取配置
      */
-    SubAgentConfig getConfig();
+    SubagentConfig getConfig();
 
     /**
      * 执行任务（同步）

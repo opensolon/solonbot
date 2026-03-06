@@ -20,31 +20,35 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.PoolManager;
+import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
 
 /**
- * 通用子代理 - 处理各种复杂任务
+ * 动态子代理 - 从 MD 文件动态加载提示词
  *
  * @author bai
  * @since 3.9.5
  */
-public class GeneralPurposeSubAgent extends AbstractSubAgent {
+public class DynamicSubagent extends AbstractSubagent {
 
     private final String workDir;
     private final PoolManager poolManager;
     private final AgentKernel mainAgent;
+    private final String customPrompt;
 
-    public GeneralPurposeSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
-                                   String workDir, PoolManager poolManager, AgentKernel mainAgent) {
+    public DynamicSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
+                           String workDir, PoolManager poolManager,
+                           AgentKernel mainAgent, String customPrompt) {
         super(config, sessionProvider);
         this.workDir = workDir;
         this.poolManager = poolManager;
         this.mainAgent = mainAgent;
+        this.customPrompt = customPrompt;
     }
 
     /**
-     * 初始化通用代理
+     * 初始化动态代理
      */
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
@@ -58,10 +62,10 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
             builder.defaultToolAdd(WebfetchTool.getInstance());
             builder.defaultToolAdd(WebsearchTool.getInstance());
 
-            // 如果主 CodeAgent 有代码搜索能力，也可以添加
-            // 这里可以根据需要动态添加工具
+            // 添加代码搜索工具（与主代理共享能力）
+            builder.defaultToolAdd(CodeSearchTool.getInstance());
 
-            // 设置最大步数（通用任务可能需要更多步数）
+            // 设置最大步数
             builder.maxSteps(25);
 
             // 设置会话窗口大小
@@ -71,30 +75,23 @@ public class GeneralPurposeSubAgent extends AbstractSubAgent {
 
     @Override
     protected String getDefaultSystemPrompt() {
-        return "## 通用任务代理\n\n" +
-                "你是一个功能全面的任务执行专家，能够处理各种复杂的多步骤任务。\n" +
+        // 使用自定义提示词
+        if (customPrompt != null && !customPrompt.isEmpty()) {
+            return customPrompt;
+        }
+        // 如果没有自定义提示词，使用默认提示词
+        return "## 动态代理\n\n" +
+                "你是一个专门的任务执行代理，根据用户的需求完成相应任务。\n" +
                 "\n" +
-                "### 核心能力\n" +
-                "- **代码操作**：读取、编辑、搜索代码\n" +
-                "- **命令执行**：运行各种 shell 命令和脚本\n" +
-                "- **信息检索**：搜索网络资源和文档\n" +
-                "- **问题分析**：理解复杂需求并提供解决方案\n" +
-                "- **任务协调**：将大任务分解为小步骤并逐一完成\n" +
-                "\n" +
-                "### 工作原则\n" +
-                "1. **理解优先**：确保充分理解用户需求再行动\n" +
-                "2. **系统思考**：考虑任务的全貌和潜在影响\n" +
-                "3. **验证结果**：执行后验证结果是否符合预期\n" +
-                "4. **错误处理**：遇到错误时分析原因并尝试恢复\n" +
-                "5. **清晰沟通**：及时反馈进度和发现的问题\n" +
-                "\n" +
-                "### 使用场景\n" +
-                "- 复杂的代码重构\n" +
-                "- 多步骤的功能实现\n" +
-                "- 跨模块的任务协调\n" +
-                "- 需要网络检索的研究任务\n" +
-                "- 涉及多个工具的复合任务\n" +
-                "\n" +
-                "请充分发挥你的全面能力，高效完成用户交给你的任务。\n";
+                "请充分利用你提供的工具和技能，高效完成任务。\n";
+    }
+
+    @Override
+    protected String buildSystemPrompt() {
+        // 动态代理优先使用自定义提示词
+        if (customPrompt != null && !customPrompt.isEmpty()) {
+            return customPrompt;
+        }
+        return super.buildSystemPrompt();
     }
 }

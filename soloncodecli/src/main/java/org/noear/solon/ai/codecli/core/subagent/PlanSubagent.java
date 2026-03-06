@@ -24,11 +24,11 @@ import org.noear.solon.ai.chat.ChatModel;
  * @author bai
  * @since 3.9.5
  */
-public class PlanSubAgent extends AbstractSubAgent {
+public class PlanSubagent extends AbstractSubagent {
 
     private final String workDir;
 
-    public PlanSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider, String workDir) {
+    public PlanSubagent(SubagentConfig config, AgentSessionProvider sessionProvider, String workDir) {
         super(config, sessionProvider);
         this.workDir = workDir;
     }

@@ -18,9 +18,9 @@ package org.noear.solon.ai.codecli.core.tool;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.subagent.SubAgent;
-import org.noear.solon.ai.codecli.core.subagent.SubAgentManager;
-import org.noear.solon.ai.codecli.core.subagent.SubAgentType;
+import org.noear.solon.ai.codecli.core.subagent.Subagent;
+import org.noear.solon.ai.codecli.core.subagent.SubagentManager;
+import org.noear.solon.ai.codecli.core.subagent.SubagentType;
 import org.noear.solon.annotation.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,9 +42,9 @@ import java.util.*;
 public class SubAgentTool {
     private static final Logger LOG = LoggerFactory.getLogger(SubAgentTool.class);
 
-    private final SubAgentManager manager;
+    private final SubagentManager manager;
 
-    public SubAgentTool(SubAgentManager manager) {
+    public SubAgentTool(SubagentManager manager) {
         this.manager = manager;
     }
 
@@ -62,7 +62,7 @@ public class SubAgentTool {
 
         try {
             // 使用新的 getAgent(String) 方法，支持预定义和自定义代理
-            SubAgent agent = manager.getAgent(type);
+            Subagent agent = manager.getAgent(type);
 
             LOG.info("启动子代理: {}, 任务: {}", type, description);
 
@@ -95,7 +95,7 @@ public class SubAgentTool {
 
         // 1. 列出所有预定义的 SubAgentType
         sb.append("【预定义子代理】\n");
-        for (SubAgentType type : SubAgentType.values()) {
+        for (SubagentType type : SubagentType.values()) {
             sb.append(String.format("- **%s** (%s): %s\n",
                     type.getCode(),
                     type.name(),

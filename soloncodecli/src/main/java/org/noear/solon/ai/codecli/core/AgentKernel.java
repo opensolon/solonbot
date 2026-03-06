@@ -11,7 +11,7 @@ import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
 import org.noear.solon.ai.agent.react.intercept.summarize.*;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.subagent.SubAgentManager;
+import org.noear.solon.ai.codecli.core.subagent.SubagentManager;
 import org.noear.solon.ai.codecli.core.tool.SubAgentTool;
 import org.noear.solon.ai.codecli.core.tool.ApplyPatchTool;
 import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
@@ -69,7 +69,7 @@ public class AgentKernel {
     private final Map<String, String> skillPools = new LinkedHashMap<>();
     private final McpProviders mcpProviders;
     private Consumer<ReActAgent.Builder> configurator;
-    private SubAgentManager subAgentManager;
+    private SubagentManager subAgentManager;
 
     public AgentKernel(ChatModel chatModel, AgentSessionProvider sessionProvider, AgentProperties properties) {
         this.chatModel = chatModel;
@@ -126,7 +126,7 @@ public class AgentKernel {
     /**
      * 获取子代理管理器
      */
-    public SubAgentManager getSubAgentManager() {
+    public SubagentManager getSubAgentManager() {
         return subAgentManager;
     }
 
@@ -204,8 +204,8 @@ public class AgentKernel {
             agentBuilder.defaultSkillAdd(luceneSkill);
 
             // 添加子代理工具
-            if (properties.subAgentEnabled) {
-                subAgentManager = new SubAgentManager(
+            if (properties.subagentEnabled) {
+                subAgentManager = new SubagentManager(
                         sessionProvider,
                         properties.workDir,
                         cliSkillProvider.getPoolManager(),

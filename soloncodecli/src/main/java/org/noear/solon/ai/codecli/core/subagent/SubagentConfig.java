@@ -23,8 +23,8 @@ import org.noear.solon.ai.chat.ChatModel;
  * @author bai
  * @since 3.9.5
  */
-public class SubAgentConfig {
-    private SubAgentType type;
+public class SubagentConfig {
+    private SubagentType type;
     private String customCode;
     private String description;
     private ChatModel chatModel;
@@ -32,7 +32,7 @@ public class SubAgentConfig {
     private int maxSteps;
     private boolean enabled;
 
-    public SubAgentConfig(SubAgentType type) {
+    public SubagentConfig(SubagentType type) {
         this.type = type;
         this.description = type.getDescription();
         this.maxSteps = 30;
@@ -45,19 +45,19 @@ public class SubAgentConfig {
      * @param customCode 自定义代理代码
      * @param description 代理描述
      */
-    public SubAgentConfig(String customCode, String description) {
-        this.type = SubAgentType.CUSTOM;
+    public SubagentConfig(String customCode, String description) {
+        this.type = SubagentType.CUSTOM;
         this.customCode = customCode;
         this.description = description;
         this.maxSteps = 30;
         this.enabled = true;
     }
 
-    public SubAgentType getType() {
+    public SubagentType getType() {
         return type;
     }
 
-    public SubAgentConfig setType(SubAgentType type) {
+    public SubagentConfig setType(SubagentType type) {
         this.type = type;
         return this;
     }
@@ -67,7 +67,7 @@ public class SubAgentConfig {
      * 对于自定义代理，返回 customCode；否则返回 type.getCode()
      */
     public String getCode() {
-        if (type == SubAgentType.CUSTOM && customCode != null) {
+        if (type == SubagentType.CUSTOM && customCode != null) {
             return customCode;
         }
         return type.getCode();
@@ -84,7 +84,7 @@ public class SubAgentConfig {
         return description;
     }
 
-    public SubAgentConfig setDescription(String description) {
+    public SubagentConfig setDescription(String description) {
         this.description = description;
         return this;
     }
@@ -93,7 +93,7 @@ public class SubAgentConfig {
         return chatModel;
     }
 
-    public SubAgentConfig setChatModel(ChatModel chatModel) {
+    public SubagentConfig setChatModel(ChatModel chatModel) {
         this.chatModel = chatModel;
         return this;
     }
@@ -102,7 +102,7 @@ public class SubAgentConfig {
         return workDir;
     }
 
-    public SubAgentConfig setWorkDir(String workDir) {
+    public SubagentConfig setWorkDir(String workDir) {
         this.workDir = workDir;
         return this;
     }
@@ -111,7 +111,7 @@ public class SubAgentConfig {
         return maxSteps;
     }
 
-    public SubAgentConfig setMaxSteps(int maxSteps) {
+    public SubagentConfig setMaxSteps(int maxSteps) {
         this.maxSteps = maxSteps;
         return this;
     }
@@ -120,7 +120,7 @@ public class SubAgentConfig {
         return enabled;
     }
 
-    public SubAgentConfig setEnabled(boolean enabled) {
+    public SubagentConfig setEnabled(boolean enabled) {
         this.enabled = enabled;
         return this;
     }

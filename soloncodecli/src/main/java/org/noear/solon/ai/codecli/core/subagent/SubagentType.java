@@ -21,7 +21,7 @@ package org.noear.solon.ai.codecli.core.subagent;
  * @author bai
  * @since 3.9.5
  */
-public enum SubAgentType {
+public enum SubagentType {
     /**
      * 通用代理 - 用于复杂问题研究、代码搜索、多步骤任务
      */
@@ -55,7 +55,7 @@ public enum SubAgentType {
     private final String code;
     private final String description;
 
-    SubAgentType(String code, String description) {
+    SubagentType(String code, String description) {
         this.code = code;
         this.description = description;
     }
@@ -75,8 +75,8 @@ public enum SubAgentType {
      * @return 对应的 SubAgentType
      * @throws IllegalArgumentException 如果代码不匹配任何预定义类型
      */
-    public static SubAgentType fromCode(String code) {
-        for (SubAgentType type : values()) {
+    public static SubagentType fromCode(String code) {
+        for (SubagentType type : values()) {
             if (type.code.equalsIgnoreCase(code)) {
                 return type;
             }

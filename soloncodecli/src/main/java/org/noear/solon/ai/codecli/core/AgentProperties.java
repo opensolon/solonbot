@@ -41,7 +41,9 @@ public class AgentProperties {
 
     public boolean sandboxMode = true;
     public boolean thinkPrinted = false;
+
     public boolean hitlEnabled = false;
+    public boolean subagentEnabled = true;
 
     public boolean cliEnabled = true;
     public boolean cliPrintSimplified = true;
@@ -53,7 +55,6 @@ public class AgentProperties {
     public String acpTransport = "stdio";
     public String acpEndpoint = "/acp";
 
-    public boolean subAgentEnabled = false;
 
     public Map<String, McpServerParameters> mcpServers;
     public ChatConfig chatModel;

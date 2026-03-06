@@ -26,12 +26,12 @@ import org.noear.solon.ai.codecli.core.PoolManager;
  * @author bai
  * @since 3.9.5
  */
-public class BashSubAgent extends AbstractSubAgent {
+public class BashSubagent extends AbstractSubagent {
 
     private final String workDir;
     private final PoolManager poolManager;
 
-    public BashSubAgent(SubAgentConfig config, AgentSessionProvider sessionProvider,
+    public BashSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
                         String workDir, PoolManager poolManager) {
         super(config, sessionProvider);
         this.workDir = workDir;
