@@ -17,6 +17,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.PoolManager;
 
@@ -28,14 +29,8 @@ import org.noear.solon.ai.codecli.core.PoolManager;
  */
 public class ExploreSubagent extends AbstractSubagent {
 
-    private final String workDir;
-    private final PoolManager poolManager;
-
-    public ExploreSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
-                           String workDir, PoolManager poolManager) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
-        this.poolManager = poolManager;
+    public ExploreSubagent(AgentKernel mainAgent) {
+        super(mainAgent);
     }
 
     /**
@@ -43,11 +38,8 @@ public class ExploreSubagent extends AbstractSubagent {
      */
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
-            // 添加探索专用工具
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
-
             // 添加技能（仅终端和专家技能，不添加代码搜索）
-            builder.defaultSkillAdd(skillProvider);
+            builder.defaultSkillAdd(mainAgent.getCliSkills());
 
             // 设置最大步数（探索任务通常需要较少步数）
             builder.maxSteps(15);
@@ -58,8 +50,18 @@ public class ExploreSubagent extends AbstractSubagent {
     }
 
     @Override
+    public String getName() {
+        return "explore";
+    }
+
+    @Override
+    public String getDescription() {
+        return "快速探索子代理，专门用于查找文件、理解代码结构和回答代码库问题";
+    }
+
+    @Override
     protected String getDefaultSystemPrompt() {
-        return "## 探索代理\n\n" +
+        return "## 探索子代理\n\n" +
                 "你是一个快速的代码库探索专家。你的任务是：\n" +
                 "\n" +
                 "### 核心能力\n" +

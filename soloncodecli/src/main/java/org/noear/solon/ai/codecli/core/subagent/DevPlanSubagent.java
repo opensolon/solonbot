@@ -17,6 +17,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 
 /**
  * 计划子代理 - 软件架构师
@@ -24,13 +25,10 @@ import org.noear.solon.ai.chat.ChatModel;
  * @author bai
  * @since 3.9.5
  */
-public class PlanSubagent extends AbstractSubagent {
+public class DevPlanSubagent extends AbstractSubagent {
 
-    private final String workDir;
-
-    public PlanSubagent(SubagentConfig config, AgentSessionProvider sessionProvider, String workDir) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
+    public DevPlanSubagent(AgentKernel mainAgent) {
+        super(mainAgent);
     }
 
     /**
@@ -50,8 +48,18 @@ public class PlanSubagent extends AbstractSubagent {
     }
 
     @Override
+    public String getName() {
+        return "dev-plan";
+    }
+
+    @Override
+    public String getDescription() {
+        return "开发计划子代理，软件架构师，用于设计实现策略和步骤计划";
+    }
+
+    @Override
     protected String getDefaultSystemPrompt() {
-        return "## 计划代理（软件架构师）\n\n" +
+        return "## 开发计划子代理\n\n" +
                 "你是一个经验丰富的软件架构师，负责设计实现方案和制定执行计划。\n" +
                 "\n" +
                 "### 核心职责\n" +

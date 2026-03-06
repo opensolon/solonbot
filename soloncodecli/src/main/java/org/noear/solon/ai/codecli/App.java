@@ -48,11 +48,11 @@ public class App {
 
             app.enableHttp(false); //默认不启用 http
 
-            if (c.webEnabled) {
+            if (c.isWebEnabled()) {
                 app.enableHttp(true);
             }
 
-            if (c.acpEnabled && "stdio".equals(c.acpTransport) == false) {
+            if (c.isAcpEnabled() && "stdio".equals(c.getAcpTransport()) == false) {
                 app.enableHttp(true);
                 app.enableWebSocket(true);
             }
@@ -60,45 +60,35 @@ public class App {
 
         AgentProperties config = Solon.context().getBean(AgentProperties.class);
 
-        if (config == null || config.chatModel == null) {
+        if (config == null || config.getChatModel() == null) {
             throw new RuntimeException("ChatModel config not found");
         }
 
-        ChatModel chatModel = ChatModel.of(config.chatModel).build();
+        ChatModel chatModel = ChatModel.of(config.getChatModel()).build();
         Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, config.workDir + AgentKernel.SOLONCODE_SESSIONS + key));
-
-        File skillsDir = new File(config.workDir + AgentKernel.SOLONCODE_SKILLS);
-        if(!skillsDir.exists()){
-            skillsDir.mkdirs();
-        }
-
-        File agentsDir = new File(config.workDir + AgentKernel.SOLONCODE_AGENTS);
-        if(!agentsDir.exists()){
-            agentsDir.mkdirs();
-        }
+                new FileAgentSession(key, config.getWorkDir() + AgentKernel.SOLONCODE_SESSIONS + key));
 
 
-        AgentKernel agentKernel = new AgentKernel(chatModel, sessionProvider, config);
+        AgentKernel agentKernel = new AgentKernel(chatModel, config, sessionProvider, null);
 
 
-        if (config.cliEnabled) {
+        if (config.isCliEnabled()) {
             new Thread(new CliShell(agentKernel), "CLI-Interactive-Thread").start();
         }
 
-        if (config.webEnabled) {
-            Solon.app().router().get(config.webEndpoint, new WebGate(agentKernel));
+        if (config.isWebEnabled()) {
+            Solon.app().router().get(config.getWebEndpoint(), new WebGate(agentKernel));
         }
 
-        if (config.acpEnabled) {
+        if (config.isAcpEnabled()) {
             AcpAgentTransport agentTransport;
-            if ("stdio".equals(config.acpTransport)) {
+            if ("stdio".equals(config.getAcpTransport())) {
                 agentTransport = new StdioAcpAgentTransport();
             } else {
                 agentTransport = new WebSocketSolonAcpAgentTransport(
-                        config.acpEndpoint, McpJsonMapper.getDefault());
+                        config.getAcpTransport(), McpJsonMapper.getDefault());
             }
 
             new AcpLink(agentKernel, agentTransport).run();

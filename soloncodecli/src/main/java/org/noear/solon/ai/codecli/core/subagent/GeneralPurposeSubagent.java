@@ -31,16 +31,8 @@ import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
  */
 public class GeneralPurposeSubagent extends AbstractSubagent {
 
-    private final String workDir;
-    private final PoolManager poolManager;
-    private final AgentKernel mainAgent;
-
-    public GeneralPurposeSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
-                                  String workDir, PoolManager poolManager, AgentKernel mainAgent) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
-        this.poolManager = poolManager;
-        this.mainAgent = mainAgent;
+    public GeneralPurposeSubagent(AgentKernel mainAgent) {
+        super(mainAgent);
     }
 
     /**
@@ -48,11 +40,8 @@ public class GeneralPurposeSubagent extends AbstractSubagent {
      */
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
-            // 添加完整技能集
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
-
             // 添加所有核心技能
-            builder.defaultSkillAdd(skillProvider);
+            builder.defaultSkillAdd(mainAgent.getCliSkills());
 
             // 添加网络工具
             builder.defaultToolAdd(WebfetchTool.getInstance());
@@ -67,6 +56,16 @@ public class GeneralPurposeSubagent extends AbstractSubagent {
             // 设置会话窗口大小
             builder.sessionWindowSize(10);
         });
+    }
+
+    @Override
+    public String getName() {
+        return "general-purpose";
+    }
+
+    @Override
+    public String getDescription() {
+        return "通用子代理，擅长研究复杂问题、搜索代码和执行多步骤任务";
     }
 
     @Override

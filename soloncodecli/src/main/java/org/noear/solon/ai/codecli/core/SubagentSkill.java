@@ -21,7 +21,6 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.codecli.core.subagent.Subagent;
 import org.noear.solon.ai.codecli.core.subagent.SubagentManager;
-import org.noear.solon.ai.codecli.core.subagent.SubagentType;
 import org.noear.solon.annotation.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,12 +95,11 @@ public class SubagentSkill extends AbsSkill {
 
         // 1. 列出所有预定义的 SubAgentType
         sb.append("【预定义子代理】\n");
-        for (SubagentType type : SubagentType.values()) {
-            sb.append(String.format("- **%s** (%s): %s\n",
-                    type.getCode(),
-                    type.name(),
-                    type.getDescription()));
-            listedAgents.add(type.getCode());
+        for (Subagent subagent : manager.getAgents()) {
+            sb.append(String.format("- **%s**: %s\n",
+                    subagent.getName(),
+                    subagent.getDescription()));
+            listedAgents.add(subagent.getName());
         }
 
         // 2. 动态扫描所有 agentPools 中的自定义 agents

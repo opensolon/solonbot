@@ -17,6 +17,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.PoolManager;
 
@@ -28,14 +29,8 @@ import org.noear.solon.ai.codecli.core.PoolManager;
  */
 public class BashSubagent extends AbstractSubagent {
 
-    private final String workDir;
-    private final PoolManager poolManager;
-
-    public BashSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
-                        String workDir, PoolManager poolManager) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
-        this.poolManager = poolManager;
+    public BashSubagent(AgentKernel mainAgent) {
+        super(mainAgent);
     }
 
     /**
@@ -44,10 +39,8 @@ public class BashSubagent extends AbstractSubagent {
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
             // 只添加终端技能（bash 工具）
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
-
             // 仅添加 bash 工具
-            builder.defaultSkillAdd(skillProvider.getTerminalSkill());
+            builder.defaultSkillAdd(mainAgent.getCliSkills().getTerminalSkill());
 
             // 设置最大步数
             builder.maxSteps(10);
@@ -58,8 +51,18 @@ public class BashSubagent extends AbstractSubagent {
     }
 
     @Override
+    public String getName() {
+        return "bash";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Bash 命令执行子代理，专门执行 git 操作、命令行任务和终端操作";
+    }
+
+    @Override
     protected String getDefaultSystemPrompt() {
-        return "## Bash 命令代理\n\n" +
+        return "## Bash 命令执行子代理\n\n" +
                 "你是一个命令行执行专家，专门负责执行各种 shell 命令和操作。\n" +
                 "\n" +
                 "### 核心能力\n" +

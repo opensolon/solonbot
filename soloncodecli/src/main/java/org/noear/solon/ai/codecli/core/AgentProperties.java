@@ -15,6 +15,7 @@
  */
 package org.noear.solon.ai.codecli.core;
 
+import lombok.Getter;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
 import org.noear.solon.annotation.BindProps;
@@ -28,37 +29,38 @@ import java.util.Map;
  * @author noear
  * @since 3.9.1
  */
+@Getter
 @Configuration
 @BindProps(prefix="solon.code.cli")
 public class AgentProperties {
-    public String workDir = "./work";
+    private String workDir = "./work";
 
-    public int maxSteps = 30;
-    public boolean maxStepsAutoExtensible = false;
+    private int maxSteps = 30;
+    private boolean maxStepsAutoExtensible = false;
 
-    public int sessionWindowSize = 10;
-    public int summaryWindowSize = 15;
+    private int sessionWindowSize = 10;
+    private int summaryWindowSize = 15;
 
-    public boolean sandboxMode = true;
-    public boolean thinkPrinted = false;
+    private boolean sandboxMode = true;
+    private boolean thinkPrinted = false;
 
-    public boolean hitlEnabled = false;
-    public boolean subagentEnabled = true;
+    private boolean hitlEnabled = false;
+    private boolean subagentEnabled = true;
 
-    public boolean cliEnabled = true;
-    public boolean cliPrintSimplified = true;
+    private boolean cliEnabled = true;
+    private boolean cliPrintSimplified = true;
 
-    public boolean webEnabled = false;
-    public String webEndpoint = "/cli";
+    private boolean webEnabled = false;
+    private String webEndpoint = "/cli";
 
-    public boolean acpEnabled = false;
-    public String acpTransport = "stdio";
-    public String acpEndpoint = "/acp";
+    private boolean acpEnabled = false;
+    private String acpTransport = "stdio";
+    private String acpEndpoint = "/acp";
 
 
-    public Map<String, McpServerParameters> mcpServers;
-    public ChatConfig chatModel;
+    private Map<String, McpServerParameters> mcpServers;
+    private ChatConfig chatModel;
     @Deprecated
-    public Map<String, String> mountPool;
-    public Map<String, String> skillPools;
+    private Map<String, String> mountPool;
+    private Map<String, String> skillPools;
 }

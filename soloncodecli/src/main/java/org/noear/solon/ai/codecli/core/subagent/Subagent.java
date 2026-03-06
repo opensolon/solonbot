@@ -27,16 +27,16 @@ import reactor.core.publisher.Flux;
  * @since 3.9.5
  */
 public interface Subagent {
+    /**
+     * 获取名字
+     */
+    String getName();
 
     /**
-     * 获取代理类型
+     * 获取描述
      */
-    SubagentType getType();
+    String getDescription();
 
-    /**
-     * 获取配置
-     */
-    SubagentConfig getConfig();
 
     /**
      * 执行任务（同步）

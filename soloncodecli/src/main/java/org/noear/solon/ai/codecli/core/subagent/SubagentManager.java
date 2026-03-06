@@ -15,10 +15,7 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
-import org.noear.solon.ai.agent.AgentSessionProvider;
-import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.codecli.core.AgentKernel;
-import org.noear.solon.ai.codecli.core.PoolManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +23,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,26 +36,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SubagentManager {
     private static final Logger LOG = LoggerFactory.getLogger(SubagentManager.class);
 
-    private final Map<SubagentType, Subagent> agents = new ConcurrentHashMap<>();
-    private final AgentSessionProvider sessionProvider;
-    private final String workDir;
-    private final PoolManager poolManager;
-    private final AgentKernel mainCodeAgent;
-    private final ChatModel chatModel;
+    private final Map<String, Subagent> subagentMap = new ConcurrentHashMap<>();
+    private final AgentKernel mainAgent;
 
     // Agents 池（类似 skillPool）
     private final Map<String, String> agentPools = new ConcurrentHashMap<>();
 
-    public SubagentManager(AgentSessionProvider sessionProvider,
-                           String workDir,
-                           PoolManager poolManager,
-                           AgentKernel mainCodeAgent,
-                           ChatModel chatModel) {
-        this.sessionProvider = sessionProvider;
-        this.workDir = workDir;
-        this.poolManager = poolManager;
-        this.mainCodeAgent = mainCodeAgent;
-        this.chatModel = chatModel;
+    public SubagentManager(AgentKernel mainAgent) {
+        this.mainAgent = mainAgent;
 
         // 初始化时导出所有 SubAgent 的提示词到 .soloncode/agents 目录
         exportAllPrompts();
@@ -70,70 +56,28 @@ public class SubagentManager {
         LOG.info("开始导出 SubAgent 提示词到 .soloncode/agents 目录...");
 
         // 创建所有已实现的 SubAgent 实例（仅用于导出提示词）
-        SubagentType[] implementedTypes = {
-                SubagentType.EXPLORE,
-                SubagentType.PLAN,
-                SubagentType.BASH,
-                SubagentType.GENERAL_PURPOSE,
-                SubagentType.SOLON_CODE_GUIDE
-        };
-
-        for (SubagentType type : implementedTypes) {
-            try {
-                SubagentConfig config = new SubagentConfig(type);
-                config.setWorkDir(workDir);
-
-                AbstractSubagent agent = createAgentInstance(type, config);
-                agent.exportSystemPrompt(workDir);
-            } catch (Throwable e) {
-                LOG.warn("导出 SubAgent '{}' 提示词失败: {}", type.getCode(), e.getMessage());
-            }
-        }
+        addSubagent(ExploreSubagent::new);
+        addSubagent(DevPlanSubagent::new);
+        addSubagent(BashSubagent::new);
+        addSubagent(SolonGuideSubagent::new);
+        addSubagent(GeneralPurposeSubagent::new);
 
         LOG.info("SubAgent 提示词导出完成");
     }
 
-    /**
-     * 创建 SubAgent 实例（不初始化）
-     */
-    private AbstractSubagent createAgentInstance(SubagentType type, SubagentConfig config) {
-        switch (type) {
-            case EXPLORE:
-                return new ExploreSubagent(config, sessionProvider, workDir, poolManager);
-            case PLAN:
-                return new PlanSubagent(config, sessionProvider, workDir);
-            case BASH:
-                return new BashSubagent(config, sessionProvider, workDir, poolManager);
-            case SOLON_CODE_GUIDE:
-                return new SolonGuideSubagent(config, sessionProvider, workDir, poolManager);
-            case GENERAL_PURPOSE:
-                return new GeneralPurposeSubagent(config, sessionProvider, workDir, poolManager, mainCodeAgent);
-            default:
-                throw new IllegalArgumentException("Unsupported SubAgent type: " + type.getCode());
-        }
-    }
-
-    /**
-     * 获取指定类型的子代理
-     */
-    public Subagent getAgent(SubagentType type) {
-        return agents.computeIfAbsent(type, this::createAgent);
+    public void addSubagent(SubagentFactory factory) {
+        Subagent subagent1 = factory.create(mainAgent);
+        subagentMap.put(subagent1.getName(), subagent1);
     }
 
     /**
      * 获取指定名称的子代理（支持自定义代理）
-     *
-     * @param agentName 代理名称（可以是预定义类型代码或自定义代理名称）
-     * @return 子代理实例
-     * @throws IllegalArgumentException 如果代理不存在
      */
     public Subagent getAgent(String agentName) {
         // 1. 首先尝试作为预定义类型
-        try {
-            SubagentType type = SubagentType.fromCode(agentName);
-            return getAgent(type);
-        } catch (IllegalArgumentException e) {
-            // 不是预定义类型，继续尝试动态代理
+        Subagent subagent = subagentMap.get(agentName);
+        if (subagent == null) {
+            return null;
         }
 
         // 2. 尝试从 agentPools 创建动态代理
@@ -150,94 +94,40 @@ public class SubagentManager {
      * 创建动态子代理
      */
     private synchronized Subagent createDynamicAgent(String agentName, String customPrompt) {
-        // 使用自定义代码创建一个虚拟的 SubAgentType
-        SubagentConfig config = new SubagentConfig(agentName, "自定义代理: " + agentName);
+        DynamicSubagent dynamicAgent = new DynamicSubagent(mainAgent, agentName, customPrompt);
 
-        LOG.info("创建动态子代理: {}", agentName);
+        subagentMap.put(agentName, dynamicAgent);
 
-        DynamicSubagent dynamicAgent = new DynamicSubagent(
-                config,
-                sessionProvider,
-                workDir,
-                poolManager,
-                mainCodeAgent,
-                customPrompt
-        );
-
-        dynamicAgent.initialize(chatModel);
-
-        // 缓存动态代理（使用名称作为 key）
-        agents.put(config.getType(), dynamicAgent);
-
-        LOG.info("动态子代理 '{}' 创建完成", agentName);
         return dynamicAgent;
     }
 
 
     /**
-     * 创建子代理
-     */
-    private Subagent createAgent(SubagentType type) {
-        LOG.info("创建子代理: {}", type.getCode());
-
-        SubagentConfig config = new SubagentConfig(type);
-
-        switch (type) {
-            case EXPLORE:
-                ExploreSubagent exploreAgent = new ExploreSubagent(config, sessionProvider, workDir, poolManager);
-                exploreAgent.initialize(chatModel);
-                return exploreAgent;
-
-            case PLAN:
-                PlanSubagent planAgent = new PlanSubagent(config, sessionProvider, workDir);
-                planAgent.initialize(chatModel);
-                return planAgent;
-
-            case BASH:
-                BashSubagent bashAgent = new BashSubagent(config, sessionProvider, workDir, poolManager);
-                bashAgent.initialize(chatModel);
-                return bashAgent;
-
-            case SOLON_CODE_GUIDE:
-                SolonGuideSubagent guideAgent = new SolonGuideSubagent(config, sessionProvider, workDir, poolManager);
-                guideAgent.initialize(chatModel);
-                return guideAgent;
-
-            case GENERAL_PURPOSE:
-            default:
-                GeneralPurposeSubagent generalAgent = new GeneralPurposeSubagent(
-                        config, sessionProvider, workDir, poolManager, mainCodeAgent);
-                generalAgent.initialize(chatModel);
-                return generalAgent;
-        }
-    }
-
-    /**
      * 检查子代理是否已注册
      */
-    public boolean hasAgent(SubagentType type) {
-        return agents.containsKey(type);
+    public boolean hasAgent(String agentName) {
+        return subagentMap.containsKey(agentName);
     }
 
     /**
      * 获取所有已注册的子代理
      */
-    public Map<SubagentType, Subagent> getAllAgents() {
-        return new ConcurrentHashMap<>(agents);
+    public Collection<Subagent> getAgents() {
+        return subagentMap.values();
     }
 
     /**
      * 清除所有子代理
      */
     public void clear() {
-        agents.clear();
+        subagentMap.clear();
         LOG.info("已清除所有子代理");
     }
 
     /**
      * 注册自定义 agents 池
      *
-     * @param alias 池别名，如 "agents"
+     * @param alias      池别名，如 "agents"
      * @param agentsPath agents 目录路径，可以是绝对路径或相对路径
      */
     public void agentPool(String alias, String agentsPath) {
@@ -274,17 +164,6 @@ public class SubagentManager {
     }
 
     /**
-     * 查找指定类型的 SubAgent 的提示词文件
-     * 优先级：自定义池 > 默认池
-     *
-     * @param type SubAgent 类型
-     * @return 提示词文件的完整路径，如果不存在返回 null
-     */
-    public String findAgentPromptFile(SubagentType type) {
-        return findAgentPromptFile(type.getCode());
-    }
-
-    /**
      * 查找指定名称的 Agent 提示词文件
      * 优先级：自定义池 > 默认池
      *
@@ -317,16 +196,6 @@ public class SubagentManager {
     }
 
     /**
-     * 从指定池读取 SubAgent 提示词
-     *
-     * @param type SubAgent 类型
-     * @return 提示词内容，如果不存在返回 null
-     */
-    public String readAgentPrompt(SubagentType type) {
-        return readAgentPrompt(type.getCode());
-    }
-
-    /**
      * 从指定池读取 Agent 提示词
      *
      * @param agentName Agent 名称
@@ -338,39 +207,12 @@ public class SubagentManager {
             try {
                 byte[] bytes = Files.readAllBytes(Paths.get(filePath));
                 String content = new String(bytes, StandardCharsets.UTF_8);
-                LOG.info("从 {} 读取 agent '{}' 提示词，长度: {} 字符", filePath, agentName, content.length());
+                LOG.debug("从 {} 读取 agent '{}' 提示词，长度: {} 字符", filePath, agentName, content.length());
                 return content;
             } catch (Throwable e) {
                 LOG.warn("读取 agent '{}' 提示词失败: {}, error={}", agentName, filePath, e.getMessage());
             }
         }
         return null;
-    }
-
-    /**
-     * AgentDir：agents 目录信息
-     */
-    public static class AgentDir {
-        public final String aliasPath;
-        public final String realPath;
-        public final String description;
-
-        public AgentDir(String aliasPath, String realPath, String description) {
-            this.aliasPath = aliasPath;
-            this.realPath = realPath;
-            this.description = description;
-        }
-
-        public String getAliasPath() {
-            return aliasPath;
-        }
-
-        public String getRealPath() {
-            return realPath;
-        }
-
-        public String getDescription() {
-            return description;
-        }
     }
 }

@@ -17,6 +17,7 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.PoolManager;
 import org.noear.solon.ai.codecli.core.tool.ReadSolonDocTool;
@@ -29,15 +30,8 @@ import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
  * @since 3.9.5
  */
 public class SolonGuideSubagent extends AbstractSubagent {
-
-    private final String workDir;
-    private final PoolManager poolManager;
-
-    public SolonGuideSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
-                              String workDir, PoolManager poolManager) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
-        this.poolManager = poolManager;
+    public SolonGuideSubagent(AgentKernel mainAgent) {
+        super(mainAgent);
     }
 
     /**
@@ -45,17 +39,14 @@ public class SolonGuideSubagent extends AbstractSubagent {
      */
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
-            // 添加基础技能集
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
-
             // 添加专家技能（用于技能搜索和读取）
-            builder.defaultSkillAdd(skillProvider.getExpertSkill());
+            builder.defaultSkillAdd(mainAgent.getCliSkills().getExpertSkill());
 
             // 添加网络获取工具（用于读取在线文档）
             builder.defaultToolAdd(WebfetchTool.getInstance());
 
             // 添加自定义工具：读取 Solon 文档（传递 workDir）
-            builder.defaultToolAdd(new ReadSolonDocTool(workDir));
+            builder.defaultToolAdd(new ReadSolonDocTool(mainAgent.getProps().getWorkDir()));
 
             // 设置较小的步数限制（主要是查询和回答）
             builder.maxSteps(15);
@@ -66,8 +57,18 @@ public class SolonGuideSubagent extends AbstractSubagent {
     }
 
     @Override
+    public String getName() {
+        return "solon-guide";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Solon Code 指南代理，专门回答关于 Solon Code、Solon Agent SDK 和 Solon API 的问题";
+    }
+
+    @Override
     protected String getDefaultSystemPrompt() {
-        return "## Solon Code 指南代理\n\n" +
+        return "## Solon 开发指南子代理\n\n" +
                 "你是 Solon Code、Solon Agent SDK 和 Solon API 的专家指南，专门回答相关问题。\n" +
                 "\n" +
                 "### 核心知识\n" +

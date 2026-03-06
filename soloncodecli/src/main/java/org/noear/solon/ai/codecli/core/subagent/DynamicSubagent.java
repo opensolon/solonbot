@@ -15,11 +15,8 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
-import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.codecli.core.CliSkillProvider;
 import org.noear.solon.ai.codecli.core.AgentKernel;
-import org.noear.solon.ai.codecli.core.PoolManager;
 import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
@@ -32,18 +29,13 @@ import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
  */
 public class DynamicSubagent extends AbstractSubagent {
 
-    private final String workDir;
-    private final PoolManager poolManager;
-    private final AgentKernel mainAgent;
+    private final String agentName;
     private final String customPrompt;
 
-    public DynamicSubagent(SubagentConfig config, AgentSessionProvider sessionProvider,
-                           String workDir, PoolManager poolManager,
-                           AgentKernel mainAgent, String customPrompt) {
-        super(config, sessionProvider);
-        this.workDir = workDir;
-        this.poolManager = poolManager;
-        this.mainAgent = mainAgent;
+    public DynamicSubagent(AgentKernel mainAgent, String agentName, String customPrompt) {
+        super(mainAgent);
+
+        this.agentName = agentName;
         this.customPrompt = customPrompt;
     }
 
@@ -52,11 +44,8 @@ public class DynamicSubagent extends AbstractSubagent {
      */
     public void initialize(ChatModel chatModel) {
         initAgent(chatModel, builder -> {
-            // 添加完整技能集
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir, poolManager);
-
             // 添加所有核心技能
-            builder.defaultSkillAdd(skillProvider);
+            builder.defaultSkillAdd(mainAgent.getCliSkills());
 
             // 添加网络工具
             builder.defaultToolAdd(WebfetchTool.getInstance());
@@ -80,10 +69,20 @@ public class DynamicSubagent extends AbstractSubagent {
             return customPrompt;
         }
         // 如果没有自定义提示词，使用默认提示词
-        return "## 动态代理\n\n" +
+        return "## 动态子代理\n\n" +
                 "你是一个专门的任务执行代理，根据用户的需求完成相应任务。\n" +
                 "\n" +
                 "请充分利用你提供的工具和技能，高效完成任务。\n";
+    }
+
+    @Override
+    public String getName() {
+        return agentName;
+    }
+
+    @Override
+    public String getDescription() {
+        return "自定义代理: " + agentName;
     }
 
     @Override

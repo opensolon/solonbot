@@ -15,12 +15,14 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
+import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
+import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.SystemPrompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,23 +43,13 @@ import java.util.function.Consumer;
 public abstract class AbstractSubagent implements Subagent {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractSubagent.class);
 
-    protected final SubagentConfig config;
-    protected final AgentSessionProvider sessionProvider;
+    protected final AgentKernel mainAgent;
     protected ReActAgent agent;
 
-    public AbstractSubagent(SubagentConfig config, AgentSessionProvider sessionProvider) {
-        this.config = config;
-        this.sessionProvider = sessionProvider;
-    }
+    public AbstractSubagent(AgentKernel mainAgent) {
+        this.mainAgent = mainAgent;
 
-    @Override
-    public SubagentType getType() {
-        return config.getType();
-    }
-
-    @Override
-    public SubagentConfig getConfig() {
-        return config;
+        exportSystemPrompt();
     }
 
     /**
@@ -80,7 +72,7 @@ public abstract class AbstractSubagent implements Subagent {
             }
 
             this.agent = builder.build();
-            LOG.info("SubAgent '{}' 初始化完成", config.getCode());
+            LOG.info("SubAgent '{}' 初始化完成", this.getName());
         }
     }
 
@@ -91,13 +83,13 @@ public abstract class AbstractSubagent implements Subagent {
         // 1. 尝试从自定义文件读取提示词（如果存在）
         String customPrompt = readCustomPrompt();
         if (customPrompt != null) {
-            LOG.info("SubAgent '{}' 使用自定义提示词", config.getCode());
+            LOG.info("SubAgent '{}' 使用自定义提示词", this.getName());
             return customPrompt;
         }
 
         // 2. 使用内置提示词
         String defaultPrompt = getDefaultSystemPrompt();
-        LOG.debug("SubAgent '{}' 使用内置提示词", config.getCode());
+        LOG.debug("SubAgent '{}' 使用内置提示词", this.getName());
         return defaultPrompt;
     }
 
@@ -109,7 +101,7 @@ public abstract class AbstractSubagent implements Subagent {
     /**
      * 导出提示词到默认目录
      */
-    public void exportSystemPrompt(String workDir) {
+    private void exportSystemPrompt() {
         try {
             String promptDir = ".soloncode" + File.separator + "agents";
             File dir = new File(promptDir);
@@ -117,19 +109,19 @@ public abstract class AbstractSubagent implements Subagent {
                 dir.mkdirs();
             }
 
-            String promptFile = promptDir + File.separator + config.getCode() + ".md";
+            String promptFile = promptDir + File.separator + this.getName() + ".md";
             File file = new File(promptFile);
 
             // 只在不存在的时才导出，避免覆盖用户自定义的提示词
             if (!file.exists()) {
                 String content = getDefaultSystemPrompt();
                 Files.write(Paths.get(promptFile), content.getBytes(StandardCharsets.UTF_8));
-                LOG.info("SubAgent '{}' 提示词已导出到: {}", config.getCode(), promptFile);
+                LOG.info("SubAgent '{}' 提示词已导出到: {}", this.getName(), promptFile);
             } else {
-                LOG.debug("SubAgent '{}' 提示词文件已存在，跳过导出: {}", config.getCode(), promptFile);
+                LOG.debug("SubAgent '{}' 提示词文件已存在，跳过导出: {}", this.getName(), promptFile);
             }
         } catch (Throwable e) {
-            LOG.warn("SubAgent '{}' 提示词导出失败: {}", config.getCode(), e.getMessage());
+            LOG.warn("SubAgent '{}' 提示词导出失败: {}", this.getName(), e.getMessage());
         }
     }
 
@@ -140,23 +132,22 @@ public abstract class AbstractSubagent implements Subagent {
         try {
             // 尝试多个位置
             String[] locations = {
-                ".soloncode/agents/" + config.getCode() + ".md",  // 项目根目录
-                ".soloncode/agents/" + config.getCode() + ".md",  // 相对路径
-                config.getWorkDir() + "/.soloncode/agents/" + config.getCode() + ".md"  // work 目录下
+                ".soloncode/agents/" + this.getName() + ".md",  // 项目根目录
+                    mainAgent.getProps().getWorkDir() + "/.soloncode/agents/" + this.getName() + ".md"  // work 目录下
             };
 
             for (String location : locations) {
                 File file = new File(location);
                 if (file.exists() && file.isFile()) {
                     byte[] bytes = Files.readAllBytes(Paths.get(location));
-                    LOG.info("从 {} 读取 SubAgent '{}' 提示词", location, config.getCode());
+                    LOG.info("从 {} 读取 SubAgent '{}' 提示词", location, this.getName());
                     return new String(bytes, StandardCharsets.UTF_8);
                 }
             }
 
-            LOG.debug("未找到 SubAgent '{}' 的自定义提示词文件", config.getCode());
+            LOG.debug("未找到 SubAgent '{}' 的自定义提示词文件", this.getName());
         } catch (Throwable e) {
-            LOG.warn("读取 SubAgent '{}' 自定义提示词失败: {}", config.getCode(), e.getMessage());
+            LOG.warn("读取 SubAgent '{}' 自定义提示词失败: {}", this.getName(), e.getMessage());
         }
         return null;
     }
@@ -169,7 +160,7 @@ public abstract class AbstractSubagent implements Subagent {
      * 获取会话
      */
     protected AgentSession getSession(String sessionId) {
-        return sessionProvider.getSession(sessionId);
+        return mainAgent.getSession(sessionId);
     }
 
     @Override
@@ -178,7 +169,7 @@ public abstract class AbstractSubagent implements Subagent {
             throw new IllegalStateException("SubAgent 尚未初始化");
         }
 
-        String sessionId = "subagent_" + config.getCode();
+        String sessionId = "subagent_" + this.getName();
         AgentSession session = getSession(sessionId);
 
         return agent.prompt(prompt)
@@ -187,12 +178,12 @@ public abstract class AbstractSubagent implements Subagent {
     }
 
     @Override
-    public Flux<org.noear.solon.ai.agent.AgentChunk> stream(Prompt prompt) {
+    public Flux<AgentChunk> stream(Prompt prompt) {
         if (agent == null) {
             return Flux.error(new IllegalStateException("SubAgent 尚未初始化"));
         }
 
-        String sessionId = "subagent_" + config.getCode();
+        String sessionId = "subagent_" + this.getName();
         AgentSession session = getSession(sessionId);
 
         return agent.prompt(prompt)

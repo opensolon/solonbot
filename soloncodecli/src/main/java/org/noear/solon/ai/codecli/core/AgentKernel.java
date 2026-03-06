@@ -32,8 +32,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -65,71 +63,144 @@ public class AgentKernel {
     private final CodeSkill codeSkill = new CodeSkill();
     private final LuceneSkill luceneSkill  =new LuceneSkill();
 
-    private final Map<String, String> skillPools = new LinkedHashMap<>();
+    private final ReActAgent reActAgent;
     private final McpProviders mcpProviders;
-    private Consumer<ReActAgent.Builder> configurator;
-    private SubagentManager subAgentManager;
+    private final Consumer<ReActAgent.Builder> configurator;
+    private final CliSkillProvider cliSkills = new CliSkillProvider();
 
-    public AgentKernel(ChatModel chatModel, AgentSessionProvider sessionProvider, AgentProperties properties) {
-        this.chatModel = chatModel;
-        this.sessionProvider = sessionProvider;
-        this.properties = properties;
-
-        if (Assert.isNotEmpty(properties.mountPool)) {
-            properties.mountPool.forEach((alias, dir) -> {
-                skillPool(alias, dir);
-            });
-        }
-
-        if (Assert.isNotEmpty(properties.skillPools)) {
-            properties.skillPools.forEach((alias, dir) -> {
-                skillPool(alias, dir);
-            });
-        }
-
-        try {
-            if (Assert.isNotEmpty(properties.mcpServers)) {
-                mcpProviders = McpProviders.fromMcpServers(properties.mcpServers);
-            } else {
-                mcpProviders = null;
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("Mcp servers load failure", e);
-        }
-    }
+    private SubagentManager subagentManager;
 
     public String getVersion() {
-        return "v0.0.18";
+        return "v0.0.19";
     }
 
     public AgentProperties getProps() {
         return properties;
     }
 
-    public String getWorkDir() {
-        return properties.workDir;
-    }
-
-    public AgentKernel skillPool(String alias, String dir) {
-        if (dir != null) {
-            this.skillPools.put(alias, dir);
-        }
-        return this;
-    }
-
-    public AgentKernel config(Consumer<ReActAgent.Builder> configurator) {
+    public AgentKernel(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Consumer<ReActAgent.Builder> configurator) {
+        this.chatModel = chatModel;
+        this.properties = properties;
+        this.sessionProvider = sessionProvider;
         this.configurator = configurator;
-        return this;
+
+        try {
+            if (Assert.isNotEmpty(properties.getMcpServers())) {
+                mcpProviders = McpProviders.fromMcpServers(properties.getMcpServers());
+            } else {
+                mcpProviders = null;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Mcp servers load failure", e);
+        }
+
+        //-----------
+
+        final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel);
+        final String agentsMd = getAgentsMd();
+
+        if (Assert.isEmpty(agentsMd)) {
+            //无 AGENTS.md 配置
+            agentBuilder.systemPrompt(SystemPrompt.builder().build());
+        } else {
+            //有 AGENTS.md 配置
+            agentBuilder.systemPrompt(trace -> agentsMd);
+        }
+
+
+        if (Assert.isNotEmpty(properties.getMountPool())) {
+            properties.getMountPool().forEach((alias, dir) -> {
+                cliSkills.skillPool(alias, dir);
+            });
+        }
+
+        if (Assert.isNotEmpty(properties.getSkillPools())) {
+            properties.getSkillPools().forEach((alias, dir) -> {
+                cliSkills.skillPool(alias, dir);
+            });
+        }
+
+        cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
+
+        cliSkills.skillPool("@soloncode_skills", properties.getWorkDir() + AgentKernel.SOLONCODE_SKILLS);
+        cliSkills.skillPool("@opencode_skills", properties.getWorkDir() + AgentKernel.OPENCODE_SKILLS);
+        cliSkills.skillPool("@claude_skills", properties.getWorkDir() + AgentKernel.CLAUDE_SKILLS);
+
+        agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
+        agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
+        agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
+        agentBuilder.defaultToolAdd(new ApplyPatchTool());
+        agentBuilder.defaultSkillAdd(cliSkills);
+        agentBuilder.defaultSkillAdd(new TodoSkill());
+        agentBuilder.defaultSkillAdd(codeSkill);
+        agentBuilder.defaultSkillAdd(luceneSkill);
+
+        // 添加子代理工具
+        if (properties.isSubagentEnabled()) {
+            subagentManager = new SubagentManager(this);
+
+            // 注册自定义 agents 池（类似 skillPool）
+            // 注册 soloncode agents
+            subagentManager.agentPool("@soloncode_agents", properties.getWorkDir() + AgentKernel.SOLONCODE_AGENTS);
+            // 注册 opencode agents
+            subagentManager.agentPool("@opencode_agents", properties.getWorkDir() +  AgentKernel.OPENCODE_AGENTS);
+            // 注册 claude agents
+            subagentManager.agentPool("@claude_agents", properties.getWorkDir() +  AgentKernel.CLAUDE_AGENTS);
+
+            // SubagentSkill 会通过 @ToolMapping 自动注册为工具
+            agentBuilder.defaultSkillAdd(new SubagentSkill(subagentManager));
+            LOG.info("子代理模式已启用");
+        }
+
+        //上下文摘要
+        SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
+                properties.getSummaryWindowSize(),
+                new HierarchicalSummarizationStrategy(chatModel));
+
+        agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
+
+        // HITL 交互干预（优先使用实例字段，否则使用配置）
+        if (properties.isHitlEnabled()) {
+            agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
+                    .onTool("bash", new HitlStrategy()));
+            LOG.info("HITL 交互干预已启用");
+        }
+
+        // 添加步数
+        agentBuilder.maxSteps(properties.getMaxSteps());
+        // 添加步数自动扩展
+        agentBuilder.maxStepsExtensible(properties.isMaxStepsAutoExtensible());
+        // 添加会话窗口大小
+        agentBuilder.sessionWindowSize(properties.getSessionWindowSize());
+
+        if (mcpProviders != null) {
+            for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
+                agentBuilder.defaultToolAdd(mcpProvider);
+            }
+        }
+
+        if (configurator != null) {
+            configurator.accept(agentBuilder);
+        }
+
+        reActAgent = agentBuilder.build();
+    }
+
+    public ChatModel getChatModel() {
+        return chatModel;
+    }
+
+
+    public CliSkillProvider getCliSkills() {
+        return cliSkills;
     }
 
     /**
      * 获取子代理管理器
      */
-    public SubagentManager getSubAgentManager() {
-        return subAgentManager;
+    public SubagentManager getSubagentManager() {
+        return subagentManager;
     }
-
-    private ReActAgent reActAgent;
 
 
     public AgentSession getSession(String instanceId) {
@@ -140,7 +211,9 @@ public class AgentKernel {
         URL agentsUrl;
 
         try {
-            Path path = Paths.get(properties.workDir).toAbsolutePath().normalize().resolve("AGENTS.md");
+            Path path = Paths.get(properties.getWorkDir()).toAbsolutePath().normalize()
+                    .resolve("AGENTS.md");
+
             if (Files.exists(path)) {
                 //如果工作区有
                 agentsUrl = path.toUri().toURL();
@@ -167,99 +240,6 @@ public class AgentKernel {
         return null;
     }
 
-    public void prepare() {
-        if (reActAgent == null) {
-            final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel);
-            final String agentsMd = getAgentsMd();
-
-            if (Assert.isEmpty(agentsMd)) {
-                //无 AGENTS.md 配置
-                agentBuilder.systemPrompt(SystemPrompt.builder().build());
-            } else {
-                //有 AGENTS.md 配置
-                agentBuilder.systemPrompt(trace -> agentsMd);
-            }
-
-            CliSkillProvider cliSkillProvider = new CliSkillProvider();
-            if (Assert.isNotEmpty(skillPools)) {
-                for (Map.Entry<String, String> entry : skillPools.entrySet()) {
-                    cliSkillProvider.skillPool(entry.getKey(), entry.getValue());
-                }
-            }
-
-            cliSkillProvider.getTerminalSkill().setSandboxMode(properties.sandboxMode);
-
-            cliSkillProvider.skillPool("@soloncode_skills", properties.workDir + AgentKernel.SOLONCODE_SKILLS);
-            cliSkillProvider.skillPool("@opencode_skills", properties.workDir + AgentKernel.OPENCODE_SKILLS);
-            cliSkillProvider.skillPool("@claude_skills", properties.workDir + AgentKernel.CLAUDE_SKILLS);
-
-            agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
-            agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
-            agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
-            agentBuilder.defaultToolAdd(new ApplyPatchTool());
-            agentBuilder.defaultSkillAdd(cliSkillProvider);
-            agentBuilder.defaultSkillAdd(new TodoSkill());
-            agentBuilder.defaultSkillAdd(codeSkill);
-            agentBuilder.defaultSkillAdd(luceneSkill);
-
-            // 添加子代理工具
-            if (properties.subagentEnabled) {
-                subAgentManager = new SubagentManager(
-                        sessionProvider,
-                        properties.workDir,
-                        cliSkillProvider.getPoolManager(),
-                        this,
-                        chatModel
-                );
-
-                // 注册自定义 agents 池（类似 skillPool）
-                // 注册 soloncode agents
-                subAgentManager.agentPool("@soloncode_agents", properties.workDir + AgentKernel.SOLONCODE_AGENTS);
-                // 注册 opencode agents
-                subAgentManager.agentPool("@opencode_agents", properties.workDir +  AgentKernel.OPENCODE_AGENTS);
-                // 注册 claude agents
-                subAgentManager.agentPool("@claude_agents", properties.workDir +  AgentKernel.CLAUDE_AGENTS);
-
-                // SubagentSkill 会通过 @ToolMapping 自动注册为工具
-                agentBuilder.defaultSkillAdd(new SubagentSkill(subAgentManager));
-                LOG.info("子代理模式已启用");
-            }
-
-            //上下文摘要
-            SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
-                    properties.summaryWindowSize,
-                    new HierarchicalSummarizationStrategy(chatModel));
-
-            agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
-
-            // HITL 交互干预（优先使用实例字段，否则使用配置）
-            if (properties.hitlEnabled) {
-                agentBuilder.defaultInterceptorAdd(new HITLInterceptor()
-                        .onTool("bash", new HitlStrategy()));
-                LOG.info("HITL 交互干预已启用");
-            }
-
-            // 添加步数
-            agentBuilder.maxSteps(properties.maxSteps);
-            // 添加步数自动扩展
-            agentBuilder.maxStepsExtensible(properties.maxStepsAutoExtensible);
-            // 添加会话窗口大小
-            agentBuilder.sessionWindowSize(properties.sessionWindowSize);
-
-            if (mcpProviders != null) {
-                for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
-                    agentBuilder.defaultToolAdd(mcpProvider);
-                }
-            }
-
-            if (configurator != null) {
-                configurator.accept(agentBuilder);
-            }
-
-            reActAgent = agentBuilder.build();
-        }
-    }
-
     private ReActRequest buildRequest(String sessonId, Prompt prompt) {
         if (sessonId == null) {
             sessonId = SESSION_DEFAULT;
@@ -267,7 +247,7 @@ public class AgentKernel {
 
         AgentSession session = sessionProvider.getSession(sessonId);
         String activatedWorkDir = (String) session.attrs()
-                .getOrDefault(ATTR_CWD, properties.workDir);
+                .getOrDefault(ATTR_CWD, properties.getWorkDir());
 
         return reActAgent.prompt(prompt)
                 .session(session)
@@ -278,7 +258,7 @@ public class AgentKernel {
 
     public String init(AgentSession session) {
         String effectiveWorkDir = (String) session.attrs()
-                .getOrDefault(ATTR_CWD, properties.workDir);
+                .getOrDefault(ATTR_CWD, properties.getWorkDir());
 
         String code = codeSkill.refresh(effectiveWorkDir);
         String search = luceneSkill.refreshSearchIndex(effectiveWorkDir);
