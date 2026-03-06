@@ -149,7 +149,7 @@ public class AgentKernel {
             subagentManager.agentPool( properties.getWorkDir() +  AgentKernel.CLAUDE_AGENTS);
 
             // SubagentSkill 会通过 @ToolMapping 自动注册为工具
-            agentBuilder.defaultSkillAdd(new SubagentTool(subagentManager));
+            agentBuilder.defaultToolAdd(new SubagentTool(subagentManager));
             LOG.info("子代理模式已启用");
         }
 

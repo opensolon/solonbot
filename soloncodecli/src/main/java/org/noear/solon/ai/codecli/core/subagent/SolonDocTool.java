@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.ai.codecli.core.tool;
+package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.annotation.ToolMapping;
+import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 import org.noear.solon.ai.rag.Document;
 import org.noear.solon.annotation.Param;
 import org.slf4j.Logger;
@@ -34,8 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author bai
  * @since 3.9.5
  */
-public class ReadSolonDocTool {
-    private static final Logger LOG = LoggerFactory.getLogger(ReadSolonDocTool.class);
+public class SolonDocTool {
+    private static final Logger LOG = LoggerFactory.getLogger(SolonDocTool.class);
 
     // 文档缓存（全局共享）
     private static final Map<String, String> DOC_CACHE = new ConcurrentHashMap<>();
@@ -52,7 +53,7 @@ public class ReadSolonDocTool {
     /**
      * 默认构造函数（使用当前工作目录）
      */
-    public ReadSolonDocTool(String workDir) {
+    public SolonDocTool(String workDir) {
         this.workDir = workDir;
         this.cacheDir = this.workDir + File.separator + ".soloncode" + File.separator + "cache" + File.separator + "docs";
 
@@ -62,7 +63,7 @@ public class ReadSolonDocTool {
      * 读取 Solon 官网文档
      */
     @ToolMapping(
-            name = "read_solon_doc",
+            name = "solon_doc_read",
             description = "读取 Solon 官网文档。支持文档名称如：learn-start, learn-features, agent-quick-start, agent-chat-model, agent-tools, agent-skill 等"
     )
     public String fetch(

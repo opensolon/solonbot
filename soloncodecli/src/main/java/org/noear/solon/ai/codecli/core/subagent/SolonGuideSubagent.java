@@ -17,7 +17,6 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.codecli.core.AgentKernel;
-import org.noear.solon.ai.codecli.core.tool.ReadSolonDocTool;
 import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
 
 /**
@@ -40,7 +39,7 @@ public class SolonGuideSubagent extends AbsSubagent {
         builder.defaultToolAdd(WebfetchTool.getInstance());
 
         // 添加自定义工具：读取 Solon 文档（传递 workDir）
-        builder.defaultToolAdd(new ReadSolonDocTool(mainAgent.getProps().getWorkDir()));
+        builder.defaultToolAdd(new SolonDocTool(mainAgent.getProps().getWorkDir()));
 
         // 设置较小的步数限制（主要是查询和回答）
         builder.maxSteps(15);
@@ -72,7 +71,7 @@ public class SolonGuideSubagent extends AbsSubagent {
                 "\n" +
                 "### 工作流程\n" +
                 "1. 理解用户问题，识别涉及的主题（Solon Code / Agent SDK / API）\n" +
-                "2. 使用 `read_solon_doc` 工具读取相关文档\n" +
+                "2. 使用 `solon_doc_read` 工具读取相关文档\n" +
                 "3. 如果需要更多信息，使用 `webfetch` 获取在线资源\n" +
                 "4. 结合文档内容给出准确、详细的回答\n" +
                 "5. 如果文档中没有相关内容，说明情况并提供通用建议\n" +

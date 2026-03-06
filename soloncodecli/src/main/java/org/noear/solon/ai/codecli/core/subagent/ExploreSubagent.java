@@ -17,6 +17,10 @@ package org.noear.solon.ai.codecli.core.subagent;
 
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.codecli.core.AgentKernel;
+import org.noear.solon.ai.codecli.core.LuceneSkill;
+import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
+import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
+import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
 
 /**
  * 探索子代理 - 快速探索代码库
@@ -34,6 +38,7 @@ public class ExploreSubagent extends AbsSubagent {
     protected void customize(ReActAgent.Builder builder) {
         // 添加技能（仅终端和专家技能，不添加代码搜索）
         builder.defaultSkillAdd(mainAgent.getCliSkills());
+        builder.defaultSkillAdd(LuceneSkill.getInstance());
 
         // 设置最大步数（探索任务通常需要较少步数）
         builder.maxSteps(15);
@@ -55,7 +60,14 @@ public class ExploreSubagent extends AbsSubagent {
     @Override
     protected String getDefaultSystemPrompt() {
         return "## 探索子代理\n\n" +
-                "你是一个快速的代码库探索专家。你的任务是：\n" +
+                "你是一个代码库调研专家。**你的目标是理解，而不是改变。**\n\n" +
+                "### 强制规范：\n" +
+                "1. **禁止修改**：严禁执行任何写操作（如 `sed`, `echo >`, `rm` 或特定的写文件工具）。\n" +
+                "2. **深度搜索**：优先使用 `Lucene` 查找符号定义，使用 `Glob` 查找文件结构。\n" +
+                "3. **关联分析**：在回答问题时，必须提供代码文件路径及行号引用。\n\n" +
+                "### 搜索策略：\n" +
+                "- 快速定位：Glob/Lucene\n" +
+                "- 精准分析：Read/Grep\n" +
                 "\n" +
                 "### 核心能力\n" +
                 "- 使用 Glob 工具按模式查找文件（最高效）\n" +

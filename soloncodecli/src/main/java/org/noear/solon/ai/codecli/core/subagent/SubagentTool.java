@@ -54,29 +54,35 @@ public class SubagentTool extends AbsTool {
     @Override
     public String description() {
         StringBuilder sb = new StringBuilder();
-        sb.append("启动专门的子代理来处理复杂任务。子代理会返回任务结论及一个 task_id。\n\n");
+        sb.append("启动专门的子代理处理复杂任务。子代理独立运行工具流并返回结论。\n\n");
 
+        // 1. 列表优化：增加能力说明（如果 Subagent 接口支持获取能力描述）
         sb.append("### 可用的 subagent_type 列表:\n");
         sb.append("<available_agents>\n");
         for (Subagent agent : manager.getAgents()) {
-            sb.append(String.format("  <agent subagent_type=\"%s\">%s</agent>\n",
+            // 建议在 Subagent 接口增加一个 getCapabilities() 或类似方法
+            sb.append(String.format("  <agent subagent_type=\"%s\" description=\"%s\" />\n",
                     agent.getType(), agent.getDescription()));
         }
-        sb.append("</available_agents>\n");
+        sb.append("</available_agents>\n\n");
 
-        sb.append("\n### 使用准则:\n");
-        sb.append("1. **何时使用**: 需要执行复杂分析、编写大量代码、调用 Bash 或进行多阶段规划时。\n");
-        sb.append("2. **何时不使用**: 简单的文件读取（使用 read 工具）、搜索单个定义（使用 glob 工具）。\n");
-        sb.append("3. **并发建议**: 可以在单次回复中调用多个子代理以提高效率。\n");
-        sb.append("4. **会话持续性**: 返回结果中包含 task_id。若需要子代理根据之前的进度继续，请在下次调用时传入 task_id。\n\n");
+        // 2. 准则优化：使用更强烈的对比
+        sb.append("### 决策准则:\n");
+        sb.append("- **优先使用**: 涉及多步推理、代码重构、运行测试脚本、复杂系统分析。\n");
+        sb.append("- **避免使用**: 仅读取已知路径文件、简单的关键字搜索、查看当前目录列表。\n\n");
 
-        sb.append("\n### 使用说明:\n");
-        sb.append("- 如果要继续之前的任务，请务必传入对应的 task_id。\n");
-        sb.append("- 子代理无法感知主会话的所有上下文，请在 prompt 中提供充足的细节。\n");
+        // 3. 示例优化：提供结构化的调用示例
+        sb.append("### 调用示例:\n");
+        sb.append("```json\n");
+        sb.append("// 场景：需要对代码进行深度分析并修复\n");
+        sb.append("subagent(subagent_type=\"dev\", prompt=\"分析并修复所有单元测试中发现的并发死锁问题\", description=\"修复并发死锁\")\n\n");
+        sb.append("// 场景：继续之前的重构任务\n");
+        sb.append("subagent(subagent_type=\"plan\", task_id=\"subagent_plan_12345\", prompt=\"基于上一步的方案，生成具体的接口定义\", description=\"细化接口设计\")\n");
+        sb.append("```\n\n");
 
-        sb.append("### 示例:\n");
-        sb.append("- Task(subagent_type='plan', description='设计重构方案', prompt='分析现有的 Auth 逻辑并提出微服务化方案')\n");
-        sb.append("- Task(subagent_type='bash', description='检查日志错误', prompt='/bin/grep -r \"Error\" ./logs')\n");
+        // 4. 注意事项：醒目提示
+        sb.append("> [!IMPORTANT]\n");
+        sb.append("> 子代理是上下文隔离的。在 prompt 中必须提供任务所需的全部关键背景（如相关的类名、报错信息、具体要求），否则子代理可能因信息不足而失败。\n");
 
         return sb.toString();
     }

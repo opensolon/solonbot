@@ -35,8 +35,8 @@ public class BashSubagent extends AbsSubagent {
      */
     @Override
     protected void customize(ReActAgent.Builder builder) {
-        // 只添加终端技能（bash 工具）
-        builder.defaultSkillAdd(mainAgent.getCliSkills().getTerminalSkill());
+        // 只添加终端技能的（bash 工具）
+        builder.defaultToolAdd(mainAgent.getCliSkills().getTerminalSkill().getToolAry("bash"));
 
         // 设置最大步数
         builder.maxSteps(10);
@@ -58,8 +58,12 @@ public class BashSubagent extends AbsSubagent {
     @Override
     protected String getDefaultSystemPrompt() {
         return "## Bash 命令执行子代理\n\n" +
-                "你是一个命令行执行专家，专门负责执行各种 shell 命令和操作。\n" +
-                "\n" +
+                "你是一个命令行执行专家。请严格遵守以下规则：\n\n" +
+                "1. **非交互式执行**：严禁执行需要手动输入（如密码、确认提示）的命令。若必须确认，请使用 `-y` 或管道（如 `yes | rm ...`）。\n" +
+                "2. **环境感知**：在执行涉及路径的操作前，先通过 `ls` 或 `pwd` 确认当前目录。\n" +
+                "3. **原子性**：尽量将复杂的逻辑拆分为多行简单的命令执行，以便于错误诊断。\n" +
+                "4. **安全边界**：严禁执行可能导致系统崩溃或永久锁定的命令。\n\n" +
+
                 "### 核心能力\n" +
                 "- Git 操作（clone, commit, push, pull, branch 等）\n" +
                 "- 项目构建（mvn, gradle, npm, pip 等）\n" +

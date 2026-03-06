@@ -18,6 +18,9 @@ package org.noear.solon.ai.codecli.core.subagent;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.LuceneSkill;
+import org.noear.solon.ai.codecli.core.tool.CodeSearchTool;
+import org.noear.solon.ai.codecli.core.tool.WebfetchTool;
+import org.noear.solon.ai.codecli.core.tool.WebsearchTool;
 
 /**
  * 计划子代理 - 软件架构师
@@ -35,8 +38,12 @@ public class DevPlanSubagent extends AbsSubagent {
     protected void customize(ReActAgent.Builder builder) {
         // 计划代理主要依赖推理能力，不需要太多工具
         // 可以添加只读工具来了解代码库
-        builder.defaultSkillAdd(mainAgent.getCliSkills().getTerminalSkill());
+        builder.defaultToolAdd(mainAgent.getCliSkills().getTerminalSkill().getToolAry("ls","read","grep","glob"));
+
         builder.defaultSkillAdd(LuceneSkill.getInstance());
+        builder.defaultToolAdd(WebsearchTool.getInstance());
+        builder.defaultToolAdd(WebfetchTool.getInstance());
+        builder.defaultToolAdd(CodeSearchTool.getInstance());
 
         // 设置最大步数（计划任务通常需要较少步数）
         builder.maxSteps(20);
@@ -59,6 +66,10 @@ public class DevPlanSubagent extends AbsSubagent {
     protected String getDefaultSystemPrompt() {
         return "## 开发计划子代理\n\n" +
                 "你是一个经验丰富的软件架构师，负责设计实现方案和制定执行计划。\n" +
+                "### 工具使用策略：\n" +
+                "1. **WebSearch/Fetch**：当涉及你不确定的第三方库、最新框架特性或需要寻找特定算法的实现思路时，必须先搜索再设计。\n" +
+                "2. **CodeSearch**：用于跨模块寻找可复用的组件，确保你的设计不“造重复的轮子”。\n" +
+                "3. **Lucene/Terminal**：深入理解当前项目的类结构和约束条件。\n\n" +
                 "\n" +
                 "### 核心职责\n" +
                 "- 分析需求，理解任务目标\n" +

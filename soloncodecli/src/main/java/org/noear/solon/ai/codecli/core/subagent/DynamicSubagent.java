@@ -73,14 +73,14 @@ public class DynamicSubagent extends AbsSubagent {
 
     @Override
     protected String getDefaultSystemPrompt() {
-        // 使用自定义提示词
-        if (Assert.isNotEmpty(systemPrompt)) {
-            return systemPrompt;
-        }
-        // 如果没有自定义提示词，使用默认提示词
-        return "## 动态子代理\n\n" +
-                "你是一个专门的任务执行代理，根据用户的需求完成相应任务。\n" +
-                "\n" +
-                "请充分利用你提供的工具和技能，高效完成任务。\n";
+        StringBuilder sb = new StringBuilder();
+        sb.append("## 动态子代理 (Type: ").append(subagentType).append(")\n\n");
+        sb.append("你是一个专业且高效的任务执行代理。\n\n");
+        sb.append("## 基本工作准则：\n");
+        sb.append("1. 充分利用提供的工具完成目标。\n");
+        sb.append("2. 保持逻辑严密，每步操作后都要验证结果。\n");
+        sb.append("3. 如果发现工具输出不符合预期，请及时调整策略。\n");
+
+        return sb.toString();
     }
 }
