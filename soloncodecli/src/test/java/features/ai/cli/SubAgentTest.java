@@ -10,8 +10,8 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.ai.codecli.core.AgentProperties;
-import org.noear.solon.ai.codecli.core.subagent.SubAgentManager;
-import org.noear.solon.ai.codecli.core.subagent.SubAgentType;
+import org.noear.solon.ai.codecli.core.subagent.SubagentManager;
+import org.noear.solon.ai.codecli.core.subagent.SubagentType;
 import org.noear.solon.test.SolonTest;
 
 import java.util.Map;
@@ -47,11 +47,11 @@ public class SubAgentTest {
         codeAgent.prepare();
 
         // 获取 SubAgentManager
-        SubAgentManager manager = codeAgent.getSubAgentManager();
+        SubagentManager manager = codeAgent.getSubAgentManager();
 
         // 使用探索代理
         String prompt = "请探索这个项目的代码结构，找出所有的 Java 源文件";
-        AgentResponse response = manager.getAgent(SubAgentType.EXPLORE).execute(Prompt.of(prompt));
+        AgentResponse response = manager.getAgent(SubagentType.EXPLORE).execute(Prompt.of(prompt));
 
         System.out.println("探索结果：");
         System.out.println(response.getContent());
@@ -70,10 +70,10 @@ public class SubAgentTest {
 
         codeAgent.prepare();
 
-        SubAgentManager manager = codeAgent.getSubAgentManager();
+        SubagentManager manager = codeAgent.getSubAgentManager();
 
         String prompt = "为添加一个新的 REST API 端点设计实现计划";
-        AgentResponse response = manager.getAgent(SubAgentType.PLAN).execute(Prompt.of(prompt));
+        AgentResponse response = manager.getAgent(SubagentType.PLAN).execute(Prompt.of(prompt));
 
         System.out.println("计划结果：");
         System.out.println(response.getContent());
@@ -92,10 +92,10 @@ public class SubAgentTest {
 
         codeAgent.prepare();
 
-        SubAgentManager manager = codeAgent.getSubAgentManager();
+        SubagentManager manager = codeAgent.getSubAgentManager();
 
         String prompt = "列出当前目录的文件";
-        AgentResponse response = manager.getAgent(SubAgentType.BASH).execute(Prompt.of(prompt));
+        AgentResponse response = manager.getAgent(SubagentType.BASH).execute(Prompt.of(prompt));
 
         System.out.println("Bash 执行结果：");
         System.out.println(response.getContent());
