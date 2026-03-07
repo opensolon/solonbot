@@ -125,7 +125,7 @@ public class SubagentManager {
                     List<String> fullContent = Files.readAllLines(file, StandardCharsets.UTF_8);
 
                     // 解析文件：拆分元数据和 Prompt
-                    ParsedAgentFile parsed = parseAgentFile(fullContent);
+                    SubagentFile parsed = parseSubagentFile(fullContent);
 
                     String subagentType = (parsed.name != null) ? parsed.name : fileName.substring(0, fileName.length() - 3);
 
@@ -145,7 +145,7 @@ public class SubagentManager {
         }
     }
 
-    public static class ParsedAgentFile {
+    public static class SubagentFile {
         public String name;
         public String description;
         public Collection<String> tools;
@@ -155,8 +155,8 @@ public class SubagentManager {
         public String systemPrompt;
     }
 
-    public ParsedAgentFile parseAgentFile(List<String> lines) {
-        ParsedAgentFile result = new ParsedAgentFile();
+    public SubagentFile parseSubagentFile(List<String> lines) {
+        SubagentFile result = new SubagentFile();
 
         if (lines == null || lines.isEmpty()) {
             result.systemPrompt = "";

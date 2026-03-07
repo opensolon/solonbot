@@ -27,7 +27,7 @@ public class SubagentManagerTest {
                 "Review the code."
         );
 
-        SubagentManager.ParsedAgentFile result = manager.parseAgentFile(lines);
+        SubagentManager.SubagentFile result = manager.parseSubagentFile(lines);
 
         Assertions.assertEquals("reviewer", result.name);
         Assertions.assertTrue(result.tools.contains("Read"));
@@ -47,7 +47,7 @@ public class SubagentManagerTest {
                 "Just content"
         );
 
-        SubagentManager.ParsedAgentFile result = manager.parseAgentFile(lines);
+        SubagentManager.SubagentFile result = manager.parseSubagentFile(lines);
 
         // 解析器不应识别出 name，整个内容应作为 body
         Assertions.assertNull(result.name);
@@ -65,7 +65,7 @@ public class SubagentManagerTest {
                 "Body"
         );
 
-        SubagentManager.ParsedAgentFile result = manager.parseAgentFile(lines);
+        SubagentManager.SubagentFile result = manager.parseSubagentFile(lines);
         Assertions.assertEquals(2, result.tools.size());
         Assertions.assertTrue(result.tools.contains("Read"));
     }
@@ -79,7 +79,7 @@ public class SubagentManagerTest {
                 "This is just text now"
         );
 
-        SubagentManager.ParsedAgentFile result = manager.parseAgentFile(lines);
+        SubagentManager.SubagentFile result = manager.parseSubagentFile(lines);
         Assertions.assertNull(result.name);
         Assertions.assertTrue(result.systemPrompt.startsWith("---"));
     }
@@ -94,7 +94,7 @@ public class SubagentManagerTest {
                 "Body"
         );
 
-        SubagentManager.ParsedAgentFile result = manager.parseAgentFile(lines);
+        SubagentManager.SubagentFile result = manager.parseSubagentFile(lines);
         // 应该捕获异常并退回到普通文本模式
         Assertions.assertNull(result.name);
         Assertions.assertTrue(result.systemPrompt.contains("name: [invalid yaml"));
