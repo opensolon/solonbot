@@ -1,4 +1,4 @@
-package features.ai.cli;
+package features.bot.codecli;
 
 import org.junit.jupiter.api.Test;
 import org.noear.solon.Solon;

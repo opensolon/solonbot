@@ -1,4 +1,4 @@
-package demo.ai.cli;
+package demo.bot.codecli;
 
 import org.noear.solon.bot.core.AgentKernel;
 import org.noear.solon.bot.codecli.portal.BotGate;

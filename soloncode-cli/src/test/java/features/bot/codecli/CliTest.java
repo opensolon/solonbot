@@ -1,4 +1,4 @@
-package features.ai.cli;
+package features.bot.codecli;
 
 import org.noear.solon.bot.codecli.App;
 

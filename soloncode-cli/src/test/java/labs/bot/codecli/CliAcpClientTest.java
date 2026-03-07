@@ -1,4 +1,4 @@
-package labs.ai.cli;
+package labs.bot.codecli;
 
 import com.agentclientprotocol.sdk.client.AcpClient;
 import com.agentclientprotocol.sdk.client.AcpSyncClient;
