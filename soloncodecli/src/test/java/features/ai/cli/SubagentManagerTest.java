@@ -2,7 +2,7 @@ package features.ai.cli;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.noear.solon.ai.codecli.core.subagent.SubagentManager;
+import org.noear.solon.bot.core.subagent.SubagentManager;
 
 import java.util.Arrays;
 import java.util.List;

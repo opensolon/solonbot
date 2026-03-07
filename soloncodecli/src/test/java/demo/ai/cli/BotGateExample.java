@@ -1,9 +1,9 @@
 package demo.ai.cli;
 
-import org.noear.solon.ai.codecli.core.AgentKernel;
-import org.noear.solon.ai.codecli.portal.BotGate;
-import org.noear.solon.ai.codecli.portal.BotChannelRegistry;
-import org.noear.solon.ai.codecli.portal.BotWebChannel;
+import org.noear.solon.bot.core.AgentKernel;
+import org.noear.solon.bot.codecli.portal.BotGate;
+import org.noear.solon.bot.codecli.portal.BotChannelRegistry;
+import org.noear.solon.bot.codecli.portal.BotWebChannel;
 
 import java.util.HashMap;
 import java.util.Map;

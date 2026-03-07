@@ -2,8 +2,8 @@ package features.ai.cli;
 
 import org.junit.jupiter.api.Test;
 import org.noear.solon.Solon;
-import org.noear.solon.ai.codecli.core.CliSkillProvider;
-import org.noear.solon.ai.codecli.core.AgentProperties;
+import org.noear.solon.bot.core.CliSkillProvider;
+import org.noear.solon.bot.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.test.SolonTest;
 

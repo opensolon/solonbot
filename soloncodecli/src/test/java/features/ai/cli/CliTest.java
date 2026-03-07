@@ -1,6 +1,6 @@
 package features.ai.cli;
 
-import org.noear.solon.ai.codecli.App;
+import org.noear.solon.bot.codecli.App;
 
 public class CliTest {
     public static void main(String[] args) {
