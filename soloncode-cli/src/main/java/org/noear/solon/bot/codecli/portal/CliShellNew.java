@@ -58,8 +58,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Code CLI 终端 (printAbove 架构 — 输入始终可用)
  */
 @Preview("3.9.4")
-public class CliShell implements Runnable {
-    private final static Logger LOG = LoggerFactory.getLogger(CliShell.class);
+public class CliShellNew implements Runnable {
+    private final static Logger LOG = LoggerFactory.getLogger(CliShellNew.class);
 
     private Terminal terminal;
     private LineReader reader;
@@ -114,7 +114,7 @@ public class CliShell implements Runnable {
             ICON_THINKING = "\u2699", // ⚙
             ICON_CHECK = "\u2714"; // ✔
 
-    public CliShell(AgentKernel kernel) {
+    public CliShellNew(AgentKernel kernel) {
         this.kernel = kernel;
         this.commandRegistry = new CommandRegistry();
         registerBuiltinCommands();

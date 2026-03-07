@@ -560,11 +560,4 @@ public class TerminalSkill extends AbsSkill {
             return "/bin/sh";
         }
     }
-
-    public Tool[] getToolAry(String... names) {
-        List<String> nameList = Arrays.asList(names);
-        return this.getTools(null).stream()
-                .filter(t -> nameList.contains(t.name()))
-                .toArray(org.noear.solon.ai.chat.tool.Tool[]::new);
-    }
 }

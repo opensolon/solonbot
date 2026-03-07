@@ -24,7 +24,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.bot.codecli.portal.CliShell;
+import org.noear.solon.bot.codecli.portal.CliShellNew;
 import org.noear.solon.bot.core.AgentProperties;
 import org.noear.solon.bot.codecli.portal.AcpLink;
 import org.noear.solon.bot.core.AgentKernel;
@@ -74,7 +74,7 @@ public class App {
 
 
         if (config.isCliEnabled()) {
-            new Thread(new CliShell(agentKernel), "CLI-Interactive-Thread").start();
+            new Thread(new CliShellNew(agentKernel), "CLI-Interactive-Thread").start();
         }
 
         if (config.isWebEnabled()) {
