@@ -15,16 +15,19 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
+import org.noear.snack4.ONode;
 import org.noear.solon.ai.codecli.core.AgentKernel;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -119,7 +122,7 @@ public class SubagentManager {
             for (Path file : files) {
                 try {
                     String fileName = file.getFileName().toString();
-                    String fullContent = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+                    List<String> fullContent = Files.readAllLines(file, StandardCharsets.UTF_8);
 
                     // 解析文件：拆分元数据和 Prompt
                     ParsedAgentFile parsed = parseAgentFile(fullContent);
@@ -145,39 +148,96 @@ public class SubagentManager {
     private static class ParsedAgentFile {
         String name;
         String description;
-        String tools;
+        Collection<String> tools;
+        String model;
+        Map<String, Object> metadata;
+
         String body;
     }
 
-    private ParsedAgentFile parseAgentFile(String content) {
+    private ParsedAgentFile parseAgentFile(List<String> lines) {
         ParsedAgentFile result = new ParsedAgentFile();
-        String[] parts = content.split("---", 3);
 
-        if (parts.length >= 3) {
-            // 说明存在元数据区
-            String yamlContent = parts[1];
-            result.body = parts[2].trim();
-
-            // 简单的 key-value 解析
-            for (String line : yamlContent.split("\n")) {
-                if (line.contains(":")) {
-                    String[] kv = line.split(":", 2);
-                    String key = kv[0].trim().toLowerCase();
-                    String value = kv[1].trim();
-                    if ("name".equals(key)) result.name = value;
-                    else if ("description".equals(key)) result.description = value;
-                    else if ("tools".equals(key)) result.tools = value;
-                }
-            }
-        } else {
-            // 兼容老格式：没有 --- 头部
-            result.body = content.trim();
-            // 回退到原来的逻辑获取描述
-            String[] lines = content.split("\n");
-            result.description = (lines.length > 0) ? lines[0].replace("#", "").trim() : "自定义代理";
+        if (lines == null || lines.isEmpty()) {
+            result.body = "";
+            result.description = "自定义代理";
+            return result;
         }
 
-        if (result.description == null) result.description = "自定义代理";
+        // 规范：第一行必须是 --- 且不能有前导空行
+        if ("---".equals(lines.get(0).trim())) {
+            StringBuilder yamlBuilder = new StringBuilder();
+            StringBuilder bodyBuilder = new StringBuilder();
+            int secondSeparatorIndex = -1;
+
+            for (int i = 1; i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (secondSeparatorIndex == -1) {
+                    if ("---".equals(line.trim())) {
+                        secondSeparatorIndex = i;
+                    } else {
+                        yamlBuilder.append(line).append("\n");
+                    }
+                } else {
+                    bodyBuilder.append(line).append("\n");
+                }
+            }
+
+            // 成功找到闭合标识
+            if (secondSeparatorIndex != -1) {
+                try {
+                    Yaml yaml = new Yaml();
+                    Object yamlData = yaml.load(yamlBuilder.toString());
+                    // 使用 ONode.loadObj 性能更好且更直接
+                    ONode oNode = ONode.ofBean(yamlData);
+
+                    if (oNode.isObject()) {
+                        // 1. 存入全量元数据
+                        result.metadata = oNode.toBean(Map.class);
+
+                        // 2. 提取标准字段
+                        result.name = oNode.get("name").getString();
+                        result.description = oNode.get("description").getString();
+                        result.model = oNode.get("model").getString();
+
+                        // 3. 灵活解析 tools (数组或逗号分隔)
+                        if (oNode.hasKey("tools")) {
+                            ONode tNode = oNode.get("tools");
+                            if (tNode.isArray()) {
+                                result.tools = tNode.toBean(List.class);
+                            } else {
+                                result.tools = Arrays.stream(tNode.getString().split(","))
+                                        .map(String::trim)
+                                        .filter(s -> !s.isEmpty())
+                                        .collect(Collectors.toList());
+                            }
+                        }
+                    }
+                    result.body = bodyBuilder.toString().trim();
+                } catch (Exception e) {
+                    LOG.error("YAML 格式异常，全文本回退", e);
+                    result.body = String.join("\n", lines).trim();
+                }
+            } else {
+                // 有开头无结尾，视为普通文本
+                result.body = String.join("\n", lines).trim();
+            }
+        } else {
+            // 第一行不是 ---，严格作为普通 Body 处理
+            result.body = String.join("\n", lines).trim();
+        }
+
+        // 描述兜底
+        if (Assert.isEmpty(result.description) && !result.body.isEmpty()) {
+            // 取第一行并移除 Markdown 标题符
+            String firstLine = result.body.split("\\R")[0];
+            result.description = firstLine.replace("#", "").trim();
+        }
+
+        if (Assert.isEmpty(result.description)) {
+            result.description = "自定义代理";
+        }
+
         return result;
     }
 }
