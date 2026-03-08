@@ -142,7 +142,10 @@ public class AgentKernel {
         agentBuilder.defaultSkillAdd(new TodoSkill());
         agentBuilder.defaultSkillAdd(codeSkill);
         agentBuilder.defaultSkillAdd(luceneSkill);
-        agentBuilder.defaultSkillAdd(new BrowserSkill());
+
+        if(properties.isBrowserEnabled()) {
+            agentBuilder.defaultSkillAdd(new BrowserSkill());
+        }
 
         // 添加子代理工具
         if (properties.isSubagentEnabled()) {
