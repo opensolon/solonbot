@@ -27,8 +27,7 @@ import java.util.stream.Collectors;
  * 用于 Agent 执行任务时临时存储当前状态：
  * - 当前任务描述
  * - LLM 生成的摘要
- * - Tool 运行记录
- * - Skill 调用记录
+ * - Tool/Skill 运行记录（统一）
  * - 中间结果和临时变量
  * - 任务进度和步骤
  *
@@ -46,8 +45,7 @@ public class WorkingMemory extends Memory {
     private String taskId;                       // 关联任务ID
     private String taskDescription;              // 当前任务描述
     private String summary;                      // LLM 生成的摘要
-    private List<ToolRecord> toolRecords;        // Tool 运行记录
-    private List<SkillRecord> skillRecords;      // Skill 调用记录
+    private List<ActionRecord> toolRecords;        // Tool/Skill 运行记录（统一）
     private Map<String, Object> data;            // 其他工作数据（键值对）
     private int step;                            // 当前步骤
     private String status;                       // 状态（running/completed/failed）
@@ -76,7 +74,6 @@ public class WorkingMemory extends Memory {
         this.taskDescription = null;
         this.summary = null;
         this.toolRecords = new CopyOnWriteArrayList<>();
-        this.skillRecords = new CopyOnWriteArrayList<>();
         this.data = new ConcurrentHashMap<>();
         this.step = 0;
         this.status = "running";
@@ -112,25 +109,46 @@ public class WorkingMemory extends Memory {
         lastAccessTime = System.currentTimeMillis();
     }
 
-    public List<ToolRecord> getToolRecords() {
+    public List<ActionRecord> getActionRecords() {
         return toolRecords;
     }
 
-    public void setToolRecords(List<ToolRecord> toolRecords) {
+    public void setActionRecords(List<ActionRecord> toolRecords) {
         this.toolRecords = toolRecords != null
             ? new CopyOnWriteArrayList<>(toolRecords)
             : new CopyOnWriteArrayList<>();
         lastAccessTime = System.currentTimeMillis();
     }
 
-    public List<SkillRecord> getSkillRecords() {
-        return skillRecords;
+    /**
+     * 获取所有 Skill 类型的记录（向后兼容）
+     *
+     * @return Skill 类型的记录列表
+     */
+    public List<ActionRecord> getSkillRecords() {
+        return toolRecords.stream()
+                .filter(ActionRecord::isSkill)
+                .collect(Collectors.toList());
     }
 
-    public void setSkillRecords(List<SkillRecord> skillRecords) {
-        this.skillRecords = skillRecords != null
-            ? new CopyOnWriteArrayList<>(skillRecords)
-            : new CopyOnWriteArrayList<>();
+    /**
+     * 设置 Skill 记录（向后兼容）
+     * 注意：此方法会移除所有现有的 skill 类型记录，并添加新记录
+     *
+     * @param skillRecords Skill 记录列表（现在使用 ActionRecord）
+     */
+    @SuppressWarnings("unused")
+    public void setSkillRecords(List<ActionRecord> skillRecords) {
+        // 移除所有现有的 skill 记录
+        toolRecords.removeIf(r -> "skill".equals(r.getToolType()));
+
+        // 添加新的 skill 记录
+        if (skillRecords != null) {
+            for (ActionRecord record : skillRecords) {
+                record.setToolType("skill");
+                toolRecords.add(record);
+            }
+        }
         lastAccessTime = System.currentTimeMillis();
     }
 
@@ -373,7 +391,6 @@ public class WorkingMemory extends Memory {
     public void clear() {
         data.clear();
         toolRecords.clear();
-        skillRecords.clear();
         summary = null;
         taskDescription = null;
         step = 0;
@@ -382,14 +399,14 @@ public class WorkingMemory extends Memory {
         lastAccessTime = System.currentTimeMillis();
     }
 
-    // ========== ToolRecord 便捷方法 ==========
+    // ========== ActionRecord 便捷方法 ==========
 
     /**
      * 添加 Tool 记录
      *
      * @param record Tool 记录
      */
-    public void addToolRecord(ToolRecord record) {
+    public void addActionRecord(ActionRecord record) {
         toolRecords.add(record);
         lastAccessTime = System.currentTimeMillis();
     }
@@ -398,13 +415,32 @@ public class WorkingMemory extends Memory {
      * 创建并添加 Tool 记录
      *
      * @param toolName Tool 名称
-     * @return 新创建的 ToolRecord
+     * @return 新创建的 ActionRecord
      */
-    public ToolRecord createToolRecord(String toolName) {
-        ToolRecord record = new ToolRecord(toolName, currentAgent);
+    public ActionRecord createActionRecord(String toolName) {
+        ActionRecord record = ActionRecord.forTool(toolName, currentAgent);
         toolRecords.add(record);
         lastAccessTime = System.currentTimeMillis();
         return record;
+    }
+
+    /**
+     * 添加 Tool 记录（向后兼容别名）
+     *
+     * @param record Tool 记录
+     */
+    public void addToolRecord(ActionRecord record) {
+        addActionRecord(record);
+    }
+
+    /**
+     * 创建并添加 Tool 记录（向后兼容别名）
+     *
+     * @param toolName Tool 名称
+     * @return 新创建的 ActionRecord
+     */
+    public ActionRecord createToolRecord(String toolName) {
+        return createActionRecord(toolName);
     }
 
     /**
@@ -412,10 +448,10 @@ public class WorkingMemory extends Memory {
      *
      * @return 成功的记录列表
      */
-    public List<ToolRecord> getSuccessfulToolRecords() {
+    public List<ActionRecord> getSuccessfulActionRecords() {
         lastAccessTime = System.currentTimeMillis();
         return toolRecords.stream()
-                .filter(ToolRecord::isSuccess)
+                .filter(ActionRecord::isSuccess)
                 .collect(Collectors.toList());
     }
 
@@ -424,7 +460,7 @@ public class WorkingMemory extends Memory {
      *
      * @return 失败的记录列表
      */
-    public List<ToolRecord> getFailedToolRecords() {
+    public List<ActionRecord> getFailedActionRecords() {
         lastAccessTime = System.currentTimeMillis();
         return toolRecords.stream()
                 .filter(r -> !r.isSuccess())
@@ -437,7 +473,7 @@ public class WorkingMemory extends Memory {
      * @param toolName Tool 名称
      * @return 该 Tool 的所有记录
      */
-    public List<ToolRecord> getToolRecordsByName(String toolName) {
+    public List<ActionRecord> getActionRecordsByName(String toolName) {
         lastAccessTime = System.currentTimeMillis();
         return toolRecords.stream()
                 .filter(r -> toolName.equals(r.getToolName()))
@@ -462,19 +498,20 @@ public class WorkingMemory extends Memory {
     public long getTotalToolDuration() {
         lastAccessTime = System.currentTimeMillis();
         return toolRecords.stream()
-                .mapToLong(ToolRecord::getDuration)
+                .mapToLong(ActionRecord::getDuration)
                 .sum();
     }
 
-    // ========== SkillRecord 便捷方法 ==========
+    // ========== Skill 记录便捷方法（使用 ActionRecord，向后兼容）==========
 
     /**
      * 添加 Skill 记录
      *
-     * @param record Skill 记录
+     * @param record Skill 记录（使用 ActionRecord，类型自动设为 "skill"）
      */
-    public void addSkillRecord(SkillRecord record) {
-        skillRecords.add(record);
+    public void addSkillRecord(ActionRecord record) {
+        record.setToolType("skill");
+        toolRecords.add(record);
         lastAccessTime = System.currentTimeMillis();
     }
 
@@ -482,11 +519,11 @@ public class WorkingMemory extends Memory {
      * 创建并添加 Skill 记录
      *
      * @param skillName Skill 名称
-     * @return 新创建的 SkillRecord
+     * @return 新创建的 ActionRecord（类型为 "skill"）
      */
-    public SkillRecord createSkillRecord(String skillName) {
-        SkillRecord record = new SkillRecord(skillName, currentAgent);
-        skillRecords.add(record);
+    public ActionRecord createSkillRecord(String skillName) {
+        ActionRecord record = ActionRecord.forSkill(skillName, currentAgent);
+        toolRecords.add(record);
         lastAccessTime = System.currentTimeMillis();
         return record;
     }
@@ -496,10 +533,10 @@ public class WorkingMemory extends Memory {
      *
      * @return 成功的记录列表
      */
-    public List<SkillRecord> getSuccessfulSkillRecords() {
+    public List<ActionRecord> getSuccessfulSkillRecords() {
         lastAccessTime = System.currentTimeMillis();
-        return skillRecords.stream()
-                .filter(SkillRecord::isSuccess)
+        return toolRecords.stream()
+                .filter(r -> r.isSkill() && r.isSuccess())
                 .collect(Collectors.toList());
     }
 
@@ -508,10 +545,10 @@ public class WorkingMemory extends Memory {
      *
      * @return 失败的记录列表
      */
-    public List<SkillRecord> getFailedSkillRecords() {
+    public List<ActionRecord> getFailedSkillRecords() {
         lastAccessTime = System.currentTimeMillis();
-        return skillRecords.stream()
-                .filter(r -> !r.isSuccess())
+        return toolRecords.stream()
+                .filter(r -> r.isSkill() && !r.isSuccess())
                 .collect(Collectors.toList());
     }
 
@@ -521,10 +558,10 @@ public class WorkingMemory extends Memory {
      * @param skillName Skill 名称
      * @return 该 Skill 的所有记录
      */
-    public List<SkillRecord> getSkillRecordsByName(String skillName) {
+    public List<ActionRecord> getSkillRecordsByName(String skillName) {
         lastAccessTime = System.currentTimeMillis();
-        return skillRecords.stream()
-                .filter(r -> skillName.equals(r.getSkillName()))
+        return toolRecords.stream()
+                .filter(r -> r.isSkill() && skillName.equals(r.getSkillName()))
                 .collect(Collectors.toList());
     }
 
@@ -535,7 +572,9 @@ public class WorkingMemory extends Memory {
      */
     public int getSkillExecutionCount() {
         lastAccessTime = System.currentTimeMillis();
-        return skillRecords.size();
+        return (int) toolRecords.stream()
+                .filter(ActionRecord::isSkill)
+                .count();
     }
 
     /**
@@ -545,20 +584,105 @@ public class WorkingMemory extends Memory {
      */
     public long getTotalSkillDuration() {
         lastAccessTime = System.currentTimeMillis();
-        return skillRecords.stream()
-                .mapToLong(SkillRecord::getDuration)
+        return toolRecords.stream()
+                .filter(ActionRecord::isSkill)
+                .mapToLong(ActionRecord::getDuration)
                 .sum();
+    }
+
+    // ========== 统一的记录查询方法 ==========
+
+    /**
+     * 获取所有记录（Tool + Skill）
+     *
+     * @return 所有记录列表
+     */
+    public List<ActionRecord> getAllRecords() {
+        lastAccessTime = System.currentTimeMillis();
+        return new CopyOnWriteArrayList<>(toolRecords);
+    }
+
+    /**
+     * 获取指定类型的记录
+     *
+     * @param toolType 类型："tool" 或 "skill"
+     * @return 该类型的记录列表
+     */
+    public List<ActionRecord> getRecordsByType(String toolType) {
+        lastAccessTime = System.currentTimeMillis();
+        return toolRecords.stream()
+                .filter(r -> toolType.equals(r.getToolType()))
+                .collect(Collectors.toList());
+    }
+
+    // ========== MCP 工具记录便捷方法 ==========
+
+    /**
+     * 创建并添加 MCP 工具记录
+     *
+     * @param toolName MCP 工具名称
+     * @param mcpServer MCP 服务器名称
+     * @return 新创建的 ActionRecord（类型为 "mcp"）
+     */
+    public ActionRecord createMcpRecord(String toolName, String mcpServer) {
+        ActionRecord record = ActionRecord.forMcp(toolName, mcpServer, currentAgent);
+        toolRecords.add(record);
+        lastAccessTime = System.currentTimeMillis();
+        return record;
+    }
+
+    /**
+     * 获取所有成功的 MCP 记录
+     *
+     * @return 成功的记录列表
+     */
+    public List<ActionRecord> getSuccessfulMcpRecords() {
+        lastAccessTime = System.currentTimeMillis();
+        return toolRecords.stream()
+                .filter(r -> r.isMcp() && r.isSuccess())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取 MCP 执行总次数
+     *
+     * @return 总次数
+     */
+    public int getMcpExecutionCount() {
+        lastAccessTime = System.currentTimeMillis();
+        return (int) toolRecords.stream()
+                .filter(ActionRecord::isMcp)
+                .count();
+    }
+
+    // ========== 自定义工具记录便捷方法 ==========
+
+    /**
+     * 创建并添加自定义工具记录
+     *
+     * @param toolName 工具名称
+     * @param customType 自定义类型
+     * @return 新创建的 ActionRecord
+     */
+    public ActionRecord createCustomRecord(String toolName, String customType) {
+        ActionRecord record = ActionRecord.forCustom(toolName, customType, currentAgent);
+        toolRecords.add(record);
+        lastAccessTime = System.currentTimeMillis();
+        return record;
     }
 
     @Override
     public String toString() {
+        int toolCount = (int) toolRecords.stream().filter(ActionRecord::isTool).count();
+        int skillCount = (int) toolRecords.stream().filter(ActionRecord::isSkill).count();
+
         return "WorkingMemory{" +
                 "id='" + id + '\'' +
                 ", taskId='" + taskId + '\'' +
                 ", taskDescription='" + (taskDescription != null ? taskDescription.substring(0, Math.min(30, taskDescription.length())) + "..." : "null") + '\'' +
                 ", summary='" + (summary != null ? summary.substring(0, Math.min(30, summary.length())) + "..." : "null") + '\'' +
-                ", toolRecords=" + toolRecords.size() +
-                ", skillRecords=" + skillRecords.size() +
+                ", toolRecords=" + toolCount +
+                ", skillRecords=" + skillCount +
                 ", step=" + step +
                 ", status='" + status + '\'' +
                 ", currentAgent='" + currentAgent + '\'' +

@@ -15,6 +15,7 @@
  */
 package agentTems;
 
+import lombok.extern.slf4j.Slf4j;
 import org.noear.solon.bot.core.memory.*;
 import org.noear.solon.bot.core.event.*;
 import org.noear.solon.bot.core.message.*;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
  * @author bai
  * @since 3.9.5
  */
+@Slf4j
 public class AgentTeamsDebugger {
 
     private static final String TEST_WORK_DIR = "work/debug";
@@ -165,14 +167,14 @@ public class AgentTeamsDebugger {
 
         // 2.2 测试通配符订阅
         System.out.print("2. 测试通配符匹配... ");
-        CompletableFuture<String> future2 = new CompletableFuture<>();
+        CompletableFuture<AgentEventType> future2 = new CompletableFuture<>();
         bus.subscribe("task.*", event -> {
             future2.complete(event.getEventType());
             return CompletableFuture.completedFuture(EventHandler.Result.success());
         });
 
         bus.publish(new AgentEvent("task.completed", "data", metadata));
-        String result2 = future2.get(2, TimeUnit.SECONDS);
+        AgentEventType result2 = future2.get(2, TimeUnit.SECONDS);
         assertEquals("task.completed", result2, "事件类型应该匹配");
         System.out.println("✅");
 
@@ -213,15 +215,20 @@ public class AgentTeamsDebugger {
 
         // 3.1 注册处理器并发送消息
         System.out.print("1. 测试点对点消息... ");
-        String handlerId = channel.registerHandler("receiver", message -> {
-            System.out.println("   → 接收: " + message.getPayload());
-            return CompletableFuture.completedFuture("ACK");
+        String handlerId = channel.registerHandler("receiver", new MessageHandler() {
+            @Override
+            public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
+                return CompletableFuture.completedFuture("ACK");
+            }
         });
 
-        AgentMessage p2pMsg = new AgentMessage(
-            "sender", "receiver", "test.type", "p2p test",
-            AgentMessage.MessageOptions.builder().requireAck(true).build()
-        );
+        AgentMessage<String> p2pMsg = new AgentMessage.Builder<String>()
+            .from("sender")
+            .to("receiver")
+            .type("test.type")
+            .content("p2p test")
+            .requireAck(true)
+            .build();
 
         MessageAck ack1 = channel.send(p2pMsg).get(2, TimeUnit.SECONDS);
         assertTrue(ack1.isSuccess(), "消息应该投递成功");
@@ -229,17 +236,25 @@ public class AgentTeamsDebugger {
 
         // 3.2 测试广播消息
         System.out.print("2. 测试广播消息... ");
-        channel.registerHandler("agent1", msg ->
-            CompletableFuture.completedFuture("ACK1")
-        );
-        channel.registerHandler("agent2", msg ->
-            CompletableFuture.completedFuture("ACK2")
-        );
+        channel.registerHandler("agent1", new MessageHandler() {
+            @Override
+            public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
+                return CompletableFuture.completedFuture("ACK1");
+            }
+        });
+        channel.registerHandler("agent2", new MessageHandler() {
+            @Override
+            public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
+                return CompletableFuture.completedFuture("ACK2");
+            }
+        });
 
-        AgentMessage broadcastMsg = new AgentMessage(
-            "main", "*", "notification", "broadcast test",
-            AgentMessage.MessageOptions.builder().build()
-        );
+        AgentMessage<String> broadcastMsg = new AgentMessage.Builder<String>()
+            .from("main")
+            .to("*")
+            .type("notification")
+            .content("broadcast test")
+            .build();
 
         List<MessageAck> acks = channel.broadcast(broadcastMsg).get(2, TimeUnit.SECONDS);
         assertTrue(acks.size() >= 2, "应该至少有2个接收者");
@@ -247,18 +262,22 @@ public class AgentTeamsDebugger {
 
         // 3.3 测试消息队列
         System.out.print("3. 测试离线消息队列... ");
-        channel.registerHandler("offline_agent", msg ->
-            CompletableFuture.completedFuture("RECEIVED")
-        );
+        channel.registerHandler("offline_agent", new MessageHandler() {
+            @Override
+            public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
+                return CompletableFuture.completedFuture("RECEIVED");
+            }
+        });
 
         // 先发送消息（此时处理器已注册）
-        AgentMessage queuedMsg = new AgentMessage(
-            "main", "offline_agent", "query", "queued message",
-            AgentMessage.MessageOptions.builder()
-                    .persistent(true)
-                    .ttl(60000)
-                    .build()
-        );
+        AgentMessage<String> queuedMsg = new AgentMessage.Builder<String>()
+            .from("main")
+            .to("offline_agent")
+            .type("query")
+            .content("queued message")
+            .persistent(true)
+            .ttl(60000)
+            .build();
 
         MessageAck queuedAck = channel.send(queuedMsg).get(2, TimeUnit.SECONDS);
         assertTrue(queuedAck.isSuccess(), "离线消息应该投递成功");
@@ -281,8 +300,8 @@ public class AgentTeamsDebugger {
         System.out.println("【测试4】配置属性");
         System.out.println("-----------------------------------");
 
-        org.noear.solon.ai.codecli.core.AgentProperties props =
-            new org.noear.solon.ai.codecli.core.AgentProperties();
+        org.noear.solon.bot.core.AgentProperties props =
+            new org.noear.solon.bot.core.AgentProperties();
 
         // 4.1 验证默认值
         System.out.print("1. 验证默认配置... ");
@@ -294,26 +313,26 @@ public class AgentTeamsDebugger {
         // 4.2 验证共享记忆配置
         System.out.print("2. 验证共享记忆配置... ");
         assertNotNull(props.sharedMemory, "共享记忆配置对象不应为null");
-        assertEquals(3600_000L, props.sharedMemory.shortTermTtl);
-        assertEquals(7 * 24 * 3600_000L, props.sharedMemory.longTermTtl);
-        assertTrue(props.sharedMemory.persistOnWrite);
-        assertEquals(1000, props.sharedMemory.maxShortTermCount);
+        assertEquals(3600_000L, props.sharedMemory.shortTermTtl, "短期记忆TTL应该匹配");
+        assertEquals(7 * 24 * 3600_000L, props.sharedMemory.longTermTtl, "长期记忆TTL应该匹配");
+        assertTrue(props.sharedMemory.persistOnWrite, "写入时应该持久化");
+        assertEquals(1000, props.sharedMemory.maxShortTermCount, "短期记忆最大数量应该匹配");
         System.out.println("✅");
 
         // 4.3 验证事件总线配置
         System.out.print("3. 验证事件总线配置... ");
         assertNotNull(props.eventBus, "事件总线配置对象不应为null");
-        assertEquals(1000, props.eventBus.maxHistorySize);
-        assertEquals(5, props.eventBus.defaultPriority);
-        assertEquals(30, props.eventBus.timeoutSeconds);
+        assertEquals(1000, props.eventBus.maxHistorySize, "事件历史最大数量应该匹配");
+        assertEquals(5, props.eventBus.defaultPriority, "默认优先级应该匹配");
+        assertEquals(30, props.eventBus.timeoutSeconds, "超时时间应该匹配");
         System.out.println("✅");
 
         // 4.4 验证消息通道配置
         System.out.print("4. 验证消息通道配置... ");
         assertNotNull(props.messageChannel, "消息通道配置对象不应为null");
-        assertEquals(60_000L, props.messageChannel.defaultTtl);
-        assertEquals(1000, props.messageChannel.maxQueueSize);
-        assertTrue(props.messageChannel.persistMessages);
+        assertEquals(60_000L, props.messageChannel.defaultTtl, "默认TTL应该匹配");
+        assertEquals(1000, props.messageChannel.maxQueueSize, "最大队列长度应该匹配");
+        assertTrue(props.messageChannel.persistMessages, "消息应该持久化");
         System.out.println("✅");
 
         System.out.println("-----------------------------------");

@@ -15,6 +15,7 @@
  */
 package org.noear.solon.bot.core.message;
 
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -497,6 +498,7 @@ public class MessageChannel {
     /**
      * 消息处理器包装器（新 API - 支持泛型）
      */
+    @Getter
     private static class MessageHandlerWrapper {
         private final String handlerId;
         private final String agentId;
@@ -508,7 +510,6 @@ public class MessageChannel {
             this.handler = handler;
         }
 
-        @SuppressWarnings("unchecked")
         public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
             try {
                 return handler.handle(message);
@@ -522,16 +523,5 @@ public class MessageChannel {
             }
         }
 
-        public String getHandlerId() {
-            return handlerId;
-        }
-
-        public String getAgentId() {
-            return agentId;
-        }
-
-        public MessageHandler getHandler() {
-            return handler;
-        }
     }
 }

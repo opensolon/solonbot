@@ -37,6 +37,9 @@ public class EventBus {
     // 订阅者注册表：eventType -> handlers
     private final Map<AgentEventType, List<EventHandlerWrapper>> subscribers = new ConcurrentHashMap<>();
 
+    // 自定义事件类型订阅表：customEventTypeCode -> handlers
+    private final Map<String, List<EventHandlerWrapper>> customSubscribers = new ConcurrentHashMap<>();
+
     // 异步执行器
     private final ExecutorService executor;
 
@@ -73,7 +76,7 @@ public class EventBus {
     }
 
     /**
-     * 订阅事件
+     * 订阅事件（枚举类型）
      *
      * @param eventType 事件类型（支持通配符 *）
      * @param handler 事件处理器
@@ -92,12 +95,37 @@ public class EventBus {
     }
 
     /**
+     * 订阅事件（自定义字符串类型）
+     *
+     * @param customEventTypeCode 自定义事件类型代码（支持通配符 *）
+     * @param handler 事件处理器
+     * @return 订阅ID（用于取消订阅）
+     */
+    public String subscribe(String customEventTypeCode, EventHandler handler) {
+        String subscriptionId = UUID.randomUUID().toString();
+
+        EventHandlerWrapper wrapper = new EventHandlerWrapper(subscriptionId, customEventTypeCode, handler);
+
+        customSubscribers.computeIfAbsent(customEventTypeCode, k -> new CopyOnWriteArrayList<>())
+                        .add(wrapper);
+
+        LOG.debug("新订阅: customEventType={}, subscriptionId={}", customEventTypeCode, subscriptionId);
+        return subscriptionId;
+    }
+
+    /**
      * 取消订阅
      *
      * @param subscriptionId 订阅ID
      */
     public void unsubscribe(String subscriptionId) {
+        // 从枚举类型订阅中移除
         subscribers.values().forEach(handlers ->
+            handlers.removeIf(wrapper -> wrapper.getSubscriptionId().equals(subscriptionId))
+        );
+
+        // 从自定义类型订阅中移除
+        customSubscribers.values().forEach(handlers ->
             handlers.removeIf(wrapper -> wrapper.getSubscriptionId().equals(subscriptionId))
         );
 
@@ -127,16 +155,16 @@ public class EventBus {
             // 2. 应用过滤器
             for (EventFilter filter : filters) {
                 if (!filter.test(event)) {
-                    LOG.debug("事件被过滤器拦截: eventType={}", event.getEventType());
+                    LOG.debug("事件被过滤器拦截: eventType={}", event.getEventTypeCode());
                     return;
                 }
             }
 
-            // 3. 查找匹配的订阅者
-            List<EventHandlerWrapper> matchedHandlers = findHandlers(event.getEventType());
+            // 3. 查找匹配的订阅者（枚举 + 自定义）
+            List<EventHandlerWrapper> matchedHandlers = findHandlers(event);
 
             if (matchedHandlers.isEmpty()) {
-                LOG.debug("无订阅者处理事件: eventType={}", event.getEventType());
+                LOG.debug("无订阅者处理事件: eventType={}", event.getEventTypeCode());
                 return;
             }
 
@@ -201,9 +229,15 @@ public class EventBus {
      * @return 订阅者数量
      */
     public int getSubscriberCount() {
-        return subscribers.values().stream()
+        int enumCount = subscribers.values().stream()
             .mapToInt(List::size)
             .sum();
+
+        int customCount = customSubscribers.values().stream()
+            .mapToInt(List::size)
+            .sum();
+
+        return enumCount + customCount;
     }
 
     /**
@@ -222,6 +256,7 @@ public class EventBus {
      */
     public void clearSubscribers() {
         subscribers.clear();
+        customSubscribers.clear();
         LOG.info("所有订阅已清空");
     }
 
@@ -244,17 +279,35 @@ public class EventBus {
     // ========== 私有方法 ==========
 
     /**
-     * 查找匹配的处理器
+     * 查找匹配的处理器（支持枚举和自定义字符串事件）
      */
-    private List<EventHandlerWrapper> findHandlers(AgentEventType eventType) {
+    private List<EventHandlerWrapper> findHandlers(AgentEvent event) {
+        List<EventHandlerWrapper> handlers = new ArrayList<>();
 
-        // 精确匹配
-        List<EventHandlerWrapper> handlers = new ArrayList<>(subscribers.getOrDefault(eventType, Collections.emptyList()));
+        // 1. 如果是枚举类型事件，查找枚举订阅者
+        if (event.getEventType() != AgentEventType.CUSTOM) {
+            AgentEventType eventType = event.getEventType();
 
-        // 通配符匹配（例如: "task.*" 匹配 "task.started"）
-        subscribers.entrySet().stream()
-            .filter(entry -> isWildcardMatch(entry.getKey().getCode(), eventType))
-            .forEach(entry -> handlers.addAll(entry.getValue()));
+            // 精确匹配
+            handlers.addAll(subscribers.getOrDefault(eventType, Collections.emptyList()));
+
+            // 通配符匹配（例如: "task.*" 匹配 "task.started"）
+            subscribers.entrySet().stream()
+                .filter(entry -> isWildcardMatch(entry.getKey().getCode(), eventType.getCode()))
+                .forEach(entry -> handlers.addAll(entry.getValue()));
+        }
+
+        // 2. 如果是自定义事件类型，查找自定义订阅者
+        String eventTypeCode = event.getEventTypeCode();
+        if (event.getEventType() == AgentEventType.CUSTOM || event.getCustomEventTypeCode() != null) {
+            // 精确匹配
+            handlers.addAll(customSubscribers.getOrDefault(eventTypeCode, Collections.emptyList()));
+
+            // 通配符匹配（例如: "task.*" 匹配 "task.completed"）
+            customSubscribers.entrySet().stream()
+                .filter(entry -> isWildcardMatch(entry.getKey(), eventTypeCode))
+                .forEach(entry -> handlers.addAll(entry.getValue()));
+        }
 
         return handlers;
     }
@@ -262,14 +315,14 @@ public class EventBus {
     /**
      * 通配符匹配
      */
-    private boolean isWildcardMatch(String pattern, AgentEventType eventType) {
+    private boolean isWildcardMatch(String pattern, String eventTypeCode) {
         if (pattern.equals("*")) {
             return true;
         }
 
         if (pattern.endsWith(".*")) {
             String prefix = pattern.substring(0, pattern.length() - 2);
-            return eventType.getCode().startsWith(prefix + ".");
+            return eventTypeCode.startsWith(prefix + ".");
         }
 
         return false;
@@ -292,12 +345,23 @@ public class EventBus {
      */
     private static class EventHandlerWrapper {
         private final String subscriptionId;
-        private final AgentEventType eventType;
+        private final AgentEventType eventType; // 枚举类型（可能为 null）
+        private final String customEventTypeCode; // 自定义事件类型代码（可能为 null）
         private final EventHandler handler;
 
+        // 构造函数：枚举类型
         public EventHandlerWrapper(String subscriptionId, AgentEventType eventType, EventHandler handler) {
             this.subscriptionId = subscriptionId;
             this.eventType = eventType;
+            this.customEventTypeCode = null;
+            this.handler = handler;
+        }
+
+        // 构造函数：自定义字符串类型
+        public EventHandlerWrapper(String subscriptionId, String customEventTypeCode, EventHandler handler) {
+            this.subscriptionId = subscriptionId;
+            this.eventType = null;
+            this.customEventTypeCode = customEventTypeCode;
             this.handler = handler;
         }
 

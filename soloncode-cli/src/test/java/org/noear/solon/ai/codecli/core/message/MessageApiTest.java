@@ -16,6 +16,8 @@
 package org.noear.solon.ai.codecli.core.message;
 
 import org.junit.jupiter.api.Test;
+import org.noear.solon.bot.core.message.AgentMessage;
+import org.noear.solon.bot.core.message.MessageHandler;
 
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * 新消息 API 测试示例
  *
- * 演示如何使用新的 Message<T> API
+ * 演示如何使用新的 AgentMessage<T> API
  *
  * @author bai
  * @since 3.9.5
@@ -40,10 +42,11 @@ class MessageApiTest {
     @Test
     void testSimpleMessage() {
         // 使用 Builder 创建消息
-        Message<String> message = Message.of("Hello World")
+        AgentMessage<String> message = AgentMessage.of("Hello World")
                 .from("agent")
                 .to("user")
-                .type(Message.Types.NOTIFICATION);
+                .type("notification")
+                .build();
 
         // 类型安全的访问
         assertEquals("Hello World", message.getContent());
@@ -60,11 +63,12 @@ class MessageApiTest {
         List<String> tags = Arrays.asList("controller", "rest", "api");
 
         // 创建泛型消息
-        Message<List<String>> message = Message.<List<String>>of()
+        AgentMessage<List<String>> message = AgentMessage.<List<String>>empty()
                 .content(tags)
                 .from("explore")
                 .to("plan")
-                .type("query.result");
+                .type("query.result")
+                .build();
 
         // 类型安全的访问 - 无需强制转换
         List<String> content = message.getContent();
@@ -77,14 +81,15 @@ class MessageApiTest {
      */
     @Test
     void testMessageWithMetadata() {
-        Message<String> message = Message.of("操作完成")
+        AgentMessage<String> message = AgentMessage.of("操作完成")
                 .from("bash")
                 .to("*")
-                .type(Message.Types.TASK_COMPLETED)
+                .type("task_completed")
                 .metadata("taskId", "task-001")
                 .metadata("status", "success")
                 .metadata("duration", "1500")
-                .metadata("persistent", "true");
+                .metadata("persistent", "true")
+                .build();
 
         // 获取元数据
         assertEquals("task-001", message.getMetadata("taskId"));
@@ -100,15 +105,12 @@ class MessageApiTest {
      */
     @Test
     void testMessageWithEnum() {
-        enum AgentType {
-            EXPLORE, PLAN, BASH
-        }
-
-        // 使用枚举作为 from/to
-        Message<String> message = Message.of("查询结果")
-                .from(AgentType.EXPLORE)
-                .to(AgentType.PLAN)
-                .type(Message.Types.QUERY);
+        // 使用枚举作为 from/to（手动转换为小写字符串）
+        AgentMessage<String> message = AgentMessage.of("查询结果")
+                .from("explore")
+                .to("plan")
+                .type("query")
+                .build();
 
         assertEquals("explore", message.getFrom());
         assertEquals("plan", message.getTo());
@@ -119,13 +121,14 @@ class MessageApiTest {
      */
     @Test
     void testToBuilder() {
-        Message<String> original = Message.of("原始消息")
+        AgentMessage<String> original = AgentMessage.of("原始消息")
                 .from("agent1")
                 .to("agent2")
-                .type("request");
+                .type("request")
+                .build();
 
         // 使用 toBuilder 创建修改后的副本
-        Message<String> modified = original.toBuilder()
+        AgentMessage<String> modified = original.toBuilder()
                 .to("agent3")
                 .metadata("modified", "true")
                 .build();
@@ -140,22 +143,26 @@ class MessageApiTest {
      */
     @Test
     void testMessageHandler() throws ExecutionException, InterruptedException {
-        // 创建消息处理器
-        MessageHandler handler = message -> {
-            // 类型安全的处理
-            String content = message.getContent();
-            String taskId = message.getMetadata("taskId");
+        // 创建消息处理器（使用匿名内部类，因为 handle 方法是泛型的）
+        MessageHandler handler = new MessageHandler() {
+            @Override
+            public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
+                // 类型安全的处理
+                String content = (String) message.getContent();
+                String taskId = message.getMetadata("taskId");
 
-            return CompletableFuture.completedFuture(
-                    "处理完成: " + content + ", taskId=" + taskId
-            );
+                return CompletableFuture.completedFuture(
+                        "处理完成: " + content + ", taskId=" + taskId
+                );
+            }
         };
 
         // 测试处理器
-        Message<String> message = Message.of("测试消息")
+        AgentMessage<String> message = AgentMessage.of("测试消息")
                 .from("agent")
                 .to("user")
-                .metadata("taskId", "task-123");
+                .metadata("taskId", "task-123")
+                .build();
 
         CompletableFuture<Object> result = handler.handle(message);
 
@@ -167,10 +174,10 @@ class MessageApiTest {
      */
     @Test
     void testEmptyMessage() {
-        Message<?> message = Message.empty()
+        AgentMessage<String> message = AgentMessage.<String>empty()
                 .from("system")
                 .to("*")
-                .type(Message.Types.SYSTEM)
+                .type("system")
                 .build();
 
         assertEquals("system", message.getFrom());
@@ -206,10 +213,11 @@ class MessageApiTest {
                 Arrays.asList("UserController.java", "ProductController.java")
         );
 
-        Message<QueryResult> message = Message.of(result)
+        AgentMessage<QueryResult> message = AgentMessage.of(result)
                 .from("explore")
                 .to("plan")
-                .type("query.result");
+                .type("query.result")
+                .build();
 
         // 类型安全的访问 - 无需转换
         QueryResult content = message.getContent();
@@ -223,7 +231,7 @@ class MessageApiTest {
     @Test
     void testDefaultValues() {
         // 使用默认值创建消息
-        Message<String> message = Message.of("test")
+        AgentMessage<String> message = AgentMessage.of("test")
                 .build();
 
         assertEquals("system", message.getFrom());  // 默认 from
@@ -238,7 +246,7 @@ class MessageApiTest {
      */
     @Test
     void testMetadataOperations() {
-        Message<String> message = Message.of("test")
+        AgentMessage<String> message = AgentMessage.of("test")
                 .metadata("key1", "value1")
                 .metadata("key2", "value2")
                 .build();

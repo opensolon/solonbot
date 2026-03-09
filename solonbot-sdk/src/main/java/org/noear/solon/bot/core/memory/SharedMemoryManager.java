@@ -109,8 +109,8 @@ public class SharedMemoryManager {
         // 启动定期清理任务
         this.cleanupExecutor.scheduleAtFixedRate(
             this::cleanupExpiredMemories,
-            cleanupInterval,
-            cleanupInterval,
+            this.cleanupInterval,
+            this.cleanupInterval,
             TimeUnit.MILLISECONDS
         );
 
@@ -272,6 +272,30 @@ public class SharedMemoryManager {
     }
 
     // ========== 工作记忆方法 ==========
+
+    /**
+     * 创建短期记忆（使用配置的TTL）
+     *
+     * @param agentId Agent ID
+     * @param context 上下文内容
+     * @param taskId 任务ID
+     * @return ShortTermMemory 实例
+     */
+    public ShortTermMemory createShortTermMemory(String agentId, String context, String taskId) {
+        return new ShortTermMemory(agentId, context, taskId, shortTermTtl);
+    }
+
+    /**
+     * 创建长期记忆（使用配置的TTL）
+     *
+     * @param summary 摘要
+     * @param sourceAgent 源Agent
+     * @param tags 标签列表
+     * @return LongTermMemory 实例
+     */
+    public LongTermMemory createLongTermMemory(String summary, String sourceAgent, List<String> tags) {
+        return new LongTermMemory(summary, sourceAgent, tags, longTermTtl);
+    }
 
     /**
      * 存储工作记忆（仅内存，不持久化）
@@ -446,7 +470,6 @@ public class SharedMemoryManager {
      */
     private int cleanupWorkingMemories() {
         int removed = 0;
-        long now = System.currentTimeMillis();
 
         workingCache.entrySet().removeIf(entry -> {
             WorkingMemory memory = entry.getValue();

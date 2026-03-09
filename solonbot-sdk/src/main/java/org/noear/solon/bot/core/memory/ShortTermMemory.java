@@ -15,12 +15,15 @@
  */
 package org.noear.solon.bot.core.memory;
 
+import lombok.Getter;
+
 /**
  * 短期记忆（工作上下文）
  *
  * @author bai
  * @since 3.9.5
  */
+@Getter
 public class ShortTermMemory extends Memory {
     private String agentId;      // 创建者代理ID
     private String context;      // 上下文内容
@@ -50,24 +53,12 @@ public class ShortTermMemory extends Memory {
         this.taskId = taskId;
     }
 
-    public String getAgentId() {
-        return agentId;
-    }
-
     public void setAgentId(String agentId) {
         this.agentId = agentId;
     }
 
-    public String getContext() {
-        return context;
-    }
-
     public void setContext(String context) {
         this.context = context;
-    }
-
-    public String getTaskId() {
-        return taskId;
     }
 
     public void setTaskId(String taskId) {

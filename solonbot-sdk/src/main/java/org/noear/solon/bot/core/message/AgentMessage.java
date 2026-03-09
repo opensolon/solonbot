@@ -15,6 +15,8 @@
  */
 package org.noear.solon.bot.core.message;
 
+import lombok.Getter;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +34,7 @@ import java.util.UUID;
  * @author bai
  * @since 3.9.5
  */
+@Getter
 public class AgentMessage<T> {
 
     private final String id;
@@ -49,7 +52,7 @@ public class AgentMessage<T> {
         this.type = builder.type != null ? builder.type : "notification";
         this.content = builder.content;
         this.timestamp = System.currentTimeMillis();
-        this.metadata = builder.metadata != null ? builder.metadata : new HashMap<>();
+        this.metadata = builder.metadata;
     }
 
     /**
@@ -68,34 +71,6 @@ public class AgentMessage<T> {
      */
     public static <T> Builder<T> empty() {
         return new Builder<T>();
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public String getFrom() {
-        return from;
-    }
-
-    public String getTo() {
-        return to;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public T getContent() {
-        return content;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public Map<String, String> getMetadata() {
-        return metadata;
     }
 
     /**
@@ -231,7 +206,7 @@ public class AgentMessage<T> {
         private String to = "*";
         private String type = "notification";
         private T content;
-        private Map<String, String> metadata = new HashMap<>();
+        private final Map<String, String> metadata = new HashMap<>();
 
         public Builder<T> id(String id) {
             this.id = id;
@@ -285,7 +260,6 @@ public class AgentMessage<T> {
             return this;
         }
 
-        // ========== 消息选项便捷方法（兼容旧的 AgentMessage 功能）==========
 
         /**
          * 设置是否持久化
@@ -340,38 +314,5 @@ public class AgentMessage<T> {
         }
     }
 
-    /**
-     * 消息类型常量
-     */
-    public static class Types {
-        // 请求-响应
-        public static final String REQUEST = "request";
-        public static final String RESPONSE = "response";
 
-        // 通知
-        public static final String NOTIFICATION = "notification";
-
-        // 查询
-        public static final String QUERY = "query";
-        public static final String QUERY_RESULT = "query.result";
-
-        // 任务
-        public static final String TASK_STARTED = "task.started";
-        public static final String TASK_COMPLETED = "task.completed";
-        public static final String TASK_FAILED = "task.failed";
-        public static final String TASK_PROGRESS = "task.progress";
-
-        // 记忆
-        public static final String MEMORY_STORED = "memory.stored";
-        public static final String MEMORY_RETRIEVED = "memory.retrieved";
-
-        // 代理
-        public static final String AGENT_INITIALIZED = "agent.initialized";
-        public static final String AGENT_ERROR = "agent.error";
-
-        // 系统
-        public static final String SYSTEM = "system";
-        public static final String ERROR = "error";
-        public static final String WARNING = "warning";
-    }
 }

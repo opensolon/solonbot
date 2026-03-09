@@ -15,12 +15,15 @@
  */
 package org.noear.solon.bot.core.message;
 
+import lombok.Getter;
+
 /**
  * 消息确认
  *
  * @author bai
  * @since 3.9.5
  */
+@Getter
 public class MessageAck {
     private final String messageId;
     private final String receiver;
@@ -34,26 +37,6 @@ public class MessageAck {
         this.success = success;
         this.message = message;
         this.timestamp = System.currentTimeMillis();
-    }
-
-    public String getMessageId() {
-        return messageId;
-    }
-
-    public String getReceiver() {
-        return receiver;
-    }
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
     }
 
     @Override

@@ -15,6 +15,8 @@
  */
 package org.noear.solon.bot.core.memory;
 
+import lombok.Getter;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -24,6 +26,7 @@ import java.util.ArrayList;
  * @author bai
  * @since 3.9.5
  */
+@Getter
 public class KnowledgeMemory extends Memory {
     private String subject;      // 主题
     private String content;      // 内容
@@ -56,32 +59,16 @@ public class KnowledgeMemory extends Memory {
         this.keywords = keywords != null ? new ArrayList<>(keywords) : new ArrayList<>();
     }
 
-    public String getSubject() {
-        return subject;
-    }
-
     public void setSubject(String subject) {
         this.subject = subject;
-    }
-
-    public String getContent() {
-        return content;
     }
 
     public void setContent(String content) {
         this.content = content;
     }
 
-    public String getCategory() {
-        return category;
-    }
-
     public void setCategory(String category) {
         this.category = category;
-    }
-
-    public List<String> getKeywords() {
-        return keywords;
     }
 
     public void setKeywords(List<String> keywords) {
