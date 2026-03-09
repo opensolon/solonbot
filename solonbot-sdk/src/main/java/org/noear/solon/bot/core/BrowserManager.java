@@ -30,6 +30,10 @@ public class BrowserManager implements AutoCloseable {
         return cached.computeIfAbsent(__cwd, k -> new BrowserManager(k));
     }
 
+    public static BrowserManager get(String __cwd) {
+        return cached.get(__cwd);
+    }
+
     private BrowserManager(String __cwd) {
         this.__cwd = __cwd;
         this.playwright = Playwright.create();

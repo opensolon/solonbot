@@ -46,13 +46,18 @@ public class BrowserSkill extends AbsSkill {
     @Override
     public String getInstruction(Prompt prompt) {
         String __cwd = prompt.attrAs(AgentKernel.ATTR_CWD);
-        BrowserManager browserManager = BrowserManager.of(__cwd);
+        BrowserManager browserManager = BrowserManager.get(__cwd);
 
         StringBuilder sb = new StringBuilder();
         sb.append("## Browser 指令集\n");
         sb.append("- **视觉对齐**: 调用 `browser_screenshot` 后根据红框数字使用 `[data-solon-id='数字']` 选择器。\n");
         sb.append("- **文件传输**: 下载的文件保存在 `" + AgentKernel.SOLONCODE_DOWNLOADS + "` 目录；上传时需提供项目内的相对路径。\n");
-        sb.append("- **当前标签**: ").append(browserManager.getPageMap().keySet()).append("\n");
+
+        if(browserManager == null){
+            sb.append("- **当前标签**: ").append("[default]").append("\n");
+        } else {
+            sb.append("- **当前标签**: ").append(browserManager.getPageMap().keySet()).append("\n");
+        }
         return sb.toString();
     }
 
