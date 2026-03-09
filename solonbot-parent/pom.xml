@@ -28,9 +28,6 @@
 
    <modules>
        <module>../solonbot-sdk</module>
-
-       <module>../solonclaw</module>
-       <module>../soloncode-cli</module>
    </modules>
 
     <dependencyManagement>
