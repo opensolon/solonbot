@@ -15,21 +15,21 @@
  */
 package org.noear.solon.bot.core.teams;
 
-import org.noear.solon.ai.agent.Agent;
-import org.noear.solon.ai.agent.team.TeamAgent;
-import org.noear.solon.ai.agent.team.TeamProtocolFactory;
-import org.noear.solon.ai.agent.team.TeamProtocols;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.codecli.core.subagent.AbstractSubAgent;
+import org.noear.solon.bot.core.subagent.Subagent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * SubAgent 团队构建器
  *
- * 基于 SubAgents 构建 TeamAgent 的便捷工具。
+ * 基于 SubAgents 构建团队协作的便捷工具。
+ *
+ * 注意：此类的当前实现提供了基本的团队管理功能。
+ * 完整的 TeamAgent 支持可能在未来的 Solon AI 版本中提供。
  *
  * @author bai
  * @since 3.9.5
@@ -37,74 +37,73 @@ import java.util.List;
 public class SubAgentAgentBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(SubAgentAgentBuilder.class);
 
+    private final ChatModel chatModel;
+    private final List<Subagent> subAgents = new ArrayList<>();
+
+    private SubAgentAgentBuilder(ChatModel chatModel) {
+        this.chatModel = chatModel;
+    }
+
     /**
-     * 构建基于 SubAgents 的 TeamAgent
+     * 创建构建器
+     */
+    public static SubAgentAgentBuilder of(ChatModel chatModel) {
+        return new SubAgentAgentBuilder(chatModel);
+    }
+
+    /**
+     * 添加子代理
+     */
+    public SubAgentAgentBuilder addAgent(Subagent subAgent) {
+        if (subAgent != null) {
+            this.subAgents.add(subAgent);
+            LOG.debug("添加团队成员: {}", subAgent.getType());
+        }
+        return this;
+    }
+
+    /**
+     * 添加多个子代理
+     */
+    public SubAgentAgentBuilder addAgents(List<Subagent> agents) {
+        if (agents != null) {
+            for (Subagent agent : agents) {
+                addAgent(agent);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * 构建团队
      *
-     * @param chatModel LLM 模型
-     * @param subAgents SubAgent 列表
-     * @param protocolFactory 协作协议工厂
-     * @return TeamAgent 实例
+     * @return MainAgent 实例作为团队协调器
      */
-    public static TeamAgent buildTeam(
-            ChatModel chatModel,
-            List<AbstractSubAgent> subAgents,
-            TeamProtocolFactory protocolFactory) {
-
-        if (subAgents == null || subAgents.isEmpty()) {
-            throw new IllegalArgumentException("SubAgents 列表不能为空");
+    public MainAgent build() {
+        if (subAgents.isEmpty()) {
+            throw new IllegalStateException("至少需要一个团队成员");
         }
 
-        LOG.info("正在构建 TeamAgent，协议: {}，成员数: {}",
-                protocolFactory.getClass().getSimpleName(), subAgents.size());
+        LOG.info("构建团队，成员数: {}", subAgents.size());
 
-        // 1. 创建 TeamAgent Builder
-        TeamAgent.Builder builder = TeamAgent.of(chatModel);
+        // 创建 MainAgent 作为团队协调器
+        // 注意：这里简化了实现，实际使用时需要通过 AgentKernel 创建
+        LOG.warn("SubAgentAgentBuilder.build() 需要通过 AgentKernel 集成使用");
 
-        // 2. 将 SubAgents 适配为 Agents 并添加
-        for (AbstractSubAgent subAgent : subAgents) {
-            Agent adapter = new SubAgentAdapter(subAgent);
-            builder.agentAdd(adapter);
-            LOG.debug("添加团队成员: {}", subAgent.getConfig().getName());
-        }
-
-        // 3. 设置协作协议
-        builder.protocol(protocolFactory);
-
-        // 4. 基础配置
-        builder.name("soloncode_team");
-        builder.maxTurns(30);
-
-        // 5. 构建并返回
-        TeamAgent teamAgent = builder.build();
-        LOG.info("TeamAgent 构建完成: {}", teamAgent.name());
-
-        return teamAgent;
+        return null; // 需要通过 AgentKernel 创建
     }
 
     /**
-     * 使用默认的层级协议构建团队
+     * 获取子代理列表
      */
-    public static TeamAgent buildHierarchicalTeam(
-            ChatModel chatModel,
-            List<AbstractSubAgent> subAgents) {
-        return buildTeam(chatModel, subAgents, TeamProtocols.HIERARCHICAL);
+    public List<Subagent> getSubAgents() {
+        return new ArrayList<>(subAgents);
     }
 
     /**
-     * 使用蜂群协议构建团队
+     * 获取聊天模型
      */
-    public static TeamAgent buildSwarmTeam(
-            ChatModel chatModel,
-            List<AbstractSubAgent> subAgents) {
-        return buildTeam(chatModel, subAgents, TeamProtocols.SWARM);
-    }
-
-    /**
-     * 使用顺序协议构建团队
-     */
-    public static TeamAgent buildSequentialTeam(
-            ChatModel chatModel,
-            List<AbstractSubAgent> subAgents) {
-        return buildTeam(chatModel, subAgents, TeamProtocols.SEQUENTIAL);
+    public ChatModel getChatModel() {
+        return chatModel;
     }
 }

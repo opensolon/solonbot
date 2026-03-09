@@ -15,8 +15,13 @@
  */
 package org.noear.solon.bot.core.teams;
 
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import org.noear.solon.ai.chat.ChatResponse;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.ChatModel;
+import reactor.core.publisher.Flux;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +39,9 @@ import java.util.concurrent.CompletableFuture;
  * @author bai
  * @since 3.9.5
  */
+@Getter
+@Setter
+@Builder
 public class TeamTask {
     private final String id;                      // 任务ID
     private String title;                          // 任务标题
@@ -100,14 +108,26 @@ public class TeamTask {
         this.metadata = new HashMap<>();
     }
 
+
     /**
-     * 创建任务
+     * 设置 Prompt 并执行
      *
-     * @param title 任务标题
-     * @return Builder
+     * @param chatModel LLM 模型
+     * @return 异步结果
      */
-    public static Builder of(String title) {
-        return new Builder(title);
+    public CompletableFuture<ChatResponse> executeWithCall(ChatModel chatModel) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // 创建 Prompt
+                Prompt prompt = Prompt.of(description != null ? description : title);
+
+                // 调用 LLM
+                return chatModel.prompt(prompt).call();
+
+            } catch (Exception e) {
+                throw new RuntimeException("Task execution failed: " + title, e);
+            }
+        });
     }
 
     /**
@@ -116,14 +136,14 @@ public class TeamTask {
      * @param chatModel LLM 模型
      * @return 异步结果
      */
-    public CompletableFuture<Object> executeWith(ChatModel chatModel) {
+    public CompletableFuture<Flux<ChatResponse>> executeWithSteam(ChatModel chatModel) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 // 创建 Prompt
                 Prompt prompt = Prompt.of(description != null ? description : title);
 
                 // 调用 LLM
-                return chatModel.chat(prompt).getText();
+                return chatModel.prompt(prompt).stream();
 
             } catch (Exception e) {
                 throw new RuntimeException("Task execution failed: " + title, e);
@@ -131,127 +151,12 @@ public class TeamTask {
         });
     }
 
-    // ========== Getter/Setter ==========
-
-    public String getId() {
-        return id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public int getPriority() {
-        return priority;
-    }
-
-    public void setPriority(int priority) {
-        this.priority = Math.max(1, Math.min(10, priority));
-    }
-
-    public Status getStatus() {
-        return status;
-    }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
-    public TaskType getType() {
-        return type;
-    }
-
-    public void setType(TaskType type) {
-        this.type = type;
-    }
-
-    public String getClaimedBy() {
-        return claimedBy;
-    }
-
-    public void setClaimedBy(String claimedBy) {
-        this.claimedBy = claimedBy;
-    }
-
-    public long getClaimTime() {
-        return claimTime;
-    }
-
-    public void setClaimTime(long claimTime) {
-        this.claimTime = claimTime;
-    }
-
-    public Object getResult() {
-        return result;
-    }
-
-    public void setResult(Object result) {
-        this.result = result;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
-    }
-
-    public long getCompletedTime() {
-        return completedTime;
-    }
-
-    public void setCompletedTime(long completedTime) {
-        this.completedTime = completedTime;
-    }
-
-    public List<String> getDependencies() {
-        return dependencies;
-    }
-
-    public void setDependencies(List<String> dependencies) {
-        this.dependencies = dependencies != null ? new ArrayList<>(dependencies) : new ArrayList<>();
-    }
-
-    public Map<String, String> getMetadata() {
-        return metadata;
-    }
-
-    public void setMetadata(Map<String, String> metadata) {
-        this.metadata = metadata != null ? metadata : new HashMap<>();
-    }
 
     /**
      * 添加元数据
      */
     public void putMetadata(String key, String value) {
         this.metadata.put(key, value);
-    }
-
-    /**
-     * 获取元数据
-     */
-    public String getMetadata(String key) {
-        return metadata.get(key);
-    }
-
-    /**
-     * 获取元数据（带默认值）
-     */
-    public String getMetadata(String key, String defaultValue) {
-        return metadata.getOrDefault(key, defaultValue);
     }
 
     /**
@@ -276,6 +181,192 @@ public class TeamTask {
     }
 
     /**
+     * 检查依赖任务是否都已完成（递归检查）
+     *
+     * @param taskLookup 任务查找函数
+     * @return 是否所有依赖都已完成
+     * @throws IllegalStateException 如果存在循环依赖
+     */
+    public boolean areAllDependenciesCompleted(java.util.function.Function<String, TeamTask> taskLookup) {
+        return areAllDependenciesCompleted(taskLookup, new java.util.HashSet<>());
+    }
+
+    /**
+     * 递归检查依赖任务是否完成（检测循环依赖）
+     *
+     * @param taskLookup 任务查找函数
+     * @param visiting 正在访问的任务集合（用于检测循环）
+     * @return 是否所有依赖都已完成
+     */
+    private boolean areAllDependenciesCompleted(java.util.function.Function<String, TeamTask> taskLookup,
+                                                  java.util.Set<String> visiting) {
+        // 检测循环依赖
+        if (visiting.contains(this.id)) {
+            throw new IllegalStateException("检测到循环依赖: 任务 " + this.id + " (" + this.title + ")");
+        }
+
+        // 如果没有依赖，返回true
+        if (dependencies == null || dependencies.isEmpty()) {
+            return true;
+        }
+
+        // 标记当前任务正在访问
+        visiting.add(this.id);
+
+        try {
+            // 检查每个直接依赖
+            for (String depId : dependencies) {
+                TeamTask dep = taskLookup.apply(depId);
+
+                // 依赖任务不存在
+                if (dep == null) {
+                    return false;
+                }
+
+                // 依赖任务未完成
+                if (!dep.isCompleted()) {
+                    return false;
+                }
+
+                // 递归检查依赖的依赖（间接依赖）
+                if (!dep.areAllDependenciesCompleted(taskLookup, visiting)) {
+                    return false;
+                }
+            }
+
+            return true;
+        } finally {
+            // 移除访问标记
+            visiting.remove(this.id);
+        }
+    }
+
+    /**
+     * 获取完整的依赖树（用于可视化）
+     *
+     * @param taskLookup 任务查找函数
+     * @return 依赖树描述
+     */
+    public String getDependencyTree(java.util.function.Function<String, TeamTask> taskLookup) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("任务依赖树: ").append(this.title).append(" (").append(this.id).append(")\n");
+        buildDependencyTree(taskLookup, this, "    ", new java.util.HashSet<>(), sb);
+        return sb.toString();
+    }
+
+    /**
+     * 递归构建依赖树
+     */
+    private void buildDependencyTree(java.util.function.Function<String, TeamTask> taskLookup,
+                                      TeamTask task,
+                                      String prefix,
+                                      java.util.Set<String> visited,
+                                      StringBuilder sb) {
+        // 防止重复访问（循环依赖检测）
+        if (visited.contains(task.getId())) {
+            sb.append(prefix).append("└── [⚠️ 循环依赖] ").append(task.getTitle())
+              .append(" (").append(task.getId()).append(")\n");
+            return;
+        }
+
+        visited.add(task.getId());
+
+        // 如果不是根节点，输出当前任务
+        if (!task.getId().equals(this.id)) {
+            String statusIcon = getStatusIcon(task.getStatus());
+            sb.append(prefix).append("└── ").append(statusIcon).append(" ").append(task.getTitle())
+              .append(" (").append(task.getId()).append(")\n");
+        }
+
+        // 递归输出依赖
+        if (task.getDependencies() != null && !task.getDependencies().isEmpty()) {
+            String childPrefix = prefix + "│   ";
+            for (String depId : task.getDependencies()) {
+                TeamTask dep = taskLookup.apply(depId);
+                if (dep != null) {
+                    buildDependencyTree(taskLookup, dep, childPrefix, visited, sb);
+                } else {
+                    sb.append(childPrefix).append("└── [❌ 不存在] ").append(depId).append("\n");
+                }
+            }
+        }
+
+        visited.remove(task.getId());
+    }
+
+    /**
+     * 获取状态图标
+     */
+    private String getStatusIcon(Status status) {
+        switch (status) {
+            case PENDING: return "⏳";
+            case IN_PROGRESS: return "🔄";
+            case COMPLETED: return "✅";
+            case FAILED: return "❌";
+            case CANCELLED: return "🚫";
+            default: return "❓";
+        }
+    }
+
+    /**
+     * 检测是否存在循环依赖
+     *
+     * @param taskLookup 任务查找函数
+     * @return 是否存在循环依赖
+     */
+    public boolean hasCyclicDependency(java.util.function.Function<String, TeamTask> taskLookup) {
+        try {
+            areAllDependenciesCompleted(taskLookup);
+            return false;
+        } catch (IllegalStateException e) {
+            if (e.getMessage().contains("循环依赖")) {
+                return true;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 获取所有依赖任务ID（包括间接依赖）
+     *
+     * @param taskLookup 任务查找函数
+     * @return 所有依赖任务ID集合
+     */
+    public Set<String> getAllDependencyIds(java.util.function.Function<String, TeamTask> taskLookup) {
+        Set<String> allDeps = new java.util.HashSet<>();
+        collectAllDependencies(taskLookup, this, allDeps, new java.util.HashSet<>());
+        return allDeps;
+    }
+
+    /**
+     * 递归收集所有依赖ID
+     */
+    private void collectAllDependencies(java.util.function.Function<String, TeamTask> taskLookup,
+                                         TeamTask task,
+                                         Set<String> result,
+                                         Set<String> visited) {
+        // 防止循环依赖导致无限递归
+        if (visited.contains(task.getId())) {
+            return;
+        }
+
+        visited.add(task.getId());
+
+        if (task.getDependencies() != null) {
+            for (String depId : task.getDependencies()) {
+                if (result.add(depId)) { // 避免重复添加
+                    TeamTask dep = taskLookup.apply(depId);
+                    if (dep != null) {
+                        collectAllDependencies(taskLookup, dep, result, visited);
+                    }
+                }
+            }
+        }
+
+        visited.remove(task.getId());
+    }
+
+    /**
      * 获取耗时
      */
     public long getDuration() {
@@ -283,6 +374,10 @@ public class TeamTask {
             return completedTime - claimTime;
         }
         return 0;
+    }
+
+    public static TeamTask.TeamTaskBuilder of(String title){
+        return TeamTask.builder().title(title);
     }
 
     @Override
@@ -299,53 +394,4 @@ public class TeamTask {
                 '}';
     }
 
-    /**
-     * Builder 类
-     */
-    public static class Builder {
-        private final TeamTask task;
-
-        private Builder(String title) {
-            this.task = new TeamTask(title);
-        }
-
-        public Builder id(String id) {
-            this.task.id = id;
-            return this;
-        }
-
-        public Builder description(String description) {
-            task.setDescription(description);
-            return this;
-        }
-
-        public Builder priority(int priority) {
-            task.setPriority(priority);
-            return this;
-        }
-
-        public Builder type(TaskType type) {
-            task.setType(type);
-            return this;
-        }
-
-        public Builder dependencies(List<String> dependencies) {
-            task.setDependencies(dependencies);
-            return this;
-        }
-
-        public Builder metadata(String key, String value) {
-            task.putMetadata(key, value);
-            return this;
-        }
-
-        public Builder metadata(Map<String, String> metadata) {
-            task.setMetadata(metadata);
-            return this;
-        }
-
-        public TeamTask build() {
-            return task;
-        }
-    }
 }

@@ -22,7 +22,6 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.bot.core.AgentKernel;
-import org.noear.solon.bot.core.SystemPrompt;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +53,20 @@ public abstract class AbsSubagent implements Subagent {
         } else {
             return description;
         }
+    }
+
+    @Override
+    public String getType() {
+        // 从类名推断类型
+        // 例如：ExploreSubagent -> explore
+        //       BashSubagent -> bash
+        String simpleName = this.getClass().getSimpleName();
+        if (simpleName.endsWith("Subagent") || simpleName.endsWith("SubAgent")) {
+            String type = simpleName.substring(0, simpleName.lastIndexOf("Subagent") != -1 ?
+                    simpleName.lastIndexOf("Subagent") : simpleName.lastIndexOf("SubAgent"));
+            return type.toLowerCase();
+        }
+        return simpleName.toLowerCase();
     }
 
     public final void setDescription(String description) {

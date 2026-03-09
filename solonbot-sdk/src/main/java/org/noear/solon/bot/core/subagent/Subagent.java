@@ -35,26 +35,6 @@ public interface Subagent {
     String getType();
 
     /**
-     * 获取代理名称
-     *
-     * @return 代理名称
-     */
-    String name();
-
-    /**
-     * 获取代理角色描述
-     *
-     * @return 角色描述
-     */
-    String role();
-
-
-    String model();
-
-    /**
-     * 获取代理类型
-     *
-     * @return 子代理类型
      * 获取描述
      */
     String getDescription();

@@ -15,15 +15,14 @@
  */
 package org.noear.solon.bot.core.teams;
 
-import org.noear.solon.ai.codecli.core.event.AgentEvent;
-import org.noear.solon.ai.codecli.core.event.AgentEventType;
-import org.noear.solon.ai.codecli.core.event.EventBus;
+import org.noear.solon.bot.core.event.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -92,7 +91,7 @@ public class SharedTaskList {
         this.eventBus = eventBus;
         this.maxCompletedTasks = maxCompletedTasks;
         this.completedTaskQueue = new LinkedList<>();
-        this.eventListeners = new ArrayList<>();
+        this.eventListeners = new CopyOnWriteArrayList<>();
     }
 
     // ========== 任务管理 ==========
@@ -114,6 +113,11 @@ public class SharedTaskList {
                     }
                 }
 
+                // 检测循环依赖
+                if (task.hasCyclicDependency(tasks::get)) {
+                    throw new IllegalArgumentException("检测到循环依赖: " + task.getTitle());
+                }
+
                 // 添加任务
                 tasks.put(task.getId(), task);
 
@@ -124,9 +128,13 @@ public class SharedTaskList {
 
                 LOG.debug("任务已添加: {} (优先级: {})", task.getTitle(), task.getPriority());
 
-                // 触发事件
-                notifyTaskAdded(task);
-                publishTaskEvent(AgentEventType.TASK_CREATED, task, null);
+                TeamTask finalTask = task;
+
+                // 触发事件（在锁外执行，避免阻塞）
+                CompletableFuture.runAsync(() -> {
+                    notifyTaskAdded(finalTask);
+                    publishTaskEvent(AgentEventType.TASK_CREATED, finalTask, null);
+                });
 
                 return task;
 
@@ -137,18 +145,80 @@ public class SharedTaskList {
     }
 
     /**
-     * 批量添加任务
+     * 批量添加任务（原子操作，支持任务间依赖）
      *
      * @param tasks 任务列表
      * @return 异步结果
      */
     public CompletableFuture<List<TeamTask>> addTasks(List<TeamTask> tasks) {
         return CompletableFuture.supplyAsync(() -> {
-            List<TeamTask> added = new ArrayList<>();
-            for (TeamTask task : tasks) {
-                added.add(addTask(task).join());
+            lock.writeLock().lock();
+            try {
+                // 第一阶段：验证所有任务
+                for (TeamTask task : tasks) {
+                    // 检查任务ID唯一性
+                    if (this.tasks.containsKey(task.getId())) {
+                        throw new IllegalArgumentException("任务ID已存在: " + task.getId());
+                    }
+                }
+
+                // 第二阶段：验证依赖关系（允许依赖同一批中的任务）
+                for (TeamTask task : tasks) {
+                    for (String depId : task.getDependencies()) {
+                        // 检查依赖是否在当前批次中
+                        boolean inBatch = tasks.stream().anyMatch(t -> t.getId().equals(depId));
+                        // 检查依赖是否已存在
+                        boolean exists = this.tasks.containsKey(depId);
+
+                        if (!inBatch && !exists) {
+                            throw new IllegalArgumentException("依赖任务不存在: " + depId +
+                                    " (被任务 " + task.getTitle() + " 依赖)");
+                        }
+                    }
+                }
+
+                // 第三阶段：添加所有任务
+                List<TeamTask> added = new ArrayList<>();
+                for (TeamTask task : tasks) {
+                    // 添加到任务列表
+                    this.tasks.put(task.getId(), task);
+
+                    // 如果状态是 PENDING，加入待认领队列
+                    if (task.isClaimable()) {
+                        pendingTasks.put(task.getId(), task);
+                    }
+
+                    added.add(task);
+
+                    LOG.debug("任务已添加: {} (优先级: {})", task.getTitle(), task.getPriority());
+                }
+
+                // 第四阶段：检测循环依赖（所有任务添加后）
+                for (TeamTask task : tasks) {
+                    if (task.hasCyclicDependency(this.tasks::get)) {
+                        // 回滚：删除所有已添加的任务
+                        for (TeamTask addedTask : added) {
+                            this.tasks.remove(addedTask.getId());
+                            pendingTasks.remove(addedTask.getId());
+                        }
+                        throw new IllegalArgumentException("检测到循环依赖: " + task.getTitle());
+                    }
+                }
+
+                // 第五阶段：触发事件（释放锁后触发）
+                List<TeamTask> finalAdded = added;
+                CompletableFuture.runAsync(() -> {
+                    for (TeamTask task : finalAdded) {
+                        notifyTaskAdded(task);
+                        publishTaskEvent(AgentEventType.TASK_CREATED, task, null);
+                    }
+                });
+
+                return added;
+
+            } finally {
+                lock.writeLock().unlock();
             }
-            return added;
         });
     }
 
@@ -226,13 +296,10 @@ public class SharedTaskList {
                     return false;
                 }
 
-                // 验证依赖任务已完成
-                for (String depId : task.getDependencies()) {
-                    TeamTask dep = tasks.get(depId);
-                    if (dep == null || !dep.isCompleted()) {
-                        LOG.warn("认领失败: 依赖任务未完成 {}", depId);
-                        return false;
-                    }
+                // 验证所有依赖任务已完成（递归检查）
+                if (!task.areAllDependenciesCompleted(tasks::get)) {
+                    LOG.warn("认领失败: 依赖任务未完成 {}", task.getTitle());
+                    return false;
                 }
 
                 // 认领任务
@@ -255,6 +322,10 @@ public class SharedTaskList {
 
                 return true;
 
+            } catch (IllegalStateException e) {
+                // 循环依赖异常
+                LOG.error("认领失败: {}", e.getMessage());
+                return false;
             } finally {
                 lock.writeLock().unlock();
             }
@@ -486,14 +557,14 @@ public class SharedTaskList {
         try {
             return pendingTasks.values().stream()
                     .filter(task -> {
-                        // 检查依赖任务是否都已完成
-                        for (String depId : task.getDependencies()) {
-                            TeamTask dep = tasks.get(depId);
-                            if (dep == null || !dep.isCompleted()) {
-                                return false;
-                            }
+                        try {
+                            // 使用递归检查所有依赖（包括间接依赖）
+                            return task.areAllDependenciesCompleted(tasks::get);
+                        } catch (IllegalStateException e) {
+                            // 循环依赖的任务不能被认领
+                            LOG.warn("任务存在循环依赖，无法认领: {}", task.getTitle());
+                            return false;
                         }
-                        return true;
                     })
                     .collect(Collectors.toList());
         } finally {
@@ -609,6 +680,149 @@ public class SharedTaskList {
         }
     }
 
+    // ========== 依赖关系诊断 ==========
+
+    /**
+     * 获取任务的依赖树
+     *
+     * @param taskId 任务ID
+     * @return 依赖树字符串
+     */
+    public String getTaskDependencyTree(String taskId) {
+        lock.readLock().lock();
+        try {
+            TeamTask task = tasks.get(taskId);
+            if (task == null) {
+                return "任务不存在: " + taskId;
+            }
+            return task.getDependencyTree(tasks::get);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 检测所有任务的循环依赖
+     *
+     * @return 存在循环依赖的任务列表
+     */
+    public List<TeamTask> detectCyclicDependencies() {
+        lock.readLock().lock();
+        try {
+            return tasks.values().stream()
+                    .filter(task -> task.hasCyclicDependency(tasks::get))
+                    .collect(Collectors.toList());
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 获取任务依赖图（用于调试）
+     *
+     * @return 依赖关系的文本表示
+     */
+    public String getDependencyGraph() {
+        lock.readLock().lock();
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== 任务依赖关系图 ===\n\n");
+
+            for (TeamTask task : tasks.values()) {
+                if (task.getDependencies() != null && !task.getDependencies().isEmpty()) {
+                    sb.append(task.getTitle())
+                      .append(" (").append(task.getId()).append(")")
+                      .append(" [").append(task.getStatus()).append("]")
+                      .append(" 依赖:\n");
+
+                    for (String depId : task.getDependencies()) {
+                        TeamTask dep = tasks.get(depId);
+                        if (dep != null) {
+                            sb.append("  → ").append(dep.getTitle())
+                              .append(" (").append(depId).append(")")
+                              .append(" [").append(dep.getStatus()).append("]\n");
+                        } else {
+                            sb.append("  → [不存在] ").append(depId).append("\n");
+                        }
+                    }
+                    sb.append("\n");
+                }
+            }
+
+            // 检测循环依赖
+            List<TeamTask> cyclicTasks = detectCyclicDependencies();
+            if (!cyclicTasks.isEmpty()) {
+                sb.append("⚠️ 检测到循环依赖:\n");
+                for (TeamTask task : cyclicTasks) {
+                    sb.append("  - ").append(task.getTitle())
+                      .append(" (").append(task.getId()).append(")\n");
+                }
+            }
+
+            return sb.toString();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 获取阻塞的任务（依赖未完成导致无法认领）
+     *
+     * @return 被阻塞的任务列表
+     */
+    public List<TeamTask> getBlockedTasks() {
+        lock.readLock().lock();
+        try {
+            return pendingTasks.values().stream()
+                    .filter(task -> !task.areAllDependenciesCompleted(tasks::get))
+                    .collect(Collectors.toList());
+        } catch (IllegalStateException e) {
+            LOG.error("检查阻塞任务时发生异常", e);
+            return Collections.emptyList();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * 获取阻塞任务的详细信息
+     *
+     * @return 阻塞信息
+     */
+    public String getBlockingInfo() {
+        lock.readLock().lock();
+        try {
+            List<TeamTask> blockedTasks = getBlockedTasks();
+
+            if (blockedTasks.isEmpty()) {
+                return "没有阻塞的任务";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== 阻塞任务详情 ===\n\n");
+
+            for (TeamTask task : blockedTasks) {
+                sb.append("任务: ").append(task.getTitle())
+                  .append(" (").append(task.getId()).append(")\n");
+                sb.append("状态: ").append(task.getStatus()).append("\n");
+                sb.append("等待依赖:\n");
+
+                for (String depId : task.getAllDependencyIds(tasks::get)) {
+                    TeamTask dep = tasks.get(depId);
+                    if (dep != null && !dep.isCompleted()) {
+                        sb.append("  - ").append(dep.getTitle())
+                          .append(" [").append(dep.getStatus()).append("]\n");
+                    }
+                }
+                sb.append("\n");
+            }
+
+            return sb.toString();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     /**
      * 任务统计信息
      */
@@ -699,7 +913,15 @@ public class SharedTaskList {
                 payload.put("status", task.getStatus());
                 payload.put("priority", task.getPriority());
 
-                eventBus.publishAsync(eventType, payload);
+                // 创建事件元数据
+                EventMetadata metadata = EventMetadata.builder()
+                        .taskId(task.getId())
+                        .priority(task.getPriority())
+                        .build();
+
+                // 创建并发布事件
+                AgentEvent event = new AgentEvent(eventType, payload, metadata);
+                eventBus.publishAsync(event);
             } catch (Exception e) {
                 LOG.error("发布任务事件失败", e);
             }

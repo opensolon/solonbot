@@ -15,12 +15,15 @@
  */
 package org.noear.solon.bot.core.event;
 
+import lombok.Getter;
+
 /**
  * 预定义事件类型枚举
  *
  * @author bai
  * @since 3.9.5
  */
+@Getter
 public enum AgentEventType {
     // ========== 任务事件 ==========
     /** 任务开始 */
@@ -31,6 +34,10 @@ public enum AgentEventType {
     TASK_FAILED("task.failed"),
     /** 任务进度更新 */
     TASK_PROGRESS("task.progress"),
+
+    TASK_CREATED("task.created"),
+    TASK_CLAIMED("task.claimed"),
+    TASK_RELEASED("task.released"),
 
     // ========== 记忆事件 ==========
     /** 记忆已存储 */
@@ -52,10 +59,6 @@ public enum AgentEventType {
 
     AgentEventType(String code) {
         this.code = code;
-    }
-
-    public String getCode() {
-        return code;
     }
 
     /**

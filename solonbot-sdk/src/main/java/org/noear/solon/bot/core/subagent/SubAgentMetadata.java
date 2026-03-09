@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.ai.codecli.core.subagent;
+package org.noear.solon.bot.core.subagent;
+
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,7 +31,13 @@ import java.util.List;
  * @author bai
  * @since 3.9.5
  */
+@Getter
+@Setter
 public class SubAgentMetadata {
+    // 代理标识
+    private String code;
+    private boolean enabled = true;
+
     // 必需字段
     private String name;
     private String description;
@@ -111,19 +120,25 @@ public class SubAgentMetadata {
                 String value = line.substring(colonIndex + 1).trim();
 
                 switch (key) {
+                    case "code":
+                        metadata.code = value;
+                        break;
                     case "name":
                         metadata.name = value;
                         break;
                     case "description":
                         metadata.description = value;
                         break;
+                    case "enabled":
+                        metadata.enabled = Boolean.parseBoolean(value);
+                        break;
                     case "tools":
                         // 工具列表，逗号分隔
-                        metadata.tools = Arrays.asList(value.split(",\\s*"));
+                        metadata.tools = new ArrayList<>(Arrays.asList(value.split(",\\s*")));
                         break;
                     case "disallowedTools":
                         // 禁用工具列表，逗号分隔
-                        metadata.disallowedTools = Arrays.asList(value.split(",\\s*"));
+                        metadata.disallowedTools = new ArrayList<>(Arrays.asList(value.split(",\\s*")));
                         break;
                     case "model":
                         metadata.model = value;
@@ -140,11 +155,11 @@ public class SubAgentMetadata {
                         break;
                     case "skills":
                         // Skills 列表，逗号分隔
-                        metadata.skills = Arrays.asList(value.split(",\\s*"));
+                        metadata.skills = new ArrayList<>(Arrays.asList(value.split(",\\s*")));
                         break;
                     case "mcpServers":
                         // MCP Servers 列表，逗号分隔
-                        metadata.mcpServers = Arrays.asList(value.split(",\\s*"));
+                        metadata.mcpServers = new ArrayList<>(Arrays.asList(value.split(",\\s*")));
                         break;
                     case "memory":
                         metadata.memory = value;
@@ -221,26 +236,123 @@ public class SubAgentMetadata {
         }
     }
 
-    // Getters
-    public String getName() {
-        return name;
+
+    /**
+     * 将元数据转换为 YAML frontmatter 格式
+     *
+     * 格式：
+     * ---
+     * name: xxx
+     * description: xxx
+     * tools: xxx
+     * ...
+     * ---
+     *
+     * @return YAML frontmatter 字符串
+     */
+    public String toYamlFrontmatter() {
+        StringBuilder yaml = new StringBuilder();
+        yaml.append("---\n");
+
+        // 代理标识
+        if (code != null && !code.isEmpty()) {
+            yaml.append("code: ").append(code).append("\n");
+        }
+
+        // 必需字段
+        if (name != null && !name.isEmpty()) {
+            yaml.append("name: ").append(name).append("\n");
+        }
+
+        if (description != null && !description.isEmpty()) {
+            yaml.append("description: ").append(description).append("\n");
+        }
+
+        // 启用状态
+        if (!enabled) {
+            yaml.append("enabled: ").append(enabled).append("\n");
+        }
+
+        // 工具配置
+        if (tools != null && !tools.isEmpty()) {
+            yaml.append("tools: ").append(String.join(", ", tools)).append("\n");
+        }
+
+        if (disallowedTools != null && !disallowedTools.isEmpty()) {
+            yaml.append("disallowedTools: ").append(String.join(", ", disallowedTools)).append("\n");
+        }
+
+        // 模型配置
+        if (hasModel()) {
+            yaml.append("model: ").append(model).append("\n");
+        }
+
+        // 权限配置
+        if (hasPermissionMode()) {
+            yaml.append("permissionMode: ").append(permissionMode).append("\n");
+        }
+
+        // 执行限制
+        if (hasMaxTurns()) {
+            yaml.append("maxTurns: ").append(maxTurns).append("\n");
+        }
+
+        // Skills 配置
+        if (hasSkills()) {
+            yaml.append("skills: ").append(String.join(", ", skills)).append("\n");
+        }
+
+        // MCP Servers 配置
+        if (hasMcpServers()) {
+            yaml.append("mcpServers: ").append(String.join(", ", mcpServers)).append("\n");
+        }
+
+        // 记忆配置
+        if (hasMemory()) {
+            yaml.append("memory: ").append(memory).append("\n");
+        }
+
+        // 后台任务
+        if (isBackground()) {
+            yaml.append("background: ").append(background).append("\n");
+        }
+
+        // 隔离配置
+        if (hasIsolation()) {
+            yaml.append("isolation: ").append(isolation).append("\n");
+        }
+
+        yaml.append("---");
+
+        return yaml.toString();
     }
 
-    public String getDescription() {
-        return description;
+    /**
+     * 将元数据和提示词组合为完整的格式
+     *
+     * 格式：
+     * ---
+     * name: xxx
+     * ...
+     * ---
+     *
+     * 提示词内容
+     *
+     * @param prompt 系统提示词内容
+     * @return 完整的 YAML frontmatter + 提示词
+     */
+    public String toYamlFrontmatterWithPrompt(String prompt) {
+        StringBuilder result = new StringBuilder();
+        result.append(toYamlFrontmatter()).append("\n\n");
+
+        if (prompt != null && !prompt.isEmpty()) {
+            result.append(prompt);
+        }
+
+        return result.toString();
     }
 
-    public List<String> getTools() {
-        return tools;
-    }
-
-    public List<String> getDisallowedTools() {
-        return disallowedTools;
-    }
-
-    public String getModel() {
-        return model;
-    }
+    // ========== 工具方法 ==========
 
     public boolean hasModel() {
         return model != null && !model.isEmpty();
@@ -276,37 +388,5 @@ public class SubAgentMetadata {
 
     public boolean hasIsolation() {
         return isolation != null && !isolation.isEmpty();
-    }
-
-    public String getPermissionMode() {
-        return permissionMode;
-    }
-
-    public Integer getMaxTurns() {
-        return maxTurns;
-    }
-
-    public List<String> getSkills() {
-        return skills;
-    }
-
-    public List<String> getMcpServers() {
-        return mcpServers;
-    }
-
-    public Object getHooks() {
-        return hooks;
-    }
-
-    public String getMemory() {
-        return memory;
-    }
-
-    public Boolean getBackground() {
-        return background;
-    }
-
-    public String getIsolation() {
-        return isolation;
     }
 }

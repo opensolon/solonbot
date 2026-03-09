@@ -17,10 +17,13 @@ package org.noear.solon.bot.core.subagent;
 
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.bot.core.tool.WebfetchTool;
-import org.noear.solon.ai.rag.Document;
 import org.noear.solon.annotation.Param;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -95,7 +98,7 @@ public class SolonDocTool {
 
             // 使用 WebfetchTool 获取文档
             WebfetchTool webfetch = WebfetchTool.getInstance();
-            Document document = webfetch.webfetch(docUrl, "markdown", 120);
+            org.noear.solon.ai.rag.Document document = webfetch.webfetch(docUrl, "markdown", 120);
 
             String content = document.getContent();
             if (content != null && !content.isEmpty()) {
@@ -127,47 +130,61 @@ public class SolonDocTool {
     )
     public String list() {
         StringBuilder sb = new StringBuilder("# 可用的 Solon 文档\n\n");
+        sb.append("来源: https://solon.noear.org/article/learn-start\n\n");
 
-        // 分类列出文档
-        sb.append("## 快速入门\n");
-        String[][] quickStartDocs = {
-                {"learn-start", "Solon 快速入门"},
-                {"learn-features", "Solon 特性介绍"},
-                {"learn-demo", "Solon 示例代码"}
-        };
-        for (String[] doc : quickStartDocs) {
-            sb.append(String.format("- **%s**: %s (https://solon.noear.org/article/%s)\n", doc[0], doc[1], doc[0]));
+        try {
+            // 从网页获取文档目录
+            String url = "https://solon.noear.org/article/learn-start";
+            LOG.info("从网页获取 Solon 文档目录: {}", url);
+
+            // 使用 JSoup 连接并解析 HTML
+            Document doc = Jsoup.connect(url)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .timeout(10000)
+                    .get();
+
+            // 获取所有 li 标签
+            Elements liElements = doc.select("li");
+
+            sb.append("## 文档列表\n\n");
+
+            for (Element li : liElements) {
+                // 查找 li 标签中的链接
+                Element link = li.selectFirst("a");
+                if (link != null) {
+                    String href = link.attr("href");
+                    String text = link.text();
+
+                    // 只处理 article 开头的链接
+                    if (href.startsWith("/article/")) {
+                        // 提取文档名称（去掉 /article/ 前缀和可能的参数）
+                        String docName = href.substring("/article/".length());
+                        if (docName.contains("?")) {
+                            docName = docName.substring(0, docName.indexOf("?"));
+                        }
+                        if (docName.contains("#")) {
+                            docName = docName.substring(0, docName.indexOf("#"));
+                        }
+
+                        // 添加到文档列表
+                        sb.append(String.format("- **%s**: %s\n", docName, text.isEmpty() ? docName : text));
+                    }
+                }
+            }
+
+            sb.append("提示：使用 solon_doc_read 工具读取具体文档\n");
+            sb.append("例如：solon_doc_read(\"learn-start\")\n");
+            sb.append("\n缓存目录: ").append(cacheDir).append("\n");
+
+        } catch (Throwable e) {
+            LOG.warn("获取 Solon 文档目录失败: {}", e.getMessage());
+            sb.append("无法从网页获取文档目录: ").append(e.getMessage()).append("\n");
+            sb.append("\n请手动访问: https://solon.noear.org/article/learn-start\n");
         }
-
-        sb.append("\n## Agent SDK\n");
-        String[][] agentDocs = {
-                {"agent-quick-start", "Agent SDK 快速开始"},
-                {"agent-chat-model", "Chat Model 使用"},
-                {"agent-tools", "Agent 工具开发"},
-                {"agent-skill", "Agent 技能系统"},
-                {"agent-react", "ReAct 模式详解"}
-        };
-        for (String[] doc : agentDocs) {
-            sb.append(String.format("- **%s**: %s (https://solon.noear.org/article/%s)\n", doc[0], doc[1], doc[0]));
-        }
-
-        sb.append("\n## 高级主题\n");
-        String[][] advancedDocs = {
-                {"learn-architecture", "Solon 架构设计"},
-                {"learn-performance", "性能优化指南"},
-                {"learn-plugin", "插件开发"},
-                {"learn-testing", "测试指南"}
-        };
-        for (String[] doc : advancedDocs) {
-            sb.append(String.format("- **%s**: %s (https://solon.noear.org/article/%s)\n", doc[0], doc[1], doc[0]));
-        }
-
-        sb.append("\n提示：使用 read_solon_doc 工具读取具体文档\n");
-        sb.append("例如：read_solon_doc(\"learn-start\")\n");
-        sb.append("\n缓存目录: ").append(cacheDir).append("\n");
 
         return sb.toString();
     }
+
 
     /**
      * 清除文档缓存

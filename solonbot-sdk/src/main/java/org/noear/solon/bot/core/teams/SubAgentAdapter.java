@@ -20,39 +20,39 @@ import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.chat.message.AssistantMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.ai.codecli.core.subagent.AbstractSubAgent;
+import org.noear.solon.bot.core.subagent.Subagent;
 
 /**
  * SubAgent 到 Agent 的适配器
  *
  * 将现有的 SubAgent 适配为 Solon AI Agent 接口，
- * 以便在 TeamAgent 中使用。
+ * 以便在需要 Agent 接口的地方使用。
  *
  * @author bai
  * @since 3.9.5
  */
 public class SubAgentAdapter implements Agent {
-    private final AbstractSubAgent subAgent;
+    private final Subagent subAgent;
 
-    public SubAgentAdapter(AbstractSubAgent subAgent) {
+    public SubAgentAdapter(Subagent subAgent) {
         this.subAgent = subAgent;
     }
 
     @Override
     public String name() {
-        return subAgent.getConfig().getName();
+        return subAgent.name();
     }
 
     @Override
     public String role() {
-        String desc = subAgent.getConfig().getDescription();
-        return desc != null ? desc : subAgent.getConfig().getName();
+        String desc = subAgent.getDescription();
+        return desc != null ? desc : subAgent.name();
     }
 
     @Override
     public AssistantMessage call(Prompt prompt, AgentSession session) throws Throwable {
         // 调用 SubAgent 的执行逻辑
-        AgentResponse response = subAgent.execute(prompt);
+        AgentResponse response = subAgent.execute(session.getSessionId(), "", prompt);
 
         // 转换为 AssistantMessage
         String text = response != null ? response.getText() : "";
@@ -62,7 +62,7 @@ public class SubAgentAdapter implements Agent {
     /**
      * 获取底层的 SubAgent
      */
-    public AbstractSubAgent getSubAgent() {
+    public Subagent getSubAgent() {
         return subAgent;
     }
 }
