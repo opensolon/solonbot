@@ -31,7 +31,15 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 子代理技能
@@ -81,6 +89,7 @@ public class TaskSkill extends AbsSkill {
         sb.append("### 调用约定\n");
         sb.append("- **上下文对齐**: 子代理看不见当前历史。必须在 `prompt` 中通过 <context> 标签传入必要的类名、报错或路径。\n");
         sb.append("- **示例**: `task(subagent_type=\"explore\", prompt=\"分析 demo-web 核心架构\", description=\"架构探索\")`\n");
+        sb.append("- **动态创建 Agent**: 可以使用 `create_agent` 工具动态创建新的子代理，自定义其行为和技能。\n");
 
         return sb.toString();
     }
@@ -155,6 +164,111 @@ public class TaskSkill extends AbsSkill {
         } catch (Throwable e) {
             LOG.error("子代理执行崩溃: type={}, error={}", subagent_type, e.getMessage(), e);
             return "ERROR: 子代理执行失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 动态创建子代理工具
+     *
+     * 允许主 Agent 动态创建新的子代理，自定义其行为和技能。
+     * 创建的 agent 定义会保存到文件，并立即注册到 SubagentManager 中。
+     */
+    @ToolMapping(name = "create_agent",
+                 description = "动态创建一个新的子代理。创建的子代理将保存到 .soloncode/agents/ 目录并立即可用。")
+    public String createAgent(
+            @Param(name = "code", description = "子代理的唯一标识码（如 'my-custom-agent'）") String code,
+            @Param(name = "name", description = "子代理的显示名称") String name,
+            @Param(name = "description", description = "子代理的功能描述") String description,
+            @Param(name = "systemPrompt", description = "子代理的系统提示词（行为指令）") String systemPrompt,
+            @Param(name = "model", required = false, description = "可选。指定使用的模型（如 'gpt-4'）") String model,
+            @Param(name = "tools", required = false, description = "可选。允许使用的工具列表，逗号分隔（如 'read,write,grep'）") String tools,
+            @Param(name = "skills", required = false, description = "可选。启用的技能列表，逗号分隔") String skills,
+            @Param(name = "maxTurns", required = false, description = "可选。最大对话轮数限制") Integer maxTurns,
+            @Param(name = "saveToFile", required = false, description = "可选。是否保存到文件（默认 true）") Boolean saveToFile,
+            String __cwd
+    ) {
+        try {
+            // 1. 构建 SubAgentMetadata
+            SubAgentMetadata metadata = new SubAgentMetadata();
+            metadata.setCode(code);
+            metadata.setName(name);
+            metadata.setDescription(description);
+            metadata.setEnabled(true);
+
+            // 可选参数
+            if (model != null && !model.isEmpty()) {
+                metadata.setModel(model);
+            }
+            if (tools != null && !tools.isEmpty()) {
+                metadata.setTools(Arrays.asList(tools.split(",\\s*")));
+            }
+            if (skills != null && !skills.isEmpty()) {
+                metadata.setSkills(Arrays.asList(skills.split(",\\s*")));
+            }
+            if (maxTurns != null && maxTurns > 0) {
+                metadata.setMaxTurns(maxTurns);
+            }
+
+            // 2. 生成完整的 agent 定义（YAML frontmatter + system prompt）
+            String agentDefinition = metadata.toYamlFrontmatterWithPrompt(systemPrompt);
+
+            // 3. 保存到文件（默认保存）
+            boolean shouldSave = saveToFile == null || saveToFile;
+            String filePath = null;
+
+            if (shouldSave) {
+                Path agentsDir = Paths.get(__cwd, ".soloncode", "agents");
+
+                // 确保目录存在
+                if (!Files.exists(agentsDir)) {
+                    Files.createDirectories(agentsDir);
+                    LOG.info("创建 agents 目录: {}", agentsDir);
+                }
+
+                // 使用 code 作为文件名
+                String fileName = code + ".md";
+                Path agentFile = agentsDir.resolve(fileName);
+                filePath = agentFile.toString();
+
+
+                try (BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(
+                                Files.newOutputStream(agentFile.toFile().toPath()),
+                                StandardCharsets.UTF_8))) {
+                    writer.write(agentDefinition);
+                }
+                LOG.info("Agent 定义已保存到: {}", filePath);
+            }
+
+            // 4. 动态创建并注册新的子代理
+            AbsSubagent newAgent = new GeneralPurposeSubagent(mainAgent, code);
+            newAgent.setDescription(description);
+            newAgent.setSystemPrompt(agentDefinition);
+            newAgent.refresh();
+
+            // 注册到 manager
+            manager.addSubagent(newAgent);
+
+            LOG.info("动态创建子代理成功: code={}, name={}", code, name);
+
+            // 5. 返回结果
+            StringBuilder result = new StringBuilder();
+            result.append("✅ 子代理创建成功！\n\n");
+            result.append(String.format("**代码**: %s\n", code));
+            result.append(String.format("**名称**: %s\n", name));
+            result.append(String.format("**描述**: %s\n", description));
+
+            if (filePath != null) {
+                result.append(String.format("**文件**: %s\n", filePath));
+            }
+
+            result.append(String.format("\n现在可以使用 `task(subagent_type=\"%s\", prompt=\"...\")` 来调用这个子代理。\n", code));
+
+            return result.toString();
+
+        } catch (Throwable e) {
+            LOG.error("创建子代理失败: code={}, error={}", code, e.getMessage(), e);
+            return "ERROR: 创建子代理失败: " + e.getMessage();
         }
     }
 }
