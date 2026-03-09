@@ -17,10 +17,7 @@ package org.noear.solon.ai.codecli.core.memory;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.noear.solon.bot.core.memory.LongTermMemory;
-import org.noear.solon.bot.core.memory.Memory;
-import org.noear.solon.bot.core.memory.MemoryStore;
-import org.noear.solon.bot.core.memory.ShortTermMemory;
+import org.noear.solon.bot.core.memory.*;
 
 import java.io.File;
 import java.util.Arrays;

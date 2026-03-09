@@ -15,6 +15,9 @@
  */
 package org.noear.solon.bot.core.memory;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,6 +44,8 @@ import java.util.stream.Collectors;
  * @author bai
  * @since 3.9.5
  */
+@Getter
+@Setter
 public class WorkingMemory extends Memory {
     private String taskId;                       // 关联任务ID
     private String taskDescription;              // 当前任务描述
@@ -81,37 +86,19 @@ public class WorkingMemory extends Memory {
         this.lastAccessTime = System.currentTimeMillis();
     }
 
-    // ========== 基础 Getter/Setter ==========
-
-    public String getTaskId() {
-        return taskId;
-    }
-
-    public void setTaskId(String taskId) {
-        this.taskId = taskId;
-    }
-
-    public String getTaskDescription() {
-        return taskDescription;
-    }
 
     public void setTaskDescription(String taskDescription) {
         this.taskDescription = taskDescription;
         lastAccessTime = System.currentTimeMillis();
     }
 
-    public String getSummary() {
-        return summary;
-    }
 
     public void setSummary(String summary) {
         this.summary = summary;
         lastAccessTime = System.currentTimeMillis();
     }
 
-    public List<ActionRecord> getActionRecords() {
-        return toolRecords;
-    }
+
 
     public void setActionRecords(List<ActionRecord> toolRecords) {
         this.toolRecords = toolRecords != null
@@ -137,56 +124,26 @@ public class WorkingMemory extends Memory {
      *
      * @param skillRecords Skill 记录列表（现在使用 ActionRecord）
      */
-    @SuppressWarnings("unused")
     public void setSkillRecords(List<ActionRecord> skillRecords) {
         // 移除所有现有的 skill 记录
-        toolRecords.removeIf(r -> "skill".equals(r.getToolType()));
+        toolRecords.removeIf(r -> "skill".equals(r.getActionType()));
 
         // 添加新的 skill 记录
         if (skillRecords != null) {
             for (ActionRecord record : skillRecords) {
-                record.setToolType("skill");
+                record.setActionType("skill");
                 toolRecords.add(record);
             }
         }
         lastAccessTime = System.currentTimeMillis();
     }
 
-    public Map<String, Object> getData() {
-        return data;
-    }
+
 
     public void setData(Map<String, Object> data) {
         this.data = data != null ? data : new ConcurrentHashMap<>();
     }
 
-    public int getStep() {
-        return step;
-    }
-
-    public void setStep(int step) {
-        this.step = step;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getCurrentAgent() {
-        return currentAgent;
-    }
-
-    public void setCurrentAgent(String currentAgent) {
-        this.currentAgent = currentAgent;
-    }
-
-    public List<String> getCompletedSteps() {
-        return completedSteps;
-    }
 
     public void setCompletedSteps(List<String> completedSteps) {
         this.completedSteps = completedSteps != null
@@ -194,15 +151,6 @@ public class WorkingMemory extends Memory {
             : new CopyOnWriteArrayList<>();
     }
 
-    public long getLastAccessTime() {
-        return lastAccessTime;
-    }
-
-    public void setLastAccessTime(long lastAccessTime) {
-        this.lastAccessTime = lastAccessTime;
-    }
-
-    // ========== 便捷方法 ==========
 
     /**
      * 存储工作数据
@@ -510,7 +458,7 @@ public class WorkingMemory extends Memory {
      * @param record Skill 记录（使用 ActionRecord，类型自动设为 "skill"）
      */
     public void addSkillRecord(ActionRecord record) {
-        record.setToolType("skill");
+        record.setActionType("skill");
         toolRecords.add(record);
         lastAccessTime = System.currentTimeMillis();
     }
@@ -611,7 +559,7 @@ public class WorkingMemory extends Memory {
     public List<ActionRecord> getRecordsByType(String toolType) {
         lastAccessTime = System.currentTimeMillis();
         return toolRecords.stream()
-                .filter(r -> toolType.equals(r.getToolType()))
+                .filter(r -> toolType.equals(r.getActionType()))
                 .collect(Collectors.toList());
     }
 

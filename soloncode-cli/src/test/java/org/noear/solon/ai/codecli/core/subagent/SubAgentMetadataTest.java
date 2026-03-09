@@ -15,11 +15,12 @@
  */
 package org.noear.solon.ai.codecli.core.subagent;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.noear.solon.bot.core.subagent.SubAgentMetadata;
 
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * SubAgent 元数据测试

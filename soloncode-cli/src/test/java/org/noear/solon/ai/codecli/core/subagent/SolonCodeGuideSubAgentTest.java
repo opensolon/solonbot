@@ -16,7 +16,7 @@
 package org.noear.solon.ai.codecli.core.subagent;
 
 import org.junit.jupiter.api.Test;
-import org.noear.solon.ai.codecli.core.tool.ReadSolonDocTool;
+import org.noear.solon.bot.core.subagent.SolonDocTool;
 
 /**
  * Solon Code 指南代理测试
@@ -27,13 +27,13 @@ import org.noear.solon.ai.codecli.core.tool.ReadSolonDocTool;
 public class SolonCodeGuideSubAgentTest {
 
     /**
-     * 测试 ReadSolonDocTool 工具
+     * 测试 SolonDocTool 工具
      */
     @Test
     public void testReadSolonDocTool() {
-        System.out.println("=== 测试 ReadSolonDocTool ===\n");
+        System.out.println("=== 测试 SolonDocTool ===\n");
 
-        ReadSolonDocTool tool = new ReadSolonDocTool("work");
+        SolonDocTool tool = new SolonDocTool("work");
 
         // 1. 列出所有可用文档
         System.out.println("1. 列出所有可用的 Solon 文档:");
@@ -86,7 +86,7 @@ public class SolonCodeGuideSubAgentTest {
     public void testDifferentDocuments() {
         System.out.println("=== 测试不同的 Solon 文档 ===\n");
 
-        ReadSolonDocTool tool = new ReadSolonDocTool("work");
+        SolonDocTool tool = new SolonDocTool("work");
 
         String[] docNames = {
                 "learn-start",
@@ -119,7 +119,7 @@ public class SolonCodeGuideSubAgentTest {
     public void testErrorHandling() {
         System.out.println("=== 测试错误处理 ===\n");
 
-        ReadSolonDocTool tool = new ReadSolonDocTool("work");
+        SolonDocTool tool = new SolonDocTool("work");
 
         // 测试不存在的文档
         System.out.println("1. 尝试读取不存在的文档:");
