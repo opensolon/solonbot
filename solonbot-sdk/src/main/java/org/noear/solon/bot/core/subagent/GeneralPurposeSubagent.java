@@ -16,6 +16,8 @@
 package org.noear.solon.bot.core.subagent;
 
 import org.noear.solon.ai.agent.react.ReActAgent;
+import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
+import org.noear.solon.ai.agent.react.intercept.summarize.HierarchicalSummarizationStrategy;
 import org.noear.solon.bot.core.AgentKernel;
 import org.noear.solon.bot.core.LuceneSkill;
 import org.noear.solon.bot.core.tool.CodeSearchTool;
@@ -58,11 +60,18 @@ public class GeneralPurposeSubagent extends AbsSubagent {
         builder.defaultToolAdd(WebsearchTool.getInstance());
         builder.defaultToolAdd(CodeSearchTool.getInstance());
 
+        SummarizationInterceptor summarizationInterceptor = new SummarizationInterceptor(
+                mainAgent.getProps().getSummaryWindowSize(),
+                new HierarchicalSummarizationStrategy(mainAgent.getChatModel()));
+
+        builder.defaultInterceptorAdd(summarizationInterceptor);
+
         // 如果主 CodeAgent 有代码搜索能力，也可以添加
         // 这里可以根据需要动态添加工具
 
         // 设置最大步数（通用任务可能需要更多步数）
         builder.maxSteps(25);
+        builder.maxStepsExtensible(true);
 
         // 设置会话窗口大小
         builder.sessionWindowSize(10);
