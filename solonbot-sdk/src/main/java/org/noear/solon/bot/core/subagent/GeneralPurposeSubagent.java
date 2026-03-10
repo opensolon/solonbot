@@ -74,7 +74,7 @@ public class GeneralPurposeSubagent extends AbsSubagent {
         builder.maxStepsExtensible(true);
 
         // 设置会话窗口大小
-        builder.sessionWindowSize(10);
+        builder.sessionWindowSize(5);
     }
 
     @Override
