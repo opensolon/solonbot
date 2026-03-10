@@ -58,19 +58,19 @@
     </dependencies>
 
     <build>
-        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.noear</groupId>
                 <artifactId>solon-maven-plugin</artifactId>
                 <configuration>
+                    <finalName>${project.artifactId}</finalName>
                     <mainClass>org.noear.solon.bot.codecli.App</mainClass>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <id>make-release</id>
@@ -79,12 +79,11 @@
                             <goal>single</goal>
                         </goals>
                         <configuration>
+                            <finalName>${project.artifactId}-bin-${project.version}</finalName>
                             <appendAssemblyId>false</appendAssemblyId>
                             <descriptors>
                                 <descriptor>src/assembly/release.xml</descriptor>
                             </descriptors>
-                            <!-- 显式清空 solon-parent 的 pluginManagement 里有 jar-with-dependencies -->
-                            <descriptorRefs combine.self="override"/>
                         </configuration>
                     </execution>
                 </executions>
