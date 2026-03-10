@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick, watch } from 'vue';
 import { type Message, type ContentType, type ContentItem } from '../types';
+import { StreamMarkdown } from 'streamdown-vue';
 
 interface Props {
   messages: Message[];
@@ -18,7 +19,6 @@ async function scrollToBottom() {
 }
 
 watch(() => props.messages, async () => {
-  console.log('messages changed', props.messages);
   await scrollToBottom();
 }, { deep: true });
 
@@ -71,7 +71,7 @@ defineExpose({
               :key="index"
               class="content-item"
             >
-              <div class="content-text">{{ item.text }}</div>
+              <StreamMarkdown class="content-text" :content="item.text" />
             </div>
           </div>
           <div class="message-time">{{ message.timestamp }}</div>

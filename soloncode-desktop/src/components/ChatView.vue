@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import {ref, onMounted, watch} from 'vue';
 import axios from 'axios';
-import { type Message, type Conversation, type Theme, type Plugin, type ContentItem, type ContentType } from '../types';
+import {type Message, type Conversation, type Theme, type Plugin, type ContentItem, type ContentType} from '../types';
 import ChatHeader from './ChatHeader.vue';
 import ChatMessages from './ChatMessages.vue';
 import ChatInput from './ChatInput.vue';
@@ -47,7 +47,7 @@ async function sendMessage(messageText: string) {
     id: Date.now(),
     role: 'user',
     timestamp: new Date().toLocaleTimeString(),
-    contents: [{ type: 'text', text: messageText }]
+    contents: [{type: 'text', text: messageText}]
   };
 
   messages.value.push(userMessage);
@@ -75,10 +75,10 @@ async function sendMessage(messageText: string) {
     const currentType = ref<ContentType>('');
     if (reader) {
       while (true) {
-        const { done, value } = await reader.read();
+        const {done, value} = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
+        const chunk = decoder.decode(value, {stream: true});
         const lines = chunk.split('\n');
 
         for (const line of lines) {
@@ -104,15 +104,25 @@ async function sendMessage(messageText: string) {
               const data = JSON.parse(jsonStr);
               const type = data.type as ContentType;
               let text = data.text || '';
-              if (text === ''){
+              if (text === '') {
                 continue;
               }
-              if (currentType.value != type){
+              if (currentType.value != type) {
+                let isAddText = false;
+                const addText = "\n```\n\n";
+                if (currentType.value && (currentType.value == 'reason' || currentType.value == 'action')){
+                  isAddText = true;
+                }
                 currentType.value = type;
-                if (type === 'action'){
-                  text = `> ⚡工具 ${data.toolName}\n> 参数:\`\`\`${JSON.stringify(data.args)}\`\`\`\n> 响应:\`\`\`${text.substring(0,10)+"..."}\`\`\`\n`
-                }else{
-                  text = "\n----<<" + type + ">>----\n" + text;
+                if (type === 'action') {
+                  text = "```md\n⚡" + data?.toolName || '工具' + "\n" + JSON.stringify(data.args) + "\n" + text.substring(0, 30) + "...\n```\n\n";
+                } else if (type === 'reason') {
+                  text = "```md\n> 🧠\n" + text;
+                } else {
+                  text = "\n" + text;
+                }
+                if (isAddText){
+                  text = addText + text;
                 }
               }
 
@@ -135,7 +145,7 @@ async function sendMessage(messageText: string) {
                 if (lastContent) {
                   lastContent.text += text;
                 } else {
-                  assistantMsg.contents.push({ type: 'text', text });
+                  assistantMsg.contents.push({type: 'text', text});
                 }
 
                 await chatMessagesRef.value?.scrollToBottom();
@@ -153,7 +163,7 @@ async function sendMessage(messageText: string) {
       id: Date.now() + 1,
       role: 'error',
       timestamp: new Date().toLocaleTimeString(),
-      contents: [{ type: 'error', text: `请求失败: ${error instanceof Error ? error.message : '未知错误'}` }]
+      contents: [{type: 'error', text: `请求失败: ${error instanceof Error ? error.message : '未知错误'}`}]
     };
     messages.value.push(errorMessage);
   } finally {
@@ -196,7 +206,7 @@ watch(() => props.currentConversation.id, (newId) => {
   } else {
     loadConversationMessages(newId);
   }
-}, { immediate: true });
+}, {immediate: true});
 
 onMounted(() => {
   loadTheme();
@@ -206,17 +216,17 @@ onMounted(() => {
 <template>
   <main class="main-content">
     <ChatHeader
-      :title="props.currentConversation.title"
-      :status="props.currentConversation.status"
-      :theme="currentTheme"
-      @toggle-theme="toggleTheme"
+        :title="props.currentConversation.title"
+        :status="props.currentConversation.status"
+        :theme="currentTheme"
+        @toggle-theme="toggleTheme"
     />
     <ChatMessages
-      ref="chatMessagesRef"
-      :messages="messages"
-      :is-loading="isLoading"
+        ref="chatMessagesRef"
+        :messages="messages"
+        :is-loading="isLoading"
     />
-    <ChatInput @send="sendMessage" />
+    <ChatInput @send="sendMessage"/>
   </main>
 </template>
 
