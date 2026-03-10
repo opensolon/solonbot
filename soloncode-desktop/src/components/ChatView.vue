@@ -72,8 +72,6 @@ async function sendMessage(messageText: string) {
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
-    let currentAssistantMessage: Message | null = null;
-    let currentAssistantMsgId: number | null = null;
 
     if (reader) {
       while (true) {
@@ -107,47 +105,25 @@ async function sendMessage(messageText: string) {
               const type = data.type as ContentType;
               const text = data.text || '';
 
-              if (text || type === 'action') {
-                // 确保有当前的助手消息
-                if (!currentAssistantMessage) {
-                  currentAssistantMsgId = Date.now() + Math.floor(Math.random() * 1000);
-                  currentAssistantMessage = {
-                    id: currentAssistantMsgId,
+              if (text || data.toolName || data.args) {
+                // 获取或创建助手消息
+                const lastMsg = messages.value[messages.value.length - 1];
+                if (!lastMsg || lastMsg.role !== 'assistant') {
+                  const newMsg: Message = {
+                    id: Date.now() + Math.floor(Math.random() * 1000),
                     role: 'assistant',
                     timestamp: new Date().toLocaleTimeString(),
                     contents: []
                   };
-                  messages.value.push(currentAssistantMessage);
+                  messages.value.push(newMsg);
                 }
 
-                // 按类型处理并追加内容
-                if (type === 'reason') {
-                  // 查找最后一个 reason 内容项，追加或创建新的
-                  const lastContent = currentAssistantMessage.contents[currentAssistantMessage.contents.length - 1];
-                  if (lastContent && lastContent.type === 'reason') {
-                    lastContent.text += text;
-                  } else {
-                    currentAssistantMessage.contents.push({ type: 'reason', text });
-                  }
-                } else if (type === 'action') {
-                  // action 通常每次都是新的
-                  const actionItem: ContentItem = {
-                    type: 'action',
-                    text: text,
-                    toolName: data.toolName,
-                    args: data.args
-                  };
-                  currentAssistantMessage.contents.push(actionItem);
-                } else if (type === 'agent') {
-                  // agent 是普通文本，查找最后一个 text 内容项追加
-                  const lastContent = currentAssistantMessage.contents[currentAssistantMessage.contents.length - 1];
-                  if (lastContent && lastContent.type === 'text') {
-                    lastContent.text += text;
-                  } else {
-                    currentAssistantMessage.contents.push({ type: 'text', text });
-                  }
-                } else if (type === 'error') {
-                  currentAssistantMessage.contents.push({ type: 'error', text });
+                const assistantMsg = messages.value[messages.value.length - 1];
+                const lastContent = assistantMsg.contents[assistantMsg.contents.length - 1];
+                if (lastContent) {
+                  lastContent.text += text;
+                } else {
+                  assistantMsg.contents.push({ type: 'text', text });
                 }
 
                 await chatMessagesRef.value?.scrollToBottom();

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
-import { type Message, type ContentType } from '../types';
+import { ref, nextTick, watch } from 'vue';
+import { type Message, type ContentType, type ContentItem } from '../types';
 
 interface Props {
   messages: Message[];
@@ -16,6 +16,11 @@ async function scrollToBottom() {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
   }
 }
+
+watch(() => props.messages, async () => {
+  console.log('messages changed', props.messages);
+  await scrollToBottom();
+}, { deep: true });
 
 function getAvatar(role: string): string {
   const avatars: Record<string, string> = {
@@ -37,26 +42,6 @@ function getRoleLabel(role: string): string {
     'error': '错误'
   };
   return labels[role] || role;
-}
-
-function getContentLabel(type: ContentType): string {
-  const labels: Record<ContentType, string> = {
-    'reason': '思考',
-    'action': '执行',
-    'text': '',
-    'error': '错误'
-  };
-  return labels[type];
-}
-
-function getContentIcon(type: ContentType): string {
-  const icons: Record<ContentType, string> = {
-    'reason': '💭',
-    'action': '⚡',
-    'text': '',
-    'error': '❌'
-  };
-  return icons[type];
 }
 
 defineExpose({
@@ -81,31 +66,12 @@ defineExpose({
             <span class="message-role">{{ getRoleLabel(message.role) }}</span>
           </div>
           <div class="message-text">
-            <!-- 按顺序渲染内容项 -->
             <div
               v-for="(item, index) in message.contents"
               :key="index"
-              :class="['content-item', `content-${item.type}`]"
+              class="content-item"
             >
-              <div v-if="item.type === 'reason'" class="content-reason">
-                <span class="content-label">{{ getContentIcon(item.type) }} {{ getContentLabel(item.type) }}</span>
-                <div class="content-text">{{ item.text }}</div>
-              </div>
-              <div v-else-if="item.type === 'action'" class="content-action">
-                <span class="content-label">{{ getContentIcon(item.type) }} {{ getContentLabel(item.type) }}</span>
-                <span v-if="item.toolName" class="content-tool">🔧 {{ item.toolName }}</span>
-                <div class="content-text">{{ item.text }}</div>
-                <div v-if="item.args" class="message-args">
-                  <pre>{{ JSON.stringify(item.args, null, 2) }}</pre>
-                </div>
-              </div>
-              <div v-else-if="item.type === 'error'" class="content-error">
-                <span class="content-label">{{ getContentIcon(item.type) }} {{ getContentLabel(item.type) }}</span>
-                <div class="content-text">{{ item.text }}</div>
-              </div>
-              <div v-else class="content-plain">
-                <div class="content-text">{{ item.text }}</div>
-              </div>
+              <div class="content-text">{{ item.text }}</div>
             </div>
           </div>
           <div class="message-time">{{ message.timestamp }}</div>
