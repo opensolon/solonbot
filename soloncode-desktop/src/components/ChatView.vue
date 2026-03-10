@@ -2,6 +2,7 @@
 import {ref, onMounted, watch} from 'vue';
 import axios from 'axios';
 import {type Message, type Conversation, type Theme, type Plugin, type ContentItem, type ContentType} from '../types';
+import {db, saveMessage, getMessagesByConversation} from '../db';
 import ChatHeader from './ChatHeader.vue';
 import ChatMessages from './ChatMessages.vue';
 import ChatInput from './ChatInput.vue';
@@ -51,6 +52,15 @@ async function sendMessage(messageText: string) {
   };
 
   messages.value.push(userMessage);
+
+  // 保存用户消息到数据库
+  await saveMessage({
+    conversationId: props.currentConversation.id,
+    role: 'user',
+    timestamp: userMessage.timestamp,
+    contents: JSON.stringify(userMessage.contents)
+  });
+
   isLoading.value = true;
 
   await chatMessagesRef.value?.scrollToBottom();
@@ -87,6 +97,16 @@ async function sendMessage(messageText: string) {
                 jsonStr = jsonStr.substring(5).trim();
               }
               if (jsonStr === '[DONE]') {
+                // 保存助手消息到数据库
+                const assistantMsg = messages.value[messages.value.length - 1];
+                if (assistantMsg && assistantMsg.role === 'assistant') {
+                  await saveMessage({
+                    conversationId: props.currentConversation.id,
+                    role: 'assistant',
+                    timestamp: assistantMsg.timestamp,
+                    contents: JSON.stringify(assistantMsg.contents)
+                  });
+                }
                 isLoading.value = false;
                 await chatMessagesRef.value?.scrollToBottom();
                 return;
@@ -153,38 +173,65 @@ async function sendMessage(messageText: string) {
       contents: [{type: 'error', text: `请求失败: ${error instanceof Error ? error.message : '未知错误'}`}]
     };
     messages.value.push(errorMessage);
+
+    // 保存错误消息到数据库
+    await saveMessage({
+      conversationId: props.currentConversation.id,
+      role: 'error',
+      timestamp: errorMessage.timestamp,
+      contents: JSON.stringify(errorMessage.contents)
+    });
   } finally {
     isLoading.value = false;
     await chatMessagesRef.value?.scrollToBottom();
   }
 }
 
-function loadSolonClawMessages() {
-  messages.value = [
-    {
-      id: 1,
-      role: 'assistant',
-      timestamp: new Date().toLocaleTimeString(),
-      contents: [{
-        type: 'text',
-        text: '🦊 SolonClaw 已启动\n\n这是一个强大的代码分析和管理工具。我可以帮助你：\n\n• 分析项目结构和依赖关系\n• 检测代码质量问题\n• 生成代码文档\n• 执行代码重构建议\n• 管理项目配置\n\n请告诉我你需要什么帮助？'
-      }]
-    }
-  ];
+async function loadSolonClawMessages() {
+  // 优先从数据库加载历史消息
+  const storedMessages = await getMessagesByConversation('SolonClaw');
+
+  if (storedMessages.length > 0) {
+    messages.value = storedMessages.map(msg => ({
+      ...msg,
+      contents: JSON.parse(msg.contents)
+    }));
+  } else {
+    messages.value = [
+      {
+        id: 1,
+        role: 'assistant',
+        timestamp: new Date().toLocaleTimeString(),
+        contents: [{
+          type: 'text',
+          text: '🦊 SolonClaw 已启动\n\n这是一个强大的代码分析和管理工具。我可以帮助你：\n\n• 分析项目结构和依赖关系\n• 检测代码质量问题\n• 生成代码文档\n• 执行代码重构建议\n• 管理项目配置\n\n请告诉我你需要什么帮助？'
+        }]
+      }
+    ];
+  }
 }
 
-function loadConversationMessages(convId: number) {
-  messages.value = [
-    {
-      id: 1,
-      role: 'assistant',
-      timestamp: new Date().toLocaleTimeString(),
-      contents: [{
-        type: 'text',
-        text: '你好！我是 SolonCode 助手。有什么我可以帮助你的吗？'
-      }]
-    }
-  ];
+async function loadConversationMessages(convId: string | number) {
+  const storedMessages = await getMessagesByConversation(convId);
+
+  if (storedMessages.length > 0) {
+    messages.value = storedMessages.map(msg => ({
+      ...msg,
+      contents: JSON.parse(msg.contents)
+    }));
+  } else {
+    messages.value = [
+      {
+        id: 1,
+        role: 'assistant',
+        timestamp: new Date().toLocaleTimeString(),
+        contents: [{
+          type: 'text',
+          text: '你好！我是 SolonCode 助手。有什么我可以帮助你的吗？'
+        }]
+      }
+    ];
+  }
 }
 
 watch(() => props.currentConversation.id, (newId) => {

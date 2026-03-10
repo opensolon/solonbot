@@ -17,6 +17,9 @@ importers:
       axios:
         specifier: ^1.13.6
         version: 1.13.6
+      dexie:
+        specifier: ^4.3.0
+        version: 4.3.0
       markdown-it:
         specifier: ^14.1.1
         version: 14.1.1
@@ -994,6 +997,9 @@ packages:
 
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
+
+  dexie@4.3.0:
+    resolution: {integrity: sha512-5EeoQpJvMKHe6zWt/FSIIuRa3CWlZeIl6zKXt+Lz7BU6RoRRLgX9dZEynRfXrkLcldKYCBiz7xekTEylnie1Ug==}
 
   dompurify@3.3.2:
     resolution: {integrity: sha512-6obghkliLdmKa56xdbLOpUZ43pAR6xFy1uOrxBaIDjT+yaRuuybLjGS9eVBoSR/UPU5fq3OXClEHLJNGvbxKpQ==}
@@ -2573,6 +2579,8 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+
+  dexie@4.3.0: {}
 
   dompurify@3.3.2:
     optionalDependencies:

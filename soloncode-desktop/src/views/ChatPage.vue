@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { type Conversation, type Plugin, type Message } from '../types';
+import { type Conversation, type Plugin } from '../types';
+import { saveConversation, getAllConversations } from '../db';
 import Sidebar from '../components/Sidebar.vue';
 import ChatView from '../components/ChatView.vue';
 
@@ -54,28 +55,28 @@ const conversations = ref<Conversation[]>([
     status: 'active',
     isPermanent: true,
     icon: '🦊'
-  },
-  {
-    id: 1,
-    title: 'Vue 3 开发问题',
-    timestamp: new Date(Date.now() - 3600000).toLocaleString(),
-    status: 'completed'
-  },
-  {
-    id: 2,
-    title: 'TypeScript 类型定义',
-    timestamp: new Date(Date.now() - 7200000).toLocaleString(),
-    status: 'completed'
-  },
-  {
-    id: 3,
-    title: '项目架构设计讨论',
-    timestamp: new Date(Date.now() - 10800000).toLocaleString(),
-    status: 'completed'
   }
 ]);
 
-function newConversation() {
+// 初始化 SolonClaw 会话（如果不存在）
+async function initSolonClawConversation() {
+  const stored = await getAllConversations();
+  const solonClawExists = stored.some(c => c.id === 'SolonClaw');
+  if (!solonClawExists) {
+    const solonClawConv: Conversation = {
+      id: 'SolonClaw',
+      title: 'SolonClaw',
+      timestamp: new Date().toLocaleString(),
+      status: 'active',
+      isPermanent: true,
+      icon: '🦊'
+    };
+    await saveConversation(solonClawConv);
+    conversations.value.unshift(solonClawConv);
+  }
+}
+
+async function newConversation() {
   const newConv: Conversation = {
     id: Date.now(),
     title: '新建对话',
@@ -84,6 +85,7 @@ function newConversation() {
   };
   conversations.value.unshift(newConv);
   currentConversation.value = newConv;
+  await saveConversation(newConv);
 }
 
 function selectConversation(conv: Conversation) {
@@ -97,7 +99,15 @@ function togglePlugin(pluginId: string) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 初始化 SolonClaw 会话
+  await initSolonClawConversation();
+
+  // 从数据库加载会话列表
+  const storedConversations = await getAllConversations();
+  if (storedConversations.length > 0) {
+    conversations.value = storedConversations as Conversation[];
+  }
   selectConversation(conversations.value[0]);
 });
 </script>
