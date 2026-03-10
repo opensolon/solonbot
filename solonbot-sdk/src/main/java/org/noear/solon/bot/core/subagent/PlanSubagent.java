@@ -42,7 +42,9 @@ public class PlanSubagent extends AbsSubagent {
                 .getToolAry("ls", "read", "grep", "glob"));
 
         builder.defaultSkillAdd(mainAgent.getCliSkills().getExpertSkill());
+
         builder.defaultSkillAdd(LuceneSkill.getInstance());
+
         builder.defaultToolAdd(WebsearchTool.getInstance());
         builder.defaultToolAdd(WebfetchTool.getInstance());
         builder.defaultToolAdd(CodeSearchTool.getInstance());

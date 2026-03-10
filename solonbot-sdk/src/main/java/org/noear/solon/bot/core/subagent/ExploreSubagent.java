@@ -39,7 +39,11 @@ public class ExploreSubagent extends AbsSubagent {
     @Override
     protected void customize(ReActAgent.Builder builder) {
         // 添加技能（仅终端和专家技能，不添加代码搜索）
-        builder.defaultSkillAdd(mainAgent.getCliSkills());
+        builder.defaultToolAdd(mainAgent.getCliSkills().getTerminalSkill()
+                .getToolAry("ls", "read", "grep", "glob"));
+
+        builder.defaultSkillAdd(mainAgent.getCliSkills().getExpertSkill());
+
 
         builder.defaultSkillAdd(LuceneSkill.getInstance());
 
