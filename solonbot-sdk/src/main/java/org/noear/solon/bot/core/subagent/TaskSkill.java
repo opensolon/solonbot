@@ -32,7 +32,15 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 子代理技能
@@ -65,35 +73,48 @@ public class TaskSkill extends AbsSkill {
         sb.append("处理复杂的、多步骤的任务，必须委派子代理（Subagent）执行\n\n");
 
         sb.append("可用的代理类型及其拥有的工具：\n");
+        // ========== 新增：禁止模拟工作规则 ==========
+        sb.append("### ⚠️ 核心规则（强制执行）\n\n");
+        sb.append("#### 🚫 禁止行为\n");
+        sb.append("1. **禁止模拟工作**：\n");
+        sb.append("   - 严禁不断更新状态而无实际产出\n");
+        sb.append("   - 不得声称任务已完成但没有文件生成\n");
+        sb.append("   - 使用 task() 工具后，子代理必须实际创建文件或执行命令\n\n");
+        sb.append("2. **必须有实际产出**：\n");
+        sb.append("   - 代码任务：必须生成 .java、.py 等代码文件\n");
+        sb.append("   - 文档任务：必须生成 .md、.txt 等文档文件\n");
+        sb.append("   - 测试任务：必须有测试结果或报告\n");
+        sb.append("   - 使用 ls、read 工具验证文件已真实创建\n\n");
+        sb.append("#### ✅ 必须行为\n");
+        sb.append("1. **强制使用 task() 工具**：\n");
+        sb.append("   - 所有实际工作必须通过 task(subagent_type=..., prompt=...) 完成\n");
+        sb.append("   - 不得自己在主对话中重复尝试\n\n");
+
+        sb.append("### 强制委派准则\n");
+        sb.append("- **项目认知**: 凡是涉及\"探索项目\"、\"分析架构\"、\"查找核心入口\"等需要阅读多个文件或理解代码库的任务，应委派给子代理。\n");
+        sb.append("- **复杂变更**: 涉及跨文件的代码修复、重构或需要运行测试验证的任务，应委派给子代理。\n");
+        sb.append("- **决策量化**: 预感需要连续调用超过 3 次原子工具（如 grep, read_file）时，应改用子代理以节省主对话上下文。\n");
+        sb.append("- **所有开发任务**: 必须使用 task() 工具委派，禁止在主对话中模拟执行\n\n");
+
+        sb.append("### 可用的子代理注册表 (Capabilities Registry)\n");
+        sb.append("请根据任务语义匹配最合适的 `subagent_type`：\n");
         sb.append("<available_agents>\n");
         for (Subagent agent : manager.getAgents()) {
             sb.append(String.format("  - \"%s\": %s\n", agent.getType(), agent.getDescription()));
         }
         sb.append("</available_agents>\n\n");
 
-        sb.append("## 战略任务委派 (Task Delegation)\n");
-        sb.append("当你面临高熵任务（信息量大、不确定性高）时，应启动专项子代理。这能让你保持高层视野，避免被底层执行细节干扰。\n\n");
-
-        sb.append("### 委派子代理的显著优势：\n");
-        sb.append("- **上下文隔离**：子代理内部的数十次搜索和读取不会污染你的主对话历史。\n");
-        sb.append("- **专注深度**：子代理在特定领域（如架构探索、测试驱动开发）拥有比原子工具更强的自主纠错逻辑。\n");
-        sb.append("- **并行加速**：你可以在单条消息中 `task(...)` 启动多个代理同时分析不同的模块。\n\n");
-
-        sb.append("### 强制委派场景：\n");
-        sb.append("- **未知领域探索**：如“找出该项目的认证逻辑实现”，此类涉及跨文件链式追踪的任务。\n");
-        sb.append("- **闭环变更**：涉及“修改代码 + 运行测试 + 修复错误”的循环任务。\n");
-        sb.append("- **信息密集型操作**：预感需要连续调用 3 次以上 `read` 或 `grep` 时。\n\n");
-
-        sb.append("### 调用深度指南：\n");
-        sb.append("1. **精准上下文注入**：子代理初始状态是孤立的。你必须在 `prompt` 中提供核心锚点。使用 `<context>` 标签包裹路径、类名或错误日志。\n");
-        sb.append("2. **定义输出格式**：明确要求子代理在 `task_result` 中提供“结论、修改点、待办事项”，方便你向用户汇报。\n");
-        sb.append("3. **会话延续**：如果子代理没能一次性解决，利用返回的 `task_id` 再次调用，它将保留之前的内存。\n\n");
+        sb.append("### 调用约定\n");
+        sb.append("- **上下文对齐**: 子代理看不见当前历史。必须在 `prompt` 中通过 <context> 标签传入必要的类名、报错或路径。\n");
+        sb.append("- **示例**: `task(subagent_type=\"explore\", prompt=\"分析 demo-web 核心架构\", description=\"架构探索\")`\n");
+        sb.append("- **动态创建 Agent**: 可以使用 `create_agent` 工具动态创建新的子代理，自定义其行为和技能。\n");
 
         return sb.toString();
     }
 
 
-    @ToolMapping(name = "task", description = "分派一个战略任务给子代理")
+    @ToolMapping(name = "task",
+                 description = "【强制使用】派生并分派任务给专项子代理。所有实际开发工作（代码编写、文件创建、测试执行等）必须使用此工具委派给子代理完成，禁止在主对话中模拟执行或虚假声称完成。子代理会实际创建文件并返回真实结果。")
     public String task(
             @Param(name = "subagent_type", description = "子代理类型") String subagent_type,
             @Param(name = "prompt",description = "具体指令。必须包含任务目标、关键类名或必要的背景上下文。") String prompt,
@@ -164,6 +185,111 @@ public class TaskSkill extends AbsSkill {
         } catch (Throwable e) {
             LOG.error("子代理执行崩溃: type={}, error={}", subagent_type, e.getMessage(), e);
             return "ERROR: 子代理执行失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 动态创建子代理工具
+     *
+     * 允许主 Agent 动态创建新的子代理，自定义其行为和技能。
+     * 创建的 agent 定义会保存到文件，并立即注册到 SubagentManager 中。
+     */
+    @ToolMapping(name = "create_agent",
+                 description = "动态创建一个新的子代理。创建的子代理将保存到 .soloncode/agents/ 目录并立即可用。")
+    public String createAgent(
+            @Param(name = "code", description = "子代理的唯一标识码（如 'my-custom-agent'）") String code,
+            @Param(name = "name", description = "子代理的显示名称") String name,
+            @Param(name = "description", description = "子代理的功能描述") String description,
+            @Param(name = "systemPrompt", description = "子代理的系统提示词（行为指令）") String systemPrompt,
+            @Param(name = "model", required = false, description = "可选。指定使用的模型（如 'gpt-4'）") String model,
+            @Param(name = "tools", required = false, description = "可选。允许使用的工具列表，逗号分隔（如 'read,write,grep'）") String tools,
+            @Param(name = "skills", required = false, description = "可选。启用的技能列表，逗号分隔") String skills,
+            @Param(name = "maxTurns", required = false, description = "可选。最大对话轮数限制") Integer maxTurns,
+            @Param(name = "saveToFile", required = false, description = "可选。是否保存到文件（默认 true）") Boolean saveToFile,
+            String __cwd
+    ) {
+        try {
+            // 1. 构建 SubAgentMetadata
+            SubAgentMetadata metadata = new SubAgentMetadata();
+            metadata.setCode(code);
+            metadata.setName(name);
+            metadata.setDescription(description);
+            metadata.setEnabled(true);
+
+            // 可选参数
+            if (model != null && !model.isEmpty()) {
+                metadata.setModel(model);
+            }
+            if (tools != null && !tools.isEmpty()) {
+                metadata.setTools(Arrays.asList(tools.split(",\\s*")));
+            }
+            if (skills != null && !skills.isEmpty()) {
+                metadata.setSkills(Arrays.asList(skills.split(",\\s*")));
+            }
+            if (maxTurns != null && maxTurns > 0) {
+                metadata.setMaxTurns(maxTurns);
+            }
+
+            // 2. 生成完整的 agent 定义（YAML frontmatter + system prompt）
+            String agentDefinition = metadata.toYamlFrontmatterWithPrompt(systemPrompt);
+
+            // 3. 保存到文件（默认保存）
+            boolean shouldSave = saveToFile == null || saveToFile;
+            String filePath = null;
+
+            if (shouldSave) {
+                Path agentsDir = Paths.get(__cwd, ".soloncode", "agents");
+
+                // 确保目录存在
+                if (!Files.exists(agentsDir)) {
+                    Files.createDirectories(agentsDir);
+                    LOG.info("创建 agents 目录: {}", agentsDir);
+                }
+
+                // 使用 code 作为文件名
+                String fileName = code + ".md";
+                Path agentFile = agentsDir.resolve(fileName);
+                filePath = agentFile.toString();
+
+
+                try (BufferedWriter writer = new BufferedWriter(
+                        new OutputStreamWriter(
+                                Files.newOutputStream(agentFile.toFile().toPath()),
+                                StandardCharsets.UTF_8))) {
+                    writer.write(agentDefinition);
+                }
+                LOG.info("Agent 定义已保存到: {}", filePath);
+            }
+
+            // 4. 动态创建并注册新的子代理
+            AbsSubagent newAgent = new GeneralPurposeSubagent(mainAgent, code);
+            newAgent.setDescription(description);
+            newAgent.setSystemPrompt(agentDefinition);
+            newAgent.refresh();
+
+            // 注册到 manager
+            manager.addSubagent(newAgent);
+
+            LOG.info("动态创建子代理成功: code={}, name={}", code, name);
+
+            // 5. 返回结果
+            StringBuilder result = new StringBuilder();
+            result.append("[OK] 子代理创建成功！\n\n");
+            result.append(String.format("**代码**: %s\n", code));
+            result.append(String.format("**名称**: %s\n", name));
+            result.append(String.format("**描述**: %s\n", description));
+
+            if (filePath != null) {
+                result.append(String.format("**文件**: %s\n", filePath));
+            }
+
+            result.append(String.format("\n现在可以使用 `task(subagent_type=\"%s\", prompt=\"...\")` 来调用这个子代理。\n", code));
+
+            return result.toString();
+
+        } catch (Throwable e) {
+            LOG.error("创建子代理失败: code={}, error={}", code, e.getMessage(), e);
+            return "ERROR: 创建子代理失败: " + e.getMessage();
         }
     }
 }

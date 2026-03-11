@@ -1,6 +1,7 @@
 package org.noear.solon.bot.core.tool;
 
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
+import lombok.Getter;
 import org.jsoup.Jsoup;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.rag.Document;

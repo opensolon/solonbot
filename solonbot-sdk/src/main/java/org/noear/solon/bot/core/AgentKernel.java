@@ -1,6 +1,7 @@
 package org.noear.solon.bot.core;
 
 import com.microsoft.playwright.Playwright;
+import lombok.Getter;
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
@@ -13,10 +14,19 @@ import org.noear.solon.ai.agent.react.intercept.SummarizationStrategy;
 import org.noear.solon.ai.agent.react.intercept.summarize.*;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
+import org.noear.solon.bot.core.event.EventBus;
+import org.noear.solon.bot.core.goalker.GoalKeeperIntegration;
+import org.noear.solon.bot.core.memory.SharedMemoryManager;
+import org.noear.solon.bot.core.message.MessageChannel;
+import org.noear.solon.bot.core.subagent.SubAgentMetadata;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
 import org.noear.solon.bot.core.config.ApiServerParameters;
 import org.noear.solon.bot.core.subagent.SubagentManager;
 import org.noear.solon.bot.core.subagent.TaskSkill;
+import org.noear.solon.bot.core.teams.AgentTeamsSkill;
+import org.noear.solon.bot.core.teams.MainAgent;
+import org.noear.solon.bot.core.teams.SharedTaskList;
+import org.noear.solon.bot.core.teams.TeamNameSuggestionTool;
 import org.noear.solon.bot.core.tool.ApplyPatchTool;
 import org.noear.solon.bot.core.tool.CodeSearchTool;
 import org.noear.solon.bot.core.tool.WebfetchTool;
@@ -49,6 +59,7 @@ import java.util.function.Consumer;
  * @since 3.9.1
  */
 @Preview("3.9.1")
+@Getter
 public class AgentKernel {
     private final static Logger LOG = LoggerFactory.getLogger(AgentKernel.class);
 
@@ -58,14 +69,15 @@ public class AgentKernel {
     public final static String SOLONCODE_SESSIONS = ".soloncode/sessions/";
     public final static String SOLONCODE_SKILLS = ".soloncode/skills/";
     public final static String SOLONCODE_AGENTS = ".soloncode/agents/";
+    public final static String SOLONCODE_AGENTS_TEAMS = ".soloncode/agentsTeams/";
     public final static String SOLONCODE_DOWNLOADS = ".soloncode/downloads/";
     public final static String SOLONCODE_BROWSER = ".soloncode/browser/";
+    public final static String SOLONCODE_MEMORY = ".soloncode/memory/";
 
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
     public final static String OPENCODE_AGENTS = ".opencode/agents/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
     public final static String CLAUDE_AGENTS = ".claude/agents/";
-
 
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
@@ -85,6 +97,13 @@ public class AgentKernel {
     private final SummarizationInterceptor summarizationInterceptor;
 
     private SubagentManager subagentManager;
+
+    // Agent Teams 相关组件
+    private MainAgent mainAgent;
+    private EventBus eventBus;
+    private SharedTaskList taskList;
+    private SharedMemoryManager memoryManager;
+    private MessageChannel messageChannel;
 
     public String getVersion() {
         return "v0.0.22";
@@ -185,10 +204,15 @@ public class AgentKernel {
             subagentManager.agentPool(Paths.get(properties.getWorkDir(), AgentKernel.OPENCODE_AGENTS));
             // 注册 claude agents
             subagentManager.agentPool(Paths.get(properties.getWorkDir(), AgentKernel.CLAUDE_AGENTS));
+            // 注册 soloncode agentsTeams（递归扫描团队成员目录）
+            subagentManager.agentPool(Paths.get(properties.getWorkDir(), AgentKernel.SOLONCODE_AGENTS_TEAMS), true);
 
             // SubagentSkill 会通过 @ToolMapping 自动注册为工具
             agentBuilder.defaultSkillAdd(new TaskSkill(this, subagentManager));
             LOG.info("子代理模式已启用");
+        }
+        if (properties.isAgentTeamEnabled()){
+            initAgentTeams(properties, agentBuilder);
         }
 
         //上下文摘要
@@ -234,20 +258,75 @@ public class AgentKernel {
         reActAgent = agentBuilder.build();
     }
 
-    public ChatModel getChatModel() {
-        return chatModel;
-    }
-
-
-    public CliSkillProvider getCliSkills() {
-        return cliSkills;
-    }
 
     /**
-     * 获取子代理管理器
+     * 初始化 Agent Teams 模式
      */
-    public SubagentManager getSubagentManager() {
-        return subagentManager;
+    private void initAgentTeams(AgentProperties properties, ReActAgent.Builder agentBuilder) {
+        try {
+            LOG.info("正在初始化 Agent Teams 模式...");
+
+            // 1. 创建 EventBus（事件总线）
+            this.eventBus = new EventBus();
+            LOG.debug("EventBus 已创建");
+
+            // 2. 创建 SharedTaskList（共享任务列表）
+            this.taskList = new SharedTaskList(eventBus);
+            LOG.debug("SharedTaskList 已创建");
+
+            // 3. 创建 SharedMemoryManager（共享内存管理器）
+            Path memoryPath = Paths.get(properties.getWorkDir(), SOLONCODE_MEMORY);
+            this.memoryManager = new SharedMemoryManager(memoryPath);
+            LOG.debug("SharedMemoryManager 已创建，路径: {}", memoryPath);
+
+            // 4. 创建 MessageChannel（消息通道）
+            Path messagePath = Paths.get(properties.getWorkDir(), SOLONCODE_MEMORY);
+            this.messageChannel = new MessageChannel(messagePath.toString());
+            LOG.debug("MessageChannel 已创建，路径: {}", messagePath);
+
+            // 5. 创建 MainAgent 配置
+            SubAgentMetadata mainAgentConfig = new SubAgentMetadata();
+            mainAgentConfig.setCode("main-agent");
+            mainAgentConfig.setName("主代理");
+            mainAgentConfig.setDescription("Agent Teams 协调器，负责任务分解和团队协作");
+            mainAgentConfig.setEnabled(true);
+
+            // 6. 创建 MainAgent（传入 kernel 和 subagentManager 以支持 subagent 功能）
+            this.mainAgent = new MainAgent(
+                    mainAgentConfig,
+                    sessionProvider,
+                    memoryManager,
+                    eventBus,
+                    messageChannel,
+                    taskList,
+                    properties.getWorkDir(),
+                    cliSkills.getPoolManager(),
+                    this,  // AgentKernel
+                    subagentManager  // SubagentManager
+            );
+            LOG.debug("MainAgent 已创建");
+
+            // 5.1 初始化 MainAgent（需要传入 ChatModel）
+            this.mainAgent.initialize(chatModel);
+            LOG.debug("MainAgent 已初始化");
+
+            // 6. 创建 AgentTeamsSkill 并注册到主 Agent
+            AgentTeamsSkill agentTeamsSkill = new AgentTeamsSkill(
+                    mainAgent,
+                    this,  // AgentKernel
+                    subagentManager
+            );
+            agentBuilder.defaultSkillAdd(agentTeamsSkill);
+            agentBuilder.defaultToolAdd(new TeamNameSuggestionTool(subagentManager));
+
+            LOG.info("AgentTeamsSkill 已注册");
+
+            LOG.info("Agent Teams 模式初始化完成 [OK]");
+
+        } catch (Throwable e) {
+            LOG.error("Agent Teams 模式初始化失败", e);
+            throw new RuntimeException("Failed to initialize Agent Teams mode", e);
+        }
     }
 
 
@@ -327,4 +406,5 @@ public class AgentKernel {
         return buildRequest(sessionId, prompt)
                 .call();
     }
+
 }
