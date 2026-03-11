@@ -11,8 +11,8 @@ solon.code.cli:
 
   sessionWindowSize: 8 # 会话历史窗口大小（即，新指令时使用几条历史消息）
 
-  summaryTriggerSize: 15 # 触发摘要压缩的消息条数阈值（即，工作上下文压缩时留几条消息不压缩）
-  summaryMaxLength: 18000 # 触发摘要压缩的内容长度阈值（即，工作上下文压缩时留多长内容不压缩）
+  summaryWindowSize: 12 # 触发摘要压缩的消息条数阈值（即，工作上下文压缩时留几条消息不压缩）
+  summaryWindowToken: 15000 # 触发摘要压缩的内容长度阈值（即，工作上下文压缩时留多长内容不压缩）
 
   sandboxMode: true # 消盒模式，启用时禁止访问绝对路径
   thinkPrinted: true # 内心思考，是否打印
