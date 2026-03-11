@@ -40,10 +40,13 @@ public class AgentProperties implements Serializable {
 
     private int sessionWindowSize = 10;
 
+    private int summaryWindowSize = 12;
+    private int summaryWindowToken = 15000;
+
     @Deprecated
-    private Integer summaryWindowSize;
-    private int summaryTriggerSize = 12;
-    private int summaryMaxLength = 12000;
+    private Integer summaryTriggerSize;
+    @Deprecated
+    private Integer summaryMaxLength;
 
     private boolean sandboxMode = true;
     private boolean thinkPrinted = false;

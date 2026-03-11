@@ -108,8 +108,12 @@ public class AgentKernel {
         this.sessionProvider = sessionProvider;
         this.configurator = configurator;
 
-        if(properties.getSummaryWindowSize() != null){
-            properties.setSummaryTriggerSize(properties.getSummaryWindowSize());
+        if(properties.getSummaryTriggerSize() != null){
+            properties.setSummaryWindowSize(properties.getSummaryTriggerSize());
+        }
+
+        if(properties.getSummaryMaxLength() != null){
+            properties.setSummaryWindowToken(properties.getSummaryMaxLength());
         }
 
         if(Assert.isNotEmpty(properties.getRestApis())) {
