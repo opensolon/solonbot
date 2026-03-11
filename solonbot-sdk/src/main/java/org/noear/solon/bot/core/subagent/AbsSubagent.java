@@ -15,6 +15,8 @@
  */
 package org.noear.solon.bot.core.subagent;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
@@ -34,6 +36,8 @@ import reactor.core.publisher.Flux;
  * @author bai
  * @since 3.9.5
  */
+@Setter
+@Getter
 public abstract class AbsSubagent implements Subagent {
     private static final Logger LOG = LoggerFactory.getLogger(AbsSubagent.class);
 
@@ -41,6 +45,8 @@ public abstract class AbsSubagent implements Subagent {
 
     protected String description;
     protected String systemPrompt;
+    protected SubAgentMetadata metadata;
+
 
     public AbsSubagent(AgentKernel mainAgent) {
         this.mainAgent = mainAgent;
@@ -55,10 +61,6 @@ public abstract class AbsSubagent implements Subagent {
         }
     }
 
-    @Override
-    public SubAgentMetadata getMetadata() {
-        return null;
-    }
 
     @Override
     public String getType() {

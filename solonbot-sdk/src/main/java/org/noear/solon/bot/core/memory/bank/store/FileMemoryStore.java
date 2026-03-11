@@ -16,6 +16,7 @@
 package org.noear.solon.bot.core.memory.bank.store;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.bot.core.AgentKernel;
 import org.noear.solon.bot.core.memory.bank.Observation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +46,9 @@ public class FileMemoryStore implements MemoryStore {
     private final String storePath;
 
     public FileMemoryStore(String workDir) {
-        this.storePath = workDir + File.separator + ".soloncode" + File.separator +
-                        "memorybank" + File.separator;
+        // workDir 应该已经是完整的记忆存储路径（例如：workDir/.soloncode/memory）
+        // 不再重复拼接 SOLONCODE_MEMORY
+        this.storePath = workDir;
 
         // 确保目录存在
         File dir = new File(storePath);

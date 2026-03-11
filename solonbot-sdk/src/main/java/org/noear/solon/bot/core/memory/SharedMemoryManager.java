@@ -159,8 +159,12 @@ public class SharedMemoryManager {
             builder.id(memory.getId());
         }
 
+        // 设置重要性（永久记忆需要高重要性）
         if (memory instanceof LongTermMemory) {
             builder.importance(((LongTermMemory) memory).getImportance());
+        } else if (memory instanceof KnowledgeMemory) {
+            // 永久记忆：高重要性（8.0-10.0），确保持久化
+            builder.importance(9.0);
         } else {
             // 默认重要性
             builder.importance(5.0);

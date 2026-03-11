@@ -253,7 +253,7 @@ public class AgentKernel {
             mainAgentConfig.setDescription("Agent Teams 协调器，负责任务分解和团队协作");
             mainAgentConfig.setEnabled(true);
 
-            // 6. 创建 MainAgent
+            // 6. 创建 MainAgent（传入 kernel 和 subagentManager 以支持 subagent 功能）
             this.mainAgent = new MainAgent(
                     mainAgentConfig,
                     sessionProvider,
@@ -262,7 +262,9 @@ public class AgentKernel {
                     messageChannel,
                     taskList,
                     properties.getWorkDir(),
-                    cliSkills.getPoolManager()
+                    cliSkills.getPoolManager(),
+                    this,  // AgentKernel
+                    subagentManager  // SubagentManager
             );
             LOG.debug("MainAgent 已创建");
 

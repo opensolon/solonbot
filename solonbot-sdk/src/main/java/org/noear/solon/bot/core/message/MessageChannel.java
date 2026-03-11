@@ -67,11 +67,13 @@ public class MessageChannel {
     /**
      * 完整构造函数
      *
-     * @param workDir 工作目录
+     * @param workDir 工作目录（应该是完整的消息存储路径，例如：workDir/.soloncode/memory）
      * @param asyncThreads 异步处理线程数
      */
     public MessageChannel(String workDir, int asyncThreads) {
-        this.messageStorePath = workDir + File.separator + ".soloncode" + File.separator + "messages" + File.separator;
+        // workDir 应该已经是完整的路径（例如：workDir/.soloncode/memory）
+        // 不再重复拼接 ".soloncode"
+        this.messageStorePath = workDir + File.separator + "messages" + File.separator;
         this.executor = Executors.newScheduledThreadPool(asyncThreads, r -> {
             Thread t = new Thread(r, "MessageChannel-Thread");
             t.setDaemon(true);

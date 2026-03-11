@@ -176,6 +176,10 @@ public class SubagentManager {
             // 设置解析后的属性
             subagent.setDescription(parsed.getMetadata().getDescription());
             subagent.setSystemPrompt(parsed.getPrompt());
+
+            // 设置完整的 metadata（包括 teamName 等字段）
+            subagent.setMetadata(parsed.getMetadata());
+
             subagent.refresh();
 
             LOG.debug("加载子代理: {} 从 {}", subagentType, file);

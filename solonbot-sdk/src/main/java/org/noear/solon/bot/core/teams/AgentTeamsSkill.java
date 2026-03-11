@@ -15,7 +15,7 @@
  */
 package org.noear.solon.bot.core.teams;
 
-import org.noear.solon.ai.agent.AgentResponse;
+import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.annotation.ToolMapping;
@@ -31,6 +31,7 @@ import org.noear.solon.bot.core.subagent.Subagent;
 import org.noear.solon.bot.core.subagent.SubagentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -38,6 +39,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Agent Teams 技能
@@ -55,6 +57,7 @@ import java.util.concurrent.CompletableFuture;
 public class AgentTeamsSkill extends AbsSkill {
 
     private static final Logger LOG = LoggerFactory.getLogger(AgentTeamsSkill.class);
+    private static final String CURRENT_TEAM_KEY = "current_team_name"; // 当前团队名的内存键
 
     private final MainAgent mainAgent;
     private final AgentKernel kernel;
@@ -82,7 +85,9 @@ public class AgentTeamsSkill extends AbsSkill {
 
         // 初始化智能记忆管理器
         if (mainAgent != null && mainAgent.getSharedMemoryManager() != null) {
-            // 获取工作目录（使用默认路径 "./work"）
+            // 使用与 SharedMemoryManager 相同的路径
+            // 注意：IntelligentMemoryManager 内部会创建 SharedMemoryManager，会再次拼接路径
+            // 所以这里传入 workDir 即可
             String workDir = System.getProperty("user.dir") + File.separator + "work";
             this.intelligentMemoryManager = new IntelligentMemoryManager(workDir);
             LOG.info("初始化智能记忆管理器: workDir={}", workDir);
@@ -108,7 +113,38 @@ public class AgentTeamsSkill extends AbsSkill {
         StringBuilder sb = new StringBuilder();
         sb.append("## Agent Teams 协调能力\n\n");
         sb.append("你是一个团队协调器，可以启动和管理多代理协作任务。\n\n");
-        sb.append("## 工作流程\n" +
+
+        // ========== 新增：禁止模拟工作规则 ==========
+        sb.append("### ⚠️ 核心规则（强制执行）\n\n");
+        sb.append("#### 🚫 禁止行为（绝对不可违反）\n");
+        sb.append("1. **禁止模拟工作**：\n");
+        sb.append("   - 严禁不断更新 `update_working_memory`、`step`、`currentAgent` 而无实际产出\n");
+        sb.append("   - 不得使用 `memory_store` 存储虚假的\"已完成\"状态\n");
+        sb.append("   - 不得声称\"需求分析已完成\"、\"代码已编写\"等虚假结论\n");
+        sb.append("   - 不断更新状态而无实际文件产出是**严重违规**\n\n");
+        sb.append("2. **必须有实际产出**：\n");
+        sb.append("   - 代码任务必须生成 `.java`、`.py` 等文件\n");
+        sb.append("   - 文档任务必须生成 `.md`、`.txt` 等文件\n");
+        sb.append("   - 使用 `ls`、`read` 工具验证文件已真实创建\n");
+        sb.append("   - 确认文件内容符合要求后才可宣称任务完成\n\n");
+        sb.append("3. **禁止循环操作**：\n");
+        sb.append("   - 不得重复调用相同工具而不产生新进展\n");
+        sb.append("   - 检测到循环时必须立即停止并使用 `task()` 工具\n\n");
+        sb.append("#### ✅ 必须行为（强制执行）\n");
+        sb.append("1. **必须使用 task 工具**：\n");
+        sb.append("   - 所有实际工作必须通过 `task(subagent_type, prompt)` 委派给子代理\n");
+        sb.append("   - 可用类型：explore、plan、bash、general-purpose、solon-code-guide\n");
+        sb.append("   - 例如：`task(subagent_type='bash', prompt='创建文件并编写代码')`\n\n");
+        sb.append("2. **必须验证产出**：\n");
+        sb.append("   - 使用 `ls(path='.')` 列出创建的文件\n");
+        sb.append("   - 使用 `read(file_path='xxx')` 验证文件内容\n");
+        sb.append("   - 只有确认真实产出后才可完成\n\n");
+        sb.append("3. **token 使用警告**：\n");
+        sb.append("   - 每个任务建议不超过 10,000 tokens\n");
+        sb.append("   - 超过 5,000 tokens 无产出时必须改变策略\n");
+        sb.append("   - 禁止无限循环调用工具\n\n");
+
+        sb.append("### 工作流程\n" +
                 ". 分析任务：识别所需的专业领域。\n" +
                 ". 组建团队：自动激活相关领域的专家 Agent。\n" +
                 ". 引导讨论：\n" +
@@ -120,7 +156,7 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("### 核心能力\n");
         sb.append("1. **团队协作任务**: 使用 `team_task()` 启动多代理协作\n");
         sb.append("2. **任务管理**: 查看、创建团队任务\n");
-        sb.append("3. **子代理调用**: 使用 `subagent()` 委派专门任务（支持会话续接）\n");
+        sb.append("3. **子代理调用**: 使用 `task()` 委派专门任务（支持会话续接）【强制使用】\n");
         sb.append("4. **动态代理**: 使用 `create_agent()` 创建新的子代理定义\n");
         sb.append("5. **智能记忆管理**: 使用 `memory_store()` 自动分类存储（推荐）\n");
         sb.append("   - 自动分类：决策→永久、任务→7天、临时→10分钟\n");
@@ -131,13 +167,19 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("### 强制委派准则\n");
         sb.append("- **项目认知**: 探索项目、分析架构 → 委派给子代理\n");
         sb.append("- **复杂变更**: 跨文件修复、重构 → 委派给子代理\n");
-        sb.append("- **决策量化**: 超过 3 次工具调用 → 改用子代理\n\n");
+        sb.append("- **决策量化**: 超过 3 次工具调用 → 改用子代理\n");
+        sb.append("- **所有开发任务**: 必须使用 `task(subagent_type='bash', ...)` 实际创建文件\n\n");
 
         sb.append("### 可用的子代理\n");
         sb.append("<available_agents>\n");
+        // 只显示自定义团队成员（有 teamName 的）
         for (Subagent agent : manager.getAgents()) {
-            sb.append(String.format("  - `%s`: %s\n",
-                    agent.getType(), agent.getDescription()));
+            if (agent.getMetadata().hasTeamName()) {
+                sb.append(String.format("  - `%s`: %s (团队: %s)\n",
+                        agent.getType(),
+                        agent.getDescription(),
+                        agent.getMetadata().getTeamName()));
+            }
         }
         sb.append("</available_agents>\n\n");
 
@@ -146,23 +188,57 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("2. **列出成员**: 使用 `teammates()` 查看所有团队成员（表格格式）\n");
         sb.append("3. **移除成员**: 使用 `remove_teammate()` 移除团队成员\n\n");
 
+        sb.append("### 任务链协调：如何将结果传递给下一个 subagent\n\n");
+        sb.append("**⚠️ 重要：完成任务链协调的三种方法**\n\n");
+        sb.append("**方法 1：在 prompt 中传递上下文（推荐）**\n");
+        sb.append("```");
+        sb.append("# 第一步：plan 完成设计\n");
+        sb.append("result1 = task(subagent_type='plan', prompt='设计用户登录模块')\n");
+        sb.append("\n");
+        sb.append("# 第二步：传递给 bash\n");
+        sb.append("task(\n");
+        sb.append("    subagent_type='bash',\n");
+        sb.append("    prompt='<context>基于以下设计：' + result1 + '</context>创建代码'\n");
+        sb.append(")\n");
+        sb.append("```\n\n");
+        sb.append("**方法 2：使用共享记忆**\n");
+        sb.append("```");
+        sb.append("result1 = task(subagent_type='plan', prompt='设计...')\n");
+        sb.append("memory_store(content=result1, key='design')\n");
+        sb.append("design = memory_recall(query='设计', limit=1)\n");
+        sb.append("task(subagent_type='bash', prompt='<context>' + design + '</context>创建代码')\n");
+        sb.append("```\n\n");
+        sb.append("**方法 3：使用 taskId 续接会话**\n");
+        sb.append("```");
+        sb.append("result1 = task(subagent_type='explore', prompt='分析项目')\n");
+        sb.append("# 返回 task_id: explore_12345\n");
+        sb.append("result2 = task(\n");
+        sb.append("    subagent_type='explore',\n");
+        sb.append("    prompt='深入分析 Controller 层',\n");
+        sb.append("    taskId='explore_12345'  # 续接之前的会话\n");
+        sb.append(")\n");
+        sb.append("```\n\n");
+        sb.append("**详细指南**：参考项目文档 `docs/TASK_CHAIN_GUIDE.md`\n\n");
+
         sb.append("### 使用场景\n");
         sb.append("```");
         sb.append("# 场景1: 创建团队成员（指定团队）\n");
         sb.append("teammate(\n");
         sb.append("    name=\"security-expert\",\n");
-        sb.append("    role=\"安全专家\",\n");
+        sb.append("    role=\"security-expert\",\n");
         sb.append("    description=\"专注于安全审计、漏洞检测\",\n");
         sb.append("    teamName=\"myteam\"              # 指定团队名称\n");
         sb.append(")\n");
         sb.append("# 生成文件: .soloncode/agentsTeams/myteam/security-expert.md\n\n");
-        sb.append("# 场景2: 创建子代理（不指定团队）\n");
+        sb.append("# 场景2: 创建成员（不指定团队，自动生成）\n");
         sb.append("teammate(\n");
         sb.append("    name=\"db-optimizer\",\n");
-        sb.append("    role=\"数据库优化专家\",\n");
+        sb.append("    role=\"db-optimizer\",\n");
         sb.append("    description=\"SQL 查询优化\"\n");
         sb.append(")\n");
-        sb.append("# 生成文件: .soloncode/agents/db-optimizer.md\n\n");
+        sb.append("# 自动生成团队名: team-1736640123456\n");
+        sb.append("# 生成文件: .soloncode/agentsTeams/team-1736640123456/db-optimizer.md\n");
+        sb.append("# 团队名会保存到内存，后续创建会自动使用同一团队\n\n");
         sb.append("# 场景3: 查看所有成员\n");
         sb.append("teammates()\n\n");
         sb.append("# 场景4: 启动团队协作任务\n");
@@ -185,7 +261,7 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("# 场景8: 查看记忆统计\n");
         sb.append("memory_stats()\n");
         sb.append("# → 显示各层级记忆数量、智能层状态、内存使用情况\n\n");
-        sb.append("# 场景8: 代理间通信\n");
+        sb.append("# 场景9: 代理间通信\n");
         sb.append("# 向 explore 代理发送消息\n");
         sb.append("send_message(\n");
         sb.append("    targetAgent=\"explore\",\n");
@@ -223,6 +299,9 @@ public class AgentTeamsSkill extends AbsSkill {
      *
      * MainAgent 会分析任务、创建子任务、协调多个 SubAgent 协作完成
      */
+    // 超时配置（单位：毫秒）
+    private static final long TEAM_TASK_TIMEOUT_MS = 300_000; // 5分钟超时
+
     @ToolMapping(name = "team_task",
                  description = "启动团队协作任务。MainAgent 会自动分解任务并协调多个 SubAgent 协作完成。适用于复杂、多步骤的任务。")
     public String teamTask(
@@ -237,8 +316,55 @@ public class AgentTeamsSkill extends AbsSkill {
 
             LOG.info("启动团队协作任务: {}", prompt);
 
-            // 执行团队任务
-            AgentResponse response = mainAgent.execute(Prompt.of(prompt));
+            // 使用流式执行（实时输出）
+            StringBuilder streamingOutput = new StringBuilder();
+
+            try {
+                // 获取流式响应（传递 __cwd 以支持文件操作）
+                Flux<AgentChunk> responseStream =
+                    mainAgent.executeStream(Prompt.of(prompt), __cwd);
+
+                // 收集流式输出（带超时）
+                List<org.noear.solon.ai.agent.AgentChunk> chunks = responseStream
+                    .doOnNext(chunk -> {
+                        String content = chunk.getContent();
+                        if (content != null && !content.isEmpty()) {
+                            // 实时输出到控制台
+                            System.out.print(content);
+                            System.out.flush();
+                            streamingOutput.append(content);
+                        }
+                    })
+                    .doOnComplete(() -> {
+                        LOG.info("\n[OK] 团队任务流式执行完成");
+                    })
+                    .doOnError(error -> {
+                        LOG.error("团队任务流式执行出错", error);
+                    })
+                    .collectList()
+                    .block(java.time.Duration.ofMillis(TEAM_TASK_TIMEOUT_MS));
+
+                LOG.debug("流式响应收集完成，收到 {} 个 chunk", chunks.size());
+
+            } catch (TimeoutException e) {
+                LOG.error("团队任务执行超时（{}ms）", TEAM_TASK_TIMEOUT_MS);
+                return "[ERROR] 团队任务执行超时（超过 " + (TEAM_TASK_TIMEOUT_MS / 1000) + " 秒）。\n\n" +
+                       "可能原因：\n" +
+                       "1. LLM API 响应慢或无响应\n" +
+                       "2. 任务过于复杂，子代理调用链过长\n" +
+                       "3. 网络连接问题\n\n" +
+                       "建议：\n" +
+                       "- 简化任务描述，分解为更小的子任务\n" +
+                       "- 检查网络连接和 API 配置\n" +
+                       "- 使用 `task(subagent_type='bash', ...)` 直接调用子代理";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.error("团队任务执行被中断");
+                return "[ERROR] 团队任务执行被中断";
+            } catch (Exception e) {
+                LOG.error("团队任务执行失败", e);
+                return "[ERROR] 团队任务执行失败: " + e.getMessage();
+            }
 
             // 获取任务统计
             SharedTaskList.TaskStatistics stats = mainAgent.getTaskList().getStatistics();
@@ -252,9 +378,20 @@ public class AgentTeamsSkill extends AbsSkill {
             result.append(String.format("- 进行中: %d\n", stats.inProgressTasks));
             result.append(String.format("- 待认领: %d\n\n", stats.pendingTasks));
 
-            // 主 Agent 的回复
+            // 主 Agent 的回复（流式输出已实时打印）
             result.append("**主 Agent 回复**:\n");
-            result.append(response.getContent());
+
+            // 如果流式输出有内容，添加到结果中
+            String agentResponse = streamingOutput.toString();
+            if (!agentResponse.isEmpty()) {
+                // 限制显示长度，避免过长
+                if (agentResponse.length() > 2000) {
+                    agentResponse = agentResponse.substring(0, 2000) + "\n...(内容过长，已截断)";
+                }
+                result.append(agentResponse);
+            } else {
+                result.append("(流式输出已完成，请查看上方控制台输出)");
+            }
 
             return result.toString();
 
@@ -433,7 +570,7 @@ public class AgentTeamsSkill extends AbsSkill {
             @Param(name = "name", description = "团队成员唯一标识（如：security-expert）") String name,
             @Param(name = "role", description = "角色描述（如：安全专家）") String role,
             @Param(name = "description", description = "详细职责描述") String description,
-            @Param(name = "teamName", required = false, description = "团队名称（如：myteam）。如果指定，文件命名为 {teamName}-{name}.md") String teamName,
+            @Param(name = "teamName", required = false, description = "团队名称（如：myteam）。如果不指定，将自动生成（格式：team-{timestamp}）") String teamName,
             @Param(name = "systemPrompt", required = false, description = "系统提示词，定义行为模式") String systemPrompt,
             @Param(name = "expertise", required = false, description = "专业领域，逗号分隔（如：security,auth,encryption）") String expertise,
             @Param(name = "model", required = false, description = "使用的模型（如：默认）") String model,
@@ -441,6 +578,36 @@ public class AgentTeamsSkill extends AbsSkill {
             String __cwd
     ) {
         try {
+            // 自动生成团队名称（如果未提供）
+            if (teamName == null || teamName.isEmpty()) {
+                // 1. 优先从共享内存中读取当前团队名
+                if (mainAgent != null && mainAgent.getSharedMemoryManager() != null) {
+                    String currentTeam = mainAgent.getSharedMemoryManager().get(CURRENT_TEAM_KEY);
+                    if (currentTeam != null && !currentTeam.isEmpty()) {
+                        teamName = currentTeam;
+                        LOG.info("从内存中读取到当前团队名称: {}", teamName);
+                    }
+                }
+
+                // 2. 如果内存中也没有，生成新的团队名
+                if (teamName == null || teamName.isEmpty()) {
+                    long timestamp = System.currentTimeMillis();
+                    teamName = String.format("team-%d", timestamp);
+                    LOG.info("自动生成新的团队名称: {}", teamName);
+                }
+            }
+
+            // 3. 将使用的团队名保存到共享内存（短期记忆，1小时TTL）
+            if (mainAgent != null && mainAgent.getSharedMemoryManager() != null) {
+                mainAgent.getSharedMemoryManager().putShortTerm(CURRENT_TEAM_KEY, teamName, 3600); // 1小时
+                LOG.info("已将团队名称保存到内存: {} (TTL: 1小时)", teamName);
+            }
+
+            // 4. 检查是否已存在相同 role 的 agent（避免重复覆盖）
+            if (manager.hasAgent(role)) {
+                LOG.warn("警告：已存在 role='{}' 的子代理，新成员可能会覆盖它。建议使用唯一的 role 名称。", role);
+            }
+
             // 如果需要联网搜索上下文
             if (searchContext != null && searchContext && kernel != null) {
                 LOG.info("为 teammate {} 搜索相关上下文...", name);
@@ -453,6 +620,7 @@ public class AgentTeamsSkill extends AbsSkill {
             metadata.setName(role);
             metadata.setDescription(description);
             metadata.setEnabled(true);
+            metadata.setTeamName(teamName);
 
             // 设置专业领域
             if (expertise != null && !expertise.isEmpty()) {
@@ -473,23 +641,25 @@ public class AgentTeamsSkill extends AbsSkill {
             // 生成完整的代理定义
             String agentDefinition = metadata.toYamlFrontmatterWithPrompt(finalPrompt);
 
-            // 保存到文件
-            Path agentFile;
-            if (teamName != null && !teamName.isEmpty()) {
-                // 团队成员：保存到 .soloncode/agentsTeams/{teamName}/{name}.md
-                Path teamsDir = Paths.get(__cwd, ".soloncode", "agentsTeams", teamName);
-                Files.createDirectories(teamsDir);
-                agentFile = teamsDir.resolve(name + ".md");
-                LOG.info("创建团队成员: 团队={}, 角色={}, 文件={}", teamName, name, agentFile);
-            } else {
-                // 普通子代理：保存到 .soloncode/agents/{name}.md
-                Path agentsDir = Paths.get(__cwd, ".soloncode", "agents");
-                Files.createDirectories(agentsDir);
-                agentFile = agentsDir.resolve(name + ".md");
-                LOG.info("创建子代理: 角色={}, 文件={}", name, agentFile);
-            }
+            // 保存到文件（所有成员都归属于某个团队）
+            Path teamsDir = Paths.get(__cwd, ".soloncode", "agentsTeams", teamName);
+            Files.createDirectories(teamsDir);
+            Path agentFile = teamsDir.resolve(name + ".md");
+            LOG.info("创建团队成员: 团队={}, 角色={}, 文件={}", teamName, name, agentFile);
 
             Files.write(agentFile, agentDefinition.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            LOG.info("Agent 定义已保存到: {}", agentFile);
+
+            // 重新扫描目录以加载新创建的 agent（使用 putIfAbsent 避免重复）
+            if (manager != null) {
+                try {
+                    Path parentDir = agentFile.getParent();
+                    manager.agentPool(parentDir, false);
+                    LOG.info("已重新扫描目录并加载新团队成员: {}", name);
+                } catch (Throwable ex) {
+                    LOG.warn("重新扫描目录失败（文件已保存）: {}", ex.getMessage());
+                }
+            }
 
             // 返回结果（使用表格格式）
             StringBuilder result = new StringBuilder();
@@ -502,13 +672,8 @@ public class AgentTeamsSkill extends AbsSkill {
             result.append(String.format("| **名称** | `%s` |\n", name));
             result.append(String.format("| **角色** | %s |\n", role));
             result.append(String.format("| **描述** | %s |\n", description));
-
-            if (teamName != null && !teamName.isEmpty()) {
-                result.append(String.format("| **所属团队** | %s |\n", teamName));
-                result.append(String.format("| **文件路径** | `.soloncode/agentsTeams/%s/%s.md` |\n", teamName, name));
-            } else {
-                result.append(String.format("| **文件路径** | `.soloncode/agents/%s.md` |\n", name));
-            }
+            result.append(String.format("| **所属团队** | %s |\n", teamName));
+            result.append(String.format("| **文件路径** | `.soloncode/agentsTeams/%s/%s.md` |\n", teamName, name));
 
             if (expertise != null && !expertise.isEmpty()) {
                 result.append(String.format("| **专业领域** | %s |\n", expertise));
@@ -522,7 +687,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             result.append("\n**使用方法**:\n");
             result.append("```bash\n");
-            result.append(String.format("subagent(type=\"%s\", prompt=\"你的任务描述\")\n", name));
+            result.append(String.format("task(subagent_type=\"%s\", prompt=\"你的任务描述\")\n", name));
             result.append("```\n");
 
             return result.toString();
@@ -534,23 +699,59 @@ public class AgentTeamsSkill extends AbsSkill {
     }
 
     /**
-     * 列出所有团队成员
+     * 列出团队成员（支持按团队筛选）
      *
      * 类似 Claude Code 的 /teammates 命令
      * 使用表格格式输出
+     *
+     * @param teamName 可选。指定团队名称，只显示该团队的成员
      */
     @ToolMapping(name = "teammates",
-                 description = "列出所有团队成员，以表格格式显示。包括名称、角色、状态、模型等信息。")
-    public String listTeammates() {
+                 description = "列出团队成员，支持按团队筛选。只显示自定义创建的团队成员，不包括内置子代理。")
+    public String listTeammates(
+            @Param(name = "teamName", required = false, description = "可选。团队名称（如 'test'），只显示该团队的成员") String teamName,
+            @Param(name = "includeBuiltIn", required = false, description = "可选。是否包括内置子代理（explore、bash、plan等），默认false") Boolean includeBuiltIn
+    ) {
         try {
-            Collection<Subagent> agents = manager.getAgents();
+            List<Subagent> allAgents = new ArrayList<>(manager.getAgents());
+
+            // 根据团队名称筛选
+            List<Subagent> agents;
+            if (teamName != null && !teamName.isEmpty()) {
+                // 指定团队名：只显示该团队的成员
+                agents = allAgents.stream()
+                        .filter(agent -> agent.getMetadata().hasTeamName() &&
+                                       agent.getMetadata().getTeamName().equals(teamName))
+                        .collect(java.util.stream.Collectors.toList());
+            } else if (includeBuiltIn != null && includeBuiltIn) {
+                // 显式要求包括内置agents：显示所有
+                agents = allAgents;
+            } else {
+                // 默认：只显示自定义团队成员（有 teamName 的）
+                agents = allAgents.stream()
+                        .filter(agent -> agent.getMetadata().hasTeamName())
+                        .collect(java.util.stream.Collectors.toList());
+            }
 
             StringBuilder result = new StringBuilder();
-            result.append("## 团队成员\n\n");
+
+            // 标题：显示是否筛选
+            if (teamName != null && !teamName.isEmpty()) {
+                result.append(String.format("## 团队成员: %s\n\n", teamName));
+            } else if (includeBuiltIn != null && includeBuiltIn) {
+                result.append("## 所有子代理（包括内置）\n\n");
+            } else {
+                result.append("## 团队成员（自定义）\n\n");
+            }
 
             if (agents.isEmpty()) {
-                result.append("[WARN] 当前没有团队成员。\n\n");
-                result.append("使用 `teammate()` 命令创建新成员。\n");
+                if (teamName != null && !teamName.isEmpty()) {
+                    result.append(String.format("[WARN] 团队 '%s' 中没有成员。\n\n", teamName));
+                    result.append("使用 `teammate()` 命令创建新成员。\n");
+                } else {
+                    result.append("[WARN] 当前没有团队成员。\n\n");
+                    result.append("使用 `teammate()` 命令创建新成员。\n");
+                }
                 return result.toString();
             }
 
@@ -570,7 +771,11 @@ public class AgentTeamsSkill extends AbsSkill {
                         name, role, desc, team, status, model));
             }
 
-            result.append("\n**总计**: " + agents.size() + " 位活跃成员\n\n");
+            if (teamName != null && !teamName.isEmpty()) {
+                result.append(String.format("\n**总计**: %d 位成员（团队: %s）\n\n", agents.size(), teamName));
+            } else {
+                result.append(String.format("\n**总计**: %d 位活跃成员\n\n", agents.size()));
+            }
 
             // 添加使用提示
             result.append("**快速操作**:\n");
@@ -578,7 +783,7 @@ public class AgentTeamsSkill extends AbsSkill {
             result.append("# 创建新成员\n");
             result.append("teammate(name=\"expert\", role=\"专家\", description=\"...\")\n\n");
             result.append("# 调用成员\n");
-            result.append("subagent(type=\"explore\", prompt=\"任务描述\")\n\n");
+            result.append("task(subagent_type=\"explore\", prompt=\"任务描述\")\n\n");
             result.append("# 查看任务状态\n");
             result.append("team_status()\n");
             result.append("```\n");
@@ -605,7 +810,7 @@ public class AgentTeamsSkill extends AbsSkill {
             Subagent agent = manager.getAgent(name);
             if (agent == null) {
                 return String.format("[ERROR] 未找到团队成员: `%s`\n\n可用的成员:\n%s",
-                        name, listTeammates());
+                        name, listTeammates(null, null));
             }
 
             // 禁用成员（通过修改配置文件）
@@ -1326,13 +1531,18 @@ public class AgentTeamsSkill extends AbsSkill {
      * 发送消息给其他代理
      */
     @ToolMapping(name = "send_message",
-                 description = "发送消息给其他代理（点对点通信）。可用代理：explore、plan、bash、general-purpose、solon-code-guide 等。")
+                 description = "发送消息给其他代理（点对点通信）。注意：避免相互发送消息导致死锁。")
     public String sendMessage(
             @Param(name = "targetAgent", description = "目标代理名称（如：explore、plan、bash、general-purpose）") String targetAgent,
             @Param(name = "message", description = "消息内容") String message) {
         try {
             if (mainAgent == null || mainAgent.getMessageChannel() == null) {
                 return "[WARN] 消息通道未启用";
+            }
+
+            // 检查是否会导致死锁（main-agent 发送给自己）
+            if ("main-agent".equals(targetAgent)) {
+                return "[ERROR] 不能发送消息给自己，这会导致死锁";
             }
 
             // 使用 Builder 创建消息
@@ -1343,7 +1553,7 @@ public class AgentTeamsSkill extends AbsSkill {
                     .type("command")
                     .build();
 
-            // 发送消息并等待完成
+            // 发送消息并等待完成（超时5秒）
             java.util.concurrent.CompletableFuture<org.noear.solon.bot.core.message.MessageAck> ackFuture =
                 mainAgent.getMessageChannel().send(agentMessage);
 
@@ -1355,11 +1565,12 @@ public class AgentTeamsSkill extends AbsSkill {
                 LOG.debug("消息已发送: to={}, msg={}", targetAgent, message);
                 return "[OK] 消息已发送给 " + targetAgent;
             } else {
+                LOG.warn("消息发送失败: to={}, error={}", targetAgent, ack.getMessage());
                 return "[ERROR] 消息发送失败: " + ack.getMessage();
             }
         } catch (java.util.concurrent.TimeoutException e) {
-            LOG.error("发送消息超时", e);
-            return "[WARN] 发送超时: 消息可能还在处理中";
+            LOG.error("发送消息超时（可能死锁）: to={}", targetAgent);
+            return "[WARN] 发送超时（可能死锁）: 目标代理可能在等待当前代理的响应";
         } catch (Exception e) {
             LOG.error("发送消息失败", e);
             return "[ERROR] 发送失败: " + e.getMessage();
@@ -1398,7 +1609,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             sb.append("\n**提示**:\n");
             sb.append("- 使用 `send_message(targetAgent, message)` 向指定代理发送消息\n");
-            sb.append("- 使用 `subagent(type, prompt)` 调用代理并获取响应\n");
+            sb.append("- 使用 `task(subagent_type, prompt)` 调用代理并获取响应\n");
             sb.append("- 使用 `teammates()` 查看所有团队成员\n");
 
             return sb.toString();

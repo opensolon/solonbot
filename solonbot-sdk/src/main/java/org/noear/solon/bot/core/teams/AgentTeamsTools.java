@@ -61,26 +61,41 @@ public class AgentTeamsTools extends AbsSkill {
     @Override
     public String getInstruction(Prompt prompt) {
         StringBuilder sb = new StringBuilder();
-        sb.append("## Agent Teams 内部工具集\n\n");
-        sb.append("这是 MainAgent 内部使用的工具集，提供记忆管理和事件发布功能。\n\n");
-        sb.append("### 记忆存储工具\n\n");
+        sb.append("## Agent Teams 内部工具集（底层API）\n\n");
+        sb.append("这是 MainAgent 内部使用的底层工具集，提供记忆管理和事件发布功能。\n\n");
+        sb.append("### ⚠️ 使用建议\n\n");
+        sb.append("**大多数情况下，推荐使用 AgentTeamsSkill 中的智能记忆工具**：\n");
+        sb.append("- `memory_store()`: 自动分类存储（系统自动判断存储类型和重要性）\n");
+        sb.append("- `memory_recall()`: 智能检索（按相关性排序，自动合并重复内容）\n");
+        sb.append("- `memory_stats()`: 查看统计信息\n\n");
+        sb.append("**本工具集适用于以下场景**：\n");
+        sb.append("- 需要精确控制记忆类型（短期/长期/知识）\n");
+        sb.append("- 需要自定义 TTL 时间\n");
+        sb.append("- 需要直接操作工作记忆字段\n");
+        sb.append("- 需要发布自定义事件\n\n");
+        sb.append("### 记忆存储工具（底层API）\n\n");
         sb.append("**分层记忆存储**（按 TTL 自动过期）：\n");
-        sb.append("- `memory_store_short()`: 短期记忆（1小时 TTL）\n");
+        sb.append("- `memory_store_short()`: 短期记忆（1小时 TTL）[底层API]\n");
         sb.append("  - 用途：临时上下文、会话级信息\n");
-        sb.append("  - 参数：key（必填）, value（必填）, ttl（可选，默认3600秒）\n\n");
-        sb.append("- `memory_store_long()`: 长期记忆（7天 TTL）\n");
+        sb.append("  - 参数：key（必填）, value（必填）, ttl（可选，默认3600秒）\n");
+        sb.append("  - 注意：推荐使用 `memory_store()` 自动分类\n\n");
+        sb.append("- `memory_store_long()`: 长期记忆（7天 TTL）[底层API]\n");
         sb.append("  - 用途：任务结果、重要信息\n");
-        sb.append("  - 参数：key（必填）, value（必填）, ttl（可选，默认604800秒）\n\n");
-        sb.append("- `memory_store_knowledge()`: 知识记忆（永久保存）\n");
+        sb.append("  - 参数：key（必填）, value（必填）, ttl（可选，默认604800秒）\n");
+        sb.append("  - 注意：推荐使用 `memory_store()` 自动分类\n\n");
+        sb.append("- `memory_store_knowledge()`: 知识记忆（永久保存）[底层API]\n");
         sb.append("  - 用途：架构决策、最佳实践、经验教训\n");
-        sb.append("  - 参数：key（必填）, value（必填）\n\n");
-        sb.append("### 记忆检索工具\n\n");
+        sb.append("  - 参数：key（必填）, value（必填）\n");
+        sb.append("  - 注意：推荐使用 `memory_store()` 自动分类\n\n");
+        sb.append("### 记忆检索工具（底层API）\n\n");
         sb.append("- `memory_retrieve()`: 根据键精确检索\n");
         sb.append("  - 自动从短期 → 长期 → 知识记忆中查找\n");
-        sb.append("  - 参数：key（必填）\n\n");
+        sb.append("  - 参数：key（必填）\n");
+        sb.append("  - 注意：推荐使用 `memory_recall()` 智能检索\n\n");
         sb.append("- `memory_search()`: 模糊搜索记忆\n");
         sb.append("  - 支持关键词匹配，返回相关记忆列表\n");
-        sb.append("  - 参数：query（必填）, limit（可选，默认10）\n\n");
+        sb.append("  - 参数：query（必填）, limit（可选，默认10）\n");
+        sb.append("  - 注意：推荐使用 `memory_recall()` 智能检索\n\n");
         sb.append("### 工作记忆工具\n\n");
         sb.append("- `working_memory_set()`: 设置工作记忆字段\n");
         sb.append("  - 用于存储当前任务状态、步骤等结构化数据\n");
@@ -95,7 +110,9 @@ public class AgentTeamsTools extends AbsSkill {
         sb.append("  - 支持事件类型：TASK_CREATED, TASK_COMPLETED, TASK_FAILED, MESSAGE_RECEIVED 等\n");
         sb.append("  - 参数：eventType（必填）, data（必填）\n\n");
         sb.append("### 使用示例\n\n");
-        sb.append("**存储记忆**：\n");
+        sb.append("**⚠️ 重要提示**：以下示例展示底层API的使用方法。\n");
+        sb.append("如果只是普通存储，推荐使用 `memory_store()` 和 `memory_recall()` 智能工具。\n\n");
+        sb.append("**存储记忆（精确控制类型）**：\n");
         sb.append("```\n");
         sb.append("# 存储临时上下文\n");
         sb.append("memory_store_short(\n");
@@ -137,7 +154,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 存储短期记忆
      */
     @ToolMapping(name = "memory_store_short",
-                 description = "存储短期记忆（会话级别，TTL 1小时）。用于临时信息。")
+                 description = "[底层API] 存储短期记忆（会话级别，TTL 1小时）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreShort(
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value,
@@ -157,7 +174,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 存储长期记忆
      */
     @ToolMapping(name = "memory_store_long",
-                 description = "存储长期记忆（跨会话，TTL 7天）。用于重要信息。")
+                 description = "[底层API] 存储长期记忆（跨会话，TTL 7天）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreLong(
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value,
@@ -177,7 +194,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 存储知识记忆
      */
     @ToolMapping(name = "memory_store_knowledge",
-                 description = "存储知识记忆（永久保存）。用于最佳实践、经验教训等。")
+                 description = "[底层API] 存储知识记忆（永久保存）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreKnowledge(
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value) {
@@ -195,7 +212,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 检索记忆
      */
     @ToolMapping(name = "memory_retrieve",
-                 description = "根据键检索记忆（自动从短期、长期、知识记忆中查找）")
+                 description = "[底层API] 根据键精确检索记忆。注意：推荐使用 memory_recall() 智能检索。")
     public String memoryRetrieve(
             @Param(name = "key", description = "记忆键") String key) {
         try {
@@ -216,7 +233,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 搜索记忆
      */
     @ToolMapping(name = "memory_search",
-                 description = "搜索记忆（支持模糊匹配，返回相关记忆列表）")
+                 description = "[底层API] 模糊搜索记忆（支持关键词匹配）。注意：推荐使用 memory_recall() 智能检索。")
     public String memorySearch(
             @Param(name = "query", description = "搜索查询") String query,
             @Param(name = "limit", description = "返回结果数量限制，默认10") Integer limit) {
@@ -264,7 +281,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 设置工作记忆
      */
     @ToolMapping(name = "working_memory_set",
-                 description = "设置工作记忆（用于存储当前任务状态、步骤等结构化数据）")
+                 description = "[底层API] 设置工作记忆字段（用于存储当前任务状态、步骤等结构化数据）。直接操作 WorkingMemory。")
     public String workingMemorySet(
             @Param(name = "field", description = "字段名称（taskDescription/status/step/currentAgent）") String field,
             @Param(name = "value", description = "字段值") String value) {
@@ -321,7 +338,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 获取工作记忆
      */
     @ToolMapping(name = "working_memory_get",
-                 description = "获取工作记忆（查看当前任务状态、步骤等）")
+                 description = "[底层API] 获取工作记忆（查看当前任务状态、步骤等）。直接读取 WorkingMemory。")
     public String workingMemoryGet(
             @Param(name = "taskId", description = "任务ID，默认为'main-agent'") String taskId
     ) {
@@ -372,7 +389,7 @@ public class AgentTeamsTools extends AbsSkill {
      * 发布事件
      */
     @ToolMapping(name = "publish_event",
-                 description = "发布团队事件（用于通知其他代理任务状态变化）")
+                 description = "[底层API] 发布团队事件到 EventBus（用于通知其他代理任务状态变化）。需要了解事件类型。")
     public String publishEvent(
             @Param(name = "eventType", description = "事件类型（TASK_CREATED, TASK_COMPLETED, TASK_FAILED, MESSAGE_RECEIVED等）") String eventType,
             @Param(name = "data", description = "事件数据（JSON格式或文本）") String data) {

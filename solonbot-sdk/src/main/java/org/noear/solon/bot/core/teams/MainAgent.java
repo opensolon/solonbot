@@ -16,12 +16,14 @@
 package org.noear.solon.bot.core.teams;
 
 import lombok.Getter;
+import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
+import org.noear.solon.bot.core.AgentKernel;
 import org.noear.solon.bot.core.CliSkillProvider;
 import org.noear.solon.bot.core.PoolManager;
 import org.noear.solon.bot.core.SystemPrompt;
@@ -36,8 +38,11 @@ import org.noear.solon.bot.core.message.AgentMessage;
 import org.noear.solon.bot.core.message.MessageAck;
 import org.noear.solon.bot.core.message.MessageChannel;
 import org.noear.solon.bot.core.subagent.SubAgentMetadata;
+import org.noear.solon.bot.core.subagent.SubagentManager;
+import org.noear.solon.bot.core.subagent.TaskSkill;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -71,6 +76,10 @@ public class MainAgent {
     private final String workDir;
     private final PoolManager poolManager;
 
+    // 新增：用于访问 subagent 功能
+    private final AgentKernel kernel;
+    private final SubagentManager subagentManager;
+
     private ReActAgent agent;
     private AgentSession session;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -83,6 +92,10 @@ public class MainAgent {
     // 性能优化：使用 CountDownLatch 替代轮询
     private volatile CountDownLatch taskCompletionLatch;
 
+    // 超时配置（单位：毫秒）
+    private static final long EXECUTION_TIMEOUT_MS = 300_000; // 5分钟超时
+    private static final long LLM_CALL_TIMEOUT_MS = 120_000;  // LLM调用超时2分钟
+
     public MainAgent(SubAgentMetadata config,
                      AgentSessionProvider sessionProvider,
                      SharedMemoryManager sharedMemoryManager,
@@ -91,6 +104,23 @@ public class MainAgent {
                      SharedTaskList taskList,
                      String workDir,
                      PoolManager poolManager) {
+        this(config, sessionProvider, sharedMemoryManager, eventBus, messageChannel,
+             taskList, workDir, poolManager, null, null);
+    }
+
+    /**
+     * 完整构造函数（支持 subagent 功能）
+     */
+    public MainAgent(SubAgentMetadata config,
+                     AgentSessionProvider sessionProvider,
+                     SharedMemoryManager sharedMemoryManager,
+                     EventBus eventBus,
+                     MessageChannel messageChannel,
+                     SharedTaskList taskList,
+                     String workDir,
+                     PoolManager poolManager,
+                     AgentKernel kernel,
+                     SubagentManager subagentManager) {
         this.config = config;
         this.sessionProvider = sessionProvider;
         this.sharedMemoryManager = sharedMemoryManager;
@@ -99,6 +129,8 @@ public class MainAgent {
         this.taskList = taskList;
         this.workDir = workDir;
         this.poolManager = poolManager;
+        this.kernel = kernel;
+        this.subagentManager = subagentManager;
 
         // 注册任务事件监听器
         registerTaskEventListeners();
@@ -138,8 +170,14 @@ public class MainAgent {
             );
             builder.defaultSkillAdd(teamsTools);
 
-            // 子代理调用工具（需要从外部传入或创建）
-            // TaskSkill 会在 AgentKernel 中添加到主 Agent
+            // 子代理调用工具（如果有 kernel 和 subagentManager）
+            if (kernel != null && subagentManager != null) {
+                TaskSkill taskSkill = new TaskSkill(kernel, subagentManager);
+                builder.defaultSkillAdd(taskSkill);
+                LOG.debug("MainAgent: TaskSkill 已添加");
+            } else {
+                LOG.debug("MainAgent: 无 kernel 或 subagentManager，跳过 TaskSkill");
+            }
 
             // 设置较大的步数（主代理需要协调多个任务）
             builder.maxSteps(50);
@@ -153,12 +191,13 @@ public class MainAgent {
     }
 
     /**
-     * 执行主任务
+     * 流式执行主任务（实时输出）
      *
      * @param prompt 用户提示
-     * @return 响应结果
+     * @param __cwd 工作目录
+     * @return 响应流
      */
-    public AgentResponse execute(Prompt prompt) throws Throwable {
+    public Flux<AgentChunk> executeStream(Prompt prompt, String __cwd) throws Throwable {
         if (agent == null) {
             throw new IllegalStateException("MainAgent 尚未初始化");
         }
@@ -207,21 +246,45 @@ public class MainAgent {
                 }
             }
 
-            // 6. 执行主代理自身的协调逻辑
-            AgentResponse response = agent.prompt(prompt)
+            // 6. 执行主代理内部的协调逻辑（流式输出）
+            reactor.core.publisher.Flux<AgentChunk> responseStream = agent.prompt(prompt)
                     .session(session)
-                    .call();
+                    .options(o -> {
+                        // 传递工作目录给工具（ls、bash 等需要）
+                        if (__cwd != null && !__cwd.isEmpty()) {
+                            o.toolContextPut("__cwd", __cwd);
+                        }
+                    })
+                    .stream();
 
-            // 7. 等待所有子任务完成
-            waitForAllTasksCompleted();
+            // 7. 在流完成后等待所有子任务完成
+            reactor.core.publisher.Flux<AgentChunk> resultStream = responseStream
+                    .doOnComplete(() -> {
+                        try {
+                            // 等待所有子任务完成
+                            waitForAllTasksCompleted();
 
-            // 8. 汇总结果
-            String summary = summarizeResults();
+                            // 汇总结果
+                            String summary = summarizeResults();
 
-            // 9. 发布主代理任务完成事件
-            publishEvent(AgentEventType.MAIN_TASK_COMPLETED, summary, null);
+                            // 发布主代理任务完成事件
+                            publishEvent(AgentEventType.MAIN_TASK_COMPLETED, summary, null);
 
-            return response;
+                            LOG.info("MainAgent 流式执行完成");
+                        } catch (Exception e) {
+                            LOG.error("MainAgent 后处理失败", e);
+                        }
+                    })
+                    .doOnError(error -> {
+                        LOG.error("MainAgent 流式执行出错", error);
+                        running.set(false);
+                    })
+                    .doOnCancel(() -> {
+                        LOG.warn("MainAgent 流式执行被取消");
+                        running.set(false);
+                    });
+
+            return resultStream;
 
         } finally {
             running.set(false);
@@ -728,34 +791,128 @@ public class MainAgent {
      * 获取系统提示词
      */
     private String getSystemPrompt() {
-        return "## 主代理（Team Lead）\n\n" +
+        return "## 主代理（Team Lead）- 强制执行模式\n\n" +
                 "你是 Agent Teams 的团队领导，负责协调多个子代理协作完成任务。\n" +
                 "\n" +
-                "### 核心职责\n" +
-                "- 分析用户请求，创建合理的子任务\n" +
-                "- 将任务分配到共享任务列表\n" +
-                "- 协调多个子代理协作\n" +
-                "- 监控任务执行状态\n" +
-                "- 汇总并呈现最终结果\n" +
+                "### ⚠️ 核心规则（违反即失败）\n" +
                 "\n" +
-                "### 工作流程\n" +
-                "1. **任务分析**：理解用户请求，识别需要哪些类型的任务\n" +
-                "2. **任务创建**：创建合适的子任务，设置优先级和依赖关系\n" +
-                "3. **任务分配**：将任务添加到共享任务列表\n" +
-                "4. **协调执行**：监控任务进度，处理异常情况\n" +
-                "5. **结果汇总**：收集所有子任务的结果，生成最终报告\n" +
+                "#### 🚫 禁止行为（绝对不可违反）\n" +
+                "1. **禁止模拟工作**：\n" +
+                "   - 严禁使用 `update_working_memory`、`memory_store` 等工具声称工作已完成\n" +
+                "   - 不断更新 step、currentAgent 字段而不实际工作是**严重违规**\n" +
+                "   - 不得在记忆中存储虚假的\"已完成\"状态\n\n" +
+                "2. **禁止虚假产出**：\n" +
+                "   - 不得声称\"需求分析已完成\"、\"代码已编写\"等虚假结论\n" +
+                "   - 没有实际文件产出前，不得宣称任务完成\n" +
+                "   - 记忆存储只能存储真实已完成的工作结果\n\n" +
+                "3. **禁止循环操作**：\n" +
+                "   - 不得重复调用相同的工具而不产生新进展\n" +
+                "   - 不得无限更新状态而无实际工作\n" +
+                "   - 检测到循环时必须立即停止并改变策略\n\n" +
+                "#### ✅ 必须行为（必须执行）\n" +
+                "1. **必须使用 subagent 工具**：\n" +
+                "   - 所有实际工作必须通过 `subagent(type, prompt)` 工具委派给专门的子代理\n" +
+                "   - 可用的子代理类型：explore、plan、bash、general-purpose、solon-code-guide\n" +
+                "   - 例如：`subagent(type='bash', prompt='创建项目目录并初始化')`\n\n" +
+                "2. **必须有实际产出**：\n" +
+                "   - **代码任务**必须生成 `.java`、`.py` 等代码文件\n" +
+                "   - **文档任务**必须生成 `.md`、`.txt` 等文档文件\n" +
+                "   - **测试任务**必须有测试报告或测试结果文件\n" +
+                "   - **架构任务**必须有架构图或设计文档\n\n" +
+                "3. **必须验证产出**：\n" +
+                "   - 使用 `read` 或 `ls` 工具验证文件是否真实创建\n" +
+                "   - 确认文件内容符合要求后才可宣称任务完成\n\n" +
                 "\n" +
-                "### 协作策略\n" +
-                "- 鼓励子代理主动认领任务\n" +
-                "- 当子代理遇到困难时，提供支持和指导\n" +
-                "- 平衡各代理的工作负载\n" +
-                "- 确保任务按正确顺序执行（依赖关系）\n" +
+                "### 工作流程（强制执行）\n" +
                 "\n" +
-                "### 输出要求\n" +
-                "- 提供清晰的任务分解\n" +
-                "- 说明每个子任务的目标\n" +
-                "- 汇总所有子任务的结果\n" +
-                "- 标注重要的发现和决策\n";
+                "#### 步骤 1：任务分析（使用 subagent）\n" +
+                "```\n" +
+                "subagent(\n" +
+                "    type='plan',\n" +
+                "    prompt='分析任务需求：[用户任务]，提供详细的实现方案'\n" +
+                ")\n" +
+                "```\n" +
+                "\n" +
+                "#### 步骤 2：执行工作（使用 subagent）\n" +
+                "```\n" +
+                "# 开发任务\n" +
+                "subagent(\n" +
+                "    type='bash',\n" +
+                "    prompt='创建文件 [文件名]，编写代码实现：[具体需求]'\n" +
+                ")\n" +
+                "\n" +
+                "# 测试任务\n" +
+                "subagent(\n" +
+                "    type='bash',\n" +
+                "    prompt='编写测试用例并运行测试，生成测试报告'\n" +
+                ")\n" +
+                "```\n" +
+                "\n" +
+                "#### 步骤 3：验证产出（使用 ls/read）\n" +
+                "```\n" +
+                "ls(path='.')  # 列出文件\n" +
+                "read(file_path='xxx.java')  # 验证文件内容\n" +
+                "```\n" +
+                "\n" +
+                "#### 步骤 4：总结结果（仅在真实完成后）\n" +
+                "```\n" +
+                "# 只有在确认文件真实创建后才可总结\n" +
+                "Final Answer: [ANSWER]\n" +
+                "已完成以下工作：\n" +
+                "1. 创建文件：file1.java, file2.py\n" +
+                "2. 文件内容：[简要描述]\n" +
+                "3. 验证结果：所有文件已通过测试\n" +
+                "```\n" +
+                "\n" +
+                "### ⚠️ 常见错误（必须避免）\n" +
+                "\n" +
+                "❌ **错误示例**：\n" +
+                "```\n" +
+                "# 错误1：虚假更新状态\n" +
+                "update_working_memory(field='step', value='1')\n" +
+                "update_working_memory(field='step', value='2')\n" +
+                "memory_store(content='需求分析已完成')  # 虚假！\n" +
+                "\n" +
+                "# 错误2：声称完成但无产出\n" +
+                "Final Answer: [ANSWER]\n" +
+                "团队协作完成！  # 但没有创建任何文件\n" +
+                "```\n" +
+                "\n" +
+                "✅ **正确示例**：\n" +
+                "```\n" +
+                "# 正确：实际调用子代理\n" +
+                "subagent(type='bash', prompt='创建 UserController.java')\n" +
+                "# 等待结果...\n" +
+                "ls(path='src/main/java')  # 验证文件已创建\n" +
+                "read(file_path='src/main/java/UserController.java')  # 验证内容\n" +
+                "Final Answer: [ANSWER]\n" +
+                "已创建 UserController.java，包含用户增删改查功能\n" +
+                "```\n" +
+                "\n" +
+                "### 🎯 成功标准\n" +
+                "\n" +
+                "任务被认为完成，当且仅当：\n" +
+                "1. **有实际文件产出**：代码、文档、测试报告等\n" +
+                "2. **文件内容已验证**：使用 read 工具确认内容正确\n" +
+                "3. **通过必要测试**：代码可编译、可运行\n" +
+                "4. **无虚假声明**：所有声称的完成都是真实的\n" +
+                "\n" +
+                "### 📊 token 使用警告\n" +
+                "\n" +
+                "- 每个任务建议不超过 10,000 tokens\n" +
+                "- 超过 5,000 tokens 时必须检查是否有实际产出\n" +
+                "- 超过 10,000 tokens 无产出时立即终止任务\n" +
+                "- 禁止循环调用工具而不产生进展\n" +
+                "\n" +
+                "### 🚀 立即开始\n" +
+                "\n" +
+                "接到任务后，必须：\n" +
+                "1. 先使用 `subagent(type='plan', ...)` 分析需求\n" +
+                "2. 再使用 `subagent(type='bash', ...)` 执行工作\n" +
+                "3. 使用 `ls`、`read` 验证产出\n" +
+                "4. 确认真实完成后才给出 Final Answer\n" +
+                "\n" +
+                "**记住：禁止模拟，必须实际产出！**\n";
     }
 
     /**

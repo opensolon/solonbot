@@ -72,10 +72,28 @@ public class TaskSkill extends AbsSkill {
         sb.append("## 战略调度协议 (Orchestration Protocol)\n");
         sb.append("你拥有派生专项子代理的能力。对于重型或涉及全局认知的任务，你必须扮演【调度员】而非【执行者】。\n\n");
 
+        // ========== 新增：禁止模拟工作规则 ==========
+        sb.append("### ⚠️ 核心规则（强制执行）\n\n");
+        sb.append("#### 🚫 禁止行为\n");
+        sb.append("1. **禁止模拟工作**：\n");
+        sb.append("   - 严禁不断更新状态而无实际产出\n");
+        sb.append("   - 不得声称任务已完成但没有文件生成\n");
+        sb.append("   - 使用 task() 工具后，子代理必须实际创建文件或执行命令\n\n");
+        sb.append("2. **必须有实际产出**：\n");
+        sb.append("   - 代码任务：必须生成 .java、.py 等代码文件\n");
+        sb.append("   - 文档任务：必须生成 .md、.txt 等文档文件\n");
+        sb.append("   - 测试任务：必须有测试结果或报告\n");
+        sb.append("   - 使用 ls、read 工具验证文件已真实创建\n\n");
+        sb.append("#### ✅ 必须行为\n");
+        sb.append("1. **强制使用 task() 工具**：\n");
+        sb.append("   - 所有实际工作必须通过 task(subagent_type=..., prompt=...) 完成\n");
+        sb.append("   - 不得自己在主对话中重复尝试\n\n");
+
         sb.append("### 强制委派准则\n");
-        sb.append("- **项目认知**: 凡是涉及“探索项目”、“分析架构”、“查找核心入口”等需要阅读多个文件或理解代码库的任务，应委派给子代理。\n");
+        sb.append("- **项目认知**: 凡是涉及\"探索项目\"、\"分析架构\"、\"查找核心入口\"等需要阅读多个文件或理解代码库的任务，应委派给子代理。\n");
         sb.append("- **复杂变更**: 涉及跨文件的代码修复、重构或需要运行测试验证的任务，应委派给子代理。\n");
-        sb.append("- **决策量化**: 预感需要连续调用超过 3 次原子工具（如 grep, read_file）时，应改用子代理以节省主对话上下文。\n\n");
+        sb.append("- **决策量化**: 预感需要连续调用超过 3 次原子工具（如 grep, read_file）时，应改用子代理以节省主对话上下文。\n");
+        sb.append("- **所有开发任务**: 必须使用 task() 工具委派，禁止在主对话中模拟执行\n\n");
 
         sb.append("### 可用的子代理注册表 (Capabilities Registry)\n");
         sb.append("请根据任务语义匹配最合适的 `subagent_type`：\n");
@@ -95,7 +113,8 @@ public class TaskSkill extends AbsSkill {
     }
 
 
-    @ToolMapping(name = "task", description = "派生并分派任务给专项子代理")
+    @ToolMapping(name = "task",
+                 description = "【强制使用】派生并分派任务给专项子代理。所有实际开发工作（代码编写、文件创建、测试执行等）必须使用此工具委派给子代理完成，禁止在主对话中模拟执行或虚假声称完成。子代理会实际创建文件并返回真实结果。")
     public String handle(
             @Param(name = "subagent_type", description = "子代理类型") String subagent_type,
             @Param(name = "prompt",description = "具体指令。必须包含任务目标、关键类名或必要的背景上下文。") String prompt,

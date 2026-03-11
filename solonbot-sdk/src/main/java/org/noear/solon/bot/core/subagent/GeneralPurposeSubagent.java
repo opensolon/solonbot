@@ -33,6 +33,7 @@ import java.util.Arrays;
  */
 public class GeneralPurposeSubagent extends AbsSubagent {
     private final String subagentType;
+    // 维护 metadata 字段
 
     public GeneralPurposeSubagent(AgentKernel mainAgent) {
         this(mainAgent, null);
@@ -46,6 +47,43 @@ public class GeneralPurposeSubagent extends AbsSubagent {
         } else {
             this.subagentType = subagentType;
         }
+
+        // 初始化默认 metadata
+        this.metadata = createDefaultMetadata();
+    }
+
+    /**
+     * 创建默认的 metadata
+     */
+    private SubAgentMetadata createDefaultMetadata() {
+        SubAgentMetadata metadata = new SubAgentMetadata();
+        metadata.setCode(this.subagentType);
+        metadata.setName("通用子代理");
+        metadata.setDescription(getDefaultDescription());
+        metadata.setEnabled(true);
+        metadata.setMaxTurns(25);
+        // 通用代理的工具：包含所有核心工具
+        metadata.setTools(Arrays.asList("ls", "read", "write", "edit", "grep", "glob", "bash",
+                "websearch", "webfetch", "codesearch"));
+        // 通用代理的技能：包含所有核心技能
+        metadata.setSkills(Arrays.asList("terminal", "expert", "lucene", "todo", "code"));
+        return metadata;
+    }
+
+    /**
+     * 设置 metadata（用于从文件加载）
+     */
+    @Override
+    public void setMetadata(SubAgentMetadata metadata) {
+        this.metadata = metadata;
+    }
+
+    /**
+     * 获取 metadata（返回维护的字段）
+     */
+    @Override
+    public SubAgentMetadata getMetadata() {
+        return metadata;
     }
 
     @Override
@@ -73,22 +111,6 @@ public class GeneralPurposeSubagent extends AbsSubagent {
     @Override
     public String getType() {
         return this.subagentType;
-    }
-
-    @Override
-    public SubAgentMetadata getMetadata() {
-        SubAgentMetadata metadata = new SubAgentMetadata();
-        metadata.setCode(this.subagentType);
-        metadata.setName("通用子代理");
-        metadata.setDescription(getDefaultDescription());
-        metadata.setEnabled(true);
-        metadata.setMaxTurns(25);
-        // 通用代理的工具：包含所有核心工具
-        metadata.setTools(Arrays.asList("ls", "read", "write", "edit", "grep", "glob", "bash",
-                "websearch", "webfetch", "codesearch"));
-        // 通用代理的技能：包含所有核心技能
-        metadata.setSkills(Arrays.asList("terminal", "expert", "lucene", "todo", "code"));
-        return metadata;
     }
 
     @Override
