@@ -21,10 +21,9 @@ import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.bot.core.event.AgentEvent;
 import org.noear.solon.bot.core.event.AgentEventType;
-import org.noear.solon.bot.core.memory.LongTermMemory;
-import org.noear.solon.bot.core.memory.Memory;
-import org.noear.solon.bot.core.memory.ShortTermMemory;
-import org.noear.solon.bot.core.memory.WorkingMemory;
+import org.noear.solon.bot.core.event.EventBus;
+import org.noear.solon.bot.core.memory.*;
+import org.noear.solon.bot.core.message.MessageChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +93,7 @@ public class AgentTeamsTools extends AbsSkill {
             @Param(name = "ttl", description = "过期时间（秒），默认3600") Integer ttl) {
         try {
             int actualTtl = ttl != null && ttl > 0 ? ttl : 3600;
-            memoryManager.getShortTermMemory().put(key, value, actualTtl);
+            memoryManager.putShortTerm(key, value, actualTtl);
             LOG.debug("存储短期记忆: key={}, ttl={}", key, actualTtl);
             return "✅ 短期记忆已存储: " + key;
         } catch (Exception e) {
@@ -114,7 +113,7 @@ public class AgentTeamsTools extends AbsSkill {
             @Param(name = "ttl", description = "过期时间（秒），默认604800") Integer ttl) {
         try {
             int actualTtl = ttl != null && ttl > 0 ? ttl : 604800;
-            memoryManager.getLongTermMemory().put(key, value, actualTtl);
+            memoryManager.putLongTerm(key, value, actualTtl);
             LOG.debug("存储长期记忆: key={}, ttl={}", key, actualTtl);
             return "✅ 长期记忆已存储: " + key;
         } catch (Exception e) {
@@ -132,7 +131,7 @@ public class AgentTeamsTools extends AbsSkill {
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value) {
         try {
-            memoryManager.getKnowledgeMemory().put(key, value);
+            memoryManager.putKnowledge(key, value);
             LOG.debug("存储知识记忆: key={}", key);
             return "✅ 知识记忆已存储: " + key;
         } catch (Exception e) {
@@ -150,19 +149,9 @@ public class AgentTeamsTools extends AbsSkill {
             @Param(name = "key", description = "记忆键") String key) {
         try {
             // 按优先级查找：短期 -> 长期 -> 知识
-            String value = memoryManager.getShortTermMemory().get(key);
+            String value = memoryManager.get(key);
             if (value != null) {
-                return "✅ 短期记忆: " + value;
-            }
-
-            value = memoryManager.getLongTermMemory().get(key);
-            if (value != null) {
-                return "✅ 长期记忆: " + value;
-            }
-
-            value = memoryManager.getKnowledgeMemory().get(key);
-            if (value != null) {
-                return "✅ 知识记忆: " + value;
+                return "✅ 记忆: " + value;
             }
 
             return "⚠️ 未找到记忆: " + key;

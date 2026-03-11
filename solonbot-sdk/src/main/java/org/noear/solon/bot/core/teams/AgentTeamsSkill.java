@@ -624,16 +624,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             // 存储到长期记忆（7天TTL）
             String key = "task-result:" + taskTitle + ":" + System.currentTimeMillis();
-            LongTermMemory ltm = new LongTermMemory(
-                    "系统采用 JWT + Redis 实现分布式会话",
-                    "plan",
-                    Collections.singletonList(key)
-            );
-            mainAgent.getSharedMemoryManager().getLongTermMemory().put(
-                key,
-                result,
-                604800  // 7天
-            );
+            mainAgent.getSharedMemoryManager().putLongTerm(key, result, 604800);
 
             LOG.info("存储任务结果: taskTitle={}, key={}", taskTitle, key);
             return "✅ 任务结果已存储: " + taskTitle;
@@ -652,13 +643,13 @@ public class AgentTeamsSkill extends AbsSkill {
             @Param(name = "query", description = "搜索查询（任务标题关键词）") String query,
             @Param(name = "limit", description = "返回结果数量限制，默认10") Integer limit) {
         try {
-            if (mainAgent == null || mainAgent.getMemoryManager() == null) {
+            if (mainAgent == null || mainAgent.getSharedMemoryManager() == null) {
                 return "⚠️ 共享记忆未初始化";
             }
 
             int actualLimit = limit != null && limit > 0 ? limit : 10;
             List<org.noear.solon.bot.core.memory.Memory> results =
-                mainAgent.getMemoryManager().search(query, actualLimit);
+                mainAgent.getSharedMemoryManager().search(query, actualLimit);
 
             if (results.isEmpty()) {
                 return "⚠️ 未找到相关任务结果";
@@ -688,13 +679,13 @@ public class AgentTeamsSkill extends AbsSkill {
             @Param(name = "decisionTitle", description = "决策标题") String decisionTitle,
             @Param(name = "decision", description = "决策内容（包括理由、影响等）") String decision) {
         try {
-            if (mainAgent == null || mainAgent.getMemoryManager() == null) {
+            if (mainAgent == null || mainAgent.getSharedMemoryManager() == null) {
                 return "⚠️ 共享记忆未初始化";
             }
 
             // 存储到知识记忆（永久）
             String key = "decision:" + decisionTitle;
-            mainAgent.getMemoryManager().getKnowledgeMemory().put(key, decision);
+            mainAgent.getSharedMemoryManager().putKnowledge(key, decision);
 
             LOG.info("存储决策: decisionTitle={}", decisionTitle);
             return "✅ 决策已存储: " + decisionTitle;
@@ -713,12 +704,12 @@ public class AgentTeamsSkill extends AbsSkill {
             @Param(name = "key", description = "上下文键") String key,
             @Param(name = "value", description = "上下文值") String value) {
         try {
-            if (mainAgent == null || mainAgent.getMemoryManager() == null) {
+            if (mainAgent == null || mainAgent.getSharedMemoryManager() == null) {
                 return "⚠️ 共享记忆未初始化";
             }
 
             // 存储到短期记忆（1小时TTL）
-            mainAgent.getMemoryManager().getShortTermMemory().put(key, value, 3600);
+            mainAgent.getSharedMemoryManager().putShortTerm(key, value, 3600);
 
             LOG.debug("存储临时上下文: key={}", key);
             return "✅ 临时上下文已存储: " + key;
@@ -732,30 +723,34 @@ public class AgentTeamsSkill extends AbsSkill {
      * 获取工作记忆状态
      */
     @ToolMapping(name = "get_working_memory",
-                 description = "获取当前工作记忆状态（包括当前任务、决策、状态、进度等）")
+                 description = "获取当前工作记忆状态（包括当前任务、状态、步骤等）")
     public String getWorkingMemory() {
         try {
-            if (mainAgent == null || mainAgent.getMemoryManager() == null) {
+            if (mainAgent == null || mainAgent.getSharedMemoryManager() == null) {
                 return "⚠️ 共享记忆未初始化";
             }
 
+            // 使用默认的 taskId "main-agent"
+            String taskId = "main-agent";
             org.noear.solon.bot.core.memory.WorkingMemory workingMemory =
-                mainAgent.getMemoryManager().getWorkingMemory();
+                mainAgent.getSharedMemoryManager().getWorking(taskId);
+
+            if (workingMemory == null) {
+                return "⚠️ 没有工作记忆";
+            }
 
             StringBuilder sb = new StringBuilder();
             sb.append("## 工作记忆状态\n\n");
 
-            if (workingMemory.getCurrentTask() != null) {
-                sb.append("**当前任务**: ").append(workingMemory.getCurrentTask()).append("\n");
-            }
-            if (workingMemory.getDecision() != null) {
-                sb.append("**最新决策**: ").append(workingMemory.getDecision()).append("\n");
+            if (workingMemory.getTaskDescription() != null) {
+                sb.append("**当前任务**: ").append(workingMemory.getTaskDescription()).append("\n");
             }
             if (workingMemory.getStatus() != null) {
                 sb.append("**状态**: ").append(workingMemory.getStatus()).append("\n");
             }
-            if (workingMemory.getProgress() != null) {
-                sb.append("**进度**: ").append(workingMemory.getProgress()).append("\n");
+            sb.append("**步骤**: ").append(workingMemory.getStep()).append("\n");
+            if (workingMemory.getCurrentAgent() != null) {
+                sb.append("**当前代理**: ").append(workingMemory.getCurrentAgent()).append("\n");
             }
 
             return sb.toString();
@@ -769,37 +764,50 @@ public class AgentTeamsSkill extends AbsSkill {
      * 更新工作记忆状态
      */
     @ToolMapping(name = "update_working_memory",
-                 description = "更新工作记忆状态（设置当前任务、决策、状态或进度）")
+                 description = "更新工作记忆状态（设置当前任务、状态、步骤等）")
     public String updateWorkingMemory(
-            @Param(name = "field", description = "字段名称（currentTask/decision/status/progress）") String field,
+            @Param(name = "field", description = "字段名称（taskDescription/status/step/currentAgent）") String field,
             @Param(name = "value", description = "字段值") String value) {
         try {
-            if (mainAgent == null || mainAgent.getMemoryManager() == null) {
+            if (mainAgent == null || mainAgent.getSharedMemoryManager() == null) {
                 return "⚠️ 共享记忆未初始化";
             }
 
+            // 使用默认的 taskId "main-agent"
+            String taskId = "main-agent";
             org.noear.solon.bot.core.memory.WorkingMemory workingMemory =
-                mainAgent.getMemoryManager().getWorkingMemory();
+                mainAgent.getSharedMemoryManager().getWorking(taskId);
+
+            // 如果不存在，创建一个新的
+            if (workingMemory == null) {
+                workingMemory = new org.noear.solon.bot.core.memory.WorkingMemory(taskId);
+            }
 
             switch (field.toLowerCase()) {
+                case "taskdescription":
                 case "currenttask":
-                    workingMemory.setCurrentTask(value);
-                    break;
-                case "decision":
-                    workingMemory.setDecision(value);
+                    workingMemory.setTaskDescription(value);
                     break;
                 case "status":
                     workingMemory.setStatus(value);
                     break;
-                case "progress":
-                    workingMemory.setProgress(value);
+                case "step":
+                    workingMemory.setStep(Integer.parseInt(value));
+                    break;
+                case "currentagent":
+                    workingMemory.setCurrentAgent(value);
                     break;
                 default:
-                    return "❌ 无效的字段名: " + field;
+                    return "❌ 无效的字段名: " + field + "。支持的字段：taskDescription、status、step、currentAgent";
             }
+
+            // 保存更新后的工作记忆
+            mainAgent.getSharedMemoryManager().storeWorking(workingMemory);
 
             LOG.debug("更新工作记忆: {}={}", field, value);
             return "✅ 工作记忆已更新: " + field + " = " + value;
+        } catch (NumberFormatException e) {
+            return "❌ 步骤必须是数字: " + value;
         } catch (Exception e) {
             LOG.error("更新工作记忆失败", e);
             return "❌ 更新失败: " + e.getMessage();
@@ -888,7 +896,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 return "❌ 任务不存在: " + taskId;
             }
 
-            if (task.getStatus() != TeamTask.TaskStatus.PENDING) {
+            if (task.getStatus() != TeamTask.Status.PENDING) {
                 return "⚠️ 任务状态不是待认领: " + task.getStatus();
             }
 
@@ -922,7 +930,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 return "❌ 任务不存在: " + taskId;
             }
 
-            if (task.getStatus() != TeamTask.TaskStatus.IN_PROGRESS) {
+            if (task.getStatus() != TeamTask.Status.IN_PROGRESS) {
                 return "⚠️ 任务状态不是进行中: " + task.getStatus();
             }
 
@@ -931,7 +939,7 @@ public class AgentTeamsSkill extends AbsSkill {
             // 如果提供了结果，存储到记忆
             if (result != null && !result.isEmpty()) {
                 String key = "task-result:" + task.getTitle() + ":" + System.currentTimeMillis();
-                mainAgent.getMemoryManager().getLongTermMemory().put(key, result, 604800);
+                mainAgent.getSharedMemoryManager().putLongTerm(key, result, 604800);
             }
 
             LOG.info("任务已完成: taskId={}", taskId);
@@ -1036,9 +1044,9 @@ public class AgentTeamsSkill extends AbsSkill {
             List<TeamTask> tasks;
 
             if (status != null && !status.isEmpty()) {
-                TeamTask.TaskStatus taskStatus;
+                TeamTask.Status taskStatus;
                 try {
-                    taskStatus = TeamTask.TaskStatus.valueOf(status.toUpperCase());
+                    taskStatus = TeamTask.Status.valueOf(status.toUpperCase());
                 } catch (IllegalArgumentException e) {
                     return "❌ 无效的状态: " + status;
                 }
@@ -1124,7 +1132,7 @@ public class AgentTeamsSkill extends AbsSkill {
             }
 
             SharedTaskList taskList = mainAgent.getTaskList();
-            List<TeamTask> pendingTasks = taskList.getTasksByStatus(TeamTask.TaskStatus.PENDING);
+            List<TeamTask> pendingTasks = taskList.getTasksByStatus(TeamTask.Status.PENDING);
 
             // 过滤出依赖已完成的任务
             List<TeamTask> claimableTasks = new java.util.ArrayList<>();
@@ -1188,19 +1196,6 @@ public class AgentTeamsSkill extends AbsSkill {
         } catch (Exception e) {
             LOG.error("更新任务结果失败", e);
             return "❌ 更新失败: " + e.getMessage();
-        }
-    }
-
-    /**
-     * 获取状态图标
-     */
-    private String getStatusIcon(TeamTask.TaskStatus status) {
-        switch (status) {
-            case PENDING: return "⏳";
-            case IN_PROGRESS: return "🔄";
-            case COMPLETED: return "✅";
-            case FAILED: return "❌";
-            default: return "❓";
         }
     }
 }

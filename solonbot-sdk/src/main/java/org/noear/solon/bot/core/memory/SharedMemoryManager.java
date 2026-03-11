@@ -387,6 +387,90 @@ public class SharedMemoryManager {
         LOG.info("所有记忆已清空");
     }
 
+    // ========== 便捷方法（简化键值对接口） ==========
+
+    /**
+     * 存储短期记忆（便捷方法）
+     *
+     * @param key 键
+     * @param value 值
+     * @param ttlSeconds 过期时间（秒）
+     */
+    public void putShortTerm(String key, String value, long ttlSeconds) {
+        ShortTermMemory memory = new ShortTermMemory();
+        memory.setId(key);
+        memory.setContext(value);
+        memory.setTtl(ttlSeconds * 1000L);  // 转换为毫秒
+        memory.setTimestamp(System.currentTimeMillis());
+        store(memory);
+    }
+
+    /**
+     * 存储长期记忆（便捷方法）
+     *
+     * @param key 键
+     * @param value 值
+     * @param ttlSeconds 过期时间（秒）
+     */
+    public void putLongTerm(String key, String value, long ttlSeconds) {
+        LongTermMemory memory = new LongTermMemory();
+        memory.setId(key);
+        memory.setSummary(value);
+        memory.setTtl(ttlSeconds * 1000L);  // 转换为毫秒
+        memory.setTimestamp(System.currentTimeMillis());
+        memory.setTags(Collections.emptyList());
+        store(memory);
+    }
+
+    /**
+     * 存储知识记忆（便捷方法）
+     *
+     * @param key 键
+     * @param value 值
+     */
+    public void putKnowledge(String key, String value) {
+        KnowledgeMemory memory = new KnowledgeMemory();
+        memory.setId(key);
+        memory.setContent(value);
+        memory.setTimestamp(System.currentTimeMillis());
+        memory.setKeywords(Collections.emptyList());
+        store(memory);
+    }
+
+    /**
+     * 获取记忆（便捷方法，按优先级从短期、长期、知识记忆中查找）
+     *
+     * @param key 键
+     * @return 值，不存在返回 null
+     */
+    public String get(String key) {
+        // 1. 尝试从短期记忆获取
+        Memory stm = shortTermCache.get(key);
+        if (stm != null && !stm.isExpired()) {
+            if (stm instanceof ShortTermMemory) {
+                return ((ShortTermMemory) stm).getContext();
+            }
+        }
+
+        // 2. 尝试从长期记忆获取
+        Memory ltm = longTermCache.get(key);
+        if (ltm != null && !ltm.isExpired()) {
+            if (ltm instanceof LongTermMemory) {
+                return ((LongTermMemory) ltm).getSummary();
+            }
+        }
+
+        // 3. 尝试从知识记忆获取
+        Memory km = knowledgeCache.get(key);
+        if (km != null) {
+            if (km instanceof KnowledgeMemory) {
+                return ((KnowledgeMemory) km).getContent();
+            }
+        }
+
+        return null;
+    }
+
     /**
      * 关闭管理器
      */
