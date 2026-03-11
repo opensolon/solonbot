@@ -589,11 +589,14 @@ public class AgentTeamsSkill extends AbsSkill {
                     }
                 }
 
-                // 2. 如果内存中也没有，生成新的团队名
+                // 2. 如果内存中也没有，智能生成新的团队名
                 if (teamName == null || teamName.isEmpty()) {
-                    long timestamp = System.currentTimeMillis();
-                    teamName = String.format("team-%d", timestamp);
-                    LOG.info("自动生成新的团队名称: {}", teamName);
+                    // 使用 TeamNameGenerator 根据角色和描述生成有意义的团队名
+                    String taskGoal = description != null ? description : role;
+                    teamName = TeamNameGenerator.generateTeamName(name, role, taskGoal);
+
+                    LOG.info("智能生成新的团队名称: role={}, description={}, teamName={}",
+                            role, description, teamName);
                 }
             }
 

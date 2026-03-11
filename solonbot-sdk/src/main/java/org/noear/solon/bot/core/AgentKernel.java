@@ -13,6 +13,7 @@ import org.noear.solon.ai.agent.react.intercept.summarize.*;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.bot.core.event.EventBus;
+import org.noear.solon.bot.core.goalker.GoalKeeperIntegration;
 import org.noear.solon.bot.core.memory.SharedMemoryManager;
 import org.noear.solon.bot.core.message.MessageChannel;
 import org.noear.solon.bot.core.subagent.SubAgentMetadata;
@@ -21,6 +22,7 @@ import org.noear.solon.bot.core.subagent.TaskSkill;
 import org.noear.solon.bot.core.teams.AgentTeamsSkill;
 import org.noear.solon.bot.core.teams.MainAgent;
 import org.noear.solon.bot.core.teams.SharedTaskList;
+import org.noear.solon.bot.core.teams.TeamNameSuggestionTool;
 import org.noear.solon.bot.core.tool.ApplyPatchTool;
 import org.noear.solon.bot.core.tool.CodeSearchTool;
 import org.noear.solon.bot.core.tool.WebfetchTool;
@@ -279,6 +281,8 @@ public class AgentKernel {
                     subagentManager
             );
             agentBuilder.defaultSkillAdd(agentTeamsSkill);
+            agentBuilder.defaultToolAdd(new TeamNameSuggestionTool(subagentManager));
+
             LOG.info("AgentTeamsSkill 已注册");
 
             LOG.info("Agent Teams 模式初始化完成 [OK]");
@@ -366,4 +370,5 @@ public class AgentKernel {
         return buildRequest(sessionId, prompt)
                 .call();
     }
+
 }

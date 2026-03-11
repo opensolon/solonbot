@@ -32,6 +32,7 @@ import org.noear.solon.bot.core.event.AgentEventType;
 import org.noear.solon.bot.core.event.EventBus;
 import org.noear.solon.bot.core.event.EventHandler;
 import org.noear.solon.bot.core.event.EventMetadata;
+import org.noear.solon.bot.core.goalker.GoalKeeperIntegration;
 import org.noear.solon.bot.core.memory.SharedMemoryManager;
 import org.noear.solon.bot.core.memory.ShortTermMemory;
 import org.noear.solon.bot.core.message.AgentMessage;
@@ -75,6 +76,9 @@ public class MainAgent {
     private final SharedTaskList taskList;
     private final String workDir;
     private final PoolManager poolManager;
+
+    // 目标守护者
+    private GoalKeeperIntegration goalKeeper;
 
     // 新增：用于访问 subagent 功能
     private final AgentKernel kernel;
@@ -204,6 +208,17 @@ public class MainAgent {
 
         running.set(true);
 
+        // 0. 启动目标守护（防止在多轮循环中偏离目标）
+        String goalId = null;
+        try {
+            if (kernel != null) {
+                goalId = this.startGoalGuarding(prompt.getUserContent());
+                LOG.info("目标守护已启动: goalId={}, 目标={}", goalId, prompt.getUserContent());
+            }
+        } catch (Exception e) {
+            LOG.warn("启动目标守护失败（继续执行）: {}", e.getMessage());
+        }
+
         try {
             // 1. 发布主代理任务开始事件
             publishEvent(AgentEventType.MAIN_TASK_STARTED, prompt.getUserContent(), null);
@@ -271,23 +286,53 @@ public class MainAgent {
                             publishEvent(AgentEventType.MAIN_TASK_COMPLETED, summary, null);
 
                             LOG.info("MainAgent 流式执行完成");
+
                         } catch (Exception e) {
                             LOG.error("MainAgent 后处理失败", e);
+                        } finally {
+                            // 停止目标守护
+                            try {
+                                this.stopGoalGuarding();
+                                LOG.info("目标守护已停止");
+                            } catch (Exception e) {
+                                LOG.warn("停止目标守护失败: {}", e.getMessage());
+                            }
                         }
                     })
                     .doOnError(error -> {
                         LOG.error("MainAgent 流式执行出错", error);
                         running.set(false);
+                        // 出错时也要停止目标守护
+                        try {
+                            this.stopGoalGuarding();
+                            LOG.info("目标守护已停止（错误）");
+                        } catch (Exception e) {
+                            LOG.warn("停止目标守护失败: {}", e.getMessage());
+                        }
                     })
                     .doOnCancel(() -> {
                         LOG.warn("MainAgent 流式执行被取消");
                         running.set(false);
+                        // 取消时也要停止目标守护
+                        try {
+                            this.stopGoalGuarding();
+                            LOG.info("目标守护已停止（取消）");
+                        } catch (Exception e) {
+                            LOG.warn("停止目标守护失败: {}", e.getMessage());
+                        }
                     });
 
             return resultStream;
 
         } finally {
             running.set(false);
+            // 确保目标守护被停止（即使发生异常）
+            try {
+                this.stopGoalGuarding();
+                LOG.info("目标守护已停止（finally块）");
+            } catch (Exception e) {
+                LOG.warn("停止目标守护失败（finally块）: {}", e.getMessage());
+            }
         }
     }
 
@@ -944,5 +989,76 @@ public class MainAgent {
             messageChannel.unregisterHandler(config.getCode(), messageHandlerId);
             LOG.info("MainAgent 消息处理器已注销");
         }
+    }
+
+    /**
+     * 启动目标守护
+     *
+     * @param userPrompt 用户的目标提示词
+     * @return 目标 ID
+     */
+    public String startGoalGuarding(String userPrompt) {
+        if (goalKeeper == null) {
+            goalKeeper = new GoalKeeperIntegration(this);
+        }
+        return goalKeeper.startGoalGuarding(userPrompt);
+    }
+
+    /**
+     * 停止目标守护
+     */
+    public void stopGoalGuarding() {
+        if (goalKeeper != null) {
+            goalKeeper.stopGoalGuarding();
+        }
+    }
+
+    /**
+     * 获取当前目标
+     *
+     * @return 当前目标描述
+     */
+    public String getCurrentGoal() {
+        return goalKeeper != null ? goalKeeper.getCurrentGoal() : null;
+    }
+
+    /**
+     * 获取当前目标 ID
+     *
+     * @return 目标 ID
+     */
+    public String getCurrentGoalId() {
+        return goalKeeper != null ? goalKeeper.getCurrentGoalId() : null;
+    }
+
+    /**
+     * 检查是否正在守护
+     *
+     * @return 是否正在守护
+     */
+    public boolean isGuardingGoal() {
+        return goalKeeper != null && goalKeeper.isGuarding();
+    }
+
+    /**
+     * 获取目标提醒次数
+     *
+     * @return 提醒次数
+     */
+    public int getGoalReminderCount() {
+        return goalKeeper != null ? goalKeeper.getReminderCount() : 0;
+    }
+
+    /**
+     * 为 Prompt 添加目标上下文
+     *
+     * @param prompt 原始提示词
+     * @return 带目标的提示词
+     */
+    public Prompt enrichPromptWithGoal(Prompt prompt) {
+        if (goalKeeper != null) {
+            return goalKeeper.enrichPromptWithGoal(prompt);
+        }
+        return prompt;
     }
 }

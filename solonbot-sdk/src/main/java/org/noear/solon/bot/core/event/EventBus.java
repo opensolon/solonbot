@@ -43,9 +43,6 @@ public class EventBus {
     // 异步执行器
     private final ExecutorService executor;
 
-    // 事件过滤器
-    private final List<EventFilter> filters = new CopyOnWriteArrayList<>();
-
     // 事件历史（用于调试，可配置）
     private final Queue<AgentEvent> eventHistory;
     private final int maxHistorySize;
@@ -152,15 +149,7 @@ public class EventBus {
             // 1. 记录历史
             recordHistory(event);
 
-            // 2. 应用过滤器
-            for (EventFilter filter : filters) {
-                if (!filter.test(event)) {
-                    LOG.debug("事件被过滤器拦截: eventType={}", event.getEventTypeCode());
-                    return;
-                }
-            }
-
-            // 3. 查找匹配的订阅者（枚举 + 自定义）
+            // 2. 查找匹配的订阅者（枚举 + 自定义）
             List<EventHandlerWrapper> matchedHandlers = findHandlers(event);
 
             if (matchedHandlers.isEmpty()) {
@@ -187,26 +176,6 @@ public class EventBus {
             LOG.error("事件发布失败: eventType={}, error={}",
                      event.getEventType(), e.getMessage(), e);
         }
-    }
-
-    /**
-     * 添加事件过滤器
-     *
-     * @param filter 事件过滤器
-     */
-    public void addFilter(EventFilter filter) {
-        filters.add(filter);
-        LOG.info("事件过滤器已添加: {}", filter.getClass().getSimpleName());
-    }
-
-    /**
-     * 移除事件过滤器
-     *
-     * @param filter 事件过滤器
-     */
-    public void removeFilter(EventFilter filter) {
-        filters.remove(filter);
-        LOG.info("事件过滤器已移除: {}", filter.getClass().getSimpleName());
     }
 
     /**

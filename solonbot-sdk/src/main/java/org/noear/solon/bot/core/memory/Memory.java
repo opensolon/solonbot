@@ -17,6 +17,9 @@ package org.noear.solon.bot.core.memory;
 
 
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
@@ -27,6 +30,8 @@ import java.util.UUID;
  * @author bai
  * @since 3.9.5
  */
+@Getter
+@Setter
 public abstract class Memory  {
     protected String id;
     protected MemoryType type;
@@ -95,69 +100,6 @@ public abstract class Memory  {
     }
 
     /**
-     * 获取记忆ID
-     */
-    public String getId() {
-        return id;
-    }
-
-    /**
-     * 设置记忆ID
-     */
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    /**
-     * 获取记忆类型
-     */
-    public MemoryType getType() {
-        return type;
-    }
-
-    /**
-     * 设置记忆类型（用于反序列化）
-     */
-    public void setType(MemoryType type) {
-        this.type = type;
-    }
-
-    /**
-     * 获取时间戳
-     */
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    /**
-     * 设置时间戳
-     */
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    /**
-     * 获取TTL（毫秒）
-     */
-    public long getTtl() {
-        return ttl;
-    }
-
-    /**
-     * 设置TTL（毫秒）
-     */
-    public void setTtl(long ttl) {
-        this.ttl = ttl;
-    }
-
-    /**
-     * 获取元数据
-     */
-    public Map<String, Object> getMetadata() {
-        return metadata;
-    }
-
-    /**
      * 设置元数据（用于反序列化）
      */
     public void setMetadata(Map<String, Object> metadata) {
@@ -168,6 +110,9 @@ public abstract class Memory  {
      * 添加元数据
      */
     public void putMetadata(String key, Object value) {
+        if (this.metadata == null){
+            this.metadata = new HashMap<>();
+        }
         this.metadata.put(key, value);
     }
 
