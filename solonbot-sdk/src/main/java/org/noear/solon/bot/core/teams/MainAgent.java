@@ -85,6 +85,7 @@ public class MainAgent {
     private final SubagentManager subagentManager;
 
     private ReActAgent agent;
+    private ChatModel chatModel;  // 保存 ChatModel 引用用于任务分析
     private AgentSession session;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -95,10 +96,6 @@ public class MainAgent {
 
     // 性能优化：使用 CountDownLatch 替代轮询
     private volatile CountDownLatch taskCompletionLatch;
-
-    // 超时配置（单位：毫秒）
-    private static final long EXECUTION_TIMEOUT_MS = 300_000; // 5分钟超时
-    private static final long LLM_CALL_TIMEOUT_MS = 120_000;  // LLM调用超时2分钟
 
     public MainAgent(SubAgentMetadata config,
                      AgentSessionProvider sessionProvider,
@@ -187,6 +184,7 @@ public class MainAgent {
             builder.maxSteps(50);
             builder.sessionWindowSize(10);
 
+            this.chatModel = chatModel;  // 保存 ChatModel 引用
             this.agent = builder.build();
             this.session = sessionProvider.getSession("main_agent");
 
@@ -223,45 +221,8 @@ public class MainAgent {
             // 1. 发布主代理任务开始事件
             publishEvent(AgentEventType.MAIN_TASK_STARTED, prompt.getUserContent(), null);
 
-            // 2. 分析任务并创建子任务
-            List<TeamTask> subTasks = analyzeAndCreateTasks(prompt);
-
-            // 3. 将任务添加到共享任务列表（带错误处理和验证）
-            if (!subTasks.isEmpty()) {
-                try {
-                    // 打印依赖图
-                    LOG.debug("任务依赖关系图:\n{}", taskList.getDependencyGraph());
-
-                    // 检测循环依赖
-                    List<TeamTask> cyclicTasks = taskList.detectCyclicDependencies();
-                    if (!cyclicTasks.isEmpty()) {
-                        LOG.error("检测到循环依赖，任务将被拒绝:");
-                        for (TeamTask task : cyclicTasks) {
-                            LOG.error("  - {}", task.getTitle());
-                        }
-                        throw new IllegalStateException("存在循环依赖，无法添加任务");
-                    }
-
-                    List<TeamTask> added = taskList.addTasks(subTasks).join();
-                    LOG.info("主代理已添加 {} 个子任务到共享任务列表", added.size());
-
-                    // 4. 广播任务可用通知
-                    broadcastTaskNotification(added);
-
-                    // 5. 记录可认领任务数
-                    List<TeamTask> claimableTasks = taskList.getClaimableTasks();
-                    LOG.info("当前可认领任务数: {} / {}", claimableTasks.size(), added.size());
-
-                } catch (IllegalStateException e) {
-                    LOG.error("添加任务失败: {}", e.getMessage());
-                    // 继续执行主代理自身任务
-                } catch (Exception e) {
-                    LOG.error("添加任务时发生异常: {}", e.getMessage(), e);
-                    // 继续执行主代理自身任务
-                }
-            }
-
-            // 6. 执行主代理内部的协调逻辑（流式输出）
+            // 2. 执行主代理内部的协调逻辑（流式输出）
+            // 注意：任务分解现在由 Agent 通过工具自主决定
             reactor.core.publisher.Flux<AgentChunk> responseStream = agent.prompt(prompt)
                     .session(session)
                     .options(o -> {
@@ -273,7 +234,7 @@ public class MainAgent {
                     .stream();
 
             // 7. 在流完成后等待所有子任务完成
-            reactor.core.publisher.Flux<AgentChunk> resultStream = responseStream
+            Flux<AgentChunk> resultStream = responseStream
                     .doOnComplete(() -> {
                         try {
                             // 等待所有子任务完成
@@ -332,148 +293,6 @@ public class MainAgent {
                 LOG.info("目标守护已停止（finally块）");
             } catch (Exception e) {
                 LOG.warn("停止目标守护失败（finally块）: {}", e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * 分析任务并创建子任务
-     */
-    private List<TeamTask> analyzeAndCreateTasks(Prompt prompt) {
-        List<TeamTask> tasks = new ArrayList<>();
-        String userPrompt = prompt.getUserContent().toLowerCase();
-
-        // 从共享内存中读取相关信息（如果有历史任务结果）
-        StringBuilder contextBuilder = new StringBuilder();
-        if (sharedMemoryManager != null) {
-            try {
-                // 查询相关的历史任务结果
-                List<org.noear.solon.bot.core.memory.Memory> recentMemories =
-                        sharedMemoryManager.search("task-result", 10);
-
-                if (!recentMemories.isEmpty()) {
-                    contextBuilder.append("\n\n# 历史任务上下文\n\n");
-                    for (org.noear.solon.bot.core.memory.Memory memory : recentMemories) {
-                        if (memory instanceof ShortTermMemory) {
-                            ShortTermMemory stm = (ShortTermMemory) memory;
-                            String taskTitle = (String) stm.getMetadata("taskTitle");
-                            contextBuilder.append(String.format("- **%s**: %s\n",
-                                    taskTitle != null ? taskTitle : "Unknown",
-                                    stm.getContext()));
-                        }
-                    }
-                    LOG.debug("从共享内存加载了 {} 条历史任务记录", recentMemories.size());
-                }
-            } catch (Exception e) {
-                LOG.warn("从共享内存读取历史任务失败", e);
-            }
-        }
-
-        // 根据提示内容智能创建任务
-        // 这里是简化版本，实际可以使用 LLM 来分析任务
-        // 可以将 contextBuilder 中的内容添加到任务的描述中
-
-        if (userPrompt.contains("探索") || userPrompt.contains("explore") || userPrompt.contains("分析")) {
-            // 创建探索任务链：探索 -> 搜索
-            String exploreId = "task-explore-" + System.currentTimeMillis();
-            String searchId = "task-search-" + System.currentTimeMillis();
-
-            TeamTask exploreTask = TeamTask.builder()
-                    .id(exploreId)
-                    .title("探索代码库")
-                    .description("探索和分析代码库结构")
-                    .type(TeamTask.TaskType.EXPLORATION)
-                    .priority(8)
-                    .build();
-
-            TeamTask searchTask = TeamTask.builder()
-                    .id(searchId)
-                    .title("搜索关键文件")
-                    .description("搜索与任务相关的关键文件")
-                    .type(TeamTask.TaskType.ANALYSIS)
-                    .priority(7)
-                    .dependencies(Collections.singletonList(exploreId))
-                    .build();
-
-            tasks.add(exploreTask);
-            tasks.add(searchTask);
-        }
-
-        if (userPrompt.contains("实现") || userPrompt.contains("开发") || userPrompt.contains("implement")) {
-            // 创建开发任务链：计划 -> 实现 -> 测试
-            String planId = "task-plan-" + System.currentTimeMillis();
-            String implId = "task-impl-" + System.currentTimeMillis();
-            String testId = "task-test-" + System.currentTimeMillis();
-
-            TeamTask planTask = TeamTask.builder()
-                    .id(planId)
-                    .title("制定实现计划")
-                    .description("制定详细的实现计划")
-                    .type(TeamTask.TaskType.DEVELOPMENT)
-                    .priority(9)
-                    .build();
-
-            TeamTask implTask = TeamTask.builder()
-                    .id(implId)
-                    .title("实现功能")
-                    .description("根据计划实现功能")
-                    .type(TeamTask.TaskType.DEVELOPMENT)
-                    .priority(8)
-                    .dependencies(Collections.singletonList(planId))
-                    .build();
-
-            TeamTask testTask = TeamTask.builder()
-                    .id(testId)
-                    .title("编写测试")
-                    .description("为实现的代码编写测试")
-                    .type(TeamTask.TaskType.TESTING)
-                    .priority(6)
-                    .dependencies(Collections.singletonList(implId))
-                    .build();
-
-            tasks.add(planTask);
-            tasks.add(implTask);
-            tasks.add(testTask);
-        }
-
-        if (userPrompt.contains("文档") || userPrompt.contains("document")) {
-            // 创建文档任务
-            tasks.add(TeamTask.builder()
-                    .id("task-doc-" + System.currentTimeMillis())
-                    .title("生成文档")
-                    .description("生成项目文档")
-                    .type(TeamTask.TaskType.DOCUMENTATION)
-                    .priority(5)
-                    .build());
-        }
-
-        // 默认任务（如果没有匹配到特定类型）
-        if (tasks.isEmpty()) {
-            tasks.add(TeamTask.builder()
-                    .id("task-default-" + System.currentTimeMillis())
-                    .title("处理用户请求")
-                    .description(prompt.getUserContent())
-                    .type(TeamTask.TaskType.DEVELOPMENT)
-                    .priority(7)
-                    .build());
-        }
-
-        // 验证任务依赖关系
-        logTaskDependencies(tasks);
-
-        return tasks;
-    }
-
-    /**
-     * 记录任务依赖关系（用于调试）
-     */
-    private void logTaskDependencies(List<TeamTask> tasks) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("创建任务依赖关系:");
-            for (TeamTask task : tasks) {
-                if (task.getDependencies() != null && !task.getDependencies().isEmpty()) {
-                    LOG.debug("  {} 依赖: {}", task.getTitle(), task.getDependencies());
-                }
             }
         }
     }

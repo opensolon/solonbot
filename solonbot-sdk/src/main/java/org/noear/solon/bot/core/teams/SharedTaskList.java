@@ -15,6 +15,7 @@
  */
 package org.noear.solon.bot.core.teams;
 
+import org.noear.solon.bot.core.AgentProperties;
 import org.noear.solon.bot.core.event.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,24 +66,49 @@ public class SharedTaskList {
     private final ExecutorService eventExecutor;             // 事件发布线程池
 
     // 性能优化：最大依赖深度限制
-    private static final int MAX_DEPENDENCY_DEPTH = 100;
+    private int maxDependencyDepth = 100;
 
     /**
-     * 构造函数
+     * 构造函数（使用默认配置）
      *
      * @param eventBus 事件总线
      */
     public SharedTaskList(EventBus eventBus) {
-        this(eventBus, 100);
+        this(eventBus, null, null, 100);
     }
 
     /**
-     * 完整构造函数
+     * 完整构造函数（直接指定参数）
      *
      * @param eventBus 事件总线
      * @param maxCompletedTasks 最大保留已完成任务数
+     * @deprecated 使用配置构造函数 {@link #SharedTaskList(EventBus, AgentProperties.TeamsConfig)}
      */
     public SharedTaskList(EventBus eventBus, int maxCompletedTasks) {
+        this(eventBus, null, null, maxCompletedTasks);
+    }
+
+    /**
+     * 配置构造函数
+     *
+     * @param eventBus 事件总线
+     * @param config Teams 配置
+     */
+    public SharedTaskList(EventBus eventBus, AgentProperties.TeamsConfig config) {
+        this(eventBus,
+             config != null ? config.taskExecutorThreads : null,
+             config != null ? config.eventExecutorThreads : null,
+             config != null ? config.maxCompletedTasks : 100);
+
+        if (config != null && config.maxDependencyDepth > 0) {
+            this.maxDependencyDepth = config.maxDependencyDepth;
+        }
+    }
+
+    /**
+     * 内部构造函数
+     */
+    private SharedTaskList(EventBus eventBus, Integer taskThreads, Integer eventThreads, int maxCompletedTasks) {
         this.tasks = new ConcurrentHashMap<>();
         this.pendingTasks = new ConcurrentHashMap<>();
         this.agentTasks = new ConcurrentHashMap<>();
@@ -93,12 +119,16 @@ public class SharedTaskList {
         this.maxCompletedTasks = maxCompletedTasks;
         this.completedTaskQueue = new LinkedList<>();
 
-        // 创建专用线程池
-        int poolSize = Math.max(10, Runtime.getRuntime().availableProcessors() * 2);
-        this.taskExecutor = Executors.newFixedThreadPool(poolSize, new NamedThreadFactory("SharedTaskList"));
-        this.eventExecutor = Executors.newSingleThreadExecutor(new NamedThreadFactory("SharedTaskList-Event"));
+        // 创建专用线程池（使用配置或默认值）
+        int taskPoolSize = taskThreads != null ? taskThreads :
+                           Math.max(10, Runtime.getRuntime().availableProcessors() * 2);
+        int eventPoolSize = eventThreads != null ? eventThreads : 1;
 
-        LOG.info("SharedTaskList 初始化完成 (线程池大小: {}, 使用细粒度锁)", poolSize);
+        this.taskExecutor = Executors.newFixedThreadPool(taskPoolSize, new NamedThreadFactory("SharedTaskList"));
+        this.eventExecutor = Executors.newFixedThreadPool(eventPoolSize, new NamedThreadFactory("SharedTaskList-Event"));
+
+        LOG.info("SharedTaskList 初始化完成 (任务线程池: {}, 事件线程池: {}, 使用细粒度锁)",
+                 taskPoolSize, eventPoolSize);
     }
 
     /**
@@ -165,7 +195,7 @@ public class SharedTaskList {
                 }
 
                 // 检测循环依赖（带深度限制）
-                if (hasCyclicDependency(task, tasks::get, MAX_DEPENDENCY_DEPTH)) {
+                if (hasCyclicDependency(task, tasks::get, maxDependencyDepth)) {
                     throw new IllegalArgumentException("检测到循环依赖或依赖深度超过限制: " + task.getTitle());
                 }
 
@@ -272,9 +302,8 @@ public class SharedTaskList {
                 }
 
                 // 第五阶段：触发事件（释放锁后触发）
-                List<TeamTask> finalAdded = added;
                 CompletableFuture.runAsync(() -> {
-                    for (TeamTask task : finalAdded) {
+                    for (TeamTask task : added) {
                         publishTaskEvent(AgentEventType.TASK_CREATED, task, null);
                     }
                 }, eventExecutor);
@@ -402,44 +431,6 @@ public class SharedTaskList {
         }, taskExecutor);
     }
 
-    /**
-     * 智能认领（自动选择最佳任务）
-     *
-     * @param agentId Agent ID
-     * @return 认领的任务，无任务可认领返回 null
-     */
-    public CompletableFuture<TeamTask> smartClaim(String agentId) {
-        return CompletableFuture.supplyAsync(() -> {
-            // 获取可认领的任务（不加锁，使用 ConcurrentHashMap）
-            List<TeamTask> claimable = getClaimableTasks();
-
-            if (claimable.isEmpty()) {
-                return null;
-            }
-
-            // 按优先级排序（高优先级优先）
-            claimable.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
-
-            // 修复：尝试认领任务，失败则尝试下一个（避免竞争导致全部失败）
-            for (TeamTask task : claimable) {
-                try {
-                    Boolean claimed = claimTask(task.getId(), agentId).join();
-                    if (claimed) {
-                        LOG.debug("Agent {} 成功认领任务: {}", agentId, task.getTitle());
-                        return task;
-                    }
-                    // 任务被其他代理认领，尝试下一个
-                    LOG.debug("任务 {} 已被其他代理认领，尝试下一个", task.getTitle());
-                } catch (Exception e) {
-                    LOG.warn("认领任务 {} 时发生异常，尝试下一个", task.getTitle(), e);
-                }
-            }
-
-            // 所有任务都认领失败
-            LOG.debug("Agent {} 未能认领任何任务", agentId);
-            return null;
-        }, taskExecutor);
-    }
 
     /**
      * 释放任务

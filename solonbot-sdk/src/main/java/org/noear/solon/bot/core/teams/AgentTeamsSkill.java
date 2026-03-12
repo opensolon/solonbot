@@ -86,12 +86,6 @@ public class AgentTeamsSkill extends AbsSkill {
         }
     }
 
-    /**
-     * 简化构造函数（兼容性）
-     */
-    public AgentTeamsSkill(MainAgent mainAgent, SubagentManager manager) {
-        this(mainAgent, null, manager);
-    }
 
     @Override
     public String description() {
@@ -146,8 +140,10 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("### 核心能力\n");
         sb.append("1. **团队协作任务**: 使用 `team_task()` 启动多代理协作\n");
         sb.append("2. **任务管理**: \n");
-        sb.append("   - `create_task()` 创建任务，`team_status()` 查看状态\n");
-        sb.append("   - `claim_task()` 认领，`complete_task()` 完成，`fail_task()` 失败\n");
+        sb.append("   - `analyze_tasks()` 分析任务（返回分解建议，JSON格式）\n");
+        sb.append("   - `create_task()` 单个创建，`create_tasks()` 批量创建，`remove_task()` 删除\n");
+        sb.append("   - `team_status()` 查看状态，`claim_task()` 认领，`release_task()` 释放\n");
+        sb.append("   - `complete_task()` 完成，`fail_task()` 失败\n");
         sb.append("   - `list_all_tasks()` 列出所有，`get_claimable_tasks()` 获取可认领\n");
         sb.append("3. **子代理调用**: 使用 `task()` 委派专门任务（支持会话续接）【强制使用】\n");
         sb.append("4. **团队成员管理**: 使用 `teammate()` 创建，`teammates()` 列出，`remove_teammate()` 移除\n");
@@ -203,7 +199,7 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("- **浏览器**: `browser_screenshot`, `browser_interact`, `browser_navigate`（由子代理提供）\n");
         sb.append("- **记忆管理**: `memory_store`, `memory_recall`, `memory_stats`\n");
         sb.append("- **工作记忆**: `get_working_memory`, `update_working_memory`\n");
-        sb.append("- **任务管理**: `create_task`, `team_status`, `claim_task`, `complete_task`, `list_all_tasks`\n");
+        sb.append("- **任务管理**: `analyze_tasks`, `create_task`, `create_tasks`, `remove_task`, `team_status`, `claim_task`, `release_task`, `complete_task`, `fail_task`, `list_all_tasks`\n");
         sb.append("- **团队协作**: `task`（子代理调用）, `teammate`, `teammates`, `remove_teammate`\n");
         sb.append("- **代理通信**: `send_message`, `list_agents`, `get_message_stats`\n");
         sb.append("- **团队命名**: `suggest_team_name`\n\n");
@@ -373,9 +369,6 @@ public class AgentTeamsSkill extends AbsSkill {
                     .doOnNext(chunk -> {
                         String content = chunk.getContent();
                         if (content != null && !content.isEmpty()) {
-                            // 实时输出到控制台
-                            System.out.print(content);
-                            System.out.flush();
                             streamingOutput.append(content);
                         }
                     })
@@ -583,6 +576,268 @@ public class AgentTeamsSkill extends AbsSkill {
             LOG.error("创建任务失败", e);
             return "[ERROR] 创建任务失败: " + e.getMessage();
         }
+    }
+
+    /**
+     * 分析任务（使用 LLM 分解任务）
+     *
+     * 将用户请求分解为多个子任务，返回 JSON 格式的任务建议
+     * Agent 可以根据建议逐个调用 create_task 创建任务
+     */
+    @ToolMapping(name = "analyze_tasks",
+                 description = "分析用户请求，将其分解为多个子任务。返回任务分解建议（JSON格式），Agent可以根据建议使用create_task创建任务。")
+    public String analyzeTasks(
+            @Param(name = "request", description = "用户请求或任务描述") String request) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            // 构建 LLM 分析提示词
+            String prompt = buildTaskAnalysisPrompt(request);
+
+            // 调用 LLM 分析
+            org.noear.solon.ai.chat.prompt.Prompt llmPrompt =
+                org.noear.solon.ai.chat.prompt.Prompt.of(prompt);
+
+            // 通过 kernel 获取 ChatModel
+            if (kernel == null) {
+                return "[WARN] Kernel 未初始化";
+            }
+
+            org.noear.solon.ai.chat.ChatModel chatModel = kernel.getChatModel();
+            if (chatModel == null) {
+                return "[WARN] ChatModel 未初始化";
+            }
+
+            String response = chatModel.prompt(llmPrompt).call().getContent();
+
+            // 解析并格式化响应
+            return formatAnalysisResponse(response);
+
+        } catch (Exception e) {
+            LOG.error("任务分析失败", e);
+            return "[ERROR] 任务分析失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 构建任务分析提示词
+     */
+    private String buildTaskAnalysisPrompt(String request) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("# 任务分解分析\n\n");
+        sb.append("你是一个任务规划专家。请分析用户请求，将其分解为具体的子任务。\n\n");
+        sb.append("## 用户请求\n").append(request).append("\n\n");
+        sb.append("## 输出要求\n");
+        sb.append("请以 JSON 格式返回任务列表，格式如下：\n");
+        sb.append("```json\n");
+        sb.append("[\n");
+        sb.append("  {\n");
+        sb.append("    \"title\": \"任务标题\",\n");
+        sb.append("    \"description\": \"任务详细描述\",\n");
+        sb.append("    \"type\": \"DEVELOPMENT|EXPLORATION|TESTING|ANALYSIS|DOCUMENTATION\",\n");
+        sb.append("    \"priority\": 1-10\n");
+        sb.append("  }\n");
+        sb.append("]\n");
+        sb.append("```\n\n");
+        sb.append("## 任务类型\n");
+        sb.append("- DEVELOPMENT: 代码开发\n");
+        sb.append("- EXPLORATION: 代码探索\n");
+        sb.append("- TESTING: 测试相关\n");
+        sb.append("- ANALYSIS: 分析诊断\n");
+        sb.append("- DOCUMENTATION: 文档编写\n\n");
+        sb.append("只返回 JSON，不要其他解释。");
+        return sb.toString();
+    }
+
+    /**
+     * 格式化分析响应
+     */
+    private String formatAnalysisResponse(String response) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[OK] 任务分析完成\n\n");
+        sb.append("**任务分解建议**（JSON格式）：\n\n");
+        sb.append("```json\n");
+        sb.append(response);
+        sb.append("\n```\n\n");
+        sb.append("**使用方法**：\n");
+        sb.append("根据上述建议，使用 create_task() 逐个创建任务。\n");
+        sb.append("例如：\n");
+        sb.append("```bash\n");
+        sb.append("create_task(\n");
+        sb.append("    title=\"探索代码库\",\n");
+        sb.append("    description=\"分析项目结构\",\n");
+        sb.append("    type=\"EXPLORATION\",\n");
+        sb.append("    priority=8\n");
+        sb.append(")\n");
+        sb.append("```\n");
+        return sb.toString();
+    }
+
+    /**
+     * 批量创建任务
+     *
+     * 根据 JSON 格式的任务列表批量创建任务
+     */
+    @ToolMapping(name = "create_tasks",
+                 description = "批量创建任务。接受 JSON 格式的任务列表，一次性创建多个任务。可以与 analyze_tasks 配合使用。")
+    public String createTasks(
+            @Param(name = "tasksJson", description = "JSON格式的任务列表，例如：[{\"title\":\"任务1\",\"description\":\"描述\",\"type\":\"DEVELOPMENT\",\"priority\":8}]") String tasksJson) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            SharedTaskList taskList = mainAgent.getTaskList();
+            List<TeamTask> tasks = parseTasksJson(tasksJson);
+
+            if (tasks.isEmpty()) {
+                return "[WARN] 没有有效的任务可创建";
+            }
+
+            // 批量添加任务
+            List<TeamTask> added = taskList.addTasks(tasks).join();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("[OK] 批量创建任务完成\n\n");
+            sb.append("**成功创建**: ").append(added.size()).append(" 个任务\n\n");
+
+            for (int i = 0; i < added.size(); i++) {
+                TeamTask task = added.get(i);
+                sb.append(String.format("%d. `%s` (ID: %s, 类型: %s, 优先级: %d)\n",
+                        i + 1, task.getTitle(), task.getId(), task.getType(), task.getPriority()));
+            }
+
+            return sb.toString();
+
+        } catch (Exception e) {
+            LOG.error("批量创建任务失败", e);
+            return "[ERROR] 批量创建失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 解析 JSON 格式的任务列表
+     */
+    private List<TeamTask> parseTasksJson(String json) {
+        List<TeamTask> tasks = new ArrayList<>();
+        // 简化实现：提取 JSON 数组中的任务对象
+        // 实际项目建议使用 Jackson/Gson
+
+        try {
+            // 提取数组内容
+            int start = json.indexOf("[");
+            int end = json.lastIndexOf("]");
+            if (start >= 0 && end > start) {
+                String content = json.substring(start + 1, end).trim();
+                if (content.isEmpty()) return tasks;
+
+                // 简单解析（假设格式正确）
+                String[] objects = content.split("\\},\\s*\\{");
+                for (int i = 0; i < objects.length; i++) {
+                    String obj = objects[i];
+                    if (!obj.startsWith("{")) obj = "{" + obj;
+                    if (!obj.endsWith("}")) obj = obj + "}";
+
+                    TeamTask task = parseSingleTaskJson(obj, i);
+                    if (task != null) {
+                        tasks.add(task);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.warn("解析任务 JSON 失败: {}", e.getMessage());
+        }
+        return tasks;
+    }
+
+    /**
+     * 解析单个任务 JSON
+     */
+    private TeamTask parseSingleTaskJson(String json, int index) {
+        try {
+            String title = extractJsonValue(json, "title");
+            String description = extractJsonValue(json, "description");
+            String typeStr = extractJsonValue(json, "type");
+            String priorityStr = extractJsonValue(json, "priority");
+
+            if (title == null || title.isEmpty()) {
+                title = "任务 " + (index + 1);
+            }
+            if (description == null || description.isEmpty()) {
+                description = title;
+            }
+
+            TeamTask.TaskType type = TeamTask.TaskType.DEVELOPMENT;
+            if (typeStr != null) {
+                try {
+                    type = TeamTask.TaskType.valueOf(typeStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // 使用默认类型
+                }
+            }
+
+            int priority = 7;
+            if (priorityStr != null) {
+                try {
+                    priority = Integer.parseInt(priorityStr.trim());
+                    priority = Math.max(1, Math.min(10, priority));
+                } catch (NumberFormatException e) {
+                    // 使用默认优先级
+                }
+            }
+
+            String taskId = "task-" + System.currentTimeMillis() + "-" + index;
+            return TeamTask.builder()
+                    .id(taskId)
+                    .title(cleanJsonString(title))
+                    .description(cleanJsonString(description))
+                    .type(type)
+                    .priority(priority)
+                    .dependencies(new ArrayList<>())
+                    .build();
+
+        } catch (Exception e) {
+            LOG.warn("解析单个任务失败: {}, error: {}", json, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 从 JSON 提取字段值
+     */
+    private String extractJsonValue(String json, String key) {
+        String searchKey = "\"" + key + "\"";
+        int keyIndex = json.indexOf(searchKey);
+        if (keyIndex < 0) {
+            searchKey = "'" + key + "'";
+            keyIndex = json.indexOf(searchKey);
+        }
+        if (keyIndex < 0) return null;
+
+        int colonIndex = json.indexOf(":", keyIndex);
+        if (colonIndex < 0) return null;
+
+        int valueStart = json.indexOf("\"", colonIndex);
+        if (valueStart < 0) return null;
+
+        valueStart++;
+        int valueEnd = json.indexOf("\"", valueStart);
+        if (valueEnd < 0) return null;
+
+        return json.substring(valueStart, valueEnd);
+    }
+
+    /**
+     * 清理 JSON 字符串
+     */
+    private String cleanJsonString(String str) {
+        if (str == null) return "";
+        return str.replace("\\\"", "\"")
+                   .replace("\\n", "\n")
+                   .replace("\\t", "\t")
+                   .trim();
     }
 
     /**
@@ -1399,6 +1654,88 @@ public class AgentTeamsSkill extends AbsSkill {
     }
 
     /**
+     * 删除任务
+     */
+    @ToolMapping(name = "remove_task",
+                 description = "删除指定的任务。注意：只能删除状态为 PENDING 的任务，已认领的任务需要先释放才能删除。")
+    public String removeTask(
+            @Param(name = "taskId", description = "任务ID") String taskId) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            SharedTaskList taskList = mainAgent.getTaskList();
+            TeamTask task = taskList.getTask(taskId);
+
+            if (task == null) {
+                return "[ERROR] 任务不存在: " + taskId;
+            }
+
+            // 检查任务状态
+            if (task.getStatus() == TeamTask.Status.IN_PROGRESS) {
+                return "[WARN] 任务正在执行中，无法删除。请先使用 release_task 释放任务。";
+            }
+
+            boolean removed = taskList.removeTask(taskId);
+
+            if (removed) {
+                LOG.info("任务已删除: taskId={}", taskId);
+                return "[OK] 任务已删除: " + taskId;
+            } else {
+                return "[ERROR] 删除任务失败: " + taskId;
+            }
+        } catch (Exception e) {
+            LOG.error("删除任务失败", e);
+            return "[ERROR] 删除失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 释放任务
+     */
+    @ToolMapping(name = "release_task",
+                 description = "释放已认领的任务（将任务状态重新改为PENDING，其他代理可以认领）。用于取消当前认领或让其他代理接管。")
+    public String releaseTask(
+            @Param(name = "taskId", description = "任务ID") String taskId,
+            @Param(name = "agentName", description = "当前认领该任务的代理名称") String agentName) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            SharedTaskList taskList = mainAgent.getTaskList();
+            TeamTask task = taskList.getTask(taskId);
+
+            if (task == null) {
+                return "[ERROR] 任务不存在: " + taskId;
+            }
+
+            // 检查任务状态
+            if (task.getStatus() != TeamTask.Status.IN_PROGRESS) {
+                return "[WARN] 任务状态不是进行中，无法释放: " + task.getStatus();
+            }
+
+            // 检查认领者
+            if (!agentName.equals(task.getClaimedBy())) {
+                return "[WARN] 不是任务的认领者。当前认领者: " + task.getClaimedBy();
+            }
+
+            boolean released = taskList.releaseTask(taskId, agentName);
+
+            if (released) {
+                LOG.info("任务已释放: taskId={}, agent={}", taskId, agentName);
+                return "[OK] 任务已释放: " + taskId + "，其他代理现在可以认领";
+            } else {
+                return "[ERROR] 释放任务失败: " + taskId;
+            }
+        } catch (Exception e) {
+            LOG.error("释放任务失败", e);
+            return "[ERROR] 释放失败: " + e.getMessage();
+        }
+    }
+
+    /**
      * 获取任务详情
      */
     @ToolMapping(name = "get_task_details",
@@ -1805,7 +2142,7 @@ public class AgentTeamsSkill extends AbsSkill {
         // 检查是否是旧的时间戳格式（如 team-1736640123456）
         // 注意：新版本已改用智能生成，此处仅用于迁移旧数据
         if (oldTeamName.matches("^team-\\d+$")) {
-            sb.append("⚠️ **当前团队名**: `").append(oldTeamName).append("`\n\n");
+            sb.append("**当前团队名**: `").append(oldTeamName).append("`\n\n");
             sb.append("**问题**: 检测到旧版本时间戳格式，已不够语义化。\n");
             sb.append("**说明**: 新版本已改用智能语义化生成（如 database-team、security-squad）。\n\n");
 
@@ -1821,7 +2158,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 // 生成建议
                 String suggestedName = TeamNameGenerator.suggestBetterName(oldTeamName, memberNames);
                 if (suggestedName != null) {
-                    sb.append("✅ **建议团队名**: `").append(suggestedName).append("`\n\n");
+                    sb.append("**建议团队名**: `").append(suggestedName).append("`\n\n");
                     sb.append("**建议描述**: ")
                             .append(TeamNameGenerator.getTeamDescription(suggestedName))
                             .append("\n\n");
@@ -1831,15 +2168,15 @@ public class AgentTeamsSkill extends AbsSkill {
             sb.append("**如何重命名**:\n");
             sb.append("使用 `create_team` 工具创建新团队，并指定语义化的 teamName。\n");
         } else {
-            sb.append("✅ **当前团队名**: `").append(oldTeamName).append("`\n\n");
+            sb.append("**当前团队名**: `").append(oldTeamName).append("`\n\n");
 
             // 检查团队名是否有效
             if (!TeamNameGenerator.isValidTeamName(oldTeamName)) {
-                sb.append("⚠️ **问题**: 团队名格式不符合规范（只允许小写字母、数字和连字符）\n\n");
+                sb.append("**问题**: 团队名格式不符合规范（只允许小写字母、数字和连字符）\n\n");
                 String normalized = TeamNameGenerator.normalizeTeamName(oldTeamName);
-                sb.append("✅ **规范化建议**: `").append(normalized).append("`\n\n");
+                sb.append("**规范化建议**: `").append(normalized).append("`\n\n");
             } else {
-                sb.append("✅ 团队名格式正确！\n\n");
+                sb.append("团队名格式正确！\n\n");
 
                 // 提取领域
                 String domain = TeamNameGenerator.extractDomainFromTeamName(oldTeamName);

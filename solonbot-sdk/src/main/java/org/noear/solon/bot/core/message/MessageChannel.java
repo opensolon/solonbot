@@ -410,7 +410,7 @@ public class MessageChannel {
             } catch (Exception e) {
                 LOG.warn("消息持久化失败: messageId={}, error={}", message.getId(), e.getMessage());
             }
-        });
+        }, executor);
     }
 
     /**

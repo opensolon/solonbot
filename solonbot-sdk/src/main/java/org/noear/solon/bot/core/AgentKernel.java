@@ -115,10 +115,6 @@ public class AgentKernel {
         return properties;
     }
 
-    public SummarizationInterceptor getSummarizationInterceptor() {
-        return summarizationInterceptor;
-    }
-
     public AgentKernel(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Consumer<ReActAgent.Builder> configurator) {
         this.chatModel = chatModel;
         this.properties = properties;
@@ -146,7 +142,6 @@ public class AgentKernel {
             throw new RuntimeException("Mcp servers load failure", e);
         }
 
-        //-----------
 
         final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel).name("main");
         final String agentsMd = getAgentsMd();
@@ -264,12 +259,14 @@ public class AgentKernel {
         try {
             LOG.info("正在初始化 Agent Teams 模式...");
 
-            // 1. 创建 EventBus（事件总线）
-            this.eventBus = new EventBus();
-            LOG.debug("EventBus 已创建");
+            // 1. 创建 EventBus（事件总线）- 使用配置
+            int eventThreads = properties.getEventBus().asyncThreads;
+            int eventHistorySize = properties.getEventBus().maxHistorySize;
+            this.eventBus = new EventBus(eventThreads, eventHistorySize);
+            LOG.debug("EventBus 已创建 (线程数: {}, 历史大小: {})", eventThreads, eventHistorySize);
 
-            // 2. 创建 SharedTaskList（共享任务列表）
-            this.taskList = new SharedTaskList(eventBus);
+            // 2. 创建 SharedTaskList（共享任务列表）- 使用配置
+            this.taskList = new SharedTaskList(eventBus, properties.getTeams());
             LOG.debug("SharedTaskList 已创建");
 
             // 3. 创建 SharedMemoryManager（共享内存管理器）
@@ -277,10 +274,12 @@ public class AgentKernel {
             this.memoryManager = new SharedMemoryManager(memoryPath);
             LOG.debug("SharedMemoryManager 已创建，路径: {}", memoryPath);
 
-            // 4. 创建 MessageChannel（消息通道）
+            // 4. 创建 MessageChannel（消息通道）- 使用配置
             Path messagePath = Paths.get(properties.getWorkDir(), SOLONCODE_MEMORY);
-            this.messageChannel = new MessageChannel(messagePath.toString());
-            LOG.debug("MessageChannel 已创建，路径: {}", messagePath);
+            int messageThreads = properties.getMessageChannel().threads != null ?
+                                  properties.getMessageChannel().threads : 4;
+            this.messageChannel = new MessageChannel(messagePath.toString(), messageThreads);
+            LOG.debug("MessageChannel 已创建，路径: {}, 线程数: {}", messagePath, messageThreads);
 
             // 5. 创建 MainAgent 配置
             SubAgentMetadata mainAgentConfig = new SubAgentMetadata();

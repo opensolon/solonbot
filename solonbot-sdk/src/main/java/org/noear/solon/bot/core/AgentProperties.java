@@ -83,6 +83,7 @@ public class AgentProperties implements Serializable {
      * Agent Teams 模式配置
      */
     public boolean teamsEnabled = false;
+    public TeamsConfig teams = new TeamsConfig();
 
     public Map<String, McpServerParameters> mcpServers;
     public ChatConfig chatModel;
@@ -142,7 +143,7 @@ public class AgentProperties implements Serializable {
         /**
          * 异步处理线程数（默认CPU核心数）
          */
-        public Integer asyncThreads;
+        public int asyncThreads = 4;
 
         /**
          * 事件历史最大数量
@@ -184,4 +185,72 @@ public class AgentProperties implements Serializable {
          */
         public boolean persistMessages = true;
     }
+
+    /**
+     * Agent Teams 模式配置类
+     */
+    public static class TeamsConfig {
+        /**
+         * 任务操作线程池大小
+         * 默认：CPU核心数 * 2，最小10
+         */
+        public Integer taskExecutorThreads;
+
+        /**
+         * 事件发布线程池大小
+         * 默认：1（单线程）
+         */
+        public Integer eventExecutorThreads;
+
+        /**
+         * 最大保留已完成任务数
+         * 默认：100
+         */
+        public int maxCompletedTasks = 100;
+
+        /**
+         * 最大依赖深度限制
+         * 默认：100
+         */
+        public int maxDependencyDepth = 100;
+    }
+
+    /**
+     * 子代理并发控制配置类
+     * 用于控制同时发起的子代理请求数量，避免触发API速率限制
+     */
+    public static class SubagentConcurrencyConfig {
+        /**
+         * 最大并发子代理数
+         * 默认：1（串行执行，避免触发速率限制）
+         * 设置为 2-3 可以适当提高性能，但可能触发速率限制
+         */
+        public int maxConcurrent = 1;
+
+        /**
+         * 子代理调用间隔（毫秒）
+         * 默认：1000ms（1秒）
+         * 在串行模式下，每次调用后等待的时间
+         */
+        public long callIntervalMs = 1000L;
+
+        /**
+         * 获取执行许可的超时时间（毫秒）
+         * 默认：60000ms（60秒）
+         * 当达到并发限制时，等待获取许可的最长时间
+         */
+        public long acquireTimeoutMs = 60000L;
+
+        /**
+         * 触发429错误后的等待时间（毫秒）
+         * 默认：5000ms（5秒）
+         * 收到速率限制错误后，等待的时间
+         */
+        public long rateLimitBackoffMs = 5000L;
+    }
+
+    /**
+     * 子代理并发控制配置
+     */
+    public SubagentConcurrencyConfig subagentConcurrency = new SubagentConcurrencyConfig();
 }
