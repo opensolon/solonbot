@@ -137,12 +137,11 @@ public class TaskSkill extends AbsSkill {
             }
 
             String finalSessionId = Assert.isEmpty(taskId)
-                    ? "subagent_" + subagentType + "_" + System.currentTimeMillis()
+                    ? "subagent_" + subagentType
                     : taskId;
 
             LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", subagentType, finalSessionId, description);
 
-            // ==================== 并发控制 ====================
             if (!acquirePermit(subagentType)) {
                 return "ERROR: 等待子代理执行许可超时。当前可能有太多子代理在执行。";
             }

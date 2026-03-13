@@ -141,55 +141,67 @@ public class MainAgent {
     }
 
     /**
-     * 初始化主代理
+     * 获取 Team Lead（团队协调器）指令
+     *
+     * 此指令会被追加到系统提示词中，让 Agent 了解自己作为 Team Lead 的角色和职责。
+     *
+     * @return Team Lead 角色指令
      */
-    public synchronized void initialize(ChatModel chatModel) {
-        if (agent == null) {
-            ReActAgent.Builder builder = ReActAgent.of(chatModel);
+    public String getTeamLeadInstruction() {
+        return "## Team Lead（团队协调器）角色\n\n" +
+                "你现在启用了 **Agent Teams 模式**，你是团队的 **Team Lead（团队领导）**。\n\n" +
+                "### 核心职责\n\n" +
+                "1. **任务分解** - 将复杂任务分解为可执行的子任务\n" +
+                "2. **团队协作** - 协调多个专业子代理（teammates）协作完成任务\n" +
+                "3. **结果汇总** - 收集各子代理的结果，形成最终答案\n" +
+                "4. **质量控制** - 确保子任务完成的质量和一致性\n\n" +
+                "### 可用工具\n\n" +
+                "**团队协作**:\n" +
+                "- `team_task(prompt)` - 启动团队协作任务（适用于复杂多步骤任务）\n" +
+                "- `team_status()` - 查看团队任务状态\n" +
+                "- `teammate_quick(name, role)` - 快速创建团队成员\n" +
+                "- `teammate_template(template)` - 使用预设模板创建成员\n" +
+                "- `teammates()` - 列出所有团队成员\n\n" +
+                "**任务管理**:\n" +
+                "- `task_add(title)` - 快速添加任务\n" +
+                "- `tasks_add(titles)` - 批量添加任务\n" +
+                "- `create_task(title, ...)` - 创建任务（完整配置）\n" +
+                "- `list_all_tasks()` - 查看所有任务\n\n" +
+                "**记忆管理**:\n" +
+                "- `memory_store(content)` - 存储记忆（自动分类）\n" +
+                "- `memory_recall(query)` - 检索记忆\n" +
+                "- `memory_stats()` - 查看记忆统计\n\n" +
+                "**子代理调用**:\n" +
+                "- `task(subagent_type, prompt)` - 直接调用特定子代理\n\n" +
+                "### 工作流程\n\n" +
+                "1. 分析用户请求，判断是否需要团队协作\n" +
+                "2. 如需协作，调用 `team_task()` 或先创建子任务\n" +
+                "3. 通过 `task()` 调用专业子代理执行子任务\n" +
+                "4. 汇总结果，给出最终答案\n\n" +
+                "### 重要提示\n\n" +
+                "- **简单任务直接回答**，无需调用 `team_task()`\n" +
+                "- **复杂任务**（多步骤、需要多种技能）才启用团队协作\n" +
+                "- 使用 `teammate_quick()` 或 `teammate_template()` 快速创建团队成员\n" +
+                "- 利用 `memory_store()` 记录重要决策和结果";
+    }
 
-            // 设置系统提示词
-            builder.systemPrompt(SystemPrompt.builder()
-                    .instruction(getSystemPrompt())
-                    .build());
-
-            // 添加技能
-            CliSkillProvider skillProvider = new CliSkillProvider(workDir);
-            if (poolManager != null) {
-                poolManager.getPoolMap().forEach((alias, path) -> {
-                    skillProvider.skillPool(alias, path);
-                });
-            }
-
-            // 基础技能
-            builder.defaultSkillAdd(skillProvider.getTerminalSkill());
-            builder.defaultSkillAdd(skillProvider.getExpertSkill());
-
-            // Agent Teams 工具集（记忆、事件、消息）
-            AgentTeamsTools teamsTools = new AgentTeamsTools(
-                    sharedMemoryManager,
-                    eventBus
-            );
-            builder.defaultSkillAdd(teamsTools);
-
-            // 子代理调用工具（如果有 kernel 和 subagentManager）
-            if (kernel != null && subagentManager != null) {
-                TaskSkill taskSkill = new TaskSkill(kernel, subagentManager);
-                builder.defaultSkillAdd(taskSkill);
-                LOG.debug("MainAgent: TaskSkill 已添加");
-            } else {
-                LOG.debug("MainAgent: 无 kernel 或 subagentManager，跳过 TaskSkill");
-            }
-
-            // 设置较大的步数（主代理需要协调多个任务）
-            builder.maxSteps(50);
-            builder.sessionWindowSize(10);
-
-            this.chatModel = chatModel;  // 保存 ChatModel 引用
-            this.agent = builder.build();
-            this.session = sessionProvider.getSession("main_agent");
-
-            LOG.info("MainAgent '{}' 初始化完成", config.getCode());
+    /**
+     * 设置共享的 ReActAgent
+     *
+     * MainAgent 不再创建自己的 ReActAgent，而是使用 AgentKernel 创建的主 ReActAgent。
+     * 这样可以避免两层推理，简化架构。
+     *
+     * @param agent 共享的 ReActAgent
+     * @param chatModel ChatModel（用于任务分析等功能）
+     */
+    public synchronized void setSharedAgent(ReActAgent agent, ChatModel chatModel) {
+        if (this.agent != null) {
+            LOG.warn("MainAgent 已有共享 Agent，将被覆盖");
         }
+        this.agent = agent;
+        this.chatModel = chatModel;
+        this.session = sessionProvider.getSession("main_agent");
+        LOG.info("MainAgent 已设置共享 ReActAgent");
     }
 
     /**
@@ -199,14 +211,40 @@ public class MainAgent {
      * @param __cwd 工作目录
      * @return 响应流
      */
-    public Flux<AgentChunk> executeStream(Prompt prompt, String __cwd) throws Throwable {
+    public Flux<AgentChunk> executeStream(Prompt prompt, String __cwd) {
         if (agent == null) {
             throw new IllegalStateException("MainAgent 尚未初始化");
         }
 
         running.set(true);
 
-        // 0. 启动目标守护（防止在多轮循环中偏离目标）
+        // 0. 自动创建主任务到 SharedTaskList
+        TeamTask mainTask = null;
+        try {
+            String userContent = prompt.getUserContent();
+            // 生成简短标题（取前50个字符）
+            String title = userContent.length() > 50
+                    ? userContent.substring(0, 50) + "..."
+                    : userContent;
+
+            mainTask = new TeamTask();
+            mainTask.setTitle(title);
+            mainTask.setDescription(userContent);
+            mainTask.setType(TeamTask.TaskType.DEVELOPMENT);
+            mainTask.setPriority(10); // 主任务高优先级
+            mainTask.setStatus(TeamTask.Status.IN_PROGRESS);
+
+            CompletableFuture<TeamTask> future = taskList.addTask(mainTask);
+            mainTask = future.join();
+            LOG.info("主任务已自动创建: taskId={}, title={}", mainTask.getId(), mainTask.getTitle());
+
+        } catch (Exception e) {
+            LOG.warn("创建主任务失败（继续执行）: {}", e.getMessage());
+        }
+
+        final TeamTask finalMainTask = mainTask;
+
+        // 1. 启动目标守护（防止在多轮循环中偏离目标）
         String goalId = null;
         try {
             if (kernel != null) {
@@ -218,7 +256,7 @@ public class MainAgent {
         }
 
         try {
-            // 1. 发布主代理任务开始事件
+            // 2. 发布主代理任务开始事件
             publishEvent(AgentEventType.MAIN_TASK_STARTED, prompt.getUserContent(), null);
 
             // 2. 执行主代理内部的协调逻辑（流式输出）
@@ -234,7 +272,17 @@ public class MainAgent {
                     .stream();
 
             // 7. 在流完成后等待所有子任务完成
-            Flux<AgentChunk> resultStream = responseStream
+            // 等待所有子任务完成
+            // 汇总结果
+            // 更新主任务状态
+            // 发布主代理任务完成事件
+            // 停止目标守护
+            // 更新主任务状态为失败
+            // 出错时也要停止目标守护
+            // 更新主任务状态为取消
+            // 取消时也要停止目标守护
+
+            return responseStream
                     .doOnComplete(() -> {
                         try {
                             // 等待所有子任务完成
@@ -242,6 +290,16 @@ public class MainAgent {
 
                             // 汇总结果
                             String summary = summarizeResults();
+
+                            // 更新主任务状态
+                            if (finalMainTask != null) {
+                                try {
+                                    taskList.completeTask(finalMainTask.getId(), summary);
+                                    LOG.info("主任务已完成: taskId={}", finalMainTask.getId());
+                                } catch (Exception e) {
+                                    LOG.warn("更新主任务状态失败: {}", e.getMessage());
+                                }
+                            }
 
                             // 发布主代理任务完成事件
                             publishEvent(AgentEventType.MAIN_TASK_COMPLETED, summary, null);
@@ -262,6 +320,17 @@ public class MainAgent {
                     })
                     .doOnError(error -> {
                         LOG.error("MainAgent 流式执行出错", error);
+
+                        // 更新主任务状态为失败
+                        if (finalMainTask != null) {
+                            try {
+                                taskList.failTask(finalMainTask.getId(), error.getMessage());
+                                LOG.info("主任务已标记为失败: taskId={}", finalMainTask.getId());
+                            } catch (Exception e) {
+                                LOG.warn("更新主任务失败状态失败: {}", e.getMessage());
+                            }
+                        }
+
                         running.set(false);
                         // 出错时也要停止目标守护
                         try {
@@ -273,6 +342,17 @@ public class MainAgent {
                     })
                     .doOnCancel(() -> {
                         LOG.warn("MainAgent 流式执行被取消");
+
+                        // 更新主任务状态为取消
+                        if (finalMainTask != null) {
+                            try {
+                                taskList.removeTask(finalMainTask.getId());
+                                LOG.info("主任务已取消: taskId={}", finalMainTask.getId());
+                            } catch (Exception e) {
+                                LOG.warn("更新主任务取消状态失败: {}", e.getMessage());
+                            }
+                        }
+
                         running.set(false);
                         // 取消时也要停止目标守护
                         try {
@@ -282,8 +362,6 @@ public class MainAgent {
                             LOG.warn("停止目标守护失败: {}", e.getMessage());
                         }
                     });
-
-            return resultStream;
 
         } finally {
             running.set(false);

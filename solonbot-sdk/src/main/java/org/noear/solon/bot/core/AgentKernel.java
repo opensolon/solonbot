@@ -244,11 +244,32 @@ public class AgentKernel {
             agentBuilder.defaultSkillAdd(restApis);
         }
 
+        // Agent Teams 模式：追加 Team Lead 指令到系统提示词
+        if (properties.isAgentTeamEnabled() && mainAgent != null) {
+            String teamLeadInstruction = mainAgent.getTeamLeadInstruction();
+            if (Assert.isNotEmpty(teamLeadInstruction)) {
+                // 获取当前的 systemPrompt 并追加指令
+                agentBuilder.systemPrompt(SystemPrompt.builder()
+                        .instruction(trace -> {
+                            String basePrompt = agentsMd != null ? agentsMd : "";
+                            return basePrompt + "\n\n" + teamLeadInstruction;
+                        })
+                        .build());
+                LOG.info("Team Lead 指令已追加到系统提示词");
+            }
+        }
+
         if (configurator != null) {
             configurator.accept(agentBuilder);
         }
 
         reActAgent = agentBuilder.build();
+
+        // Agent Teams 模式：将主 ReActAgent 设置到 MainAgent
+        if (properties.isAgentTeamEnabled() && mainAgent != null) {
+            mainAgent.setSharedAgent(reActAgent, chatModel);
+            LOG.info("MainAgent 已设置共享 ReActAgent");
+        }
     }
 
 
@@ -302,10 +323,6 @@ public class AgentKernel {
                     subagentManager  // SubagentManager
             );
             LOG.debug("MainAgent 已创建");
-
-            // 5.1 初始化 MainAgent（需要传入 ChatModel）
-            this.mainAgent.initialize(chatModel);
-            LOG.debug("MainAgent 已初始化");
 
             // 6. 创建 AgentTeamsSkill 并注册到主 Agent
             AgentTeamsSkill agentTeamsSkill = new AgentTeamsSkill(
