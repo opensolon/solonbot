@@ -71,7 +71,7 @@ public class FileMemoryStore implements MemoryStore {
                 LOG.debug("Observation 已存储: id={}, attempt={}",
                         observation.getId(), attempt + 1);
                 return;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 boolean isLastAttempt = (attempt == MAX_RETRIES - 1);
 
                 if (isLastAttempt) {
@@ -127,7 +127,7 @@ public class FileMemoryStore implements MemoryStore {
             String json = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
             return ONode.deserialize(json, Observation.class);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.debug("Observation 加载失败: id={}, error={}", id, e.getMessage());
             return null;
         }
@@ -144,7 +144,7 @@ public class FileMemoryStore implements MemoryStore {
                 LOG.debug("Observation 已删除: id={}", id);
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("Observation 删除失败: id={}, error={}", id, e.getMessage());
         }
     }
@@ -176,7 +176,7 @@ public class FileMemoryStore implements MemoryStore {
                         observations.add(obs);
                     }
 
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     LOG.debug("加载 Observation 文件失败: file={}, error={}", file.getName(), e.getMessage());
                 }
             }
@@ -184,7 +184,7 @@ public class FileMemoryStore implements MemoryStore {
             LOG.info("加载 Observation: count={}", observations.size());
             return observations;
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("加载 Observation 失败: error={}", e.getMessage());
             return new ArrayList<>();
         }
@@ -206,7 +206,7 @@ public class FileMemoryStore implements MemoryStore {
                 LOG.info("清空 Observation: count={}", count);
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("清空 Observation 失败: error={}", e.getMessage());
         }
     }
@@ -231,7 +231,7 @@ public class FileMemoryStore implements MemoryStore {
                 stats.put("totalSize", formatBytes(totalSize));
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("获取统计信息失败: error={}", e.getMessage());
         }
 

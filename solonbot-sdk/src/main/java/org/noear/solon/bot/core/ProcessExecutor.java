@@ -89,7 +89,7 @@ public class ProcessExecutor {
             ProcessBuilder pb = new ProcessBuilder(isWindows ? Arrays.asList("where", cmd) : Arrays.asList("which", cmd));
             Process process = pb.start();
             return process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return false;
         }
     }
@@ -122,7 +122,7 @@ public class ProcessExecutor {
             fullCmd.add(tempScript.toAbsolutePath().toString());
 
             return executeCmd(rootPath, fullCmd, envs, timeoutMs, onOutput);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Code execution failed", e);
             return "代码执行失败: " + e.getMessage();
         } finally {
@@ -195,7 +195,7 @@ public class ProcessExecutor {
             String result = outputFuture.get(1, TimeUnit.SECONDS).trim();
             return result.isEmpty() ? "执行成功" : result;
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Process execution failed", e);
             return "系统失败: " + e.getMessage();
         }

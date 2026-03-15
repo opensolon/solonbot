@@ -150,7 +150,7 @@ public class TeamTask {
                 // 调用 LLM
                 return chatModel.prompt(prompt).call();
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 throw new RuntimeException("Task execution failed: " + title, e);
             }
         });
@@ -171,7 +171,7 @@ public class TeamTask {
                 // 调用 LLM
                 return chatModel.prompt(prompt).stream();
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 throw new RuntimeException("Task execution failed: " + title, e);
             }
         });

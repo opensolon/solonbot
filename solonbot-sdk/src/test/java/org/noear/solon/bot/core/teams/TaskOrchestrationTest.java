@@ -84,7 +84,7 @@ public class TaskOrchestrationTest {
             System.out.println("可认领任务数: " + taskList.getClaimableTasks().size());
             System.out.println("（只有 taskB 可认领，taskA 等待 taskB 完成）\n");
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             System.err.println("❌ 失败: " + e.getMessage());
         }
     }
@@ -140,7 +140,7 @@ public class TaskOrchestrationTest {
                 System.out.println(blockingInfo);
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             System.err.println("❌ 失败: " + e.getMessage());
         }
     }

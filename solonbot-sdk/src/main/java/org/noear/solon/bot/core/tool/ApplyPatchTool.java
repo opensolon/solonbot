@@ -79,7 +79,7 @@ public class ApplyPatchTool extends AbsTool {
         List<PatchHunk> hunks;
         try {
             hunks = parsePatchText(patchText);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new RuntimeException("apply_patch verification failed: " + e.getMessage());
         }
 
@@ -122,7 +122,7 @@ public class ApplyPatchTool extends AbsTool {
                     try {
                         // 对应 deriveNewContentsFromChunks
                         change.newContent = applyHunks(change.oldContent, hunk.lines);
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         throw new RuntimeException("apply_patch verification failed: " + e.getMessage());
                     }
 

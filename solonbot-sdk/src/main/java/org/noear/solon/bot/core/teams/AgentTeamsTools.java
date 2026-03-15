@@ -164,7 +164,7 @@ public class AgentTeamsTools extends AbsSkill {
             memoryManager.putShortTerm(key, value, actualTtl);
             LOG.debug("存储短期记忆: key={}, ttl={}", key, actualTtl);
             return "[OK] 短期记忆已存储: " + key;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("存储短期记忆失败", e);
             return "[ERROR] 存储失败: " + e.getMessage();
         }
@@ -184,7 +184,7 @@ public class AgentTeamsTools extends AbsSkill {
             memoryManager.putLongTerm(key, value, actualTtl);
             LOG.debug("存储长期记忆: key={}, ttl={}", key, actualTtl);
             return "[OK] 长期记忆已存储: " + key;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("存储长期记忆失败", e);
             return "[ERROR] 存储失败: " + e.getMessage();
         }
@@ -202,7 +202,7 @@ public class AgentTeamsTools extends AbsSkill {
             memoryManager.putKnowledge(key, value);
             LOG.debug("存储知识记忆: key={}", key);
             return "[OK] 知识记忆已存储: " + key;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("存储知识记忆失败", e);
             return "[ERROR] 存储失败: " + e.getMessage();
         }
@@ -223,7 +223,7 @@ public class AgentTeamsTools extends AbsSkill {
             }
 
             return "[WARN] 未找到记忆: " + key;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("检索记忆失败", e);
             return "[ERROR] 检索失败: " + e.getMessage();
         }
@@ -270,7 +270,7 @@ public class AgentTeamsTools extends AbsSkill {
             }
 
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("搜索记忆失败", e);
             return "[ERROR] 搜索失败: " + e.getMessage();
         }
@@ -328,7 +328,7 @@ public class AgentTeamsTools extends AbsSkill {
             return "[OK] 工作记忆已设置: " + field + " = " + value;
         } catch (NumberFormatException e) {
             return "[ERROR] 步骤必须是数字: " + value;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("设置工作记忆失败", e);
             return "[ERROR] 设置失败: " + e.getMessage();
         }
@@ -378,7 +378,7 @@ public class AgentTeamsTools extends AbsSkill {
             }
 
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("获取工作记忆失败", e);
             return "[ERROR] 获取失败: " + e.getMessage();
         }

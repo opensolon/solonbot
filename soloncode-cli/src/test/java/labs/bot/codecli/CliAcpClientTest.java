@@ -58,7 +58,7 @@ public class CliAcpClientTest {
 
             System.out.println("🎉 交互完成: " + promptResponse.stopReason());
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         } finally {
             System.out.println("🧹 正在清理连接...");

@@ -345,7 +345,7 @@ public class TerminalSkill extends AbsSkill {
                         }
                         if (sb.length() > 8000) return FileVisitResult.TERMINATE;
                     }
-                } catch (Exception ignored) {
+                } catch (Throwable ignored) {
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -606,14 +606,14 @@ public class TerminalSkill extends AbsSkill {
                     if (DEFAULT_IGNORES.contains(segment.toString())) return true;
                 }
             }
-        } catch (Exception ignored) { }
+        } catch (Throwable ignored) { }
         return false;
     }
 
     private static String probeUnixShell() {
         try {
             return Runtime.getRuntime().exec("bash --version").waitFor() == 0 ? "bash" : "/bin/sh";
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return "/bin/sh";
         }
     }

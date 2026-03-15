@@ -176,7 +176,7 @@ public class SubAgentAgentBuilder {
         try {
             mainAgent.initialize(chatModel);
             LOG.info("Agent 团队构建成功！主代理: {}", config.getName());
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("初始化 MainAgent 失败", e);
             throw new RuntimeException("构建 Agent 团队失败", e);
         }

@@ -93,7 +93,7 @@ public class TodoSkill extends AbsSkill {
                     Files.write(gitignore, entry.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
             LOG.warn("Failed to update .gitignore", ignored);
         }
     }

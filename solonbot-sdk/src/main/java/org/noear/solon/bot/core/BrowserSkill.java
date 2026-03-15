@@ -91,7 +91,7 @@ public class BrowserSkill extends AbsSkill {
         try {
             browserManager.saveState();
             return "浏览器会话状态已成功保存。下次启动将自动保持登录。";
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return "状态保存失败: " + e.getMessage();
         }
     }
@@ -163,7 +163,7 @@ public class BrowserSkill extends AbsSkill {
             }
             page.waitForLoadState(LoadState.NETWORKIDLE);
             return "操作成功，当前 URL: " + page.url();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return "操作失败: " + e.getMessage();
         }
     }
@@ -181,7 +181,7 @@ public class BrowserSkill extends AbsSkill {
             Path targetPath = browserManager.getDownloadPath().resolve(download.suggestedFilename());
             download.saveAs(targetPath);
             return "文件已下载至: " + targetPath.getFileName().toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return "下载失败: " + e.getMessage();
         }
     }
@@ -198,7 +198,7 @@ public class BrowserSkill extends AbsSkill {
             Path fullPath = Paths.get(__cwd).resolve(filePath).toAbsolutePath();
             page.setInputFiles(selector, fullPath);
             return "文件已成功载入上传框: " + filePath;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return "上传失败: " + e.getMessage();
         }
     }

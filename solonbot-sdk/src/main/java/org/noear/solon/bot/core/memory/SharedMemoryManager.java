@@ -862,7 +862,7 @@ public class SharedMemoryManager {
             Map<String, Object> stats = memoryBank.getStats();
             LOG.info("共享记忆加载完成: {}", stats);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("共享记忆初始化失败: error={}", e.getMessage());
         }
     }

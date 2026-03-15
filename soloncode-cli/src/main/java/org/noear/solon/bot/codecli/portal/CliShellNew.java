@@ -139,7 +139,7 @@ public class CliShellNew implements Runnable {
                     try {
                         reader.callWidget(LineReader.REDRAW_LINE);
                         reader.callWidget(LineReader.REDISPLAY);
-                    } catch (Exception ignored) {
+                    } catch (Throwable ignored) {
                     }
                 }
             });
@@ -254,7 +254,7 @@ public class CliShellNew implements Runnable {
             reader.getKeyMaps().get(LineReader.MAIN)
                     .bind(new Reference("clear-input"), KeyMap.ctrl('C'));
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("JLine initialization failed", e);
         }
     }

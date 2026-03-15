@@ -398,7 +398,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 Thread.currentThread().interrupt();
                 LOG.error("团队任务执行被中断");
                 return "[ERROR] 团队任务执行被中断";
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.error("团队任务执行失败", e);
                 return "[ERROR] 团队任务执行失败: " + e.getMessage();
             }
@@ -615,7 +615,7 @@ public class AgentTeamsSkill extends AbsSkill {
             // 解析并格式化响应
             return formatAnalysisResponse(response);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("任务分析失败", e);
             return "[ERROR] 任务分析失败: " + e.getMessage();
         }
@@ -711,7 +711,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             return sb.toString();
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("批量创建任务失败", e);
             return "[ERROR] 批量创建失败: " + e.getMessage();
         }
@@ -746,7 +746,7 @@ public class AgentTeamsSkill extends AbsSkill {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("解析任务 JSON 失败: {}", e.getMessage());
         }
         return tasks;
@@ -798,7 +798,7 @@ public class AgentTeamsSkill extends AbsSkill {
                     .dependencies(new ArrayList<>())
                     .build();
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("解析单个任务失败: {}, error: {}", json, e.getMessage());
             return null;
         }
@@ -1427,7 +1427,7 @@ public class AgentTeamsSkill extends AbsSkill {
             }
 
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("获取工作记忆失败", e);
             return "[ERROR] 获取失败: " + e.getMessage();
         }
@@ -1481,7 +1481,7 @@ public class AgentTeamsSkill extends AbsSkill {
             return "[OK] 工作记忆已更新: " + field + " = " + value;
         } catch (NumberFormatException e) {
             return "[ERROR] 步骤必须是数字: " + value;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("更新工作记忆失败", e);
             return "[ERROR] 更新失败: " + e.getMessage();
         }
@@ -1513,7 +1513,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             LOG.debug("发布团队事件: type={}, data={}", type, data);
             return "[OK] 团队事件已发布: " + type;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("发布团队事件失败", e);
             return "[ERROR] 发布失败: " + e.getMessage();
         }
@@ -1541,7 +1541,7 @@ public class AgentTeamsSkill extends AbsSkill {
             sb.append("**待认领**: ").append(stats.pendingTasks).append("\n");
 
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("获取任务统计失败", e);
             return "[ERROR] 获取失败: " + e.getMessage();
         }
@@ -1577,7 +1577,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             LOG.info("任务已认领: taskId={}, agent={}", taskId, agentName);
             return "[OK] 任务已认领: " + taskId + " 由 " + agentName;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("认领任务失败", e);
             return "[ERROR] 认领失败: " + e.getMessage();
         }
@@ -1617,7 +1617,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             LOG.info("任务已完成: taskId={}", taskId);
             return "[OK] 任务已完成: " + taskId;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("完成任务失败", e);
             return "[ERROR] 完成失败: " + e.getMessage();
         }

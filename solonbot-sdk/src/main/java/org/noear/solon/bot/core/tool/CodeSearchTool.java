@@ -74,7 +74,7 @@ public class CodeSearchTool extends AbsTool {
         try {
             // 工具名: get_code_context_exa
             result = mcpClient.callTool("get_code_context_exa", toolArgs);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout")) {
                 throw new RuntimeException("代码搜索请求超时");
             }

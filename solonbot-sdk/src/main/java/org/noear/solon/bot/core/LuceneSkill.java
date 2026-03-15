@@ -174,7 +174,7 @@ public class LuceneSkill extends AbsSkill {
                 sb.append("\n");
             }
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Full text search error", e);
             return "搜索失败: " + e.getMessage();
         }
@@ -221,7 +221,7 @@ public class LuceneSkill extends AbsSkill {
 
                             writer.addDocument(doc);
                             stats[0]++; // 计数增加
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             LOG.warn("Failed to index file: " + file, e);
                         }
                     }

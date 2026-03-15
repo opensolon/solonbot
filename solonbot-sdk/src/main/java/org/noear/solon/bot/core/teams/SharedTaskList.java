@@ -972,7 +972,7 @@ public class SharedTaskList {
                 // 创建并发布事件
                 AgentEvent event = new AgentEvent(eventType, payload, metadata);
                 eventBus.publishAsync(event);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.error("发布任务事件失败", e);
             }
         }

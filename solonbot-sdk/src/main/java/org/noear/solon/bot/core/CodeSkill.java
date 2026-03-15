@@ -191,7 +191,7 @@ public class CodeSkill extends AbsSkill {
             }
 
             return resultMsg.toString();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("Init failed", e);
             return "初始化失败: " + e.getMessage();
         }
@@ -248,7 +248,7 @@ public class CodeSkill extends AbsSkill {
                     Files.write(gitignore, (separator + fileName + "\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
     }
 

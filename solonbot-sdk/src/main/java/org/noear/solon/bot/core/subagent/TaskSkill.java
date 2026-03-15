@@ -290,7 +290,7 @@ public class TaskSkill extends AbsSkill {
 
             return result;
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             String errorMsg = e.getMessage();
             if (errorMsg != null && errorMsg.contains("Timeout")) {
                 LOG.error("[子代理] 执行超时: type={}, sessionId={}", subagentType, sessionId);

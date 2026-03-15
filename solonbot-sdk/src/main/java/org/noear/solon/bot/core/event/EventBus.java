@@ -172,7 +172,7 @@ public class EventBus {
             LOG.debug("事件已发布: eventType={}, handlers={}",
                      event.getEventType(), matchedHandlers.size());
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("事件发布失败: eventType={}, error={}",
                      event.getEventType(), e.getMessage(), e);
         }
@@ -337,7 +337,7 @@ public class EventBus {
         public CompletableFuture<EventHandler.Result> handle(AgentEvent event) {
             try {
                 return handler.handle(event);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.error("事件处理器异常: subscriptionId={}, error={}",
                          subscriptionId, e.getMessage(), e);
                 return CompletableFuture.completedFuture(

@@ -407,7 +407,7 @@ public class MessageChannel {
                 String json = toJson(message);
                 Files.write(Paths.get(filePath), json.getBytes(StandardCharsets.UTF_8));
 
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.warn("消息持久化失败: messageId={}, error={}", message.getId(), e.getMessage());
             }
         }, executor);
@@ -481,7 +481,7 @@ public class MessageChannel {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("清理过期消息文件失败: error={}", e.getMessage());
         }
 
@@ -499,7 +499,7 @@ public class MessageChannel {
             if (!dir.exists()) {
                 dir.mkdirs();
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("消息存储初始化失败: error={}", e.getMessage());
         }
     }
@@ -536,7 +536,7 @@ public class MessageChannel {
         public <T> CompletableFuture<Object> handle(AgentMessage<T> message) {
             try {
                 return handler.handle(message);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.error("消息处理器异常: handlerId={}, error={}",
                          handlerId, e.getMessage(), e);
                 // Java 8 兼容：手动创建失败的 Future

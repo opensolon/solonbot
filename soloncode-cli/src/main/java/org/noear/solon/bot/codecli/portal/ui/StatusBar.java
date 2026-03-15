@@ -145,7 +145,7 @@ public class StatusBar {
     public void setup() {
         try {
             this.status = Status.getStatus(terminal);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             // 某些终端可能不支持 Status
             this.status = null;
         }
@@ -165,11 +165,11 @@ public class StatusBar {
                 status.update(lines);
                 terminal.writer().print("\033[?25h");
                 terminal.flush();
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
                 try {
                     terminal.writer().print("\033[?25h");
                     terminal.flush();
-                } catch (Exception e) {
+                } catch (Throwable e) {
                 }
             }
         }
@@ -180,7 +180,7 @@ public class StatusBar {
         if (status != null) {
             try {
                 status.suspend();
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
             }
         }
     }
@@ -191,7 +191,7 @@ public class StatusBar {
             try {
                 status.restore();
                 draw();
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
             }
         }
     }
@@ -399,7 +399,7 @@ public class StatusBar {
             try {
                 glowPosition++;
                 draw();
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
             }
         }, 100, 100, TimeUnit.MILLISECONDS);
     }
@@ -538,7 +538,7 @@ public class StatusBar {
     private int readKey() {
         try {
             return terminal.reader().read();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return -1;
         }
     }
@@ -546,7 +546,7 @@ public class StatusBar {
     private boolean isReaderReady() {
         try {
             return terminal.reader().ready();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return false;
         }
     }

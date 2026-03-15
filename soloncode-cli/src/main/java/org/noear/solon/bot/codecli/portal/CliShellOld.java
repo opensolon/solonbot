@@ -78,7 +78,7 @@ public class CliShellOld implements Runnable {
                     .terminal(terminal)
                     .completer(new FileNameCompleter())
                     .build();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("JLine initialization failed", e);
         }
     }

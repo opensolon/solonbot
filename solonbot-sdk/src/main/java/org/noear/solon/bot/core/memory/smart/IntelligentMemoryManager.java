@@ -174,7 +174,7 @@ public class IntelligentMemoryManager {
                     formatTtl(classification.getTtl())
             );
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("智能存储失败: key={}, error={}", key, e.getMessage(), e);
             return "[ERROR] 存储失败: " + e.getMessage();
         }
@@ -222,7 +222,7 @@ public class IntelligentMemoryManager {
             // ========== 第4步：格式化输出 ==========
             return formatResults(selected, query);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("智能检索失败: query={}, error={}", query, e.getMessage(), e);
             return "[ERROR] 检索失败: " + e.getMessage();
         }
@@ -255,7 +255,7 @@ public class IntelligentMemoryManager {
 
             return formatResults(selected, "全部");
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("获取记忆失败: error={}", e.getMessage(), e);
             return "[ERROR] 获取失败: " + e.getMessage();
         }
@@ -540,7 +540,7 @@ public class IntelligentMemoryManager {
                 LOG.debug("记忆合并完成: 无需合并（{} 个记忆）", result.originalCount);
             }
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("记忆合并失败", e);
         }
     }
@@ -593,7 +593,7 @@ public class IntelligentMemoryManager {
             LOG.info("合并结果应用完成: 合并 {} 组, 删除 {} 个记忆",
                     mergedCount, removedCount);
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("应用合并结果失败", e);
         }
     }
@@ -637,7 +637,7 @@ public class IntelligentMemoryManager {
             try {
                 delegate.removeWorking(memoryId);
                 removed = true;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // 不是工作记忆，继续尝试其他类型
             }
 
@@ -645,7 +645,7 @@ public class IntelligentMemoryManager {
             try {
                 delegate.removeShortTerm(memoryId);
                 removed = true;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // 不是短期记忆，继续尝试其他类型
             }
 
@@ -653,7 +653,7 @@ public class IntelligentMemoryManager {
             try {
                 delegate.removeLongTerm(memoryId);
                 removed = true;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // 不是长期记忆，继续尝试其他类型
             }
 
@@ -661,7 +661,7 @@ public class IntelligentMemoryManager {
             try {
                 delegate.removeKnowledge(memoryId);
                 removed = true;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // 不是知识记忆，忽略
             }
 
@@ -671,7 +671,7 @@ public class IntelligentMemoryManager {
 
             return removed;
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("删除记忆失败: {}", memoryId, e);
             return false;
         }
@@ -707,7 +707,7 @@ public class IntelligentMemoryManager {
 
             LOG.debug("更新记忆: {} (类型: {})", obs.getId(), obs.getType());
 
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("更新记忆失败: {}", obs.getId(), e);
         }
     }

@@ -54,7 +54,7 @@ public class BrowserManager implements AutoCloseable {
             // 自动创建必要的目录
             Files.createDirectories(this.downloadPath);
             Files.createDirectories(this.statePath.getParent());
-        } catch (Exception ignored) {
+        } catch (Throwable ignored) {
         }
 
         // ...

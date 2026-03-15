@@ -213,7 +213,7 @@ public class MainAgent {
                 goalId = this.startGoalGuarding(prompt.getUserContent());
                 LOG.info("目标守护已启动: goalId={}, 目标={}", goalId, prompt.getUserContent());
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.warn("启动目标守护失败（继续执行）: {}", e.getMessage());
         }
 
@@ -248,14 +248,14 @@ public class MainAgent {
 
                             LOG.info("MainAgent 流式执行完成");
 
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             LOG.error("MainAgent 后处理失败", e);
                         } finally {
                             // 停止目标守护
                             try {
                                 this.stopGoalGuarding();
                                 LOG.info("目标守护已停止");
-                            } catch (Exception e) {
+                            } catch (Throwable e) {
                                 LOG.warn("停止目标守护失败: {}", e.getMessage());
                             }
                         }
@@ -267,7 +267,7 @@ public class MainAgent {
                         try {
                             this.stopGoalGuarding();
                             LOG.info("目标守护已停止（错误）");
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             LOG.warn("停止目标守护失败: {}", e.getMessage());
                         }
                     })
@@ -278,7 +278,7 @@ public class MainAgent {
                         try {
                             this.stopGoalGuarding();
                             LOG.info("目标守护已停止（取消）");
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             LOG.warn("停止目标守护失败: {}", e.getMessage());
                         }
                     });
@@ -291,7 +291,7 @@ public class MainAgent {
             try {
                 this.stopGoalGuarding();
                 LOG.info("目标守护已停止（finally块）");
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.warn("停止目标守护失败（finally块）: {}", e.getMessage());
             }
         }
@@ -316,7 +316,7 @@ public class MainAgent {
             try {
                 List<MessageAck> acks = messageChannel.broadcast(message).join();
                 LOG.info("任务通知已广播，收到 {} 个确认", acks.size());
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 LOG.warn("广播任务通知失败", e);
             }
         }
@@ -458,7 +458,7 @@ public class MainAgent {
                             sharedMemoryManager.store(memory);
                             LOG.debug("任务结果已存储到共享内存: taskId={}, source={}", taskId, agentId);
                         }
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         LOG.warn("存储任务结果到共享内存失败", e);
                     }
                 }
@@ -542,7 +542,7 @@ public class MainAgent {
                 // 修复：通过 MessageChannel 广播任务可用通知
                 broadcastTaskNotification(claimableTasks);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("检查依赖任务失败", e);
         }
     }
@@ -570,7 +570,7 @@ public class MainAgent {
                 // 策略2：等待人工干预
                 // 当前：记录日志，保持待认领状态（由人工决策）
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             LOG.error("处理任务失败时发生异常", e);
         }
     }
