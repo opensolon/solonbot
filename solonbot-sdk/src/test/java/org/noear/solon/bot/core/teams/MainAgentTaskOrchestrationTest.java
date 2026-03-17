@@ -45,7 +45,7 @@ public class MainAgentTaskOrchestrationTest {
         SharedTaskList taskList = new SharedTaskList(eventBus);
         SharedMemoryManager memoryManager = new SharedMemoryManager(Paths.get("./work"));
         SubAgentMetadata config = new SubAgentMetadata();
-        config.setCode("main-agent");
+        //config.setCode("main-agent");
         config.setName("主代理");
         config.setDescription("测试主代理");
 
