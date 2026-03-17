@@ -93,35 +93,51 @@ public class AgentTeamsSkill extends AbsSkill {
 
     @Override
     public String description() {
-        return "Agent Teams 协调专家：支持团队协作任务、任务管理、子代理调用";
+        return "AgentTeams 模式协调器：MainAgent团队协作、任务列表管理、子代理协调";
     }
 
     @Override
     public String getInstruction(Prompt prompt) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("## Agent Teams 协调能力\n\n");
-        sb.append("你是一个团队协调器，可以启动和管理多代理协作任务。\n\n");
+        sb.append("## AgentTeams 模式（团队协作模式）\n\n");
+        sb.append("### 角色定位\n");
+        sb.append("你是 **MainAgent（团队领导）**，负责协调多个子代理协作完成复杂任务。\n");
+        sb.append("与 SubAgent 模式不同，你需要管理任务列表、协调工作流、汇总团队成果。\n\n");
 
-        sb.append("### 核心规则（强制执行）\n\n");
+        sb.append("### 核心规则（团队协作专用）\n\n");
         sb.append("#### 禁止行为（绝对不可违反）\n");
-        sb.append("1. **禁止模拟工作**：\n");
-        sb.append("   - 严禁不断更新 `update_working_memory`、`step`、`currentAgent`\n");
+        sb.append("1. **禁止虚假团队协作**：\n");
+        sb.append("   - 严禁模拟多个\"专家\"讨论但实际不调用 task() 工具\n");
+        sb.append("   - 不得声称\"专家A认为...、专家B建议...\"但未真实调用\n");
         sb.append("   - 不得使用 `memory_store` 存储虚假的\"已完成\"状态\n");
-        sb.append("   - 不得声称\"需求分析已完成\"、\"代码已编写\"等虚假结论\n");
-        sb.append("   - 不断更新状态而无实际文件产出是**严重违规**\n\n");
+        sb.append("   - 不断更新工作记忆但无子代理实际执行是**严重违规**\n\n");
         sb.append("2. **禁止循环操作**：\n");
         sb.append("   - 不得重复调用相同工具而不产生新进展\n");
-        sb.append("   - 检测到循环时必须立即停止并使用 `task()` 工具\n\n");
-        sb.append("#### 必须行为（强制执行）\n");
-        sb.append("1. **必须使用 task 工具**：\n");
-        sb.append("   - 所有实际工作必须通过 `task(subagent_type, prompt)` 委派给子代理\n");
-        sb.append("   - 可用类型：explore、plan、bash、general-purpose\n");
-        sb.append("   - 例如：`task(subagent_type='bash', prompt='创建文件并编写代码')`\n\n");
-        sb.append("2. **token 使用警告**：\n");
-        sb.append("   - 每个任务建议不超过 20,000 tokens\n");
-        sb.append("   - 超过 5,000 tokens 无产出时必须改变策略\n");
-        sb.append("   - 禁止无限循环调用工具\n\n");
+        sb.append("   - 检测到循环时必须立即停止并使用 `task()` 或 `complete_task()`\n\n");
+        sb.append("#### 必须行为（团队协作流程）\n");
+        sb.append("1. **任务分解**：使用 `analyze_tasks()` 或 `create_tasks()` 创建任务列表\n");
+        sb.append("2. **委派执行**：使用 `task()` 或 `complete_task()` 让子代理实际执行\n");
+        sb.append("3. **跟踪进度**：使用 `team_status()` 查看任务状态\n");
+        sb.append("4. **汇总成果**：收集各子代理结果，形成最终答案\n\n");
+
+        sb.append("### 模式对比：AgentTeams vs SubAgent\n\n");
+        sb.append("| 特性 | **AgentTeams 模式**（当前） | **SubAgent 模式** |\n");
+        sb.append("|------|---------------------------|------------------|\n");
+        sb.append("| **协调器** | MainAgent（团队领导） | 主Agent直接调用 |\n");
+        sb.append("| **任务管理** | 使用任务列表（`create_task`/`complete_task`） | 无任务列表 |\n");
+        sb.append("| **协作方式** | 多子代理通过任务列表协作 | 单次直接调用 |\n");
+        sb.append("| **适用场景** | 复杂、多步骤、需协调的工程任务 | 单一、独立的专业任务 |\n");
+        sb.append("| **工具数量** | 20+（团队协作、记忆管理等） | 1（只有task） |\n\n");
+        sb.append("**何时使用 AgentTeams 模式**：\n");
+        sb.append("- ✅ 需要**任务分解和跟踪**（有明确步骤）\n");
+        sb.append("- ✅ 需要**多个子代理协作**（2个以上专业领域）\n");
+        sb.append("- ✅ 需要**中间结果共享**（子代理间传递数据）\n");
+        sb.append("- ✅ 需要**进度监控**（查看哪些任务完成/进行中）\n\n");
+        sb.append("**何时使用 SubAgent 模式**：\n");
+        sb.append("- ✅ 简单任务（单次调用即可完成）\n");
+        sb.append("- ✅ 探索性任务（分析项目、查找代码）\n");
+        sb.append("- ✅ 不需要任务协调（独立执行）\n\n");
 
         // ========== 工作流程 ==========
         sb.append("### 工作流程\n");
@@ -149,14 +165,20 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("   - 自动评分：多维度评估记忆重要性（0-10分）\n");
         sb.append("   - 智能检索：`memory_recall()` 按相关性排序\n");
         sb.append("6. **工作记忆**: `get_working_memory()` 查看，`update_working_memory()` 更新\n");
-        sb.append("7. **代理间通信**: 使用 `send_message()` 发送消息，`list_agents()` 查看可用代理\n");
-        sb.append("8. **团队命名**: 使用 `suggest_team_name()` 获取命名建议\n\n");
+        sb.append("7. **多专家讨论**: \n");
+        sb.append("   - **简单讨论**（3位以内专家）：使用多轮 `task()` 调用，传递前一位专家的观点\n");
+        sb.append("   - **复杂讨论**（4位以上专家）：使用讨论板 `create_discussion_board()`\n");
+        sb.append("   - `create_discussion_board()` 创建讨论板\n");
+        sb.append("   - `append_discussion_board()` 追加专家观点\n");
+        sb.append("   - `get_discussion_board()` 获取完整讨论\n");
+        sb.append("8. **代理间通信**: 使用 `send_message()` 发送消息，`list_agents()` 查看可用代理\n");
+        sb.append("9. **团队命名**: 使用 `suggest_team_name()` 获取命名建议\n\n");
 
         sb.append("### 强制委派准则\n");
         sb.append("- **项目认知**: 探索项目、分析架构 → 委派给子代理\n");
         sb.append("- **复杂变更**: 跨文件修复、重构 → 委派给子代理\n");
         sb.append("- **决策量化**: 超过 3 次工具调用 → 改用子代理\n");
-        sb.append("- **所有开发任务**: 必须使用 `task(subagent_type='bash', ...)` 实际创建文件\n\n");
+        sb.append("- **所有开发任务**: 必须使用 `task(name='bash', ...)` 实际创建文件\n\n");
 
         sb.append("### 可用的子代理\n");
         sb.append("<available_agents>\n");
@@ -226,27 +248,27 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("**方法 1：在 prompt 中传递上下文（推荐）**\n");
         sb.append("```\n");
         sb.append("# 第一步：plan 完成设计\n");
-        sb.append("result1 = task(subagent_type='plan', prompt='设计用户登录模块')\n");
+        sb.append("result1 = task(name='plan', prompt='设计用户登录模块')\n");
         sb.append("\n");
         sb.append("# 第二步：传递给 bash\n");
         sb.append("task(\n");
-        sb.append("    subagent_type='bash',\n");
+        sb.append("    name='bash',\n");
         sb.append("    prompt='<context>基于以下设计：' + result1 + '</context>创建代码'\n");
         sb.append(")\n");
         sb.append("```\n\n");
         sb.append("**方法 2：使用共享记忆**\n");
         sb.append("```\n");
-        sb.append("result1 = task(subagent_type='plan', prompt='设计...')\n");
+        sb.append("result1 = task(name='plan', prompt='设计...')\n");
         sb.append("memory_store(content=result1, key='design')\n");
         sb.append("design = memory_recall(query='设计', limit=1)\n");
-        sb.append("task(subagent_type='bash', prompt='<context>' + design + '</context>创建代码')\n");
+        sb.append("task(name='bash', prompt='<context>' + design + '</context>创建代码')\n");
         sb.append("```\n\n");
         sb.append("**方法 3：使用 taskId 续接会话**\n");
         sb.append("```\n");
-        sb.append("result1 = task(subagent_type='explore', prompt='分析项目')\n");
+        sb.append("result1 = task(name='explore', prompt='分析项目')\n");
         sb.append("# 返回 task_id: explore_12345\n");
         sb.append("result2 = task(\n");
-        sb.append("    subagent_type='explore',\n");
+        sb.append("    name='explore',\n");
         sb.append("    prompt='深入分析 Controller 层',\n");
         sb.append("    taskId='explore_12345'  # 续接之前的会话\n");
         sb.append(")\n");
@@ -278,6 +300,36 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("# 场景4: 启动团队协作任务\n");
         sb.append("team_task(\"实现用户登录功能\")\n\n");
         sb.append("# 场景5: 查看任务状态\n");
+        sb.append("team_status()\n\n");
+        sb.append("# 场景6: 多专家讨论（简单模式 - 多轮调用）\n");
+        sb.append("# 适用于：3位以内专家，需要互相质疑、补充\n");
+        sb.append("result1 = task(name=\"security\", prompt=\"评审登录设计\")\n");
+        sb.append("result2 = task(name=\"performance\", prompt=\"安全专家建议：\" + result1 + \"\\n请从性能角度回应\")\n");
+        sb.append("result3 = task(name=\"arch\", prompt=\"前两位专家讨论如下，请给出折中方案：\" + result1 + result2)\n");
+        sb.append("# 汇总三位专家的讨论结果\n\n");
+        sb.append("# 场景7: 多专家讨论（复杂模式 - 讨论板）\n");
+        sb.append("# 适用于：4位以上专家，或需要长期记录的讨论\n");
+        sb.append("# 步骤1: 创建讨论板\n");
+        sb.append("board = create_discussion_board(topic=\"评审登录API设计\")\n");
+        sb.append("# 返回: boardId = \"discussion-1234567890\"\n\n");
+        sb.append("# 步骤2: 让第一位专家发言\n");
+        sb.append("result1 = task(\n");
+        sb.append("    name=\"security\",\n");
+        sb.append("    prompt=\"阅读讨论板：\" + get_discussion_board(boardId) + \"\\n发表你的观点\"\n");
+        sb.append(")\n");
+        sb.append("append_discussion_board(boardId, \"security\", result1)\n\n");
+        sb.append("# 步骤3: 让第二位专家回应\n");
+        sb.append("result2 = task(\n");
+        sb.append("    name=\"performance\",\n");
+        sb.append("    prompt=\"阅读讨论板：\" + get_discussion_board(boardId) + \"\\n请回应或质疑专家A\"\n");
+        sb.append(")\n");
+        sb.append("append_discussion_board(boardId, \"performance\", result2)\n\n");
+        sb.append("# 步骤4: 让更多专家参与...\n");
+        sb.append("# 每位专家都能看到完整的讨论记录\n\n");
+        sb.append("# 步骤5: 获取完整讨论\n");
+        sb.append("full_discussion = get_discussion_board(boardId)\n");
+        sb.append("# 汇总所有专家的观点\n\n");
+        sb.append("# 场景8: 查看任务状态\n");
         sb.append("team_status()\n\n");
         sb.append("# 场景6: 智能记忆存储（推荐使用）\n");
         sb.append("# 自动分类存储（系统自动判断存储类型和周期）\n");
@@ -1021,7 +1073,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             result.append("\n**使用方法**:\n");
             result.append("```bash\n");
-            result.append(String.format("task(subagent_type=\"%s\", prompt=\"你的任务描述\")\n", name));
+            result.append(String.format("task(name=\"%s\", prompt=\"你的任务描述\")\n", name));
             result.append("```\n");
 
             return result.toString();
@@ -1116,7 +1168,7 @@ public class AgentTeamsSkill extends AbsSkill {
             result.append("# 创建新成员\n");
             result.append("teammate(name=\"expert\", role=\"专家\", description=\"...\")\n\n");
             result.append("# 调用成员\n");
-            result.append("task(subagent_type=\"explore\", prompt=\"任务描述\")\n\n");
+            result.append("task(name=\"explore\", prompt=\"任务描述\")\n\n");
             result.append("# 查看任务状态\n");
             result.append("team_status()\n");
             result.append("```\n");
@@ -1703,6 +1755,126 @@ public class AgentTeamsSkill extends AbsSkill {
     }
 
     /**
+     * 创建讨论板（用于复杂的多专家讨论）
+     *
+     * 使用 SharedMemory 创建一个讨论板，专家可以查看并追加内容
+     */
+    @ToolMapping(name = "create_discussion_board",
+                 description = "创建一个讨论板，用于记录多个专家之间的讨论过程。返回讨论板ID。")
+    public String createDiscussionBoard(
+            @Param(name = "topic", description = "讨论主题") String topic,
+            @Param(name = "participants", description = "参与者列表（可选）") String participants) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            String boardId = "discussion-" + System.currentTimeMillis();
+            StringBuilder boardContent = new StringBuilder();
+
+            boardContent.append("# 讨论主题: ").append(topic).append("\n\n");
+            boardContent.append("## 参与者\n");
+            if (participants != null && !participants.isEmpty()) {
+                boardContent.append(participants).append("\n");
+            } else {
+                boardContent.append("(待补充)\n");
+            }
+            boardContent.append("\n");
+            boardContent.append("## 讨论记录\n\n");
+
+            // 存储到长期记忆（7天）
+            mainAgent.getSharedMemoryManager().putLongTerm(
+                boardId,
+                boardContent.toString(),
+                604800
+            );
+
+            LOG.info("讨论板已创建: boardId={}, topic={}", boardId, topic);
+
+            return "[OK] 讨论板已创建\n\n" +
+                   String.format("**讨论板ID**: %s\n", boardId) +
+                   String.format("**主题**: %s\n", topic) +
+                   "\n使用方法:\n" +
+                   "1. 使用 `get_discussion_board(boardId)` 查看当前内容\n" +
+                   "2. 调用专家时传入讨论板内容\n" +
+                   "3. 使用 `append_discussion_board(boardId, content)` 追加专家观点\n";
+
+        } catch (Exception e) {
+            LOG.error("创建讨论板失败", e);
+            return "[ERROR] 创建失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 追加讨论内容
+     */
+    @ToolMapping(name = "append_discussion_board",
+                 description = "向讨论板追加专家的观点或发言。")
+    public String appendDiscussionBoard(
+            @Param(name = "boardId", description = "讨论板ID") String boardId,
+            @Param(name = "speaker", description = "发言者名称") String speaker,
+            @Param(name = "content", description = "发言内容") String content) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            // 读取现有内容
+            String existingContent = mainAgent.getSharedMemoryManager().recallLongTerm(boardId);
+            if (existingContent == null || existingContent.isEmpty()) {
+                return "[ERROR] 讨论板不存在或已过期: " + boardId;
+            }
+
+            // 追加新内容
+            StringBuilder newContent = new StringBuilder(existingContent);
+            newContent.append(String.format("### [%s] %s\n",
+                    speaker,
+                    new java.util.Date().toString()));
+            newContent.append(content).append("\n\n");
+
+            // 更新存储
+            mainAgent.getSharedMemoryManager().putLongTerm(boardId, newContent.toString(), 604800);
+
+            LOG.info("讨论板已更新: boardId={}, speaker={}", boardId, speaker);
+
+            return "[OK] 发言已追加到讨论板\n\n" +
+                   String.format("**讨论板**: %s\n", boardId) +
+                   String.format("**发言者**: %s\n", speaker) +
+                   String.format("**内容长度**: %d 字符\n", content.length());
+
+        } catch (Exception e) {
+            LOG.error("追加讨论内容失败", e);
+            return "[ERROR] 追加失败: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 获取讨论板内容
+     */
+    @ToolMapping(name = "get_discussion_board",
+                 description = "获取讨论板的完整内容（包括所有发言）。")
+    public String getDiscussionBoard(
+            @Param(name = "boardId", description = "讨论板ID") String boardId) {
+        try {
+            if (mainAgent == null) {
+                return "[WARN] MainAgent 未初始化";
+            }
+
+            String content = mainAgent.getSharedMemoryManager().recallLongTerm(boardId);
+
+            if (content == null || content.isEmpty()) {
+                return "[ERROR] 讨论板不存在或已过期: " + boardId;
+            }
+
+            return "[OK] 讨论板内容\n\n" + content;
+
+        } catch (Exception e) {
+            LOG.error("获取讨论板失败", e);
+            return "[ERROR] 获取失败: " + e.getMessage();
+        }
+    }
+
+    /**
      * 获取任务详情
      */
     @ToolMapping(name = "get_task_details",
@@ -2019,7 +2191,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             sb.append("\n**提示**:\n");
             sb.append("- 使用 `send_message(targetAgent, message)` 向指定代理发送消息\n");
-            sb.append("- 使用 `task(subagent_type, prompt)` 调用代理并获取响应\n");
+            sb.append("- 使用 `task(name, prompt)` 调用代理并获取响应\n");
             sb.append("- 使用 `teammates()` 查看所有团队成员\n");
 
             return sb.toString();

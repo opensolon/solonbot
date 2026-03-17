@@ -80,17 +80,21 @@ public class TaskSkill extends AbsSkill {
 
     @Override
     public String description() {
-        return "战略任务调度与子代理委派专家";
+        return "SubAgent 模式工具：委派任务给专门的子代理（explore、plan、bash等）";
     }
 
     @Override
     public String getInstruction(Prompt prompt) {
         StringBuilder sb = new StringBuilder();
-        sb.append("处理复杂的、多步骤的任务，必须委派子代理（Subagent）执行\n\n");
+        sb.append("## SubAgent 模式工具\n\n");
 
         sb.append("###  核心规则（强制执行）\n\n");
         sb.append("####  禁止行为\n");
         sb.append("1. **禁止模拟工作**：严禁不断更新状态而无实际产出\n");
+        sb.append("2. **禁止自己代替子代理完成任务**：必须调用真实的子代理\n\n");
+
+        sb.append("#### 必须行为\n");
+        sb.append("1. **强制使用 task() 工具**：所有实际工作必须通过 task() 完成\n");
         sb.append("2. **必须有实际产出**：代码任务必须生成文件，使用 ls/read 验证\n\n");
 
         sb.append("### 可用的子代理注册表\n");
@@ -102,7 +106,7 @@ public class TaskSkill extends AbsSkill {
 
         sb.append("### 调用约定\n");
         sb.append("- **上下文对齐**: 子代理看不见当前历史，必须在 prompt 中传入必要的上下文\n");
-        sb.append("- **示例**: `task(subagentType=\"explore\", prompt=\"分析项目架构\")`\n");
+        sb.append("- **示例**: `task(name=\"explore\", prompt=\"分析项目架构\")`\n");
 
         return sb.toString();
     }
@@ -279,7 +283,7 @@ public class TaskSkill extends AbsSkill {
                    String.format("**代码**: %s\n", code) +
                    String.format("**名称**: %s\n", name) +
                    String.format("**描述**: %s\n", description) +
-                   String.format("\n现在可以使用 `task(subagentType=\"%s\", prompt=\"...\")` 来调用。", code);
+                   String.format("\n现在可以使用 `task(name=\"%s\", prompt=\"...\")` 来调用。", code);
 
         } catch (Throwable e) {
             LOG.error("创建子代理失败: code={}, error={}", code, e.getMessage(), e);

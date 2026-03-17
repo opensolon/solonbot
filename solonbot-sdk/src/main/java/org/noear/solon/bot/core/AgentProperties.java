@@ -35,7 +35,7 @@ import java.util.Map;
 public class AgentProperties implements Serializable {
     private String workDir = "./work/";
 
-    private int maxSteps = 30;
+    private int maxSteps = 10;
     private boolean maxStepsAutoExtensible = false;
 
     private int sessionWindowSize = 10;

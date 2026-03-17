@@ -559,6 +559,22 @@ public class SharedMemoryManager {
     }
 
     /**
+     * 检索长期记忆（便捷方法）
+     *
+     * @param key 键
+     * @return 值，不存在返回 null
+     */
+    public String recallLongTerm(String key) {
+        Memory ltm = longTermCache.get(key);
+        if (ltm != null && !ltm.isExpired()) {
+            if (ltm instanceof LongTermMemory) {
+                return ((LongTermMemory) ltm).getSummary();
+            }
+        }
+        return null;
+    }
+
+    /**
      * 存储知识记忆（便捷方法）
      *
      * @param key 键
