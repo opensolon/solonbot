@@ -25,7 +25,6 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.*;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.bot.core.AgentRuntime;
-import org.noear.solon.bot.core.teams.AgentTeamsTools;
 import org.noear.solon.core.util.Assert;
 
 import org.slf4j.Logger;
@@ -65,9 +64,7 @@ public abstract class AbsSubagent implements Subagent {
         this.metadata = metadata == null ? createDefaultMetadata() : metadata;
 
         ReActAgent.Builder builder = ReActAgent.of(rootAgent.getChatModel());
-        if (rootAgent.getProperties().isTeamsEnabled()){
-            builder.defaultToolAdd(AgentTeamsTools.getInstance());
-        }
+
         builder.instruction(getDefaultSystemPrompt());
         builder.defaultInterceptorAdd(rootAgent.getSummarizationInterceptor());
         // 应用元数据中的属性配置到builder
