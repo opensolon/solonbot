@@ -1,5 +1,10 @@
 package org.noear.solon.bot.core.subagent;
 
+import org.noear.solon.ai.agent.react.ReActAgent;
+import org.noear.solon.ai.skills.web.CodeSearchTool;
+import org.noear.solon.ai.skills.web.WebfetchTool;
+import org.noear.solon.ai.skills.web.WebsearchTool;
+import org.noear.solon.bot.core.AgentRuntime;
 import org.noear.solon.bot.core.util.Markdown;
 import org.noear.solon.bot.core.util.MarkdownUtil;
 import org.noear.solon.core.util.Assert;
@@ -12,11 +17,20 @@ import java.util.List;
  */
 public class AgentDefinition {
     protected AgentMetadata metadata = new AgentMetadata();
-    protected String prompt;
+    protected String systemPrompt;
 
     public AgentMetadata getMetadata() {
         return metadata;
     }
+
+    public String getName() {
+        return metadata.getName();
+    }
+
+    public String getDescription() {
+        return metadata.getDescription();
+    }
+
 
     public void setMetadata(AgentMetadata metadata) {
         if (metadata == null) {
@@ -26,12 +40,12 @@ public class AgentDefinition {
         }
     }
 
-    public String getPrompt() {
-        return prompt;
+    public String getSystemPrompt() {
+        return systemPrompt;
     }
 
-    public void setPrompt(String prompt) {
-        this.prompt = prompt;
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
     }
 
     /**
@@ -50,7 +64,7 @@ public class AgentDefinition {
         Markdown markdown = MarkdownUtil.resolve(Arrays.asList(markdownStr.split("\n")));
 
         markdown.getMetadata().bindTo(definition.metadata);
-        definition.prompt = markdown.getContent();
+        definition.systemPrompt = markdown.getContent();
 
         return definition;
     }
@@ -71,7 +85,7 @@ public class AgentDefinition {
         Markdown markdown = MarkdownUtil.resolve(lines);
 
         definition.metadata = markdown.getMetadata().toBean(AgentMetadata.class);
-        definition.prompt = markdown.getContent();
+        definition.systemPrompt = markdown.getContent();
 
         return definition;
     }
@@ -81,10 +95,116 @@ public class AgentDefinition {
         StringBuilder buf = new StringBuilder();
         metadata.injectYamlFrontmatter(buf);
 
-        if (Assert.isNotEmpty(prompt)) {
-            buf.append(prompt);
+        if (Assert.isNotEmpty(systemPrompt)) {
+            buf.append(systemPrompt);
         }
 
         return buf.toString();
+    }
+
+    public ReActAgent create(AgentRuntime agentRuntime) {
+        ReActAgent.Builder builder = ReActAgent.of(agentRuntime.getChatModel());
+
+        builder.name(metadata.getName());
+        builder.systemPrompt(r -> getSystemPrompt());
+        builder.defaultInterceptorAdd(agentRuntime.getSummarizationInterceptor());
+
+        if (metadata.getMaxSteps() != null && metadata.getMaxSteps() > 0) {
+            builder.maxSteps(metadata.getMaxSteps());
+        } else if (metadata.hasMaxTurns()) {
+            builder.maxSteps(metadata.getMaxTurns());
+        } else {
+            builder.maxSteps(30);
+        }
+
+        if (metadata.getMaxStepsAutoExtensible() != null) {
+            builder.maxStepsExtensible(metadata.getMaxStepsAutoExtensible());
+        } else {
+            builder.maxStepsExtensible(true);
+        }
+
+        if (Assert.isNotEmpty(metadata.getTools())) {
+            //目前参考了： https://opencode.ai/docs/zh-cn/permissions/
+            for (String toolName : metadata.getTools()) {
+                switch (toolName) {
+                    case "read": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("read"));
+                        break;
+                    }
+                    case "edit": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("read", "write", "edit", "multiedit", "undo"));
+                        break;
+                    }
+                    case "glob": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("glob"));
+                        break;
+                    }
+                    case "grep": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("grep"));
+                        break;
+                    }
+                    case "ls":
+                    case "list": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("ls"));
+                        break;
+                    }
+                    case "bash": {
+                        builder.defaultToolAdd(agentRuntime.getCliSkills().getTerminalSkill()
+                                .getToolAry("bash"));
+                        break;
+                    }
+                    case "task": {
+                        break;
+                    }
+                    case "skill": {
+                        builder.defaultSkillAdd(agentRuntime.getCliSkills().getExpertSkill());
+                        break;
+                    }
+
+                    case "todoread": {
+                        builder.defaultToolAdd(agentRuntime.getTodoSkill()
+                                .getToolAry("todoread"));
+                        break;
+                    }
+
+                    case "todowrite": {
+                        builder.defaultToolAdd(agentRuntime.getTodoSkill()
+                                .getToolAry("todowrite"));
+                        break;
+                    }
+
+                    case "webfetch": {
+                        builder.defaultToolAdd(WebfetchTool.getInstance());
+                        break;
+                    }
+
+                    case "websearch": {
+                        builder.defaultToolAdd(WebsearchTool.getInstance());
+                        break;
+                    }
+
+                    case "codesearch": {
+                        builder.defaultToolAdd(CodeSearchTool.getInstance());
+                        break;
+                    }
+
+                    case "*": {
+                        builder.defaultSkillAdd(agentRuntime.getCliSkills());
+                        builder.defaultToolAdd(agentRuntime.getTodoSkill());
+                        builder.defaultToolAdd(WebfetchTool.getInstance());
+                        builder.defaultToolAdd(WebsearchTool.getInstance());
+                        builder.defaultToolAdd(CodeSearchTool.getInstance());
+                        break;
+                    }
+                }
+            }
+        }
+
+        return builder.build();
     }
 }

@@ -24,8 +24,8 @@ import org.noear.solon.bot.core.AgentRuntime;
 import org.noear.solon.bot.core.event.EventBus;
 import org.noear.solon.bot.core.message.MessageChannel;
 import org.noear.solon.bot.core.memory.SharedMemoryManager;
+import org.noear.solon.bot.core.subagent.AgentDefinition;
 import org.noear.solon.bot.core.subagent.AgentMetadata;
-import org.noear.solon.bot.core.subagent.Subagent;
 import org.noear.solon.bot.core.subagent.AgentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +59,7 @@ public class SubAgentAgentBuilder {
 
     // 可选配置（使用 @Builder.Default 设置默认值）
     @Builder.Default
-    private final List<Subagent> subAgents = new ArrayList<>();
+    private final List<AgentDefinition> subAgents = new ArrayList<>();
     private final SharedMemoryManager sharedMemoryManager;
     private final EventBus eventBus;
     private final MessageChannel messageChannel;
@@ -85,10 +85,10 @@ public class SubAgentAgentBuilder {
      * @param subAgent 子代理实例
      * @return this
      */
-    public SubAgentAgentBuilder addAgent(Subagent subAgent) {
+    public SubAgentAgentBuilder addAgent(AgentDefinition subAgent) {
         if (subAgent != null) {
             this.subAgents.add(subAgent);
-            LOG.debug("添加团队成员: {}", subAgent.name());
+            LOG.debug("添加团队成员: {}", subAgent.getName());
         }
         return this;
     }
@@ -99,9 +99,9 @@ public class SubAgentAgentBuilder {
      * @param agents 子代理列表
      * @return this
      */
-    public SubAgentAgentBuilder addAgents(List<Subagent> agents) {
+    public SubAgentAgentBuilder addAgents(List<AgentDefinition> agents) {
         if (agents != null) {
-            for (Subagent agent : agents) {
+            for (AgentDefinition agent : agents) {
                 addAgent(agent);
             }
         }
@@ -198,66 +198,66 @@ public class SubAgentAgentBuilder {
 //        return mainAgent;
 //    }
 
-    /**
-     * 验证必需参数
-     */
-    private void validateRequiredParams() {
-        if (workDir == null || workDir.isEmpty()) {
-            throw new IllegalStateException("workDir 是必需参数，请使用 workDir() 设置");
-        }
-        if (sessionProvider == null) {
-            throw new IllegalStateException("sessionProvider 是必需参数，请使用 sessionProvider() 设置");
-        }
-        if (poolManager == null) {
-            throw new IllegalStateException("poolManager 是必需参数，请使用 poolManager() 设置");
-        }
-        if (subAgents.isEmpty()) {
-            LOG.warn("团队没有成员，建议至少添加一个子代理");
-        }
-    }
+//    /**
+//     * 验证必需参数
+//     */
+//    private void validateRequiredParams() {
+//        if (workDir == null || workDir.isEmpty()) {
+//            throw new IllegalStateException("workDir 是必需参数，请使用 workDir() 设置");
+//        }
+//        if (sessionProvider == null) {
+//            throw new IllegalStateException("sessionProvider 是必需参数，请使用 sessionProvider() 设置");
+//        }
+//        if (poolManager == null) {
+//            throw new IllegalStateException("poolManager 是必需参数，请使用 poolManager() 设置");
+//        }
+//        if (subAgents.isEmpty()) {
+//            LOG.warn("团队没有成员，建议至少添加一个子代理");
+//        }
+//    }
 
-    /**
-     * 创建默认的共享内存管理器
-     */
-    private SharedMemoryManager createSharedMemoryManager() {
-        LOG.info("创建默认 SharedMemoryManager");
-        return new SharedMemoryManager(Paths.get(workDir, AgentRuntime.SOLONCODE_MEMORY));
-    }
+//    /**
+//     * 创建默认的共享内存管理器
+//     */
+//    private SharedMemoryManager createSharedMemoryManager() {
+//        LOG.info("创建默认 SharedMemoryManager");
+//        return new SharedMemoryManager(Paths.get(workDir, AgentRuntime.SOLONCODE_MEMORY));
+//    }
 
-    /**
-     * 创建默认的事件总线
-     */
-    private EventBus createEventBus() {
-        LOG.info("创建默认 EventBus");
-        return new EventBus();
-    }
+//    /**
+//     * 创建默认的事件总线
+//     */
+//    private EventBus createEventBus() {
+//        LOG.info("创建默认 EventBus");
+//        return new EventBus();
+//    }
 
-    /**
-     * 创建默认的消息通道
-     */
-    private MessageChannel createMessageChannel() {
-        LOG.info("创建默认 MessageChannel");
-        return new MessageChannel(workDir);
-    }
+//    /**
+//     * 创建默认的消息通道
+//     */
+//    private MessageChannel createMessageChannel() {
+//        LOG.info("创建默认 MessageChannel");
+//        return new MessageChannel(workDir);
+//    }
 
-    /**
-     * 创建默认的共享任务列表
-     */
-    private SharedTaskList createTaskList(EventBus eventBus) {
-        LOG.info("创建默认 SharedTaskList");
-        return new SharedTaskList(eventBus);
-    }
-
-    /**
-     * 创建默认的主代理配置
-     */
-    private AgentMetadata createDefaultMainAgentConfig() {
-        AgentMetadata config = new AgentMetadata();
-        config.setName("main-agent");
-        config.setDescription("Agent 团队协调器，负责任务分发和结果汇总");
-        config.setEnabled(true);
-
-        LOG.debug("创建默认主代理配置: {}", config.getName());
-        return config;
-    }
+//    /**
+//     * 创建默认的共享任务列表
+//     */
+//    private SharedTaskList createTaskList(EventBus eventBus) {
+//        LOG.info("创建默认 SharedTaskList");
+//        return new SharedTaskList(eventBus);
+//    }
+//
+//    /**
+//     * 创建默认的主代理配置
+//     */
+//    private AgentMetadata createDefaultMainAgentConfig() {
+//        AgentMetadata config = new AgentMetadata();
+//        config.setName("main-agent");
+//        config.setDescription("Agent 团队协调器，负责任务分发和结果汇总");
+//        config.setEnabled(true);
+//
+//        LOG.debug("创建默认主代理配置: {}", config.getName());
+//        return config;
+//    }
 }

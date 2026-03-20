@@ -84,8 +84,8 @@ public class AgentTeamsSkill extends AbsSkill {
         }
     }
 
-    private AgentManager getSubagentManager(){
-        return rootAgent.getSubagentReActExtension().getSubagentManager();
+    private AgentManager getAgentManager(){
+        return rootAgent.getAgentManager();
     }
 
 
@@ -181,10 +181,10 @@ public class AgentTeamsSkill extends AbsSkill {
         sb.append("### 可用的子代理\n");
         sb.append("<available_agents>\n");
         // 只显示自定义团队成员（有 teamName 的）
-        for (Subagent agent : getSubagentManager().getAgents()) {
+        for (AgentDefinition agent : getAgentManager().getAgents()) {
             if (agent.getMetadata().hasTeamName()) {
                 sb.append(String.format("  - `%s`: %s (团队: %s)\n",
-                        agent.name(),
+                        agent.getName(),
                         agent.getDescription(),
                         agent.getMetadata().getTeamName()));
             }
@@ -948,7 +948,7 @@ public class AgentTeamsSkill extends AbsSkill {
             }
 
             // 4. 检查是否已存在相同 role 的 agent（避免重复覆盖）
-            if (getSubagentManager().hasAgent(role)) {
+            if (getAgentManager().hasAgent(role)) {
                 LOG.warn("警告：已存在 role='{}' 的子代理，新成员可能会覆盖它。建议使用唯一的 role 名称。", role);
             }
 
@@ -1006,7 +1006,7 @@ public class AgentTeamsSkill extends AbsSkill {
             // 生成完整的代理定义
             AgentDefinition definition = new AgentDefinition();
             definition.setMetadata(metadata);
-            definition.setPrompt(finalPrompt);
+            definition.setSystemPrompt(finalPrompt);
 
             String agentMd = definition.toMarkdown();
 
@@ -1022,7 +1022,7 @@ public class AgentTeamsSkill extends AbsSkill {
             // 重新扫描目录以加载新创建的 agent（使用 putIfAbsent 避免重复）
             try {
                 Path parentDir = agentFile.getParent();
-                getSubagentManager().agentPool(parentDir, false);
+                getAgentManager().agentPool(parentDir, false);
                 LOG.info("已重新扫描目录并加载新团队成员: {}", name);
             } catch (Throwable ex) {
                 LOG.warn("重新扫描目录失败（文件已保存）: {}", ex.getMessage());
@@ -1101,10 +1101,10 @@ public class AgentTeamsSkill extends AbsSkill {
             @Param(name = "includeBuiltIn", required = false, description = "可选。是否包括内置子代理（explore、bash、plan等），默认false") Boolean includeBuiltIn
     ) {
         try {
-            List<Subagent> allAgents = new ArrayList<>(getSubagentManager().getAgents());
+            List<AgentDefinition> allAgents = new ArrayList<>(getAgentManager().getAgents());
 
             // 根据团队名称筛选
-            List<Subagent> agents;
+            List<AgentDefinition> agents;
             if (teamName != null && !teamName.isEmpty()) {
                 // 指定团队名：只显示该团队的成员
                 agents = allAgents.stream()
@@ -1147,8 +1147,8 @@ public class AgentTeamsSkill extends AbsSkill {
             result.append("| 名称 | 角色 | 描述 | 团队 | 模型 |\n");
             result.append("|------|------|------|------|------|------|\n");
 
-            for (Subagent agent : agents) {
-                String name = String.format("`%s`", agent.name());
+            for (AgentDefinition agent : agents) {
+                String name = String.format("`%s`", agent.getName());
                 String role = agent.getClass().getSimpleName().replace("Subagent", "");
                 String desc = truncate(agent.getDescription(), 30);
                 String team = agent.getMetadata().hasTeamName() ? agent.getMetadata().getTeamName() : "-";
@@ -1194,7 +1194,7 @@ public class AgentTeamsSkill extends AbsSkill {
     ) {
         try {
             // 查找成员
-            Subagent agent = getSubagentManager().getAgent(name);
+            AgentDefinition agent = getAgentManager().getAgent(name);
             if (agent == null) {
                 return String.format("[ERROR] 未找到团队成员: `%s`\n\n可用的成员:\n%s",
                         name, listTeammates(null, null));
@@ -2181,13 +2181,13 @@ public class AgentTeamsSkill extends AbsSkill {
 
             sb.append("**团队成员**:\n");
             // 从 SubagentManager 获取自定义团队成员
-            for (Subagent agent : getSubagentManager().getAgents()) {
-                if (!agent.name().equals("explore")
-                    && !agent.name().equals("plan")
-                    && !agent.name().equals("bash")
-                    && !agent.name().equals("general-purpose")) {
+            for (AgentDefinition agent : getAgentManager().getAgents()) {
+                if (!agent.getName().equals("explore")
+                    && !agent.getName().equals("plan")
+                    && !agent.getName().equals("bash")
+                    && !agent.getName().equals("general-purpose")) {
                     sb.append(String.format("- `%s`: %s\n",
-                            agent.name(), agent.getDescription()));
+                            agent.getName(), agent.getDescription()));
                 }
             }
 
@@ -2381,7 +2381,7 @@ public class AgentTeamsSkill extends AbsSkill {
      * 获取团队成员
      */
     private List<String> getTeamMembers(String teamName) {
-        return getSubagentManager().getAgents().stream()
+        return getAgentManager().getAgents().stream()
                 .filter(agent -> agent.getMetadata().hasTeamName() &&
                         agent.getMetadata().getTeamName().equals(teamName))
                 .map(agent -> agent.getMetadata().getName())
@@ -2407,7 +2407,7 @@ public class AgentTeamsSkill extends AbsSkill {
         try {
             String description = "";
             String protocol = "sequential";
-            List<Subagent> validAgents = new ArrayList<>();
+            List<AgentDefinition> validAgents = new ArrayList<>();
 
             // 1. 尝试从配置文件读取
             String teamsDir = mainAgent.getWorkDir() + File.separator + ".soloncode" + File.separator + "agentsTeams";
@@ -2445,7 +2445,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 // 验证代理是否可用
                 List<String> missingAgents = new ArrayList<>();
                 for (String agentName : agentNames) {
-                    Subagent agent = getSubagentManager().getAgent(agentName);
+                    AgentDefinition agent = getAgentManager().getAgent(agentName);
                     if (agent != null) {
                         validAgents.add(agent);
                     } else {
@@ -2464,7 +2464,7 @@ public class AgentTeamsSkill extends AbsSkill {
                 // 2. 配置文件不存在，动态从 SubagentManager 获取该团队的成员
                 LOG.info("配置文件不存在，尝试从 SubagentManager 动态获取团队成员: team={}", teamName);
 
-                validAgents = getSubagentManager().getAgents().stream()
+                validAgents = getAgentManager().getAgents().stream()
                         .filter(agent -> agent.getMetadata().hasTeamName() &&
                                      teamName.equals(agent.getMetadata().getTeamName()))
                         .collect(java.util.stream.Collectors.toList());
@@ -2493,13 +2493,8 @@ public class AgentTeamsSkill extends AbsSkill {
                         .instruction("团队协作完成用户指定的任务。根据任务特点和各成员的能力，合理分配和协调工作。");
 
             // 5. 添加成员（从 Subagent 中提取底层的 ReActAgent）
-            for (Subagent agent : validAgents) {
-                if (agent instanceof AbsSubagent) {
-                    AbsSubagent absSubagent = (AbsSubagent) agent;
-                    teamBuilder.agentAdd(absSubagent.getCachedAgent());
-                } else {
-                    LOG.warn("代理 {} 不是 AbsSubagent 类型，跳过", agent.name());
-                }
+            for (AgentDefinition agent : validAgents) {
+                teamBuilder.agentAdd(agent.create(rootAgent));
             }
 
             // 6. 配置协议

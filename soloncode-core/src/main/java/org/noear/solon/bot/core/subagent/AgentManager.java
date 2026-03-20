@@ -16,13 +16,16 @@
 package org.noear.solon.bot.core.subagent;
 
 import org.noear.solon.bot.core.AgentRuntime;
+import org.noear.solon.core.util.ResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -39,33 +42,37 @@ import java.util.stream.Stream;
 public class AgentManager {
     private static final Logger LOG = LoggerFactory.getLogger(AgentManager.class);
 
-    private final Map<String, Subagent> subagentMap = new ConcurrentHashMap<>();
-    private final AgentRuntime rootAgent;
+    private final Map<String, AgentDefinition> agentMap = new ConcurrentHashMap<>();
+    //private final AgentRuntime agentRuntime;
 
-    public AgentManager(AgentRuntime rootAgent) {
-        this.rootAgent = rootAgent;
-
+    public AgentManager() {
         // 添加预置的智能体类型（保持向后兼容）
-        addSubagent(new ExploreSubagent(rootAgent));
-        addSubagent(new PlanSubagent(rootAgent));
-        addSubagent(new GeneralPurposeSubagent(rootAgent));
-        addSubagent(new BashSubagent(rootAgent));
+//        addSubagent(new ExploreSubagent(rootAgent));
+//        addSubagent(new PlanSubagent(rootAgent));
+//        addSubagent(new GeneralPurposeSubagent(rootAgent));
+//        addSubagent(new BashSubagent(rootAgent));
+
+        loadAgentFile(ResourceUtil.getResource( "defaults/agents/bash.md"));
+        loadAgentFile(ResourceUtil.getResource( "defaults/agents/explore.md"));
+        loadAgentFile(ResourceUtil.getResource( "defaults/agents/general-purpose.md"));
+        loadAgentFile(ResourceUtil.getResource( "defaults/agents/plan.md"));
     }
 
-    public void addSubagent(Subagent subagent) {
-        subagentMap.putIfAbsent(subagent.name(), subagent);
+    public void addSubagent(AgentDefinition agentDefinition) {
+        agentMap.putIfAbsent(agentDefinition.getMetadata().getName(), agentDefinition);
     }
 
     /**
      * 获取指定名称的子代理（支持自定义代理）
      */
-    public Subagent getAgent(String agentName) {
+    public AgentDefinition getAgent(String agentName) {
         // 1. 首先尝试作为预定义类型
-        Subagent subagent = subagentMap.get(agentName);
-        if (subagent == null) {
+        AgentDefinition agentDefinition = agentMap.get(agentName);
+
+        if (agentDefinition == null) {
             throw new IllegalArgumentException("未找到代理: " + agentName);
         } else {
-            return subagent;
+            return agentDefinition;
         }
     }
 
@@ -74,21 +81,21 @@ public class AgentManager {
      * 检查子代理是否已注册
      */
     public boolean hasAgent(String agentName) {
-        return subagentMap.containsKey(agentName);
+        return agentMap.containsKey(agentName);
     }
 
     /**
      * 获取所有已注册的子代理
      */
-    public Collection<Subagent> getAgents() {
-        return subagentMap.values();
+    public Collection<AgentDefinition> getAgents() {
+        return agentMap.values();
     }
 
     /**
      * 清除所有子代理
      */
     public void clear() {
-        subagentMap.clear();
+        agentMap.clear();
     }
 
     /**
@@ -144,6 +151,15 @@ public class AgentManager {
         agentPool(dir, false);
     }
 
+
+    private void loadAgentFile(URL url) {
+        if(url == null){
+            return;
+        }
+
+        loadAgentFile(Paths.get(url.getFile()));
+    }
+
     /**
      * 从文件加载子代理定义
      *
@@ -163,8 +179,7 @@ public class AgentManager {
                 agentTypeName = fileName.substring(0, fileName.length() - 3);
             }
 
-            subagentMap.computeIfAbsent(agentTypeName,
-                    k -> new GeneralPurposeSubagent(rootAgent, definition));
+            agentMap.put(agentTypeName, definition);
 
             LOG.debug("加载子代理: {} 从 {}", agentTypeName, file);
         } catch (IOException e) {

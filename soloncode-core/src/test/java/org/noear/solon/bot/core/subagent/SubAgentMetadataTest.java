@@ -16,8 +16,6 @@
 package org.noear.solon.bot.core.subagent;
 
 import org.junit.jupiter.api.Test;
-import org.noear.solon.bot.core.subagent.AgentDefinition;
-import org.noear.solon.bot.core.subagent.AgentMetadata;
 
 import java.util.List;
 
@@ -100,7 +98,7 @@ public class SubAgentMetadataTest {
         assertEquals("glm-4-flash", result.getMetadata().getModel());
 
         // 验证清理后的提示词（不包含 YAML 头部）
-        String cleaned = result.getPrompt();
+        String cleaned = result.getSystemPrompt();
         assertFalse(cleaned.contains("---"));
         assertFalse(cleaned.contains("name: bash"));
         assertTrue(cleaned.contains("## Bash 代理"));
@@ -119,7 +117,7 @@ public class SubAgentMetadataTest {
         assertNull(result.getMetadata().getModel());
 
         // 提示词应该保持不变
-        assertEquals(prompt, result.getPrompt());
+        assertEquals(prompt, result.getSystemPrompt());
     }
 
     @Test
@@ -200,7 +198,7 @@ public class SubAgentMetadataTest {
         assertTrue(tools.contains("Read"));
 
         // 验证清理后的提示词
-        String cleaned = result.getPrompt();
+        String cleaned = result.getSystemPrompt();
         assertFalse(cleaned.contains("---"));
         assertTrue(cleaned.startsWith("## 探索代理"));
     }

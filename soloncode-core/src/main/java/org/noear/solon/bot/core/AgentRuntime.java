@@ -22,7 +22,7 @@ import org.noear.solon.ai.skills.lucene.LuceneSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.web.*;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
-import org.noear.solon.bot.core.subagent.SubagentReActExtension;
+import org.noear.solon.bot.core.subagent.AgentManager;
 import org.noear.solon.bot.core.teams.*;
 import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
@@ -77,6 +77,7 @@ public class AgentRuntime {
 
     private final CodeSkill codeSkill = new CodeSkill();
     private final LuceneSkill luceneSkill = new LuceneSkill();
+    private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
 
     private final ReActAgent reActAgent;
 
@@ -88,7 +89,7 @@ public class AgentRuntime {
     private final SummarizationInterceptor summarizationInterceptor;
 
 
-    private SubagentReActExtension subagentReActExtension;
+    private AgentManager agentManager;
     private TeamReActExtension teamReActExtension;
 
     public String getVersion() {
@@ -101,6 +102,10 @@ public class AgentRuntime {
 
     public AgentProperties getProps() {
         return properties;
+    }
+
+    public AgentManager getAgentManager() {
+        return agentManager;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -164,7 +169,7 @@ public class AgentRuntime {
         agentBuilder.defaultToolAdd(new ApplyPatchTool());
 
         agentBuilder.defaultSkillAdd(cliSkills);
-        agentBuilder.defaultSkillAdd(new TodoSkill(SOLONCODE_SESSIONS));
+        agentBuilder.defaultSkillAdd(todoSkill);
         agentBuilder.defaultSkillAdd(codeSkill);
         agentBuilder.defaultSkillAdd(luceneSkill);
 
@@ -187,8 +192,24 @@ public class AgentRuntime {
 
         // 添加子代理工具
         if (properties.isSubagentEnabled() || properties.isAgentTeamEnabled()) {
-            subagentReActExtension = new SubagentReActExtension(this);
-            subagentReActExtension.configure(agentBuilder);
+            agentManager = new AgentManager();
+
+            // 注册自定义 agents 池（类似 skillPool）
+            // 注册 soloncode agents
+            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS));
+            // 注册 opencode agents
+            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_AGENTS));
+            // 注册 claude agents
+            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_AGENTS));
+            // 注册 soloncode agentsTeams（递归扫描团队成员目录）
+            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS_TEAMS), true);
+
+        }
+
+        if(properties.isSubagentEnabled()){
+            agentBuilder.defaultSkillAdd(new TaskSkill(this));
+
+            LOG.debug("子代理模式已启用");
         }
 
         if (properties.isAgentTeamEnabled()) {
