@@ -4,10 +4,10 @@ import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActAgentExtension;
 import org.noear.solon.bot.core.AgentRuntime;
 import org.noear.solon.bot.core.AgentProperties;
+import org.noear.solon.bot.core.agent.AgentDefinition;
 import org.noear.solon.bot.core.teams.event.EventBus;
 import org.noear.solon.bot.core.teams.memory.SharedMemoryManager;
 import org.noear.solon.bot.core.teams.message.MessageChannel;
-import org.noear.solon.bot.core.agent.AgentMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,16 +69,13 @@ public class TeamReActExtension implements ReActAgentExtension {
             LOG.debug("MessageChannel 已创建，路径: {}, 线程数: {}", messagePath, messageThreads);
 
             // 5. 创建 MainAgent 配置
-            AgentMetadata mainAgentConfig = new AgentMetadata();
-            mainAgentConfig.setName("main-agent");
-            mainAgentConfig.setDescription("Agent Teams 协调器，负责任务分解和团队协作");
-            mainAgentConfig.setEnabled(true);
+            AgentDefinition agentDefinition = agentRuntime.getAgentManager()
+                    .getAgent(AgentDefinition.AGENT_SUPERVISOR);
 
             // 6. 创建 MainAgent（传入 kernel 和 subagentManager 以支持 subagent 功能）
             this.supervisorAgent = new SupervisorAgent(
                     agentRuntime,
-                    mainAgentConfig,
-                    agentRuntime.getSessionProvider(),
+                    agentDefinition,
                     memoryManager,
                     eventBus,
                     messageChannel,

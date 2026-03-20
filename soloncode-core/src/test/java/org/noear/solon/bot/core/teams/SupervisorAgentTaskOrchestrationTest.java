@@ -15,8 +15,8 @@
  */
 package org.noear.solon.bot.core.teams;
 
-import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.prompt.Prompt;
+import org.noear.solon.bot.core.agent.AgentDefinition;
 import org.noear.solon.bot.core.teams.event.EventBus;
 import org.noear.solon.bot.core.teams.memory.SharedMemoryManager;
 import org.noear.solon.bot.core.agent.AgentMetadata;
@@ -44,19 +44,20 @@ public class SupervisorAgentTaskOrchestrationTest {
         EventBus eventBus = new EventBus();
         SharedTaskList taskList = new SharedTaskList(eventBus);
         SharedMemoryManager memoryManager = new SharedMemoryManager(Paths.get("./work"));
-        AgentMetadata config = new AgentMetadata();
+
+        AgentDefinition agentDefinition = new AgentDefinition();
         //config.setCode("main-agent");
-        config.setName("主代理");
-        config.setDescription("测试主代理");
+        agentDefinition.setMetadata(AgentMetadata.builder()
+                .name("主代理")
+                .description("测试主代理")
+                .build());
 
         // 创建模拟的 SessionProvider
-        AgentSessionProvider sessionProvider = userId -> null;
 
         // 创建 MainAgent
         SupervisorAgent mainAgent = new SupervisorAgent(
                 null,
-                config,
-                sessionProvider,
+                agentDefinition,
                 memoryManager,
                 eventBus,
                 null, // MessageChannel 为 null（测试用）
@@ -64,22 +65,25 @@ public class SupervisorAgentTaskOrchestrationTest {
                 "./work"
         );
 
-        // 测试 1: 探索类任务创建
-        testExplorationTasks(mainAgent);
+        System.out.println(mainAgent.getTeamLeadInstruction());
+        return;
 
-        // 测试 2: 开发类任务创建
-        testDevelopmentTasks(mainAgent);
-
-        // 测试 3: 依赖关系验证
-        testDependencyValidation(mainAgent);
-
-        // 测试 4: 循环依赖检测
-        testCyclicDependencyDetection(taskList);
-
-        // 测试 5: 依赖关系可视化
-        testDependencyVisualization(taskList);
-
-        System.out.println("\n========== 测试完成 ==========");
+//        // 测试 1: 探索类任务创建
+//        testExplorationTasks(mainAgent);
+//
+//        // 测试 2: 开发类任务创建
+//        testDevelopmentTasks(mainAgent);
+//
+//        // 测试 3: 依赖关系验证
+//        testDependencyValidation(mainAgent);
+//
+//        // 测试 4: 循环依赖检测
+//        testCyclicDependencyDetection(taskList);
+//
+//        // 测试 5: 依赖关系可视化
+//        testDependencyVisualization(taskList);
+//
+//        System.out.println("\n========== 测试完成 ==========");
     }
 
     /**

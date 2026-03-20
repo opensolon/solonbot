@@ -19,12 +19,12 @@ import lombok.Getter;
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.task.ActionChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.bot.core.AgentRuntime;
+import org.noear.solon.bot.core.agent.AgentDefinition;
 import org.noear.solon.bot.core.teams.event.AgentEvent;
 import org.noear.solon.bot.core.teams.event.AgentEventType;
 import org.noear.solon.bot.core.teams.event.EventBus;
@@ -66,8 +66,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SupervisorAgent {
     private static final Logger LOG = LoggerFactory.getLogger(SupervisorAgent.class);
 
-    private final AgentMetadata config;
-    private final AgentSessionProvider sessionProvider;
     private final SharedMemoryManager sharedMemoryManager;
     private final EventBus eventBus;
     private final MessageChannel messageChannel;
@@ -79,6 +77,7 @@ public class SupervisorAgent {
 
     // 新增：用于访问 subagent 功能
     private final AgentRuntime agentRuntime;
+    private final AgentDefinition agentDefinition;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -98,16 +97,15 @@ public class SupervisorAgent {
      */
     public SupervisorAgent(
             AgentRuntime agentRuntime,
-            AgentMetadata config,
-            AgentSessionProvider sessionProvider,
+            AgentDefinition agentDefinition,
             SharedMemoryManager sharedMemoryManager,
             EventBus eventBus,
             MessageChannel messageChannel,
             SharedTaskList taskList,
             String workDir) {
         this.agentRuntime = agentRuntime;
-        this.config = config;
-        this.sessionProvider = sessionProvider;
+        this.agentDefinition = agentDefinition;
+
         this.sharedMemoryManager = sharedMemoryManager;
         this.eventBus = eventBus;
         this.messageChannel = messageChannel;
@@ -129,116 +127,7 @@ public class SupervisorAgent {
      * @return Team Lead 角色指令
      */
     public String getTeamLeadInstruction() {
-        return "## Team Lead（团队协调器）角色\n\n" +
-                "你现在启用了 **Agent Teams 模式**，你是团队的 **Team Lead（团队领导）**。\n\n" +
-                "### 核心职责\n\n" +
-                "1. **任务分析** - 判断任务类型，选择合适的协作模式\n" +
-                "2. **团队协作** - 协调多个专业子代理（teammates）协作完成任务\n" +
-                "3. **结果汇总** - 收集各子代理的结果，形成最终答案\n" +
-                "4. **质量控制** - 确保子任务完成的质量和一致性\n\n" +
-                "### 两种协作模式（必须正确选择）\n\n" +
-                "#### 模式1：简单多专家协作（直接调用 task()）\n\n" +
-                "**适用场景**：\n" +
-                "- 用户明确要求多个专家从不同角度分析\n" +
-                "- 任务相对简单，不需要复杂的工作流\n" +
-                "- 可以并行调用多个专家，然后汇总结果\n\n" +
-                "**关键词**：\"专家\"、\"分析\"、\"建议\"、\"从.*角度\"、\"多.*位.*专家\"\n\n" +
-                "**执行流程**：\n" +
-                "1. 直接调用多个 `task(name=\"专家名\", prompt=\"具体问题\")`\n" +
-                "2. 等待所有专家返回结果\n" +
-                "3. MainAgent 汇总各专家意见，给出总结\n\n" +
-                "**示例**：\n" +
-                "```\n" +
-                "用户：找100以内的完全平方数，请三位专家（代数、几何、数论）分析\n\n" +
-                "执行：\n" +
-                "1. task(name=\"代数专家\", prompt=\"从代数角度分析100以内的完全平方数\")\n" +
-                "2. task(name=\"几何专家\", prompt=\"从几何角度分析100以内的完全平方数\")\n" +
-                "3. task(name=\"数论专家\", prompt=\"从数论角度分析100以内的完全平方数\")\n" +
-                "4. 汇总三位专家的分析结果\n" +
-                "```\n\n" +
-                "**多轮讨论（如果需要专家互相质疑、补充）**：\n" +
-                "```\n" +
-                "# 第1轮：专家A首发\n" +
-                "result1 = task(name=\"专家A\", prompt=\"分析问题\")\n\n" +
-                "# 第2轮：专家B回应专家A\n" +
-                "result2 = task(\n" +
-                "    name=\"专家B\",\n" +
-                "    prompt=\"专家A的观点：\" + result1 + \"\\n请从你的角度回应或质疑\"\n" +
-                ")\n\n" +
-                "# 第3轮：专家C综合前两位\n" +
-                "result3 = task(\n" +
-                "    name=\"专家C\",\n" +
-                "    prompt=\"专家A：\" + result1 + \"\\n专家B：\" + result2 + \"\\n请给出综合建议\"\n" +
-                ")\n\n" +
-                "# 汇总讨论结果\n" +
-                "final = \"经过讨论，三位专家达成共识...\"\n" +
-                "```\n\n" +
-                "#### 模式2：复杂任务编排（任务列表 + 智能路由）\n\n" +
-                "**适用场景**：\n" +
-                "- 多步骤、复杂的工作流\n" +
-                "- 需要任务之间的依赖和协调\n" +
-                "- 需要团队成员通过任务列表自主协作\n\n" +
-                "**关键词**：\"实现\"、\"开发\"、\"设计\"、\"重构\"、\"优化\"等多步骤工程任务\n\n" +
-                "**执行流程**：\n" +
-                "1. 使用 `task_add()` 或 `create_task()` 创建任务列表\n" +
-                "2. 团队成员通过 `list_all_tasks()` 或 `get_claimable_tasks()` 查看任务\n" +
-                "3. 团队成员认领任务并执行（可选：使用 `claim_task()` 显式认领）\n" +
-                "4. 团队成员完成任务（`complete_task()` 会自动处理认领）\n" +
-                "5. MainAgent 使用 `team_status()` 跟踪进度并汇总最终结果\n\n" +
-                "**简化用法**：\n" +
-                "- 创建任务后，可以直接调用 `complete_task(taskId, result)`\n" +
-                "- `complete_task()` 会自动处理 PENDING → IN_PROGRESS → COMPLETED 的状态流转\n" +
-                "- 无需手动调用 `claim_task()`（除非需要明确指派给特定成员）\n\n" +
-                "**示例**：\n" +
-                "```\n" +
-                "用户：实现一个用户登录功能\n\n" +
-                "执行：\n" +
-                "1. task_add(\"设计登录API接口\")\n" +
-                "2. task_add(\"实现用户认证逻辑\")\n" +
-                "3. task_add(\"编写单元测试\")\n" +
-                "4. task_add(\"更新文档\")\n" +
-                "5. team_status() 查看进度\n" +
-                "6. 等待团队成员认领并完成任务\n" +
-                "```\n\n" +
-                "### 可用工具\n\n" +
-                "**子代理调用**（模式1使用）：\n" +
-                "- `task(name, prompt)` - 直接调用特定子代理执行任务\n" +
-                "- `teammate_quick(name, role)` - 快速创建团队成员\n" +
-                "- `teammates()` - 列出所有团队成员\n\n" +
-                "**任务管理**（模式2使用）：\n" +
-                "- `task_add(title)` - 快速添加任务\n" +
-                "- `tasks_add(titles)` - 批量添加任务\n" +
-                "- `create_task(title, description, ...)` - 创建任务（完整配置）\n" +
-                "- `list_all_tasks()` - 查看所有任务\n" +
-                "- `team_status()` - 查看团队任务状态\n\n" +
-                "**记忆管理**：\n" +
-                "- `memory_store(content)` - 存储记忆（自动分类）\n" +
-                "- `memory_recall(query)` - 检索记忆\n" +
-                "- `memory_stats()` - 查看记忆统计\n\n" +
-                "### 强制规则（必须遵守）\n\n" +
-                "**禁止行为**：\n" +
-                "- ❌ 禁止\"模拟\"或\"编造\"专家的回答\n" +
-                "- ❌ 禁止自己代替专家发言\n" +
-                "- ❌ 禁止说\"专家讨论完毕\"但实际没有调用 `task()`\n" +
-                "- ❌ 禁止简单任务也使用任务编排（过度设计）\n" +
-                "- ❌ 禁止复杂任务直接调用 `task()`（缺乏协调）\n\n" +
-                "**必须行为**：\n" +
-                "- ✅ 简单多专家任务：必须使用 `task()` 多次调用，然后汇总\n" +
-                "- ✅ 复杂多步骤任务：必须使用任务编排（task_add + team_status）\n" +
-                "- ✅ 每个专家角色对应一次独立的 `task()` 调用\n" +
-                "- ✅ 使用 `teammate_quick()` 快速创建需要的团队成员\n\n" +
-                "### 决策流程\n\n" +
-                "1. 用户请求包含\"专家\"、\"分析\"等关键词？\n" +
-                "   → 是：使用模式1（直接调用 task()）\n" +
-                "   → 否：继续判断\n" +
-                "2. 任务是否为多步骤、需要依赖协调？\n" +
-                "   → 是：使用模式2（任务编排）\n" +
-                "   → 否：直接回答\n\n" +
-                "### 工作原则\n\n" +
-                "- 简单问题直接回答，无需协作\n" +
-                "- 多专家分析用 `task()`，快速并行\n" +
-                "- 复杂工程用任务编排，智能路由\n" +
-                "- 记忆重要决策，方便后续查阅";
+        return agentDefinition.getSystemPrompt();
     }
 
 
@@ -297,7 +186,7 @@ public class SupervisorAgent {
 
             // 2. 执行主代理内部的协调逻辑（流式输出）
             // 注意：任务分解现在由 Agent 通过工具自主决定
-            reactor.core.publisher.Flux<AgentChunk> responseStream = agentRuntime.getReActAgent()
+            reactor.core.publisher.Flux<AgentChunk> responseStream = agentDefinition.create(agentRuntime)
                     .prompt(prompt)
                     .session(session)
                     .options(o -> {
@@ -426,7 +315,7 @@ public class SupervisorAgent {
             payload.put("tasks", tasks);
 
             AgentMessage<Map<String, Object>> message = AgentMessage.<Map<String, Object>>of(payload)
-                    .from(config.getName())
+                    .from(agentDefinition.getName())
                     .to("*")
                     .type("task_notification")
                     .build();
@@ -699,7 +588,7 @@ public class SupervisorAgent {
     private void registerMessageHandler() {
         if (messageChannel != null) {
             messageHandlerId = messageChannel.registerHandler(
-                    config.getName(),
+                    agentDefinition.getName(),
                     this::handleMessage
             );
             LOG.info("MainAgent 消息处理器已注册");
@@ -759,7 +648,7 @@ public class SupervisorAgent {
     private void publishEvent(AgentEventType eventType, Object payload, String taskId) {
         if (eventBus != null) {
             EventMetadata metadata = EventMetadata.builder()
-                    .sourceAgent(config.getName())
+                    .sourceAgent(agentDefinition.getName())
                     .taskId(taskId)
                     .priority(5)
                     .build();
@@ -796,7 +685,7 @@ public class SupervisorAgent {
 
         // 注销消息处理器
         if (messageChannel != null && messageHandlerId != null) {
-            messageChannel.unregisterHandler(config.getName(), messageHandlerId);
+            messageChannel.unregisterHandler(agentDefinition.getName(), messageHandlerId);
             LOG.info("MainAgent 消息处理器已注销");
         }
     }
@@ -826,7 +715,7 @@ public class SupervisorAgent {
     public AgentResponse call(String __cwd, String sessionId, Prompt prompt) throws Throwable {
         AgentSession session = agentRuntime.getSession(sessionId);
 
-        return agentRuntime.getReActAgent()
+        return agentDefinition.create(agentRuntime)
                 .prompt(prompt)
                 .session(session)
                 .options(o -> {
@@ -838,7 +727,8 @@ public class SupervisorAgent {
     public Flux<AgentChunk> stream(String __cwd, String sessionId, Prompt prompt) {
         AgentSession session = agentRuntime.getSession(sessionId);
 
-        return agentRuntime.getReActAgent().prompt(prompt)
+        return agentDefinition.create(agentRuntime)
+                .prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.toolContextPut("__cwd", __cwd);

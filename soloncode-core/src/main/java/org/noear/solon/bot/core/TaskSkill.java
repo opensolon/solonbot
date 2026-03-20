@@ -120,7 +120,7 @@ public class TaskSkill extends AbsSkill {
             String __sessionId
     ) {
         AgentSession __parentSession = agentRuntime.getSession(__sessionId);
-        ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getSnapshot());
+        ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
 
         try {
             AgentDefinition agentDefinition = agentRuntime.getAgentManager().getAgent(name);
@@ -232,9 +232,9 @@ public class TaskSkill extends AbsSkill {
     }
 
 
-    @ToolMapping(name = "create_agent",
+    @ToolMapping(name = "generate_agent",
             description = "动态创建一个新的子代理。")
-    public String createAgent(
+    public String generateAgent(
             @Param(name = "code", description = "子代理的唯一标识码") String code,
             @Param(name = "name", description = "子代理的显示名称") String name,
             @Param(name = "description", description = "子代理的功能描述") String description,
@@ -325,14 +325,14 @@ public class TaskSkill extends AbsSkill {
 
             String result = actRequest.stream()
                     .doOnSubscribe(s -> {
-                        LOG.info("[子代理] 流订阅成功: name={}, sessionId={}", name, sessionId);
+                        LOG.debug("[子代理] 流订阅成功: name={}, sessionId={}", name, sessionId);
                     })
                     .doOnNext(chunk -> {
                         long now = System.currentTimeMillis();
                         if (chunkCount[0] == 0) {
                             firstChunkTime[0] = now;
                             long firstChunkDelay = now - lastChunkTime[0];
-                            LOG.info("[子代理] 收到首个chunk: name={}, delay={}ms, chunkType={}",
+                            LOG.debug("[子代理] 收到首个chunk: name={}, delay={}ms, chunkType={}",
                                     name, firstChunkDelay, chunk.getClass().getSimpleName());
                         }
                         lastChunkTime[0] = now;

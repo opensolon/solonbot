@@ -1,6 +1,5 @@
 package org.noear.solon.bot.core;
 
-import lombok.Getter;
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
@@ -51,7 +50,6 @@ import java.util.*;
  * @since 3.9.1
  */
 @Preview("3.9.1")
-@Getter
 public class AgentRuntime {
     private final static Logger LOG = LoggerFactory.getLogger(AgentRuntime.class);
 
@@ -104,8 +102,28 @@ public class AgentRuntime {
         return properties;
     }
 
+    public AgentProperties getProperties() {
+        return properties;
+    }
+
+    public ChatModel getChatModel() {
+        return chatModel;
+    }
+
     public AgentManager getAgentManager() {
         return agentManager;
+    }
+
+    public SummarizationInterceptor getSummarizationInterceptor() {
+        return summarizationInterceptor;
+    }
+
+    public CliSkillProvider getCliSkills() {
+        return cliSkills;
+    }
+
+    public TodoSkill getTodoSkill() {
+        return todoSkill;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -206,7 +224,7 @@ public class AgentRuntime {
 
         }
 
-        if(properties.isSubagentEnabled()){
+        if (properties.isSubagentEnabled()) {
             agentBuilder.defaultSkillAdd(new TaskSkill(this));
 
             LOG.debug("子代理模式已启用");
@@ -239,21 +257,6 @@ public class AgentRuntime {
 
         if (restApis != null) {
             agentBuilder.defaultSkillAdd(restApis);
-        }
-
-        // Agent Teams 模式：追加 Team Lead 指令到系统提示词
-        if (properties.isAgentTeamEnabled() && teamReActExtension != null) {
-            String teamLeadInstruction = teamReActExtension.getTeamLeadInstruction();
-            if (Assert.isNotEmpty(teamLeadInstruction)) {
-                // 获取当前的 systemPrompt 并追加指令
-                agentBuilder.systemPrompt(SystemPrompt.builder()
-                        .instruction(trace -> {
-                            String basePrompt = agentsMd != null ? agentsMd : "";
-                            return basePrompt + "\n\n" + teamLeadInstruction;
-                        })
-                        .build());
-                LOG.info("Team Lead 指令已追加到系统提示词");
-            }
         }
 
         if (Assert.isNotEmpty(extensions)) {

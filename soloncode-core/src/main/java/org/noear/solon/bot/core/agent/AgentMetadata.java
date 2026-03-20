@@ -40,6 +40,7 @@ import java.util.List;
 @Getter
 public class AgentMetadata {
     private boolean enabled = true;
+    private boolean hidden = false;
 
     // 必需字段
     private String name;
@@ -57,6 +58,7 @@ public class AgentMetadata {
     // 工具配置
     private List<String> tools = new ArrayList<>();
 
+    // 禁用工具
     private List<String> disallowedTools = new ArrayList<>();
 
     // 权限配置

@@ -1,9 +1,6 @@
 package org.noear.solon.bot.core.agent;
 
 import org.noear.solon.ai.agent.react.ReActAgent;
-import org.noear.solon.ai.skills.web.CodeSearchTool;
-import org.noear.solon.ai.skills.web.WebfetchTool;
-import org.noear.solon.ai.skills.web.WebsearchTool;
 import org.noear.solon.bot.core.AgentRuntime;
 import org.noear.solon.bot.core.util.Markdown;
 import org.noear.solon.bot.core.util.MarkdownUtil;
@@ -20,11 +17,18 @@ import java.util.List;
  * @since 3.9.5
  */
 public class AgentDefinition {
+    public static final String AGENT_SUPERVISOR = "supervisor";
+
+
     protected AgentMetadata metadata = new AgentMetadata();
     protected String systemPrompt;
 
     public AgentMetadata getMetadata() {
         return metadata;
+    }
+
+    public boolean isHidden() {
+        return metadata.isHidden();
     }
 
     public String getName() {

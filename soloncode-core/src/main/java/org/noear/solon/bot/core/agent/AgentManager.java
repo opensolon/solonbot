@@ -49,6 +49,8 @@ public class AgentManager {
         loadAgentFile(ResourceUtil.getResource("defaults/agents/explore.md"));
         loadAgentFile(ResourceUtil.getResource("defaults/agents/general-purpose.md"));
         loadAgentFile(ResourceUtil.getResource("defaults/agents/plan.md"));
+
+        loadAgentFile(ResourceUtil.getResource("defaults/agents/supervisor.md"));
     }
 
     public void addAgent(AgentDefinition agentDefinition) {
@@ -81,7 +83,9 @@ public class AgentManager {
      * 获取所有已注册的代理
      */
     public Collection<AgentDefinition> getAgents() {
-        return agentMap.values();
+        return agentMap.values().stream()
+                .filter(a -> a.getMetadata().isHidden() == false)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -147,7 +151,7 @@ public class AgentManager {
     /**
      * 从文件加载代理定义
      */
-    private void loadAgentFile(URL url) {
+    public void loadAgentFile(URL url) {
         if (url == null) {
             return;
         }
@@ -158,7 +162,7 @@ public class AgentManager {
     /**
      * 从文件加载代理定义
      */
-    private void loadAgentFile(Path file) {
+    public void loadAgentFile(Path file) {
         try {
             String fileName = file.getFileName().toString();
             List<String> fullContent = Files.readAllLines(file, StandardCharsets.UTF_8);
