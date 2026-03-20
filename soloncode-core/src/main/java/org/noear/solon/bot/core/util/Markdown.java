@@ -5,9 +5,9 @@ import org.noear.snack4.ONode;
 import org.noear.snack4.Options;
 
 /**
+ * 有元数据（YamlFrontmatter）的 markdown 文档
  *
  * @author noear 2026/3/20 created
- *
  */
 public class Markdown {
     protected final ONode metadata = new ONode(Options.of(Feature.Decode_IgnoreError));

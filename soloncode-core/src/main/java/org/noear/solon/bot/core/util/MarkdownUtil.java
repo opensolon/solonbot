@@ -1,6 +1,5 @@
 package org.noear.solon.bot.core.util;
 
-import org.noear.snack4.ONode;
 import org.noear.solon.core.util.Assert;
 import org.yaml.snakeyaml.Yaml;
 
