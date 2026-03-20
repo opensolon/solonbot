@@ -16,11 +16,11 @@
 package agentTems;
 
 import org.junit.jupiter.api.Test;
-import org.noear.solon.bot.core.event.AgentEvent;
-import org.noear.solon.bot.core.event.AgentEventType;
-import org.noear.solon.bot.core.event.EventHandler;
-import org.noear.solon.bot.core.event.EventBus;
-import org.noear.solon.bot.core.event.EventMetadata;
+import org.noear.solon.bot.core.teams.event.AgentEvent;
+import org.noear.solon.bot.core.teams.event.AgentEventType;
+import org.noear.solon.bot.core.teams.event.EventHandler;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.event.EventMetadata;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;

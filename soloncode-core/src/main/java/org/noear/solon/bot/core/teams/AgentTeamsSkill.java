@@ -30,8 +30,13 @@ import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.bot.core.AgentRuntime;
-import org.noear.solon.bot.core.memory.smart.IntelligentMemoryManager;
-import org.noear.solon.bot.core.subagent.*;
+import org.noear.solon.bot.core.teams.event.AgentEvent;
+import org.noear.solon.bot.core.teams.event.AgentEventType;
+import org.noear.solon.bot.core.teams.memory.WorkingMemory;
+import org.noear.solon.bot.core.teams.memory.smart.IntelligentMemoryManager;
+import org.noear.solon.bot.core.agent.*;
+import org.noear.solon.bot.core.teams.message.AgentMessage;
+import org.noear.solon.bot.core.teams.message.MessageAck;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1420,7 +1425,7 @@ public class AgentTeamsSkill extends AbsSkill {
 
             // 使用默认的 taskId "main-agent"
             String taskId = "main-agent";
-            org.noear.solon.bot.core.memory.WorkingMemory workingMemory =
+            WorkingMemory workingMemory =
                 mainAgent.getSharedMemoryManager().getWorking(taskId);
 
             if (workingMemory == null) {
@@ -1463,12 +1468,12 @@ public class AgentTeamsSkill extends AbsSkill {
 
             // 使用默认的 taskId "main-agent"
             String taskId = "main-agent";
-            org.noear.solon.bot.core.memory.WorkingMemory workingMemory =
+            WorkingMemory workingMemory =
                 mainAgent.getSharedMemoryManager().getWorking(taskId);
 
             // 如果不存在，创建一个新的
             if (workingMemory == null) {
-                workingMemory = new org.noear.solon.bot.core.memory.WorkingMemory(taskId);
+                workingMemory = new WorkingMemory(taskId);
             }
 
             switch (field.toLowerCase()) {
@@ -1515,15 +1520,15 @@ public class AgentTeamsSkill extends AbsSkill {
                 return "[WARN] 事件总线未初始化";
             }
 
-            org.noear.solon.bot.core.event.AgentEventType type;
+            AgentEventType type;
             try {
-                type = org.noear.solon.bot.core.event.AgentEventType.valueOf(eventType.toUpperCase());
+                type = AgentEventType.valueOf(eventType.toUpperCase());
             } catch (IllegalArgumentException e) {
                 return "[ERROR] 无效的事件类型: " + eventType;
             }
 
-            org.noear.solon.bot.core.event.AgentEvent event =
-                new org.noear.solon.bot.core.event.AgentEvent(type, data, null);
+            AgentEvent event =
+                new AgentEvent(type, data, null);
             mainAgent.getEventBus().publish(event);
 
             LOG.debug("发布团队事件: type={}, data={}", type, data);
@@ -2131,19 +2136,19 @@ public class AgentTeamsSkill extends AbsSkill {
             }
 
             // 使用 Builder 创建消息
-            org.noear.solon.bot.core.message.AgentMessage<String> agentMessage =
-                org.noear.solon.bot.core.message.AgentMessage.<String>of(message)
+            AgentMessage<String> agentMessage =
+                AgentMessage.<String>of(message)
                     .from("main-agent")
                     .to(targetAgent)
                     .type("command")
                     .build();
 
             // 发送消息并等待完成（超时5秒）
-            java.util.concurrent.CompletableFuture<org.noear.solon.bot.core.message.MessageAck> ackFuture =
+            java.util.concurrent.CompletableFuture<MessageAck> ackFuture =
                 mainAgent.getMessageChannel().send(agentMessage);
 
             // 获取结果（超时5秒）
-            org.noear.solon.bot.core.message.MessageAck ack =
+            MessageAck ack =
                 ackFuture.get(5, java.util.concurrent.TimeUnit.SECONDS);
 
             if (ack.isSuccess()) {

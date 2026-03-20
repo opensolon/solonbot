@@ -19,10 +19,10 @@ import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.annotation.Param;
-import org.noear.solon.bot.core.event.AgentEvent;
-import org.noear.solon.bot.core.event.AgentEventType;
-import org.noear.solon.bot.core.event.EventBus;
-import org.noear.solon.bot.core.memory.*;
+import org.noear.solon.bot.core.teams.event.AgentEvent;
+import org.noear.solon.bot.core.teams.event.AgentEventType;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.memory.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -16,9 +16,9 @@
 package agentTems;
 
 import org.junit.jupiter.api.Test;
-import org.noear.solon.bot.core.message.AgentMessage;
-import org.noear.solon.bot.core.message.MessageChannel;
-import org.noear.solon.bot.core.message.MessageHandler;
+import org.noear.solon.bot.core.teams.message.AgentMessage;
+import org.noear.solon.bot.core.teams.message.MessageChannel;
+import org.noear.solon.bot.core.teams.message.MessageHandler;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;

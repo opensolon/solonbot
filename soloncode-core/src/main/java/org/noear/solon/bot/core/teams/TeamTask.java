@@ -23,7 +23,6 @@ import lombok.Setter;
 import org.noear.solon.ai.chat.ChatResponse;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.bot.core.message.AgentMessage;
 import reactor.core.publisher.Flux;
 
 import java.util.*;

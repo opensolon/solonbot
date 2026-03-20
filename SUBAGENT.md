@@ -272,7 +272,7 @@ __parentTrace.getMetrics().addMetrics(response.getMetrics());
 ```java
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.bot.core.AgentKernel;
-import org.noear.solon.bot.core.subagent.SubagentManager;
+import org.noear.solon.bot.core.agent.SubagentManager;
 
 // 初始化
 AgentKernel kernel = new AgentKernel(chatModel, properties);
@@ -419,7 +419,7 @@ max_turns: 20
 ### 方式2: 通过代码创建
 
 ```java
-import org.noear.solon.bot.core.subagent.AbsSubagent;
+import org.noear.solon.bot.core.agent.AbsSubagent;
 import org.noear.solon.bot.core.AgentKernel;
 
 public class DatabaseExpertAgent extends AbsSubagent {

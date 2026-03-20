@@ -15,10 +15,10 @@
  */
 package agentTems;
 
-import org.noear.solon.bot.core.memory.*;
-import org.noear.solon.bot.core.memory.bank.Observation;
-import org.noear.solon.bot.core.memory.bank.store.FileMemoryStore;
-import org.noear.solon.bot.core.memory.bank.store.MemoryStore;
+import org.noear.solon.bot.core.teams.memory.*;
+import org.noear.solon.bot.core.teams.memory.bank.Observation;
+import org.noear.solon.bot.core.teams.memory.bank.store.FileMemoryStore;
+import org.noear.solon.bot.core.teams.memory.bank.store.MemoryStore;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

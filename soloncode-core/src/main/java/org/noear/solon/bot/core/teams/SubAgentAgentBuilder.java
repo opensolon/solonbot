@@ -20,17 +20,15 @@ import lombok.Getter;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.skills.cli.PoolManager;
-import org.noear.solon.bot.core.AgentRuntime;
-import org.noear.solon.bot.core.event.EventBus;
-import org.noear.solon.bot.core.message.MessageChannel;
-import org.noear.solon.bot.core.memory.SharedMemoryManager;
-import org.noear.solon.bot.core.subagent.AgentDefinition;
-import org.noear.solon.bot.core.subagent.AgentMetadata;
-import org.noear.solon.bot.core.subagent.AgentManager;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.message.MessageChannel;
+import org.noear.solon.bot.core.teams.memory.SharedMemoryManager;
+import org.noear.solon.bot.core.agent.AgentDefinition;
+import org.noear.solon.bot.core.agent.AgentMetadata;
+import org.noear.solon.bot.core.agent.AgentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 

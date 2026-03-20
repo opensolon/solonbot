@@ -16,7 +16,10 @@
 package org.noear.solon.bot.core.teams;
 
 import org.noear.solon.bot.core.AgentProperties;
-import org.noear.solon.bot.core.event.*;
+import org.noear.solon.bot.core.teams.event.AgentEvent;
+import org.noear.solon.bot.core.teams.event.AgentEventType;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.event.EventMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

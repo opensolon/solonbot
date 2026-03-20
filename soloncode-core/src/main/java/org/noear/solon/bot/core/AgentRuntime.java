@@ -22,7 +22,7 @@ import org.noear.solon.ai.skills.lucene.LuceneSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.web.*;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
-import org.noear.solon.bot.core.subagent.AgentManager;
+import org.noear.solon.bot.core.agent.AgentManager;
 import org.noear.solon.bot.core.teams.*;
 import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;

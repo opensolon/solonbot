@@ -15,6 +15,8 @@
  */
 package org.noear.solon.bot.core.goalker;
 
+import org.noear.solon.bot.core.teams.goalker.GoalKeeper;
+
 /**
  * GoalKeeper 使用示例
  *

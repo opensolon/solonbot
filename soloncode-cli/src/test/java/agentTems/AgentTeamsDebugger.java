@@ -17,9 +17,15 @@ package agentTems;
 
 import lombok.extern.slf4j.Slf4j;
 import org.noear.solon.bot.core.AgentRuntime;
-import org.noear.solon.bot.core.memory.*;
-import org.noear.solon.bot.core.event.*;
-import org.noear.solon.bot.core.message.*;
+import org.noear.solon.bot.core.teams.event.AgentEvent;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.event.EventHandler;
+import org.noear.solon.bot.core.teams.event.EventMetadata;
+import org.noear.solon.bot.core.teams.memory.*;
+import org.noear.solon.bot.core.teams.message.AgentMessage;
+import org.noear.solon.bot.core.teams.message.MessageAck;
+import org.noear.solon.bot.core.teams.message.MessageChannel;
+import org.noear.solon.bot.core.teams.message.MessageHandler;
 
 import java.nio.file.Paths;
 import java.util.Arrays;

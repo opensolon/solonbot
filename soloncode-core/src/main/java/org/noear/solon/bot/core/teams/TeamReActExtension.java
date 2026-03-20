@@ -4,10 +4,10 @@ import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActAgentExtension;
 import org.noear.solon.bot.core.AgentRuntime;
 import org.noear.solon.bot.core.AgentProperties;
-import org.noear.solon.bot.core.event.EventBus;
-import org.noear.solon.bot.core.memory.SharedMemoryManager;
-import org.noear.solon.bot.core.message.MessageChannel;
-import org.noear.solon.bot.core.subagent.AgentMetadata;
+import org.noear.solon.bot.core.teams.event.EventBus;
+import org.noear.solon.bot.core.teams.memory.SharedMemoryManager;
+import org.noear.solon.bot.core.teams.message.MessageChannel;
+import org.noear.solon.bot.core.agent.AgentMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
