@@ -27,17 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 代理元数据
- *
- * 从系统提示词头部的 YAML 配置中解析出来的元数据
- * 兼容 Claude Code Agent Skills 规范
- *
- * 增强功能：
- * - 元数据验证
- * - 元数据继承和合并
- * - Builder 模式支持（使用 Lombok）
+ * 代理元数据（兼容 Claude Code Agent Skills 规范）
  *
  * @author bai
+ * @author noear
  * @since 3.9.5
  */
 @NoArgsConstructor
@@ -93,20 +86,7 @@ public class AgentMetadata {
     // 团队配置
     private String teamName;  // 所属团队名称（用于团队成员）
 
-    /**
-     * 将元数据转换为 YAML frontmatter 格式
-     * <p>
-     * 格式：
-     * ---
-     * name: xxx
-     * description: xxx
-     * tools: xxx
-     * ...
-     * ---
-     *
-     * @return YAML frontmatter 字符串
-     */
-    public void injectYamlFrontmatter(StringBuilder buf) {
+    protected void injectYamlFrontmatter(StringBuilder buf) {
         String yaml = new Yaml().dump(this);
         if (Assert.isNotEmpty(yaml)) {
             buf.append("---\n");

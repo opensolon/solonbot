@@ -14,6 +14,10 @@ import java.util.List;
 
 /**
  * 代理定义
+ *
+ * @author bai
+ * @author noear
+ * @since 3.9.5
  */
 public class AgentDefinition {
     protected AgentMetadata metadata = new AgentMetadata();

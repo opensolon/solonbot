@@ -36,6 +36,7 @@ import java.util.stream.Stream;
  * 代理定义管理器
  *
  * @author bai
+ * @author noear
  * @since 3.9.5
  */
 public class AgentManager {
@@ -51,7 +52,7 @@ public class AgentManager {
     }
 
     public void addAgent(AgentDefinition agentDefinition) {
-        agentMap.putIfAbsent(agentDefinition.getMetadata().getName(), agentDefinition);
+        agentMap.putIfAbsent(agentDefinition.getName(), agentDefinition);
     }
 
     /**
@@ -62,7 +63,7 @@ public class AgentManager {
         AgentDefinition agentDefinition = agentMap.get(agentName);
 
         if (agentDefinition == null) {
-            throw new IllegalArgumentException("未找到代理: " + agentName);
+            throw new IllegalArgumentException("Agent not found:" + agentName);
         } else {
             return agentDefinition;
         }
