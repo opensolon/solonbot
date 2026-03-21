@@ -91,7 +91,7 @@ public class TeamReActExtension implements ReActAgentExtension {
                     supervisorAgent
             );
             agentBuilder.defaultSkillAdd(agentTeamsSkill);
-            agentBuilder.defaultSkillAdd(new AgentTeamsTools(memoryManager, supervisorAgent.getEventBus()));
+            agentBuilder.defaultSkillAdd(new SharedMemorySkill(memoryManager, supervisorAgent.getEventBus()));
 
             LOG.debug("AgentTeamsSkill 已注册");
 

@@ -40,17 +40,17 @@ import java.util.List;
  * @author bai
  * @since 3.9.5
  */
-public class AgentTeamsTools extends AbsSkill {
+public class SharedMemorySkill extends AbsSkill {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AgentTeamsTools.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SharedMemorySkill.class);
 
-    private static AgentTeamsTools instance = null;
+    private static SharedMemorySkill instance = null;
 
     private final SharedMemoryManager memoryManager;
     private final EventBus eventBus;
 
-    public AgentTeamsTools(SharedMemoryManager memoryManager,
-                          EventBus eventBus) {
+    public SharedMemorySkill(SharedMemoryManager memoryManager,
+                             EventBus eventBus) {
         this.memoryManager = memoryManager;
         this.eventBus = eventBus;
         if (instance == null){
@@ -58,7 +58,7 @@ public class AgentTeamsTools extends AbsSkill {
         }
     }
 
-    public static AgentTeamsTools getInstance(){
+    public static SharedMemorySkill getInstance(){
         if (instance == null){
             throw new RuntimeException("AgentTeamsTools is not initialized");
         }
