@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.core.agent;
 
 import org.noear.solon.ai.agent.react.ReActAgent;
+import org.noear.solon.ai.skills.lucene.LuceneSkill;
 import org.noear.solon.ai.skills.web.CodeSearchTool;
 import org.noear.solon.ai.skills.web.WebfetchTool;
 import org.noear.solon.ai.skills.web.WebsearchTool;
@@ -22,7 +23,10 @@ public class AgentFactory {
         AgentMetadata metadata = agentDefinition.getMetadata();
 
         builder.name(agentDefinition.getName());
-        builder.systemPrompt(r -> agentDefinition.getSystemPrompt());
+
+        if(Assert.isNotEmpty(agentDefinition.getSystemPrompt())) {
+            builder.systemPrompt(r -> agentDefinition.getSystemPrompt());
+        }
 
         builder.defaultInterceptorAdd(agentRuntime.getSummarizationInterceptor());
 
@@ -108,6 +112,7 @@ public class AgentFactory {
 
                     case "*": {
                         builder.defaultSkillAdd(agentRuntime.getCliSkills());
+                        builder.defaultSkillAdd(LuceneSkill.getInstance());
                         builder.defaultToolAdd(agentRuntime.getTodoSkill());
                         builder.defaultToolAdd(WebfetchTool.getInstance());
                         builder.defaultToolAdd(WebsearchTool.getInstance());
