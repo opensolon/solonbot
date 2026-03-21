@@ -30,7 +30,6 @@ import org.noear.solon.ai.agent.react.intercept.HITL;
 import org.noear.solon.ai.agent.react.intercept.HITLDecision;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
-import org.noear.solon.ai.agent.react.task.ActionStartChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
@@ -57,7 +56,7 @@ public class CliShellOld implements Runnable {
 
     private Terminal terminal;
     private LineReader reader;
-    private final AgentRuntime kernel;
+    private final AgentRuntime agentRuntime;
 
     // ANSI 颜色常量 - 严格对齐 Claude 极简风
     private final static String
@@ -69,8 +68,8 @@ public class CliShellOld implements Runnable {
             CYAN = "\033[36m",
             RESET = "\033[0m";
 
-    public CliShellOld(AgentRuntime kernel) {
-        this.kernel = kernel;
+    public CliShellOld(AgentRuntime agentRuntime) {
+        this.agentRuntime = agentRuntime;
 
         try {
             this.terminal = TerminalBuilder.builder()
@@ -99,10 +98,10 @@ public class CliShellOld implements Runnable {
         }
 
         printWelcome();
-        AgentSession session = kernel.getSession("cli");
+        AgentSession session = agentRuntime.getSession("cli");
 
         // 1. 初始化对齐
-        kernel.init(session);
+        agentRuntime.init(session);
 
         // 2. 主循环
         while (true) {
@@ -147,7 +146,7 @@ public class CliShellOld implements Runnable {
             final AtomicBoolean isFirstReasonChunk = new AtomicBoolean(true);
 
 
-            Disposable disposable = kernel.stream(session.getSessionId(), Prompt.of(currentInput))
+            Disposable disposable = agentRuntime.stream(session.getSessionId(), Prompt.of(currentInput))
                     .subscribeOn(Schedulers.boundedElastic())
                     .doOnNext(chunk -> {
                         if (chunk instanceof ReasonChunk) {
@@ -276,7 +275,7 @@ public class CliShellOld implements Runnable {
     private void onReasonChunk(ReasonChunk reason, AtomicBoolean isFirstReasonChunk, AtomicBoolean isFirstConversation) {
         if (!reason.isToolCalls() && reason.hasContent()) {
             //打印 think 或者 不是 think
-            if (kernel.getProps().isThinkPrinted() || !reason.getMessage().isThinking()) {
+            if (agentRuntime.getProps().isThinkPrinted() || !reason.getMessage().isThinking()) {
                 String delta = clearThink(reason.getContent());
                 onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
             }
@@ -308,9 +307,13 @@ public class CliShellOld implements Runnable {
 
     private void onActionEndChunk(ActionEndChunk action, AtomicBoolean isFirstReasonChunk) {
         if (Assert.isNotEmpty(action.getToolName())) {
+            if("task".equals(action.getToolName())){
+                return;
+            }
+
             final String fullToolName;
 
-            if(kernel.getName().equals(action.getAgentName())){
+            if(agentRuntime.getName().equals(action.getAgentName())){
                 fullToolName = action.getToolName();
             } else {
                 fullToolName = action.getAgentName() + "/" + action.getToolName();
@@ -329,7 +332,7 @@ public class CliShellOld implements Runnable {
             String argsStr = argsBuilder.toString().replace("\n", " ");
             boolean hasBigArgs = argsStr.length() > 100 || (args != null && args.values().stream().anyMatch(v -> v instanceof String && ((String) v).contains("\n")));
 
-            if (kernel.getProps().isCliPrintSimplified()) {
+            if (agentRuntime.getProps().isCliPrintSimplified()) {
                 // --- 简化风格：单行摘要模式 ---
                 String content = action.getContent() == null ? "" : action.getContent().trim();
                 String summary;
@@ -403,7 +406,7 @@ public class CliShellOld implements Runnable {
             return true;
         }
         if ("init".equals(cmd)) {
-            String result = kernel.init(session);
+            String result = agentRuntime.init(session);
             terminal.writer().println(DIM + result + RESET);
             return true;
         }
@@ -419,9 +422,9 @@ public class CliShellOld implements Runnable {
         terminal.puts(InfoCmp.Capability.clear_screen);
         terminal.flush();
 
-        String path = new File(kernel.getProps().getWorkDir()).getAbsolutePath();
+        String path = new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath();
         // 连带版本号，紧凑排列
-        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + kernel.getVersion() + RESET);
+        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + agentRuntime.getVersion() + RESET);
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().print(DIM + "Tips: " + RESET + "(esc)" + DIM + " to interrupt output. Commands: " +
                 RESET + "'exit'" + DIM + " to quit, " +

@@ -22,6 +22,7 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
+import org.noear.solon.ai.agent.session.InMemoryAgentSession;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
@@ -92,17 +93,18 @@ public class TaskSkill extends AbsSkill {
                 return "ERROR: 未知的子代理类型 '" + name + "'。";
             }
 
-            String finalSessionId = Assert.isEmpty(taskId)
-                    ? "subagent_" + name
-                    : taskId;
-
-            LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", name, finalSessionId, description);
-
-
             String result = null;
-
             ReActAgent agent = agentDefinition.builder(agentRuntime).build();
-            AgentSession session = agentRuntime.getSession(finalSessionId);
+            final AgentSession session;
+
+            if(Assert.isEmpty(taskId)){
+                session = InMemoryAgentSession.of(agent.name());
+            } else {
+                session = agentRuntime.getSession(taskId);
+            }
+
+            String finalSessionId = session.getSessionId();
+            LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", name, finalSessionId, description);
 
             if (__parentTrace.getOptions().getStreamSink() == null) {
                 // 同步模式
