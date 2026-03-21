@@ -256,8 +256,9 @@ public class TaskSkill extends AbsSkill {
             String __cwd
     ) {
         try {
-            AgentDefinition definition = new AgentDefinition();
-            definition.setMetadata(new AgentMetadata());
+            AgentDefinition definition = agentRuntime.getAgentManager()
+                    .getAgent(AgentDefinition.AGENT_GENERAL_PURPOSE)
+                    .copy();
 
             definition.getMetadata().setName(name);
             definition.getMetadata().setDescription(description);

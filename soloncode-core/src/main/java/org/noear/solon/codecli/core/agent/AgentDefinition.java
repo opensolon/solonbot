@@ -1,5 +1,6 @@
 package org.noear.solon.codecli.core.agent;
 
+import org.noear.snack4.ONode;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.util.Markdown;
 import org.noear.solon.ai.util.MarkdownUtil;
@@ -18,10 +19,23 @@ import java.util.List;
  */
 public class AgentDefinition {
     public static final String AGENT_SUPERVISOR = "supervisor";
+    public static final String AGENT_GENERAL_PURPOSE = "general-purpose";
 
 
     protected AgentMetadata metadata = new AgentMetadata();
     protected String systemPrompt;
+
+    /**
+     * 复制
+     */
+    public AgentDefinition copy() {
+        AgentDefinition definition = new AgentDefinition();
+
+        definition.metadata = ONode.ofBean(metadata).toBean(AgentMetadata.class);
+        definition.systemPrompt = systemPrompt;
+
+        return definition;
+    }
 
     public AgentMetadata getMetadata() {
         return metadata;
