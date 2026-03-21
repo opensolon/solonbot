@@ -26,7 +26,7 @@ public class TeamReActExtension implements ReActAgentExtension {
     private final AgentProperties properties;
 
     // Agent Teams 相关组件
-    private MainAgent supervisorAgent;
+    private MainAgent mainAgent;
     private EventBus eventBus;
     private SharedTaskList taskList;
     private SharedMemoryManager memoryManager;
@@ -38,7 +38,7 @@ public class TeamReActExtension implements ReActAgentExtension {
     }
 
     public String getTeamLeadInstruction() {
-        return supervisorAgent.getTeamLeadInstruction();
+        return mainAgent.getTeamLeadInstruction();
     }
 
     @Override
@@ -73,7 +73,7 @@ public class TeamReActExtension implements ReActAgentExtension {
                     .getAgent(AgentDefinition.AGENT_SUPERVISOR);
 
             // 6. 创建 MainAgent（传入 kernel 和 subagentManager 以支持 subagent 功能）
-            this.supervisorAgent = new MainAgent(
+            this.mainAgent = new MainAgent(
                     agentRuntime,
                     agentDefinition,
                     memoryManager,
