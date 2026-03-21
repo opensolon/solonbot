@@ -169,7 +169,7 @@ public class AgentManager {
 
             AgentDefinition definition = AgentDefinition.fromMarkdown(fullContent);
 
-            String agentTypeName = definition.getMetadata().getName();
+            String agentTypeName = definition.getName();
 
             if (agentTypeName == null || agentTypeName.isEmpty()) {
                 agentTypeName = fileName.substring(0, fileName.length() - 3);

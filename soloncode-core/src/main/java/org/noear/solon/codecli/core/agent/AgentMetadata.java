@@ -20,11 +20,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.noear.snack4.ONode;
 import org.noear.solon.core.util.Assert;
 import org.yaml.snakeyaml.Yaml;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 代理元数据（兼容 Claude Code Agent Skills 规范）
@@ -89,7 +91,8 @@ public class AgentMetadata {
     private String teamName;  // 所属团队名称（用于团队成员）
 
     protected void injectYamlFrontmatter(StringBuilder buf) {
-        String yaml = new Yaml().dump(this);
+        String yaml = new Yaml().dump(ONode.ofBean(this).toBean(Map.class));
+
         if (Assert.isNotEmpty(yaml)) {
             buf.append("---\n");
             buf.append(yaml);
