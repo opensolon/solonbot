@@ -163,21 +163,7 @@ public class AgentRuntime {
 
         if (Assert.isNotEmpty(agentsMd)) {
             //有 AGENTS.md 配置
-            if (properties.isSubagentEnabled()) {
-                agentBuilder.systemPrompt(trace ->
-                        "# 子代理模式\n" +
-                                "子代理模式已启用，所有的任务都要驱动子代理去完成\n\n" +
-                                agentsMd);
-            } else {
-                agentBuilder.systemPrompt(trace -> agentsMd);
-            }
-        } else {
-            if (properties.isSubagentEnabled()) {
-                agentBuilder.systemPrompt(t ->
-                        "# 子代理模式\n" +
-                                "子代理模式已启用，所有的任务都要驱动子代理去完成\n\n"
-                );
-            }
+            agentBuilder.systemPrompt(trace -> agentsMd);
         }
 
 
@@ -199,6 +185,10 @@ public class AgentRuntime {
         cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
         cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
 
+        agentManager = new AgentManager();
+        agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS));
+        agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS_TEAMS), true);
+
         //上下文摘要
         SummarizationStrategy strategy = new CompositeSummarizationStrategy()
                 .addStrategy(new KeyInfoExtractionStrategy(chatModel))      // 提取干货（去水）
@@ -212,15 +202,10 @@ public class AgentRuntime {
         agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
         if (properties.isSubagentEnabled()) {
+            agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
+            agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
+            agentBuilder.defaultSkillAdd(cliSkills);
             agentBuilder.defaultSkillAdd(todoSkill);
-
-            agentManager = new AgentManager();
-
-            // 注册自定义 agents 池（类似 skillPool）
-            // 注册 soloncode agents
-            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS));
-            // 注册 soloncode agentsTeams（递归扫描团队成员目录）
-            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS_TEAMS), true);
 
 
             agentBuilder.defaultToolAdd(new GenerateAgentTool(this));
