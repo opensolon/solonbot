@@ -72,7 +72,10 @@ public class TaskSkill extends AbsSkill {
         }
         sb.append("</available_agents>\n\n");
 
-        sb.append("**提醒**： 如果以上子代理不满足需求，可通过 generate_agent 生态生成新的子代理。");
+        sb.append("**规则提示**：\n");
+        sb.append("1. **上下文隔离**: 子代理不共享主会话历史，请在 prompt 中提供必要的背景信息。\n");
+        sb.append("2. **并行限制**: 使用 multitask 时，确保任务间不存在同一文件的写冲突。");
+        sb.append("3. **重要提醒**：如果以上子代理不满足需求，可通过 generate_agent 生态生成新的子代理。");
 
         return sb.toString();
     }
@@ -87,7 +90,7 @@ public class TaskSkill extends AbsSkill {
     }
 
     @ToolMapping(name = "multitask", description =
-            "并行执行多个子任务。仅当任务之间完全独立（如：同时修改两个无关的模块、并行进行多项搜索）时使用。")
+            "并行执行多个独立子任务。仅用于互不干扰的任务（如不同模块的修改或多路搜索）。")
     public String multitask(@Param(name = "tasks", description = "任务列表") List<TaskOp> tasks, String __cwd, String __sessionId) {
         if (Assert.isEmpty(tasks)) {
             return "WARNING: 任务列表为空";
@@ -106,18 +109,25 @@ public class TaskSkill extends AbsSkill {
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .handle((v, ex) -> {
-                    StringBuilder compositeResult = new StringBuilder("## 多任务执行报告\n\n");
+                    StringBuilder compositeResult = new StringBuilder();
+                    compositeResult.append("<multitask_results>\n");
+
                     for (int i = 0; i < futures.size(); i++) {
-                        TaskOp task = tasks.get(i);
-                        compositeResult.append(String.format("### 任务 %d: [%s]\n", i + 1, task.getName()));
                         try {
-                            // 即使 ex 不为 null，也要尝试获取每个 future 的结果
-                            String result = futures.get(i).getNow("ERROR: 任务未完成");
-                            compositeResult.append(result).append("\n\n");
+                            // 获取子代理返回的 XML 片段
+                            String subTaskXml = futures.get(i).get();
+                            compositeResult.append(subTaskXml).append("\n");
                         } catch (Exception e) {
-                            compositeResult.append("执行异常: ").append(e.getMessage()).append("\n\n");
+                            TaskOp task = tasks.get(i);
+
+                            String result = String.format("ERROR: 子代理 '%s' 执行任务失败: %s", task.getName(), e.getMessage());
+
+                            String subTaskXml = formatTaskResp(task, false, result);
+                            compositeResult.append(subTaskXml).append("\n");
                         }
                     }
+                    compositeResult.append("</multitask_results>");
+
                     return compositeResult.toString();
                 }).join();
     }
@@ -128,21 +138,19 @@ public class TaskSkill extends AbsSkill {
             return "ERROR: 未知的子代理类型 '" + task.getName() + "'。";
         }
 
+        String result = null;
+        ReActAgent agent = agentDefinition.builder(agentRuntime).build();
+        final AgentSession session;
+
+        if (Assert.isEmpty(task.getTaskId())) {
+            session = InMemoryAgentSession.of(agent.name());
+        } else {
+            session = agentRuntime.getSession(task.getTaskId());
+        }
+
+        String finalSessionId = session.getSessionId();
+
         try {
-            String result = null;
-            ReActAgent agent = agentDefinition.builder(agentRuntime).build();
-            final AgentSession session;
-
-            if (Assert.isEmpty(task.getTaskId())) {
-                session = InMemoryAgentSession.of(agent.name());
-            } else {
-                session = agentRuntime.getSession(task.getTaskId());
-            }
-
-            String finalSessionId = session.getSessionId();
-
-            LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", task.getName(), finalSessionId, task.getDescription());
-
             if (__parentTrace.getOptions().getStreamSink() == null) {
                 // 同步模式
                 AgentResponse response = agent.prompt(task.getPrompt())
@@ -177,20 +185,70 @@ public class TaskSkill extends AbsSkill {
                 result = response.getContent();
             }
 
-            LOG.info("子代理任务完成: {}", finalSessionId);
-
-            return String.format(
-                    "task_id: %s\n" +
-                            "name: %s\n" +
-                            "\n" +
-                            "<task_result>\n" +
-                            "%s\n" +
-                            "</task_result>",
-                    finalSessionId, task.getName(), result != null ? result : "(无输出)"
-            );
+            return formatTaskResp(task, true, result);
         } catch (Throwable e) {
             LOG.error("子代理[{}]执行失败: {}", task.getName(), e.getMessage(), e);
-            return String.format("ERROR: 子代理 '%s' 执行失败: %s", task.getName(), e.getMessage());
+
+            result = String.format("ERROR: 子代理 '%s' 执行任务失败: %s", task.getName(), e.getMessage());
+
+            return formatTaskResp(task, false, result);
+        }
+    }
+
+    private String formatTaskResp(TaskOp task, boolean successful, String result) {
+        StringBuilder buf = new StringBuilder();
+
+        buf.append("<task_response>");
+        if (Assert.isNotEmpty(task.getTaskId())) {
+            buf.append("<task_id>").append(task.getTaskId()).append("</task_id>");
+        }
+
+        buf.append("<agent_name>").append(task.getName()).append("</agent_name>");
+        buf.append("<status>").append(successful ? "success" : "failure").append("</status>");
+        buf.append("<content>").append(result != null ? result : "").append("</content>");
+
+        buf.append("</task_response>");
+
+        return buf.toString();
+    }
+
+
+    /**
+     * 任务定义
+     */
+    public static class TaskOp {
+        @Param(name = "name", description = "子代理名称")
+        private String name;
+        @Param(name = "prompt", description = "具体指令。子代理看不见当前历史，必须包含任务目标、关键类名或必要的背景上下文。")
+        private String prompt;
+        @Param(name = "description", required = false, description = "简短的任务描述")
+        private String description;
+        @Param(name = "taskId", required = false, description = "可选。若要继续之前的任务会话，请传入对应的 task_id")
+        private String taskId;
+
+        public String getName() {
+            return name;
+        }
+
+        public String getPrompt() {
+            return prompt;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        @Override
+        public String toString() {
+            return "TaskOp{" +
+                    "name='" + name + '\'' +
+                    ", taskId='" + taskId + '\'' +
+                    ", desc='" + description + '\'' +
+                    '}';
         }
     }
 }
