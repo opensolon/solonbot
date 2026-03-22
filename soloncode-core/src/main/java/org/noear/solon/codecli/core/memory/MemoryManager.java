@@ -15,6 +15,7 @@
  */
 package org.noear.solon.codecli.core.memory;
 
+import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.memory.bank.MemoryBank;
 import org.noear.solon.codecli.core.memory.bank.Observation;
 import org.noear.solon.codecli.core.memory.bank.store.FileMemoryStore;
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -40,6 +42,16 @@ import java.util.stream.Stream;
  */
 public class MemoryManager {
     private static final Logger LOG = LoggerFactory.getLogger(MemoryManager.class);
+    private static final Map<String, MemoryManager> cached = new ConcurrentHashMap<>();
+
+    public static MemoryManager of(String __cwd) {
+        return cached.computeIfAbsent(__cwd, k -> {
+            Path memoryPath = Paths.get(k, AgentRuntime.SOLONCODE_MEMORY);
+            return new MemoryManager(memoryPath);
+        });
+    }
+
+
 
     // 内存存储（分层设计）
     private final Map<String, WorkingMemory> workingCache = new ConcurrentHashMap<>();

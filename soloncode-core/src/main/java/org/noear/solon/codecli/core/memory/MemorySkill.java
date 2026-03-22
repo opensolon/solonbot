@@ -38,11 +38,9 @@ import java.util.List;
  */
 public class MemorySkill extends AbsSkill {
     private static final Logger LOG = LoggerFactory.getLogger(MemorySkill.class);
-
-    private final MemoryManager memoryManager;
-
-    public MemorySkill(MemoryManager memoryManager) {
-        this.memoryManager = memoryManager;
+    private static final MemorySkill instance = new MemorySkill();
+    public static MemorySkill getInstance() {
+        return instance;
     }
 
 
@@ -70,11 +68,14 @@ public class MemorySkill extends AbsSkill {
      * 存储短期记忆
      */
     @ToolMapping(name = "memory_store_short",
-                 description = "[底层API] 存储短期记忆（会话级别，TTL 1小时）。注意：推荐使用 memory_store() 自动分类。")
+            description = "[底层API] 存储短期记忆（会话级别，TTL 1小时）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreShort(
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value,
-            @Param(name = "ttl", description = "过期时间（秒），默认3600") Integer ttl) {
+            @Param(name = "ttl", description = "过期时间（秒），默认3600") Integer ttl,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             int actualTtl = ttl != null && ttl > 0 ? ttl : 3600;
             memoryManager.putShortTerm(key, value, actualTtl);
@@ -90,11 +91,14 @@ public class MemorySkill extends AbsSkill {
      * 存储长期记忆
      */
     @ToolMapping(name = "memory_store_long",
-                 description = "[底层API] 存储长期记忆（跨会话，TTL 7天）。注意：推荐使用 memory_store() 自动分类。")
+            description = "[底层API] 存储长期记忆（跨会话，TTL 7天）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreLong(
             @Param(name = "key", description = "记忆键") String key,
             @Param(name = "value", description = "记忆值") String value,
-            @Param(name = "ttl", description = "过期时间（秒），默认604800") Integer ttl) {
+            @Param(name = "ttl", description = "过期时间（秒），默认604800") Integer ttl,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             int actualTtl = ttl != null && ttl > 0 ? ttl : 604800;
             memoryManager.putLongTerm(key, value, actualTtl);
@@ -110,10 +114,13 @@ public class MemorySkill extends AbsSkill {
      * 存储知识记忆
      */
     @ToolMapping(name = "memory_store_knowledge",
-                 description = "[底层API] 存储知识记忆（永久保存）。注意：推荐使用 memory_store() 自动分类。")
+            description = "[底层API] 存储知识记忆（永久保存）。注意：推荐使用 memory_store() 自动分类。")
     public String memoryStoreKnowledge(
             @Param(name = "key", description = "记忆键") String key,
-            @Param(name = "value", description = "记忆值") String value) {
+            @Param(name = "value", description = "记忆值") String value,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             memoryManager.putKnowledge(key, value);
             LOG.debug("存储知识记忆: key={}", key);
@@ -128,9 +135,12 @@ public class MemorySkill extends AbsSkill {
      * 检索记忆
      */
     @ToolMapping(name = "memory_retrieve",
-                 description = "[底层API] 根据键精确检索记忆。注意：推荐使用 memory_recall() 智能检索。")
+            description = "[底层API] 根据键精确检索记忆。注意：推荐使用 memory_recall() 智能检索。")
     public String memoryRetrieve(
-            @Param(name = "key", description = "记忆键") String key) {
+            @Param(name = "key", description = "记忆键") String key,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             // 按优先级查找：短期 -> 长期 -> 知识
             String value = memoryManager.get(key);
@@ -149,10 +159,13 @@ public class MemorySkill extends AbsSkill {
      * 搜索记忆
      */
     @ToolMapping(name = "memory_search",
-                 description = "[底层API] 模糊搜索记忆（支持关键词匹配）。注意：推荐使用 memory_recall() 智能检索。")
+            description = "[底层API] 模糊搜索记忆（支持关键词匹配）。注意：推荐使用 memory_recall() 智能检索。")
     public String memorySearch(
             @Param(name = "query", description = "搜索查询") String query,
-            @Param(name = "limit", description = "返回结果数量限制，默认10") Integer limit) {
+            @Param(name = "limit", description = "返回结果数量限制，默认10") Integer limit,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             int actualLimit = limit != null && limit > 0 ? limit : 10;
             List<Memory> results = memoryManager.search(query, actualLimit);
@@ -197,10 +210,13 @@ public class MemorySkill extends AbsSkill {
      * 设置工作记忆
      */
     @ToolMapping(name = "working_memory_set",
-                 description = "[底层API] 设置工作记忆字段（用于存储当前任务状态、步骤等结构化数据）。直接操作 WorkingMemory。")
+            description = "[底层API] 设置工作记忆字段（用于存储当前任务状态、步骤等结构化数据）。直接操作 WorkingMemory。")
     public String workingMemorySet(
             @Param(name = "field", description = "字段名称（taskDescription/status/step/currentAgent）") String field,
-            @Param(name = "value", description = "字段值") String value) {
+            @Param(name = "value", description = "字段值") String value,
+            String __cwd) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             // 使用默认的 taskId "main-agent"
             String taskId = "main-agent";
@@ -254,10 +270,13 @@ public class MemorySkill extends AbsSkill {
      * 获取工作记忆
      */
     @ToolMapping(name = "working_memory_get",
-                 description = "[底层API] 获取工作记忆（查看当前任务状态、步骤等）。直接读取 WorkingMemory。")
+            description = "[底层API] 获取工作记忆（查看当前任务状态、步骤等）。直接读取 WorkingMemory。")
     public String workingMemoryGet(
-            @Param(name = "taskId", description = "任务ID，默认为'main-agent'") String taskId
+            @Param(name = "taskId", description = "任务ID，默认为'main-agent'") String taskId,
+            String __cwd
     ) {
+        MemoryManager memoryManager = MemoryManager.of(__cwd);
+
         try {
             // 如果没有提供 taskId，使用默认值
             String actualTaskId = (taskId != null && !taskId.isEmpty()) ? taskId : "main-agent";
