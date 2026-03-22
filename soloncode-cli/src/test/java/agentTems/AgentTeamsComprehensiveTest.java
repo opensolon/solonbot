@@ -17,10 +17,10 @@ package agentTems;
 
 import org.junit.jupiter.api.*;
 import org.noear.solon.codecli.core.teams.event.*;
-import org.noear.solon.codecli.core.teams.memory.LongTermMemory;
-import org.noear.solon.codecli.core.teams.memory.Memory;
-import org.noear.solon.codecli.core.teams.memory.SharedMemoryManager;
-import org.noear.solon.codecli.core.teams.memory.ShortTermMemory;
+import org.noear.solon.codecli.core.memory.LongTermMemory;
+import org.noear.solon.codecli.core.memory.Memory;
+import org.noear.solon.codecli.core.memory.MemoryManager;
+import org.noear.solon.codecli.core.memory.ShortTermMemory;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
 import org.noear.solon.codecli.core.teams.message.MessageHandler;
@@ -54,7 +54,7 @@ public class AgentTeamsComprehensiveTest {
 
     private static final String TEST_WORK_DIR = "./work/test-teams-comprehensive";
 
-    private SharedMemoryManager memoryManager;
+    private MemoryManager memoryManager;
     private EventBus eventBus;
     private MessageChannel messageChannel;
     private SharedTaskList taskList;
@@ -64,7 +64,7 @@ public class AgentTeamsComprehensiveTest {
         System.out.println("\n========================================");
 
         // 初始化组件
-        memoryManager = new SharedMemoryManager(
+        memoryManager = new MemoryManager(
                 Paths.get(TEST_WORK_DIR, "memory"),
                 3600_000L,
                 7 * 24 * 3600_000L,

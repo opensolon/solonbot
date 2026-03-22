@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.teams.memory.consolidator;
+package org.noear.solon.codecli.core.memory.consolidator;
 
 /**
  * 记忆合并配置

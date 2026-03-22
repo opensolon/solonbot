@@ -18,10 +18,10 @@ package agentTems;
 import org.junit.jupiter.api.Test;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.AgentProperties;
+import org.noear.solon.codecli.core.memory.*;
 import org.noear.solon.codecli.core.teams.SharedTaskList;
 import org.noear.solon.codecli.core.teams.TeamTask;
 import org.noear.solon.codecli.core.teams.event.*;
-import org.noear.solon.codecli.core.teams.memory.*;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageAck;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
@@ -55,7 +55,7 @@ public class AgentTeamsIntegrationTest {
         System.out.println("=== 测试共享记忆管理器 ===");
 
         // 创建管理器
-        SharedMemoryManager manager = new SharedMemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
+        MemoryManager manager = new MemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
 
         // 1. 测试存储短期记忆
         ShortTermMemory stm = new ShortTermMemory("explore", "探索任务上下文", "task-1");
@@ -249,7 +249,7 @@ public class AgentTeamsIntegrationTest {
         System.out.println("=== 测试代理协作 ===");
 
         // 创建管理器
-        SharedMemoryManager memoryManager = new SharedMemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
+        MemoryManager memoryManager = new MemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
         EventBus eventBus = new EventBus(2, 100);
         MessageChannel messageChannel = new MessageChannel(TEST_WORK_DIR, 2);
 
@@ -879,7 +879,7 @@ public class AgentTeamsIntegrationTest {
         System.out.println("=== 测试记忆 TTL ===");
 
         // 创建短期 TTL 的管理器（1 秒）
-        SharedMemoryManager manager = new SharedMemoryManager(
+        MemoryManager manager = new MemoryManager(
                 Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY),
                 1000L,  // 1 秒 TTL
                 7000L,  // 7 秒 TTL

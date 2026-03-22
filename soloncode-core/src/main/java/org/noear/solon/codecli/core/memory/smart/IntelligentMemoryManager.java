@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.teams.memory.smart;
+package org.noear.solon.codecli.core.memory.smart;
 
+import org.noear.solon.codecli.core.memory.*;
 import org.noear.solon.codecli.core.teams.memory.*;
-import org.noear.solon.codecli.core.teams.memory.bank.Observation;
-import org.noear.solon.codecli.core.teams.memory.classifier.MemoryAutoClassifier;
-import org.noear.solon.codecli.core.teams.memory.classifier.MemoryClassification;
-import org.noear.solon.codecli.core.teams.memory.classifier.MemoryCategory;
-import org.noear.solon.codecli.core.teams.memory.consolidator.MemoryConsolidator;
-import org.noear.solon.codecli.core.teams.memory.consolidator.ConsolidationConfig;
-import org.noear.solon.codecli.core.teams.memory.consolidator.ConsolidationResult;
-import org.noear.solon.codecli.core.teams.memory.scorer.EnhancedImportanceScorer;
+import org.noear.solon.codecli.core.memory.bank.Observation;
+import org.noear.solon.codecli.core.memory.classifier.MemoryAutoClassifier;
+import org.noear.solon.codecli.core.memory.classifier.MemoryClassification;
+import org.noear.solon.codecli.core.memory.classifier.MemoryCategory;
+import org.noear.solon.codecli.core.memory.consolidator.MemoryConsolidator;
+import org.noear.solon.codecli.core.memory.consolidator.ConsolidationConfig;
+import org.noear.solon.codecli.core.memory.consolidator.ConsolidationResult;
+import org.noear.solon.codecli.core.memory.scorer.EnhancedImportanceScorer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,7 @@ public class IntelligentMemoryManager {
 
     private final MemoryAutoClassifier autoClassifier;
     private final EnhancedImportanceScorer importanceScorer;
-    private final SharedMemoryManager delegate;  // 底层存储管理器
+    private final MemoryManager delegate;  // 底层存储管理器
     private final MemoryConsolidator consolidator;  // 记忆合并器
     private final ScheduledExecutorService consolidationExecutor;  // 合并任务调度器
 
@@ -95,7 +96,7 @@ public class IntelligentMemoryManager {
                                     long consolidationInterval) {
         this.autoClassifier = new MemoryAutoClassifier();
         this.importanceScorer = new EnhancedImportanceScorer();
-        this.delegate = new SharedMemoryManager(workDir);
+        this.delegate = new MemoryManager(workDir);
         this.autoConsolidate = autoConsolidate;
         this.consolidationThreshold = consolidationThreshold;
         this.consolidationInterval = consolidationInterval;
@@ -771,7 +772,7 @@ public class IntelligentMemoryManager {
     /**
      * 获取底层存储管理器（用于兼容）
      */
-    public SharedMemoryManager getDelegate() {
+    public MemoryManager getDelegate() {
         return delegate;
     }
 

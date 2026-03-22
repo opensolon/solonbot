@@ -5,8 +5,9 @@ import org.noear.solon.ai.agent.react.ReActAgentExtension;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
+import org.noear.solon.codecli.core.memory.MemorySkill;
 import org.noear.solon.codecli.core.teams.event.EventBus;
-import org.noear.solon.codecli.core.teams.memory.SharedMemoryManager;
+import org.noear.solon.codecli.core.memory.MemoryManager;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,7 @@ public class TeamReActExtension implements ReActAgentExtension {
     private MainAgent mainAgent;
     private EventBus eventBus;
     private SharedTaskList taskList;
-    private SharedMemoryManager memoryManager;
+    private MemoryManager memoryManager;
     private MessageChannel messageChannel;
 
     public TeamReActExtension(AgentRuntime agentRuntime) {
@@ -58,7 +59,7 @@ public class TeamReActExtension implements ReActAgentExtension {
 
             // 3. 创建 SharedMemoryManager（共享内存管理器）
             Path memoryPath = Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_MEMORY);
-            this.memoryManager = new SharedMemoryManager(memoryPath);
+            this.memoryManager = new MemoryManager(memoryPath);
             LOG.debug("SharedMemoryManager 已创建，路径: {}", memoryPath);
 
             // 4. 创建 MessageChannel（消息通道）- 使用配置
@@ -89,7 +90,7 @@ public class TeamReActExtension implements ReActAgentExtension {
                     agentRuntime,
                     mainAgent
             );
-            SharedMemorySkill sharedMemorySkill =  new SharedMemorySkill(memoryManager, eventBus);
+            MemorySkill sharedMemorySkill =  new MemorySkill(memoryManager, eventBus);
 
             agentBuilder.defaultSkillAdd(agentTeamsSkill);
             agentBuilder.defaultSkillAdd(sharedMemorySkill);

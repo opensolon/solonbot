@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.teams.memory;
+package org.noear.solon.codecli.core.memory;
 
-import org.noear.solon.codecli.core.teams.memory.bank.MemoryBank;
-import org.noear.solon.codecli.core.teams.memory.bank.Observation;
-import org.noear.solon.codecli.core.teams.memory.bank.store.FileMemoryStore;
+import org.noear.solon.codecli.core.memory.bank.MemoryBank;
+import org.noear.solon.codecli.core.memory.bank.Observation;
+import org.noear.solon.codecli.core.memory.bank.store.FileMemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +38,8 @@ import java.util.stream.Stream;
  * @author bai
  * @since 3.9.5
  */
-public class SharedMemoryManager {
-    private static final Logger LOG = LoggerFactory.getLogger(SharedMemoryManager.class);
+public class MemoryManager {
+    private static final Logger LOG = LoggerFactory.getLogger(MemoryManager.class);
 
     // 内存存储（分层设计）
     private final Map<String, WorkingMemory> workingCache = new ConcurrentHashMap<>();
@@ -73,7 +73,7 @@ public class SharedMemoryManager {
     /**
      * 构造函数（使用默认配置）
      */
-    public SharedMemoryManager(Path path) {
+    public MemoryManager(Path path) {
         this(path, 3600_000L, 7 * 24 * 3600_000L, 300_000L, true, 1000, 500);
     }
 
@@ -88,13 +88,13 @@ public class SharedMemoryManager {
      * @param maxShortTermCount 短期记忆最大数量
      * @param maxLongTermCount 长期记忆最大数量
      */
-    public SharedMemoryManager(Path path,
-                               long shortTermTtl,
-                               long longTermTtl,
-                               long cleanupInterval,
-                               boolean persistOnWrite,
-                               int maxShortTermCount,
-                               int maxLongTermCount) {
+    public MemoryManager(Path path,
+                         long shortTermTtl,
+                         long longTermTtl,
+                         long cleanupInterval,
+                         boolean persistOnWrite,
+                         int maxShortTermCount,
+                         int maxLongTermCount) {
         // 初始化 FileMemoryStore
         this.fileStore = new FileMemoryStore(path.toAbsolutePath().toString());
 

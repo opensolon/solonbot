@@ -15,10 +15,10 @@
  */
 package agentTems;
 
-import org.noear.solon.codecli.core.teams.memory.*;
-import org.noear.solon.codecli.core.teams.memory.bank.Observation;
-import org.noear.solon.codecli.core.teams.memory.bank.store.FileMemoryStore;
-import org.noear.solon.codecli.core.teams.memory.bank.store.MemoryStore;
+import org.noear.solon.codecli.core.memory.*;
+import org.noear.solon.codecli.core.memory.bank.Observation;
+import org.noear.solon.codecli.core.memory.bank.store.FileMemoryStore;
+import org.noear.solon.codecli.core.memory.bank.store.MemoryStore;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -82,7 +82,7 @@ public class MemoryStoreExample {
         Path tempDir = Files.createTempDirectory("shared_memory_");
 
         // 创建 SharedMemoryManager（高层 API）
-        SharedMemoryManager manager = new SharedMemoryManager(tempDir);
+        MemoryManager manager = new MemoryManager(tempDir);
 
         // 创建短期记忆
         ShortTermMemory shortMemory = manager.createShortTermMemory(
@@ -150,7 +150,7 @@ public class MemoryStoreExample {
         Path tempDir = Files.createTempDirectory("memory_lifecycle_");
 
         // 创建 SharedMemoryManager（设置较短的 TTL）
-        SharedMemoryManager manager = new SharedMemoryManager(
+        MemoryManager manager = new MemoryManager(
             tempDir,
             2000L,      // 短期记忆 2 秒过期
             5000L,      // 长期记忆 5 秒过期
@@ -196,7 +196,7 @@ public class MemoryStoreExample {
         Path tempDir = Files.createTempDirectory("knowledge_memory_");
 
         // 创建 SharedMemoryManager
-        SharedMemoryManager manager = new SharedMemoryManager(tempDir);
+        MemoryManager manager = new MemoryManager(tempDir);
 
         // 创建永久记忆（不会过期）
         KnowledgeMemory knowledge = new KnowledgeMemory(
@@ -240,7 +240,7 @@ public class MemoryStoreExample {
         Path tempDir = Files.createTempDirectory("shared_memory_agents_");
 
         // 创建 SharedMemoryManager（多个代理共享同一个实例）
-        SharedMemoryManager sharedManager = new SharedMemoryManager(tempDir);
+        MemoryManager sharedManager = new MemoryManager(tempDir);
 
         // 代理 1 存储信息
         ShortTermMemory mem1 = sharedManager.createShortTermMemory(

@@ -18,7 +18,7 @@ package org.noear.solon.codecli.core.teams;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.codecli.core.teams.event.EventBus;
-import org.noear.solon.codecli.core.teams.memory.SharedMemoryManager;
+import org.noear.solon.codecli.core.memory.MemoryManager;
 import org.noear.solon.codecli.core.agent.AgentMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +43,7 @@ public class MainAgentTaskOrchestrationTest {
         // 创建必要的组件
         EventBus eventBus = new EventBus();
         SharedTaskList taskList = new SharedTaskList(eventBus);
-        SharedMemoryManager memoryManager = new SharedMemoryManager(Paths.get("./work"));
+        MemoryManager memoryManager = new MemoryManager(Paths.get("./work"));
 
         AgentDefinition agentDefinition = new AgentDefinition();
         //config.setCode("main-agent");

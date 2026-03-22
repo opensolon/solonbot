@@ -13,16 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.teams;
+package org.noear.solon.codecli.core.memory;
 
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.annotation.Param;
-import org.noear.solon.codecli.core.teams.event.AgentEvent;
-import org.noear.solon.codecli.core.teams.event.AgentEventType;
-import org.noear.solon.codecli.core.teams.event.EventBus;
-import org.noear.solon.codecli.core.teams.memory.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,25 +36,23 @@ import java.util.List;
  * @author bai
  * @since 3.9.5
  */
-public class SharedMemorySkill extends AbsSkill {
+public class MemorySkill extends AbsSkill {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SharedMemorySkill.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MemorySkill.class);
 
-    private static SharedMemorySkill instance = null;
+    private static MemorySkill instance = null;
 
-    private final SharedMemoryManager memoryManager;
-    private final EventBus eventBus;
+    private final MemoryManager memoryManager;
 
-    public SharedMemorySkill(SharedMemoryManager memoryManager,
-                             EventBus eventBus) {
+    public MemorySkill(MemoryManager memoryManager) {
         this.memoryManager = memoryManager;
-        this.eventBus = eventBus;
+
         if (instance == null){
             instance = this;
         }
     }
 
-    public static SharedMemorySkill getInstance(){
+    public static MemorySkill getInstance(){
         if (instance == null){
             throw new RuntimeException("AgentTeamsTools is not initialized");
         }
@@ -316,27 +310,6 @@ public class SharedMemorySkill extends AbsSkill {
         } catch (Throwable e) {
             LOG.error("获取工作记忆失败", e);
             return "[ERROR] 获取失败: " + e.getMessage();
-        }
-    }
-
-
-    /**
-     * 发布事件
-     */
-    @ToolMapping(name = "publish_event",
-                 description = "[底层API] 发布团队事件到 EventBus（用于通知其他代理任务状态变化）。需要了解事件类型。")
-    public String publishEvent(
-            @Param(name = "eventType", description = "事件类型（TASK_CREATED, TASK_COMPLETED, TASK_FAILED, MESSAGE_RECEIVED等）") String eventType,
-            @Param(name = "data", description = "事件数据（JSON格式或文本）") String data) {
-        try {
-            AgentEventType type = AgentEventType.valueOf(eventType.toUpperCase());
-            AgentEvent event = new AgentEvent(type, data, null);
-            eventBus.publish(event);
-
-            LOG.debug("发布事件: type={}, data={}", type, data);
-            return "[OK] 事件已发布: " + type;
-        } catch (IllegalArgumentException e) {
-            return "[ERROR] 无效的事件类型: " + eventType;
         }
     }
 }

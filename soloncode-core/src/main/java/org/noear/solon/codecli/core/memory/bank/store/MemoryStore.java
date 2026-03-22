@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.teams.memory.bank.store;
+package org.noear.solon.codecli.core.memory.bank.store;
 
-import org.noear.solon.codecli.core.teams.memory.bank.Observation;
+import org.noear.solon.codecli.core.memory.bank.Observation;
 
 /**
  * MemoryBank 持久化存储接口

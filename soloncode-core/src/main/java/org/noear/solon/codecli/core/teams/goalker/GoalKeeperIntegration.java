@@ -17,7 +17,7 @@ package org.noear.solon.codecli.core.teams.goalker;
 
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
+import org.noear.solon.codecli.core.memory.WorkingMemory;
 import org.noear.solon.codecli.core.teams.MainAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -19,7 +19,6 @@ import lombok.Getter;
 import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
@@ -32,8 +31,8 @@ import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.event.EventHandler;
 import org.noear.solon.codecli.core.teams.event.EventMetadata;
 import org.noear.solon.codecli.core.teams.goalker.GoalKeeperIntegration;
-import org.noear.solon.codecli.core.teams.memory.SharedMemoryManager;
-import org.noear.solon.codecli.core.teams.memory.ShortTermMemory;
+import org.noear.solon.codecli.core.memory.MemoryManager;
+import org.noear.solon.codecli.core.memory.ShortTermMemory;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageAck;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
@@ -66,7 +65,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainAgent {
     private static final Logger LOG = LoggerFactory.getLogger(MainAgent.class);
 
-    private final SharedMemoryManager sharedMemoryManager;
+    private final MemoryManager sharedMemoryManager;
     private final EventBus eventBus;
     private final MessageChannel messageChannel;
     private final SharedTaskList taskList;
@@ -97,7 +96,7 @@ public class MainAgent {
     public MainAgent(
             AgentRuntime agentRuntime,
             AgentDefinition agentDefinition,
-            SharedMemoryManager sharedMemoryManager,
+            MemoryManager sharedMemoryManager,
             EventBus eventBus,
             MessageChannel messageChannel,
             SharedTaskList taskList,

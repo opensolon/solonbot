@@ -22,7 +22,7 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.skills.cli.PoolManager;
 import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
-import org.noear.solon.codecli.core.teams.memory.SharedMemoryManager;
+import org.noear.solon.codecli.core.memory.MemoryManager;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.codecli.core.agent.AgentMetadata;
 import org.noear.solon.codecli.core.agent.AgentManager;
@@ -58,7 +58,7 @@ public class SubAgentAgentBuilder {
     // 可选配置（使用 @Builder.Default 设置默认值）
     @Builder.Default
     private final List<AgentDefinition> subAgents = new ArrayList<>();
-    private final SharedMemoryManager sharedMemoryManager;
+    private final MemoryManager sharedMemoryManager;
     private final EventBus eventBus;
     private final MessageChannel messageChannel;
     private final SharedTaskList taskList;

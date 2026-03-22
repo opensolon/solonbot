@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.teams.memory.consolidator;
+package org.noear.solon.codecli.core.memory.consolidator;
 
 import java.util.Map;
 import java.util.Set;

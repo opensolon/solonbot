@@ -13,9 +13,9 @@
  * @author bai
  * @since 3.9.5
  */
-package org.noear.solon.codecli.core.teams.memory.scorer;
+package org.noear.solon.codecli.core.memory.scorer;
 
-import org.noear.solon.codecli.core.teams.memory.bank.Observation;
+import org.noear.solon.codecli.core.memory.bank.Observation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

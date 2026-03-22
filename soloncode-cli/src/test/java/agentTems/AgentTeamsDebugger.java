@@ -18,11 +18,11 @@ package agentTems;
 import lombok.extern.slf4j.Slf4j;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.AgentProperties;
+import org.noear.solon.codecli.core.memory.*;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.event.EventHandler;
 import org.noear.solon.codecli.core.teams.event.EventMetadata;
-import org.noear.solon.codecli.core.teams.memory.*;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageAck;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
@@ -86,7 +86,7 @@ public class AgentTeamsDebugger {
         System.out.println("-----------------------------------");
 
         // 创建管理器
-        SharedMemoryManager manager = new SharedMemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
+        MemoryManager manager = new MemoryManager(Paths.get(TEST_WORK_DIR, AgentRuntime.SOLONCODE_MEMORY));
 
         // 1.1 存储短期记忆
         System.out.print("1. 存储短期记忆... ");

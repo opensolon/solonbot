@@ -35,8 +35,9 @@ import org.noear.solon.codecli.core.agent.AgentManager;
 import org.noear.solon.codecli.core.agent.AgentMetadata;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.AgentEventType;
-import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
-import org.noear.solon.codecli.core.teams.memory.smart.IntelligentMemoryManager;
+import org.noear.solon.codecli.core.memory.WorkingMemory;
+import org.noear.solon.codecli.core.memory.smart.IntelligentMemoryManager;
+import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageAck;
 import org.noear.solon.core.util.Assert;
@@ -74,14 +75,16 @@ public class AgentTeamsSkill extends AbsSkill {
 
     private final AgentRuntime agentRuntime;
     private final MainAgent mainAgent;
+    private final EventBus eventBus;
     private final IntelligentMemoryManager intelligentMemoryManager;
 
     /**
      * 完整构造函数（支持子代理调用）
      */
-    public AgentTeamsSkill(AgentRuntime agentRuntime, MainAgent mainAgent) {
+    public AgentTeamsSkill(AgentRuntime agentRuntime, MainAgent mainAgent, EventBus eventBus) {
         this.agentRuntime = agentRuntime;
         this.mainAgent = mainAgent;
+        this.eventBus = eventBus;
 
         // 初始化智能记忆管理器
         if (mainAgent != null && mainAgent.getSharedMemoryManager() != null) {
@@ -2308,6 +2311,26 @@ public class AgentTeamsSkill extends AbsSkill {
             return "[ERROR] 执行团队任务失败: " + e.getMessage() + "\n\n" +
                    "团队: " + teamName + "\n" +
                    "任务: " + task;
+        }
+    }
+
+    /**
+     * 发布事件
+     */
+    @ToolMapping(name = "publish_event",
+            description = "[底层API] 发布团队事件到 EventBus（用于通知其他代理任务状态变化）。需要了解事件类型。")
+    public String publishEvent(
+            @Param(name = "eventType", description = "事件类型（TASK_CREATED, TASK_COMPLETED, TASK_FAILED, MESSAGE_RECEIVED等）") String eventType,
+            @Param(name = "data", description = "事件数据（JSON格式或文本）") String data) {
+        try {
+            AgentEventType type = AgentEventType.valueOf(eventType.toUpperCase());
+            AgentEvent event = new AgentEvent(type, data, null);
+            eventBus.publish(event);
+
+            LOG.debug("发布事件: type={}, data={}", type, data);
+            return "[OK] 事件已发布: " + type;
+        } catch (IllegalArgumentException e) {
+            return "[ERROR] 无效的事件类型: " + eventType;
         }
     }
 }
