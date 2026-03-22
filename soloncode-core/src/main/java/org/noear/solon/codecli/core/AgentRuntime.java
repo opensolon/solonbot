@@ -26,6 +26,7 @@ import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.codecli.core.agent.GenerateAgentTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
+import org.noear.solon.codecli.core.task.TaskSkill;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ClassUtil;
 import org.noear.solon.core.util.IoUtil;

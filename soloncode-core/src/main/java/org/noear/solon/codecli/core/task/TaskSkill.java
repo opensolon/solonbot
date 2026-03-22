@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core;
+package org.noear.solon.codecli.core.task;
 
 import org.noear.solon.ai.agent.AgentResponse;
 import org.noear.solon.ai.agent.AgentSession;
@@ -26,11 +26,18 @@ import org.noear.solon.ai.agent.session.InMemoryAgentSession;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
+import org.noear.solon.annotation.Body;
 import org.noear.solon.annotation.Param;
+import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.core.util.Assert;
+import org.noear.solon.core.util.RunUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.List;
 
 /**
  * 子代理技能
@@ -71,55 +78,85 @@ public class TaskSkill extends AbsSkill {
     }
 
     @ToolMapping(name = "task", description =
-            "派生并分派任务给专项子代理。所有实际开发工作必须使用此工具委派给子代理完成。\n" +
-                    "\n" +
-                    "调用约定：\n" +
-                    "\n" +
-                    "- **上下文对齐**: 子代理看不见当前历史，必须在 prompt 中传入必要的上下文")
-    public String task(
-            @Param(name = "name", description = "子代理名称") String name,
-            @Param(name = "prompt", description = "具体指令。必须包含任务目标、关键类名或必要的背景上下文。") String prompt,
-            @Param(name = "description", required = false, description = "简短的任务描述") String description,
-            @Param(name = "taskId", required = false, description = "可选。若要继续之前的任务会话，请传入对应的 task_id") String taskId,
-            String __cwd,
-            String __sessionId
-    ) {
+            "分派任务给专项子代理。所有实际开发工作必须使用此工具委派给子代理完成。")
+    public String task(@Body TaskOp taskSpec, String __cwd, String __sessionId) {
         AgentSession __parentSession = agentRuntime.getSession(__sessionId);
         ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
 
-        try {
-            AgentDefinition agentDefinition = agentRuntime.getAgentManager().getAgent(name);
-            if (agentDefinition == null) {
-                return "ERROR: 未知的子代理类型 '" + name + "'。";
-            }
+        return taskDo(__parentTrace, __cwd, taskSpec, false);
+    }
 
+    @ToolMapping(name = "multitask", description =
+            "并行执行多个子任务。仅当任务之间完全独立（如：同时修改两个无关的模块、并行进行多项搜索）时使用。")
+    public String multitask(@Param(name = "tasks", description = "任务列表") List<TaskOp> tasks, String __cwd, String __sessionId) {
+        if (Assert.isEmpty(tasks)) {
+            return "WARNING: 任务列表为空";
+        }
+
+        AgentSession __parentSession = agentRuntime.getSession(__sessionId);
+        ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
+
+        List<CompletableFuture<String>> futures = new ArrayList<>();
+        for (TaskOp task : tasks) {
+            // 使用 RunUtil.io() 是正确的，因为这主要是 I/O 密集型（等待 AI 响应）
+            CompletableFuture<String> future = CompletableFuture.supplyAsync(() ->
+                    taskDo(__parentTrace, __cwd, task, true), RunUtil.io());
+            futures.add(future);
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .handle((v, ex) -> {
+                    StringBuilder compositeResult = new StringBuilder("## 多任务执行报告\n\n");
+                    for (int i = 0; i < futures.size(); i++) {
+                        TaskOp task = tasks.get(i);
+                        compositeResult.append(String.format("### 任务 %d: [%s]\n", i + 1, task.getName()));
+                        try {
+                            // 即使 ex 不为 null，也要尝试获取每个 future 的结果
+                            String result = futures.get(i).getNow("ERROR: 任务未完成");
+                            compositeResult.append(result).append("\n\n");
+                        } catch (Exception e) {
+                            compositeResult.append("执行异常: ").append(e.getMessage()).append("\n\n");
+                        }
+                    }
+                    return compositeResult.toString();
+                }).join();
+    }
+
+    private String taskDo(ReActTrace __parentTrace, String __cwd, TaskOp task, boolean isMultitask) {
+        AgentDefinition agentDefinition = agentRuntime.getAgentManager().getAgent(task.getName());
+        if (agentDefinition == null) {
+            return "ERROR: 未知的子代理类型 '" + task.getName() + "'。";
+        }
+
+        try {
             String result = null;
             ReActAgent agent = agentDefinition.builder(agentRuntime).build();
             final AgentSession session;
 
-            if(Assert.isEmpty(taskId)){
+            if (Assert.isEmpty(task.getTaskId())) {
                 session = InMemoryAgentSession.of(agent.name());
             } else {
-                session = agentRuntime.getSession(taskId);
+                session = agentRuntime.getSession(task.getTaskId());
             }
 
             String finalSessionId = session.getSessionId();
-            LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", name, finalSessionId, description);
+
+            LOG.info("分派任务 -> 类型: {}, 会话: {}, 描述: {}", task.getName(), finalSessionId, task.getDescription());
 
             if (__parentTrace.getOptions().getStreamSink() == null) {
                 // 同步模式
-                AgentResponse response = agent.prompt(prompt)
+                AgentResponse response = agent.prompt(task.getPrompt())
                         .session(session)
                         .options(o -> {
                             o.toolContextPut("__cwd", __cwd);
                         })
                         .call();
 
-                result = response.getContent();
                 __parentTrace.getMetrics().addMetrics(response.getMetrics());
+                result = response.getContent();
             } else {
                 // 流式模式
-                ReActChunk response = (ReActChunk) agent.prompt(prompt)
+                ReActChunk response = (ReActChunk) agent.prompt(task.getPrompt())
                         .session(session)
                         .options(o -> {
                             o.toolContextPut("__cwd", __cwd);
@@ -129,13 +166,15 @@ public class TaskSkill extends AbsSkill {
                             if (chunk instanceof ActionEndChunk) {
                                 __parentTrace.getOptions().getStreamSink().next(chunk);
                             } else if (chunk instanceof ReasonChunk) {
-                                __parentTrace.getOptions().getStreamSink().next(chunk);
+                                if (isMultitask == false) {
+                                    __parentTrace.getOptions().getStreamSink().next(chunk);
+                                }
                             }
                         })
                         .blockLast();
 
-                result = response.getContent();
                 __parentTrace.getMetrics().addMetrics(response.getMetrics());
+                result = response.getContent();
             }
 
             LOG.info("子代理任务完成: {}", finalSessionId);
@@ -147,11 +186,11 @@ public class TaskSkill extends AbsSkill {
                             "<task_result>\n" +
                             "%s\n" +
                             "</task_result>",
-                    finalSessionId, name, result != null ? result : "(无输出)"
+                    finalSessionId, task.getName(), result != null ? result : "(无输出)"
             );
         } catch (Throwable e) {
-            LOG.error("子代理执行失败: type={}, error={}", name, e.getMessage(), e);
-            return "ERROR: 子代理执行失败: " + e.getMessage();
+            LOG.error("子代理[{}]执行失败: {}", task.getName(), e.getMessage(), e);
+            return String.format("ERROR: 子代理 '%s' 执行失败: %s", task.getName(), e.getMessage());
         }
     }
 }
