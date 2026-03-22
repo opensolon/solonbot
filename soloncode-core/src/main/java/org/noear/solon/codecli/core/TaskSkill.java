@@ -204,7 +204,7 @@ public class TaskSkill extends AbsSkill {
 
         buf.append("<agent_name>").append(task.getName()).append("</agent_name>");
         buf.append("<status>").append(successful ? "success" : "failure").append("</status>");
-        buf.append("<content>").append(result != null ? result : "").append("</content>");
+        buf.append("<content><![CDATA[").append(result != null ? result : "").append("]]></content>");
 
         buf.append("</task_response>");
 
