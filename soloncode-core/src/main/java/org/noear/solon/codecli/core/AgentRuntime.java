@@ -7,7 +7,6 @@ import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActAgentExtension;
 import org.noear.solon.ai.agent.react.ReActRequest;
-import org.noear.solon.ai.agent.react.ReActSystemPrompt;
 import org.noear.solon.ai.agent.react.intercept.HITLInterceptor;
 import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
 import org.noear.solon.ai.agent.react.intercept.SummarizationStrategy;
@@ -25,13 +24,12 @@ import org.noear.solon.ai.skills.restapi.RestApiSkill;
 import org.noear.solon.codecli.core.agent.AgentManager;
 import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
+import org.noear.solon.codecli.core.agent.GenerateAgentTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
-import org.noear.solon.codecli.core.teams.TeamReActExtension;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ClassUtil;
 import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.core.util.ResourceUtil;
-import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -45,13 +43,10 @@ import java.nio.file.Paths;
 import java.util.*;
 
 /**
- * 智能体运行时 (Pool-Box 模型)
- * <p>基于 ReAct 模式的终端智能助理，提供多池挂载与任务盒隔离体验</p>
+ * 智能体运行时
  *
  * @author noear
- * @since 3.9.1
  */
-@Preview("3.9.1")
 public class AgentRuntime {
     private final static Logger LOG = LoggerFactory.getLogger(AgentRuntime.class);
 
@@ -67,9 +62,7 @@ public class AgentRuntime {
     public final static String SOLONCODE_MEMORY = ".soloncode/memory/";
 
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
-    public final static String OPENCODE_AGENTS = ".opencode/agents/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
-    public final static String CLAUDE_AGENTS = ".claude/agents/";
 
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
@@ -78,6 +71,7 @@ public class AgentRuntime {
     private final CodeSkill codeSkill = new CodeSkill();
     private final LuceneSkill luceneSkill = new LuceneSkill();
     private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
+    private final TaskSkill taskSkill = new TaskSkill(this);
 
     private final ReActAgent reActAgent;
 
@@ -90,7 +84,6 @@ public class AgentRuntime {
 
 
     private AgentManager agentManager;
-    private TeamReActExtension teamReActExtension;
 
     public String getVersion() {
         return "v0.0.23";
@@ -112,6 +105,14 @@ public class AgentRuntime {
         return chatModel;
     }
 
+    public McpProviders getMcpProviders() {
+        return mcpProviders;
+    }
+
+    public RestApiSkill getRestApis() {
+        return restApis;
+    }
+
     public AgentManager getAgentManager() {
         return agentManager;
     }
@@ -126,6 +127,10 @@ public class AgentRuntime {
 
     public TodoSkill getTodoSkill() {
         return todoSkill;
+    }
+
+    public TaskSkill getTaskSkill() {
+        return taskSkill;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -158,7 +163,21 @@ public class AgentRuntime {
 
         if (Assert.isNotEmpty(agentsMd)) {
             //有 AGENTS.md 配置
-            agentBuilder.systemPrompt(trace -> agentsMd);
+            if (properties.isSubagentEnabled()) {
+                agentBuilder.systemPrompt(trace ->
+                        "# 子代理模式\n" +
+                                "子代理模式已启用，所有的任务都要驱动子代理去完成\n\n" +
+                                agentsMd);
+            } else {
+                agentBuilder.systemPrompt(trace -> agentsMd);
+            }
+        } else {
+            if (properties.isSubagentEnabled()) {
+                agentBuilder.systemPrompt(t ->
+                        "# 子代理模式\n" +
+                                "子代理模式已启用，所有的任务都要驱动子代理去完成\n\n"
+                );
+            }
         }
 
 
@@ -180,20 +199,6 @@ public class AgentRuntime {
         cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
         cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
 
-        agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
-        agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
-        agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
-        agentBuilder.defaultToolAdd(new ApplyPatchTool());
-
-        agentBuilder.defaultSkillAdd(cliSkills);
-        agentBuilder.defaultSkillAdd(todoSkill);
-        agentBuilder.defaultSkillAdd(codeSkill);
-        agentBuilder.defaultSkillAdd(luceneSkill);
-
-        if (properties.isBrowserEnabled() && ClassUtil.hasClass(() -> BrowserSkill.class)) {
-            agentBuilder.defaultSkillAdd(new BrowserSkill());
-        }
-
         //上下文摘要
         SummarizationStrategy strategy = new CompositeSummarizationStrategy()
                 .addStrategy(new KeyInfoExtractionStrategy(chatModel))      // 提取干货（去水）
@@ -206,32 +211,44 @@ public class AgentRuntime {
 
         agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
+        if (properties.isSubagentEnabled()) {
+            agentBuilder.defaultSkillAdd(todoSkill);
 
-        // 添加子代理工具
-        if (properties.isSubagentEnabled() || properties.isAgentTeamEnabled()) {
             agentManager = new AgentManager();
 
             // 注册自定义 agents 池（类似 skillPool）
             // 注册 soloncode agents
             agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS));
-            // 注册 opencode agents
-            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_AGENTS));
-            // 注册 claude agents
-            agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_AGENTS));
             // 注册 soloncode agentsTeams（递归扫描团队成员目录）
             agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS_TEAMS), true);
 
-        }
 
-        if (properties.isSubagentEnabled()) {
-            agentBuilder.defaultSkillAdd(new TaskSkill(this));
+            agentBuilder.defaultToolAdd(new GenerateAgentTool(this));
+            agentBuilder.defaultSkillAdd(taskSkill);
+        } else {
+            agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
+            agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
+            agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
+            agentBuilder.defaultToolAdd(new ApplyPatchTool());
 
-            LOG.debug("子代理模式已启用");
-        }
+            agentBuilder.defaultSkillAdd(cliSkills);
+            agentBuilder.defaultSkillAdd(todoSkill);
+            agentBuilder.defaultSkillAdd(codeSkill);
+            agentBuilder.defaultSkillAdd(luceneSkill);
 
-        if (properties.isAgentTeamEnabled()) {
-            teamReActExtension = new TeamReActExtension(this);
-            teamReActExtension.configure(agentBuilder);
+            if (properties.isBrowserEnabled() && ClassUtil.hasClass(() -> BrowserSkill.class)) {
+                agentBuilder.defaultSkillAdd(BrowserSkill.getInstance());
+            }
+
+            if (getMcpProviders() != null) {
+                for (McpClientProvider mcpProvider : getMcpProviders().getProviders().values()) {
+                    agentBuilder.defaultToolAdd(mcpProvider);
+                }
+            }
+
+            if (getRestApis() != null) {
+                agentBuilder.defaultSkillAdd(getRestApis());
+            }
         }
 
         // HITL 交互干预（优先使用实例字段，否则使用配置）
@@ -247,16 +264,6 @@ public class AgentRuntime {
         agentBuilder.maxStepsExtensible(properties.isMaxStepsAutoExtensible());
         // 添加会话窗口大小
         agentBuilder.sessionWindowSize(properties.getSessionWindowSize());
-
-        if (mcpProviders != null) {
-            for (McpClientProvider mcpProvider : mcpProviders.getProviders().values()) {
-                agentBuilder.defaultToolAdd(mcpProvider);
-            }
-        }
-
-        if (restApis != null) {
-            agentBuilder.defaultSkillAdd(restApis);
-        }
 
         if (Assert.isNotEmpty(extensions)) {
             for (ReActAgentExtension extension : extensions) {

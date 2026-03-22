@@ -120,7 +120,6 @@ public class CliShellOld implements Runnable {
                 if (Assert.isEmpty(input)) continue;
 
                 if (!isSystemCommand(session, input)) {
-                    terminal.writer().println("\n" + BOLD + "Assistant" + RESET);
                     performAgentTask(session, input);
                 }
             } catch (Throwable e) {
@@ -129,7 +128,34 @@ public class CliShellOld implements Runnable {
         }
     }
 
+
+    private boolean isSystemCommand(AgentSession session, String input) throws Exception{
+        String cmd = input.trim().toLowerCase();
+        if ("/exit".equals(cmd)) {
+            terminal.writer().println(DIM + "Exiting..." + RESET);
+            System.exit(0);
+            return true;
+        }
+        if ("/init".equals(cmd)) {
+            String result = agentRuntime.init(session);
+            terminal.writer().println(DIM + result + RESET);
+            return true;
+        }
+        if ("/resume".equals(cmd)) {
+            performAgentTask(session, null);
+            return true;
+        }
+        if ("/clear".equals(cmd)) {
+            session.clear();
+            printWelcome(); // 推荐加上，让用户清屏后不至于面对一个完全的黑洞
+            return true;
+        }
+        return false;
+    }
+
     private void performAgentTask(AgentSession session, String input) throws Exception {
+        terminal.writer().println("\n" + BOLD + "Assistant" + RESET);
+
         String currentInput = input;
         final AtomicBoolean isTaskCompleted = new AtomicBoolean(false);
         final AtomicBoolean isFirstConversation = new AtomicBoolean(true);
@@ -398,25 +424,6 @@ public class CliShellOld implements Runnable {
         return chunk.replaceAll("(?s)<\\s*/?think\\s*>", "");
     }
 
-    private boolean isSystemCommand(AgentSession session, String input) {
-        String cmd = input.trim().toLowerCase();
-        if ("exit".equals(cmd)) {
-            terminal.writer().println(DIM + "Exiting..." + RESET);
-            System.exit(0);
-            return true;
-        }
-        if ("init".equals(cmd)) {
-            String result = agentRuntime.init(session);
-            terminal.writer().println(DIM + result + RESET);
-            return true;
-        }
-        if ("clear".equals(cmd)) {
-            session.clear();
-            printWelcome(); // 推荐加上，让用户清屏后不至于面对一个完全的黑洞
-            return true;
-        }
-        return false;
-    }
 
     protected void printWelcome() {
         terminal.puts(InfoCmp.Capability.clear_screen);
@@ -427,9 +434,10 @@ public class CliShellOld implements Runnable {
         terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + agentRuntime.getVersion() + RESET);
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().print(DIM + "Tips: " + RESET + "(esc)" + DIM + " to interrupt output. Commands: " +
-                RESET + "'exit'" + DIM + " to quit, " +
-                RESET + "'init'" + DIM + " to refresh, " +
-                RESET + "'clear'" + DIM + " to reset" + RESET);
+                RESET + "'/exit'" + DIM + " to quit, " +
+                RESET + "'/init'" + DIM + " to refresh, " +
+                RESET + "'/resume'" + DIM + " to resume, " +
+                RESET + "'/clear'" + DIM + " to reset" + RESET);
 
         //terminal.writer().println(DIM + "Commands: " + RESET + "exit" + DIM + ", " + RESET + "init (code)" + DIM + ", " + RESET + "clear (session)" + RESET);
         // 仅保留一个空行
