@@ -86,7 +86,7 @@ public class AgentRuntime {
     private AgentManager agentManager;
 
     public String getVersion() {
-        return "v0.1.0";
+        return "v2026.2.23";
     }
 
     public String getName() {
