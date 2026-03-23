@@ -338,7 +338,7 @@ public class CliShellOld implements Runnable {
 
 
     private void onThoughtChunk(ThoughtChunk thought) {
-        if (thought.hasMeta(TaskSkill.TOOL_MULTITASK)) {
+        if (thought.hasMeta(TaskSkill.META_MULTITASK)) {
             // 仅在多任务并行且有内容时输出
             String content = thought.getAssistantMessage().getResultContent();
             if (Assert.isNotEmpty(content)) {
@@ -353,7 +353,7 @@ public class CliShellOld implements Runnable {
 
     private void onActionEndChunk(ActionEndChunk action, AtomicBoolean isFirstReasonChunk) {
         if (Assert.isNotEmpty(action.getToolName())) {
-            if (TaskSkill.TOOL_MULTITASK.equals(action.getToolName()) ||
+            if (TaskSkill.META_MULTITASK.equals(action.getToolName()) ||
                     TaskSkill.TOOL_TASK.equals(action.getToolName())) {
                 return;
             }
