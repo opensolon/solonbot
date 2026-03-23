@@ -21,7 +21,6 @@ public class AgentDefinition {
     public static final String AGENT_SUPERVISOR = "supervisor";
     public static final String AGENT_GENERAL = "general";
 
-
     protected AgentMetadata metadata = new AgentMetadata();
     protected String systemPrompt;
 

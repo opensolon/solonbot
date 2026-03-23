@@ -91,7 +91,7 @@ public class TaskSkill extends AbsSkill {
         AgentSession __parentSession = agentRuntime.getSession(__sessionId);
         ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
 
-        if(tasks.size() == 1){
+        if (tasks.size() == 1) {
             return taskDo(__parentTrace, __cwd, tasks.get(0), false);
         } else {
             List<CompletableFuture<String>> futures = new ArrayList<>();
@@ -136,7 +136,7 @@ public class TaskSkill extends AbsSkill {
 
         String result = null;
         ReActAgent agent = agentDefinition.builder(agentRuntime).build();
-        final AgentSession session  = InMemoryAgentSession.of(agent.name());
+        final AgentSession session = InMemoryAgentSession.of(agent.name());
 
         try {
             if (__parentTrace.getOptions().getStreamSink() == null) {

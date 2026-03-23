@@ -24,7 +24,7 @@ import org.noear.solon.ai.skills.restapi.RestApiSkill;
 import org.noear.solon.codecli.core.agent.AgentManager;
 import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
-import org.noear.solon.codecli.core.agent.GenerateAgentTool;
+import org.noear.solon.codecli.core.agent.GenerateTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ClassUtil;
@@ -72,6 +72,7 @@ public class AgentRuntime {
     private final LuceneSkill luceneSkill = new LuceneSkill();
     private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
     private final TaskSkill taskSkill = new TaskSkill(this);
+    private final GenerateTool generateTool =  new GenerateTool(this);
 
     private final ReActAgent reActAgent;
 
@@ -131,6 +132,10 @@ public class AgentRuntime {
 
     public TaskSkill getTaskSkill() {
         return taskSkill;
+    }
+
+    public GenerateTool getGenerateTool() {
+        return generateTool;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -204,8 +209,9 @@ public class AgentRuntime {
         if (properties.isSubagentEnabled()) {
             //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
             agentBuilder.defaultSkillAdd(todoSkill);
+            agentBuilder.defaultSkillAdd(cliSkills.getExpertSkill());
 
-            agentBuilder.defaultToolAdd(new GenerateAgentTool(this));
+            agentBuilder.defaultToolAdd(generateTool);
             agentBuilder.defaultSkillAdd(taskSkill);
         } else {
             //agentBuilder.defaultToolAdd(MemorySkill.getInstance());

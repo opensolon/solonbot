@@ -50,8 +50,8 @@ public class AgentManager {
     public AgentManager() {
         loadAgentFile("bash",ResourceUtil.getResource("defaults/agents/bash.md"));
         loadAgentFile("explore",ResourceUtil.getResource("defaults/agents/explore.md"));
-        loadAgentFile("general",ResourceUtil.getResource("defaults/agents/general.md"));
         loadAgentFile("plan",ResourceUtil.getResource("defaults/agents/plan.md"));
+        loadAgentFile("general",ResourceUtil.getResource("defaults/agents/general.md"));
 
         loadAgentFile("supervisor",ResourceUtil.getResource("defaults/agents/supervisor.md"));
     }

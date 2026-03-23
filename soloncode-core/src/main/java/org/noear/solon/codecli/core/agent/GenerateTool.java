@@ -19,12 +19,12 @@ import java.util.List;
  * @author noear 2026/3/21 created
  *
  */
-public class GenerateAgentTool {
-    private static final Logger LOG = LoggerFactory.getLogger(GenerateAgentTool.class);
+public class GenerateTool {
+    private static final Logger LOG = LoggerFactory.getLogger(GenerateTool.class);
 
     private AgentRuntime agentRuntime;
 
-    public GenerateAgentTool(AgentRuntime agentRuntime) {
+    public GenerateTool(AgentRuntime agentRuntime) {
         this.agentRuntime = agentRuntime;
     }
 

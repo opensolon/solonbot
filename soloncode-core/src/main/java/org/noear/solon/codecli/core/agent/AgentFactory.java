@@ -27,7 +27,7 @@ public class AgentFactory {
 
         builder.name(agentDefinition.getName());
 
-        if(Assert.isNotEmpty(agentDefinition.getSystemPrompt())) {
+        if (Assert.isNotEmpty(agentDefinition.getSystemPrompt())) {
             builder.systemPrompt(r -> agentDefinition.getSystemPrompt());
         }
 
@@ -80,9 +80,10 @@ public class AgentFactory {
                     }
                     case "subagent":
                     case "task": {
-                        builder.defaultToolAdd(agentRuntime.getTaskSkill());
+                        builder.defaultSkillAdd(agentRuntime.getTaskSkill());
                         break;
                     }
+
                     case "skill": {
                         builder.defaultSkillAdd(agentRuntime.getCliSkills().getExpertSkill());
                         break;
@@ -115,7 +116,7 @@ public class AgentFactory {
                         break;
                     }
 
-                    case "browser":{
+                    case "browser": {
                         if (agentRuntime.getProperties().isBrowserEnabled() && ClassUtil.hasClass(() -> BrowserSkill.class)) {
                             builder.defaultSkillAdd(BrowserSkill.getInstance());
                         }
