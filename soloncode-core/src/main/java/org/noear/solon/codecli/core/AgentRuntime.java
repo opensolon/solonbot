@@ -26,7 +26,6 @@ import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.codecli.core.agent.GenerateAgentTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
-import org.noear.solon.codecli.core.memory.MemorySkill;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ClassUtil;
 import org.noear.solon.core.util.IoUtil;
@@ -203,13 +202,13 @@ public class AgentRuntime {
         agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
         if (properties.isSubagentEnabled()) {
-            agentBuilder.defaultToolAdd(MemorySkill.getInstance());
+            //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
             agentBuilder.defaultSkillAdd(todoSkill);
 
             agentBuilder.defaultToolAdd(new GenerateAgentTool(this));
             agentBuilder.defaultSkillAdd(taskSkill);
         } else {
-            agentBuilder.defaultToolAdd(MemorySkill.getInstance());
+            //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
             agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
             agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
             agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
