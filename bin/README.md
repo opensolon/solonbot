@@ -77,5 +77,5 @@ Solon Code CLI 是基于 Solon AI 框架构建的高性能、自主式 AI 终端
 
 * `.soloncode/sessoins` 存放会话记录（自动）
 * `.soloncode/skills` 存放工作区内技能（手动），技能可以放在此处，也可以外部挂载
-* `.soloncode/agents` 预留
+* `.soloncode/agents` 子代理配置记录（自动）
 
