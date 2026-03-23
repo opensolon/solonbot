@@ -22,7 +22,7 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.skills.cli.PoolManager;
 import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
-import org.noear.solon.codecli.core.memory.MemoryManager;
+import org.noear.solon.codecli.core.teams.memory.MemoryManager;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.codecli.core.agent.AgentMetadata;
 import org.noear.solon.codecli.core.agent.AgentManager;

@@ -16,7 +16,7 @@
 package org.noear.solon.codecli.core.teams.goalker;
 
 import lombok.Getter;
-import org.noear.solon.codecli.core.memory.WorkingMemory;
+import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

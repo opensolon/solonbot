@@ -15,16 +15,19 @@
  */
 package org.noear.solon.codecli.core.agent;
 
+import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -45,12 +48,12 @@ public class AgentManager {
     private final Map<String, AgentDefinition> agentMap = new ConcurrentHashMap<>();
 
     public AgentManager() {
-        loadAgentFile(ResourceUtil.getResource("defaults/agents/bash.md"));
-        loadAgentFile(ResourceUtil.getResource("defaults/agents/explore.md"));
-        loadAgentFile(ResourceUtil.getResource("defaults/agents/general-purpose.md"));
-        loadAgentFile(ResourceUtil.getResource("defaults/agents/plan.md"));
+        loadAgentFile("bash",ResourceUtil.getResource("defaults/agents/bash.md"));
+        loadAgentFile("explore",ResourceUtil.getResource("defaults/agents/explore.md"));
+        loadAgentFile("general",ResourceUtil.getResource("defaults/agents/general.md"));
+        loadAgentFile("plan",ResourceUtil.getResource("defaults/agents/plan.md"));
 
-        loadAgentFile(ResourceUtil.getResource("defaults/agents/supervisor.md"));
+        loadAgentFile("supervisor",ResourceUtil.getResource("defaults/agents/supervisor.md"));
     }
 
     public void addAgent(AgentDefinition agentDefinition) {
@@ -151,35 +154,47 @@ public class AgentManager {
     /**
      * 从文件加载代理定义
      */
-    public void loadAgentFile(URL url) {
+    public void loadAgentFile(String fileName, URL url) {
         if (url == null) {
             return;
         }
 
-        loadAgentFile(Paths.get(url.getFile()));
+        try {
+            String[] fullContent = ResourceUtil.getResourceAsString(url).split("\n");
+
+            loadAgentFile(fileName, Arrays.asList(fullContent));
+        } catch (IOException e) {
+            LOG.error("Load agent failed, file: {}", url, e);
+        }
     }
 
     /**
      * 从文件加载代理定义
      */
     public void loadAgentFile(Path file) {
+        if (file == null) {
+            return;
+        }
+
         try {
             String fileName = file.getFileName().toString();
             List<String> fullContent = Files.readAllLines(file, StandardCharsets.UTF_8);
 
-            AgentDefinition definition = AgentDefinition.fromMarkdown(fullContent);
-
-            String agentTypeName = definition.getName();
-
-            if (agentTypeName == null || agentTypeName.isEmpty()) {
-                agentTypeName = fileName.substring(0, fileName.length() - 3);
-            }
-
-            agentMap.put(agentTypeName, definition);
-
-            LOG.debug("Load agent succeeded: {}, file: {}", agentTypeName, file);
+            loadAgentFile(fileName, fullContent);
         } catch (IOException e) {
             LOG.error("Load agent failed, file: {}", file, e);
         }
+    }
+
+    public void loadAgentFile(String fileName, List<String> fullContent) {
+        AgentDefinition definition = AgentDefinition.fromMarkdown(fullContent);
+
+        String agentTypeName = definition.getName();
+
+        if (agentTypeName == null || agentTypeName.isEmpty()) {
+            agentTypeName = fileName.substring(0, fileName.length() - 3);
+        }
+
+        agentMap.put(agentTypeName, definition);
     }
 }

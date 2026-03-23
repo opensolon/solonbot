@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.memory;
+package org.noear.solon.codecli.core.teams.memory;
 
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.chat.prompt.Prompt;

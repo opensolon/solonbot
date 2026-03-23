@@ -17,7 +17,7 @@ package org.noear.solon.codecli.core.teams.goalker;
 
 import org.noear.solon.ai.agent.react.ReActSystemPrompt;
 import org.noear.solon.ai.agent.react.ReActTrace;
-import org.noear.solon.codecli.core.memory.WorkingMemory;
+import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

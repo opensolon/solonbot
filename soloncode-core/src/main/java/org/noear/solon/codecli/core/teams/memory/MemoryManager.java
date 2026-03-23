@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.memory;
+package org.noear.solon.codecli.core.teams.memory;
 
 import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.memory.bank.MemoryBank;
-import org.noear.solon.codecli.core.memory.bank.Observation;
-import org.noear.solon.codecli.core.memory.bank.store.FileMemoryStore;
+import org.noear.solon.codecli.core.teams.memory.bank.MemoryBank;
+import org.noear.solon.codecli.core.teams.memory.bank.Observation;
+import org.noear.solon.codecli.core.teams.memory.bank.store.FileMemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

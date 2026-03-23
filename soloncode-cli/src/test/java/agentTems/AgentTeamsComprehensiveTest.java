@@ -17,10 +17,10 @@ package agentTems;
 
 import org.junit.jupiter.api.*;
 import org.noear.solon.codecli.core.teams.event.*;
-import org.noear.solon.codecli.core.memory.LongTermMemory;
-import org.noear.solon.codecli.core.memory.Memory;
-import org.noear.solon.codecli.core.memory.MemoryManager;
-import org.noear.solon.codecli.core.memory.ShortTermMemory;
+import org.noear.solon.codecli.core.teams.memory.LongTermMemory;
+import org.noear.solon.codecli.core.teams.memory.Memory;
+import org.noear.solon.codecli.core.teams.memory.MemoryManager;
+import org.noear.solon.codecli.core.teams.memory.ShortTermMemory;
 import org.noear.solon.codecli.core.teams.message.AgentMessage;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
 import org.noear.solon.codecli.core.teams.message.MessageHandler;

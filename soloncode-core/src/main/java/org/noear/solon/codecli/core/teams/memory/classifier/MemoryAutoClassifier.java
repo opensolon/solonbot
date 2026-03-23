@@ -12,7 +12,7 @@
  * @author bai
  * @since 3.9.5
  */
-package org.noear.solon.codecli.core.memory.classifier;
+package org.noear.solon.codecli.core.teams.memory.classifier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

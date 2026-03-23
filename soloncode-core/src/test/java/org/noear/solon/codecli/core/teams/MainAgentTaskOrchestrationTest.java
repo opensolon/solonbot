@@ -18,7 +18,7 @@ package org.noear.solon.codecli.core.teams;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.codecli.core.teams.event.EventBus;
-import org.noear.solon.codecli.core.memory.MemoryManager;
+import org.noear.solon.codecli.core.teams.memory.MemoryManager;
 import org.noear.solon.codecli.core.agent.AgentMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

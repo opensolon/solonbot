@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.memory.bank;
+package org.noear.solon.codecli.core.teams.memory.bank;
 
-import org.noear.solon.codecli.core.memory.bank.store.MemoryStore;
+import org.noear.solon.codecli.core.teams.memory.bank.store.MemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -13,28 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.memory.classifier;
+package org.noear.solon.codecli.core.teams.memory.classifier;
 
 import lombok.Getter;
 
 /**
- * 记忆分类结果
+ * 记忆类别（内部使用，用户不可见）
  *
  * @author bai
  * @since 3.9.5
  */
 @Getter
-public class MemoryClassification {
-    private final MemoryCategory category;
-    private final long ttl;
-    private final double confidence;
-    private final String reason;
+public enum MemoryCategory {
+    WORKING("工作记忆", 600_000L),          // 10 分钟
+    SHORT_TERM("短期记忆", 3_600_000L),    // 1 小时
+    LONG_TERM("长期记忆", 7 * 24 * 3600_000L), // 7 天
+    PERMANENT("永久记忆", -1L);           // 永久
 
-    public MemoryClassification(MemoryCategory category, long ttl,
-                               double confidence, String reason) {
-        this.category = category;
-        this.ttl = ttl;
-        this.confidence = confidence;
-        this.reason = reason;
+    private final String displayName;
+    private final long defaultTtl;
+
+    MemoryCategory(String displayName, long defaultTtl) {
+        this.displayName = displayName;
+        this.defaultTtl = defaultTtl;
     }
 }

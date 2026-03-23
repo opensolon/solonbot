@@ -43,7 +43,7 @@ public class GenerateAgentTool {
     ) {
         try {
             AgentDefinition definition = agentRuntime.getAgentManager()
-                    .getAgent(AgentDefinition.AGENT_GENERAL_PURPOSE)
+                    .getAgent(AgentDefinition.AGENT_GENERAL)
                     .copy();
 
             definition.getMetadata().setName(name);

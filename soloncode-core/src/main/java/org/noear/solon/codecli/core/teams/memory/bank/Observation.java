@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.core.memory.bank;
+package org.noear.solon.codecli.core.teams.memory.bank;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

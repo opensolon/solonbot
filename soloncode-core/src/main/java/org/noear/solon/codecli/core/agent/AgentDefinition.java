@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class AgentDefinition {
     public static final String AGENT_SUPERVISOR = "supervisor";
-    public static final String AGENT_GENERAL_PURPOSE = "general-purpose";
+    public static final String AGENT_GENERAL = "general";
 
 
     protected AgentMetadata metadata = new AgentMetadata();
