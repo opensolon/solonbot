@@ -27,6 +27,7 @@ import org.noear.solon.ai.agent.session.InMemoryAgentSession;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
+import org.noear.solon.annotation.Body;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.core.util.Assert;
@@ -50,7 +51,7 @@ public class TaskSkill extends AbsSkill {
     private static final Logger LOG = LoggerFactory.getLogger(TaskSkill.class);
 
     public static final String TOOL_TASK = "task";
-    public static final String META_MULTITASK = "multitask";
+    public static final String TOOL_MULTITASK = "multitask";
 
     private final AgentRuntime agentRuntime;
 
@@ -76,14 +77,23 @@ public class TaskSkill extends AbsSkill {
 
         sb.append("**规则提示**：\n");
         sb.append("1. **上下文隔离**: 子代理不共享主会话历史，请在 prompt 中提供必要的背景信息。\n");
+        sb.append("2. **并行限制**: 使用 multitask 时，确保任务间不存在同一文件的写冲突。");
 
         return sb.toString();
     }
 
-
     @ToolMapping(name = "task", description =
-            "委派任务给专项子代理。支持单个或并行执行多个任务。并行执行，仅用于互不干扰的操作（如不同模块的修改或多路搜索）。")
-    public String task(@Param(name = "tasks", description = "任务列表") List<TaskOp> tasks, String __cwd, String __sessionId) {
+            "分派任务给专项子代理。所有实际开发工作必须使用此工具委派给子代理完成。")
+    public String task(@Body TaskOp taskSpec, String __cwd, String __sessionId) {
+        AgentSession __parentSession = agentRuntime.getSession(__sessionId);
+        ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
+
+        return taskDo(__parentTrace, __cwd, taskSpec, false);
+    }
+
+    @ToolMapping(name = "multitask", description =
+            "并行执行多个独立子任务。仅用于互不干扰的任务（如不同模块的修改或多路搜索）。")
+    public String multitask(@Param(name = "tasks", description = "任务列表") List<TaskOp> tasks, String __cwd, String __sessionId) {
         if (Assert.isEmpty(tasks)) {
             return "WARNING: 任务列表为空";
         }
@@ -91,41 +101,37 @@ public class TaskSkill extends AbsSkill {
         AgentSession __parentSession = agentRuntime.getSession(__sessionId);
         ReActTrace __parentTrace = ReActTrace.getCurrent(__parentSession.getContext());
 
-        if (tasks.size() == 1) {
-            return taskDo(__parentTrace, __cwd, tasks.get(0), false);
-        } else {
-            List<CompletableFuture<String>> futures = new ArrayList<>();
-            for (TaskOp task : tasks) {
-                // 使用 RunUtil.io() 是正确的，因为这主要是 I/O 密集型（等待 AI 响应）
-                CompletableFuture<String> future = CompletableFuture.supplyAsync(() ->
-                        taskDo(__parentTrace, __cwd, task, true), RunUtil.io());
-                futures.add(future);
-            }
-
-            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .handle((v, ex) -> {
-                        StringBuilder compositeResult = new StringBuilder();
-                        compositeResult.append("<multitask_results>\n");
-
-                        for (int i = 0; i < futures.size(); i++) {
-                            try {
-                                // 获取子代理返回的 XML 片段
-                                String subTaskXml = futures.get(i).get();
-                                compositeResult.append(subTaskXml).append("\n");
-                            } catch (Exception e) {
-                                TaskOp task = tasks.get(i);
-
-                                String result = String.format("ERROR: 子代理 '%s' 执行任务失败: %s", task.getName(), e.getMessage());
-
-                                String subTaskXml = formatTaskResp(task, false, result);
-                                compositeResult.append(subTaskXml).append("\n");
-                            }
-                        }
-                        compositeResult.append("</multitask_results>");
-
-                        return compositeResult.toString();
-                    }).join();
+        List<CompletableFuture<String>> futures = new ArrayList<>();
+        for (TaskOp task : tasks) {
+            // 使用 RunUtil.io() 是正确的，因为这主要是 I/O 密集型（等待 AI 响应）
+            CompletableFuture<String> future = CompletableFuture.supplyAsync(() ->
+                    taskDo(__parentTrace, __cwd, task, true), RunUtil.io());
+            futures.add(future);
         }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .handle((v, ex) -> {
+                    StringBuilder compositeResult = new StringBuilder();
+                    compositeResult.append("<multitask_results>\n");
+
+                    for (int i = 0; i < futures.size(); i++) {
+                        try {
+                            // 获取子代理返回的 XML 片段
+                            String subTaskXml = futures.get(i).get();
+                            compositeResult.append(subTaskXml).append("\n");
+                        } catch (Exception e) {
+                            TaskOp task = tasks.get(i);
+
+                            String result = String.format("ERROR: 子代理 '%s' 执行任务失败: %s", task.getName(), e.getMessage());
+
+                            String subTaskXml = formatTaskResp(task, false, result);
+                            compositeResult.append(subTaskXml).append("\n");
+                        }
+                    }
+                    compositeResult.append("</multitask_results>");
+
+                    return compositeResult.toString();
+                }).join();
     }
 
     private String taskDo(ReActTrace __parentTrace, String __cwd, TaskOp task, boolean isMultitask) {
@@ -136,7 +142,15 @@ public class TaskSkill extends AbsSkill {
 
         String result = null;
         ReActAgent agent = agentDefinition.builder(agentRuntime).build();
-        final AgentSession session = InMemoryAgentSession.of(agent.name());
+        final AgentSession session;
+
+        if (Assert.isEmpty(task.getTaskId())) {
+            session = InMemoryAgentSession.of(agent.name());
+        } else {
+            session = agentRuntime.getSession(task.getTaskId());
+        }
+
+        String finalSessionId = session.getSessionId();
 
         try {
             if (__parentTrace.getOptions().getStreamSink() == null) {
@@ -164,7 +178,7 @@ public class TaskSkill extends AbsSkill {
                             } else {
                                 if (isMultitask) {
                                     if (chunk instanceof ThoughtChunk) {
-                                        chunk.getMeta().put(META_MULTITASK, 1);
+                                        chunk.getMeta().put(TOOL_MULTITASK, 1);
                                         __parentTrace.getOptions().getStreamSink().next(chunk);
                                     }
                                 } else {
@@ -194,6 +208,10 @@ public class TaskSkill extends AbsSkill {
         StringBuilder buf = new StringBuilder();
 
         buf.append("<task_response>");
+        if (Assert.isNotEmpty(task.getTaskId())) {
+            buf.append("<task_id>").append(task.getTaskId()).append("</task_id>");
+        }
+
         buf.append("<agent_name>").append(task.getName()).append("</agent_name>");
         buf.append("<status>").append(successful ? "success" : "failure").append("</status>");
         buf.append("<content><![CDATA[").append(result != null ? result : "").append("]]></content>");
@@ -214,6 +232,8 @@ public class TaskSkill extends AbsSkill {
         private String prompt;
         @Param(name = "description", required = false, description = "简短的任务描述")
         private String description;
+        @Param(name = "taskId", required = false, description = "可选。若要继续之前的任务会话，请传入对应的 task_id")
+        private String taskId;
 
         public String getName() {
             return name;
@@ -227,10 +247,15 @@ public class TaskSkill extends AbsSkill {
             return description;
         }
 
+        public String getTaskId() {
+            return taskId;
+        }
+
         @Override
         public String toString() {
             return "TaskOp{" +
                     "name='" + name + '\'' +
+                    ", taskId='" + taskId + '\'' +
                     ", desc='" + description + '\'' +
                     '}';
         }
