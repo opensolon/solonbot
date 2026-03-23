@@ -123,6 +123,8 @@ public class AgentFactory {
                     }
 
                     case "*": {
+                        builder.defaultSkillAdd(agentRuntime.getMemorySkill());
+
                         builder.defaultSkillAdd(agentRuntime.getCliSkills());
                         builder.defaultSkillAdd(LuceneSkill.getInstance());
                         builder.defaultToolAdd(agentRuntime.getTaskSkill());

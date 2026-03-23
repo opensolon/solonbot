@@ -18,6 +18,7 @@ import org.noear.solon.ai.skills.cli.CliSkillProvider;
 import org.noear.solon.ai.skills.cli.TodoSkill;
 import org.noear.solon.ai.skills.diff.ApplyPatchTool;
 import org.noear.solon.ai.skills.lucene.LuceneSkill;
+import org.noear.solon.ai.skills.memory.MemorySkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.web.*;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
@@ -26,6 +27,7 @@ import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.codecli.core.agent.GenerateAgentTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
+import org.noear.solon.codecli.core.memory.MemoryManger;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ClassUtil;
 import org.noear.solon.core.util.IoUtil;
@@ -72,6 +74,7 @@ public class AgentRuntime {
     private final LuceneSkill luceneSkill = new LuceneSkill();
     private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
     private final TaskSkill taskSkill = new TaskSkill(this);
+    private final MemorySkill memorySkill = new MemorySkill(new MemoryManger()).sessionIsolation(false);
 
     private final ReActAgent reActAgent;
 
@@ -131,6 +134,10 @@ public class AgentRuntime {
 
     public TaskSkill getTaskSkill() {
         return taskSkill;
+    }
+
+    public MemorySkill getMemorySkill() {
+        return memorySkill;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -200,6 +207,8 @@ public class AgentRuntime {
                 strategy);
 
         agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
+
+        agentBuilder.defaultSkillAdd(memorySkill);
 
         if (properties.isSubagentEnabled()) {
             //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
