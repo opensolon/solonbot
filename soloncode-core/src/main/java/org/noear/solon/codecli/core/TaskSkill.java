@@ -61,7 +61,7 @@ public class TaskSkill extends AbsSkill {
 
     @Override
     public String description() {
-        return "子代理管理专家：委派任务给专门的子代理（explore、plan、bash等）";
+        return "子代理管理专家：委派任务给专门的子代理（比如：explore、plan、bash 等）";
     }
 
     @Override
@@ -142,15 +142,7 @@ public class TaskSkill extends AbsSkill {
 
         String result = null;
         ReActAgent agent = agentDefinition.builder(agentRuntime).build();
-        final AgentSession session;
-
-        if (Assert.isEmpty(task.getTaskId())) {
-            session = InMemoryAgentSession.of(agent.name());
-        } else {
-            session = agentRuntime.getSession(task.getTaskId());
-        }
-
-        String finalSessionId = session.getSessionId();
+        final AgentSession session = InMemoryAgentSession.of(agent.name());
 
         try {
             if (__parentTrace.getOptions().getStreamSink() == null) {
@@ -208,10 +200,6 @@ public class TaskSkill extends AbsSkill {
         StringBuilder buf = new StringBuilder();
 
         buf.append("<task_response>");
-        if (Assert.isNotEmpty(task.getTaskId())) {
-            buf.append("<task_id>").append(task.getTaskId()).append("</task_id>");
-        }
-
         buf.append("<agent_name>").append(task.getName()).append("</agent_name>");
         buf.append("<status>").append(successful ? "success" : "failure").append("</status>");
         buf.append("<content><![CDATA[").append(result != null ? result : "").append("]]></content>");
@@ -228,12 +216,10 @@ public class TaskSkill extends AbsSkill {
     public static class TaskOp {
         @Param(name = "name", description = "子代理名称")
         private String name;
-        @Param(name = "prompt", description = "具体指令。子代理看不见当前历史，必须包含任务目标、关键类名或必要的背景上下文。")
+        @Param(name = "prompt", description = "具体指令。子代理看不见当前历史，每次都是重新开始，必须非常详细的任务描述，以及子代理要求传递的信息。")
         private String prompt;
         @Param(name = "description", required = false, description = "简短的任务描述")
         private String description;
-        @Param(name = "taskId", required = false, description = "可选。若要继续之前的任务会话，请传入对应的 task_id")
-        private String taskId;
 
         public String getName() {
             return name;
@@ -247,15 +233,10 @@ public class TaskSkill extends AbsSkill {
             return description;
         }
 
-        public String getTaskId() {
-            return taskId;
-        }
-
         @Override
         public String toString() {
             return "TaskOp{" +
                     "name='" + name + '\'' +
-                    ", taskId='" + taskId + '\'' +
                     ", desc='" + description + '\'' +
                     '}';
         }
