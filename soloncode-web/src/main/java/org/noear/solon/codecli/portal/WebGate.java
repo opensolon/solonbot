@@ -113,69 +113,12 @@ public class WebGate implements Handler {
 
         return agentRuntime.stream(sessionId, prompt)
                 .map(chunk -> {
-                    if (chunk.hasContent()) {
-                        if (chunk instanceof ReasonChunk) {
-                            ReasonChunk reason = (ReasonChunk) chunk;
-
-                            if (!reason.isToolCalls() && reason.hasContent()) {
-                                if (reason.getMessage().isThinking()) {
-                                    return new ONode().set("type", "reason")
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                } else {
-                                    return new ONode().set("type", "text")
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                }
-                            }
-                        } else if (chunk instanceof ActionEndChunk) {
-                            ActionEndChunk action = (ActionEndChunk) chunk;
-                            ONode oNode = new ONode().set("type", "action")
-                                    .set("text", chunk.getContent());
-
-                            if (Assert.isNotEmpty(action.getToolName())) {
-                                if (agentRuntime.getName().equals(action.getAgentName())) {
-                                    oNode.set("toolName", action.getToolName());
-                                } else {
-                                    oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
-                                }
-                                oNode.set("args", action.getArgs());
-                            }
-
-                            return oNode.toJson();
-                        } else if (chunk instanceof ReActChunk) {
-                            ReActChunk react = (ReActChunk) chunk;
-
-                            if (react.isNormal() == false) {
-                                return new ONode().set("type", "text")
-                                        .set("text", chunk.getContent())
-                                        .toJson();
-                            } else {
-                                Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
-
-                                StringBuilder buf = new StringBuilder();
-                                buf.append(" (");
-
-                                if (react.getTrace().getMetrics() != null) {
-                                    buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
-                                }
-
-                                if (start_time != null) {
-                                    long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
-                                    if (buf.length() > 2) {
-                                        buf.append(", ");
-                                    }
-
-                                    buf.append(seconds).append(" seconds");
-                                }
-
-                                buf.append(")");
-
-                                return new ONode().set("type", "text")
-                                        .set("text", buf.toString())
-                                        .toJson();
-                            }
-                        }
+                    if (chunk instanceof ReasonChunk) {
+                        return onReasonChunk((ReasonChunk) chunk);
+                    } else if (chunk instanceof ActionEndChunk) {
+                        return onActionEndChunk((ActionEndChunk) chunk);
+                    } else if (chunk instanceof ReActChunk) {
+                        return onReActChunk((ReActChunk) chunk);
                     }
 
                     return "";
@@ -206,5 +149,73 @@ public class WebGate implements Handler {
                     }
                     return Flux.just("[DONE]");
                 }));
+    }
+
+    private String onReasonChunk(ReasonChunk reason){
+        if (!reason.isToolCalls() && reason.hasContent()) {
+            if (reason.getMessage().isThinking()) {
+                return new ONode().set("type", "reason")
+                        .set("text", reason.getContent())
+                        .toJson();
+            } else {
+                return new ONode().set("type", "text")
+                        .set("text", reason.getContent())
+                        .toJson();
+            }
+        }
+
+        return "";
+    }
+
+    private String onActionEndChunk(ActionEndChunk action){
+        if (Assert.isNotEmpty(action.getToolName())) {
+            ONode oNode = new ONode().set("type", "action")
+                    .set("text", action.getContent());
+
+            if (Assert.isNotEmpty(action.getToolName())) {
+                if (agentRuntime.getName().equals(action.getAgentName())) {
+                    oNode.set("toolName", action.getToolName());
+                } else {
+                    oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
+                }
+                oNode.set("args", action.getArgs());
+            }
+
+            return oNode.toJson();
+        }
+
+        return "";
+    }
+
+    private String onReActChunk(ReActChunk react){
+        StringBuilder buf = new StringBuilder();
+
+        if (react.isNormal() == false) {
+            buf.append(react.getContent());
+        }
+
+        Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
+
+
+        buf.append(" (");
+
+        if (react.getTrace().getMetrics() != null) {
+            buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
+        }
+
+        if (start_time != null) {
+            long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
+            if (buf.length() > 2) {
+                buf.append(", ");
+            }
+
+            buf.append(seconds).append(" seconds");
+        }
+
+        buf.append(")");
+
+        return new ONode().set("type", "text")
+                .set("text", buf.toString())
+                .toJson();
     }
 }
