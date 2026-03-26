@@ -1,30 +1,36 @@
 .title-bar {
   display: flex;
   align-items: center;
-  height: 32px;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
   background: var(--cb-vscode-sideBar-background, #252526);
   border-bottom: 1px solid var(--cb-vscode-panel-border, #474747);
   padding: 0 8px;
   user-select: none;
+  overflow: visible;
 }
 
 .title-bar-left {
   display: flex;
   align-items: center;
   gap: 2px;
+  height: 100%;
 }
 
 .app-logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   color: var(--cb-accent, #0078d4);
 }
 
 .menu-trigger {
-  padding: 4px 10px;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 10px;
   font-size: 13px;
   color: var(--cb-text-primary, #cccccc);
   border-radius: 4px;
@@ -43,27 +49,41 @@
   justify-content: center;
   font-size: 12px;
   color: var(--cb-text-secondary, #858585);
+  height: 100%;
+  overflow: hidden;
 }
 
 .app-title {
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .workspace-name {
   color: var(--cb-text-primary, #cccccc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .title-bar-right {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 100%;
+  padding-left: 16px;
 }
 
-.toolbar-btn {
-  display: flex;
+.titlebar-btn {
+  display: inline-flex !important;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
   font-size: 12px;
   color: var(--cb-text-secondary, #858585);
   background: transparent;
@@ -71,24 +91,30 @@
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.1s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.toolbar-btn:hover {
+.titlebar-btn:hover {
   background: var(--cb-vscode-list-hoverBackground, #2a2d2e);
   color: var(--cb-text-primary, #cccccc);
 }
 
-.toolbar-btn.active {
-  background: var(--cb-vscode-input-background, #3c3c3c);
+.titlebar-btn.active {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--cb-text-primary, #cccccc);
 }
 
-.toolbar-btn span {
+.titlebar-btn svg {
+  flex-shrink: 0;
+}
+
+.titlebar-btn span {
   display: none;
 }
 
 @media (min-width: 800px) {
-  .toolbar-btn span {
+  .titlebar-btn span {
     display: inline;
   }
 }

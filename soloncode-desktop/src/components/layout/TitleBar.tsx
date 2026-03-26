@@ -13,10 +13,10 @@ interface TitleBarProps {
   // 文件操作回调
   onNewFile?: () => void;
   onNewFolder?: () => void;
-  onOpenFile?: (path: string) => void;
-  onOpenFolder?: (path: string) => void;
+  onOpenFile?: () => void;
+  onOpenFolder?: () => void;
   onSave?: () => void;
-  onSaveAs?: (path: string) => void;
+  onSaveAs?: () => void;
   onSaveAll?: () => void;
   // 视图控制
   editorVisible?: boolean;
@@ -122,16 +122,16 @@ export function TitleBar({
         onNewFolder?.();
         break;
       case 'open-file':
-        // 由父组件处理文件对话框
+        onOpenFile?.();
         break;
       case 'open-folder':
-        // 由父组件处理文件夹对话框
+        onOpenFolder?.();
         break;
       case 'save':
         onSave?.();
         break;
       case 'save-as':
-        // 由父组件处理
+        onSaveAs?.();
         break;
       case 'save-all':
         onSaveAll?.();
@@ -191,7 +191,7 @@ export function TitleBar({
       {/* 右侧工具栏 */}
       <div className="title-bar-right">
         <button
-          className={`toolbar-btn${editorVisible ? ' active' : ''}`}
+          className={`titlebar-btn${editorVisible ? ' active' : ''}`}
           onClick={onToggleEditor}
           title="显示/隐藏编辑器"
         >
@@ -199,7 +199,7 @@ export function TitleBar({
           <span>编辑器</span>
         </button>
         <button
-          className={`toolbar-btn${chatVisible ? ' active' : ''}`}
+          className={`titlebar-btn${chatVisible ? ' active' : ''}`}
           onClick={onToggleChat}
           title="显示/隐藏对话"
         >
@@ -207,7 +207,7 @@ export function TitleBar({
           <span>对话</span>
         </button>
         <button
-          className="toolbar-btn"
+          className="titlebar-btn"
           onClick={onSwapPanels}
           title="交换面板位置"
         >

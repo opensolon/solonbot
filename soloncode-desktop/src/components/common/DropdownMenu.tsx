@@ -23,29 +23,51 @@ interface DropdownMenuProps {
 
 export function DropdownMenu({ trigger, items, onItemClick, align = 'left' }: DropdownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 更新菜单位置
+  const updateMenuPosition = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: align === 'right' ? rect.right : rect.left,
+      });
+    }
+  }, [align]);
+
+  // 打开菜单时更新位置
+  useEffect(() => {
+    if (isOpen) {
+      updateMenuPosition();
+    }
+  }, [isOpen, updateMenuPosition]);
 
   // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        menuRef.current &&
-        triggerRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        !triggerRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+      // 延迟添加事件监听，避免立即触发
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
   }, [isOpen]);
 
   // 键盘事件处理
@@ -64,6 +86,10 @@ export function DropdownMenu({ trigger, items, onItemClick, align = 'left' }: Dr
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
+
+  const handleTriggerClick = useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
 
   const handleItemClick = useCallback((item: MenuItem) => {
     if (item.disabled) return;
@@ -84,7 +110,14 @@ export function DropdownMenu({ trigger, items, onItemClick, align = 'left' }: Dr
       <div
         key={item.id}
         className={`dropdown-item${item.disabled ? ' disabled' : ''}${hasChildren ? ' has-children' : ''}`}
-        onClick={() => handleItemClick(item)}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleItemClick(item);
+        }}
+        onMouseEnter={() => {
+          if (!hasChildren) return;
+          // 预加载子菜单位置
+        }}
       >
         <span className="dropdown-item-label">{item.label}</span>
         {item.shortcut && <span className="dropdown-item-shortcut">{item.shortcut}</span>}
@@ -99,11 +132,11 @@ export function DropdownMenu({ trigger, items, onItemClick, align = 'left' }: Dr
   };
 
   return (
-    <div className="dropdown-container">
+    <div className="dropdown-container" ref={containerRef}>
       <div
         ref={triggerRef}
         className="dropdown-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleTriggerClick}
       >
         {trigger}
       </div>
@@ -111,6 +144,11 @@ export function DropdownMenu({ trigger, items, onItemClick, align = 'left' }: Dr
         <div
           ref={menuRef}
           className={`dropdown-menu ${align === 'right' ? 'align-right' : ''}`}
+          style={{
+            top: menuPosition.top,
+            left: align === 'right' ? 'auto' : menuPosition.left,
+            right: align === 'right' ? `calc(100vw - ${menuPosition.left}px)` : 'auto',
+          }}
         >
           {items.map(item => renderMenuItem(item))}
         </div>

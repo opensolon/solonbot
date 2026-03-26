@@ -221,14 +221,14 @@ function App() {
   }, [isResizing, sidebarCollapsed]);
 
   // 文件操作
-  const handleFileSelect = useCallback((path: string) => {
+  const handleFileSelect = useCallback(async (path: string) => {
     const existingFile = openFiles.find(f => f.path === path);
     if (existingFile) {
       setActiveFilePath(path);
       return;
     }
 
-    const fileName = path.split('/').pop() || '';
+    const fileName = path.split(/[/\\]/).pop() || '';
     const ext = fileName.split('.').pop() || '';
     const langMap: Record<string, string> = {
       'ts': 'TypeScript',
@@ -239,16 +239,29 @@ function App() {
       'css': 'CSS',
       'html': 'HTML',
       'md': 'Markdown',
+      'java': 'Java',
+      'rs': 'Rust',
+      'py': 'Python',
+      'go': 'Go',
     };
 
-    setOpenFiles(prev => [...prev, {
-      path,
-      name: fileName,
-      content: `// ${fileName}\n// 文件内容...\n`,
-      modified: false,
-      language: langMap[ext] || 'Plain Text',
-    }]);
-    setActiveFilePath(path);
+    // 异步读取文件内容
+    try {
+      const file = await fileService.openFile(path);
+      setOpenFiles(prev => [...prev, file]);
+      setActiveFilePath(path);
+    } catch (err) {
+      console.error('[App] 读取文件失败:', err);
+      // 失败时显示占位符
+      setOpenFiles(prev => [...prev, {
+        path,
+        name: fileName,
+        content: `// 无法读取文件: ${fileName}`,
+        modified: false,
+        language: langMap[ext] || 'Plain Text',
+      }]);
+      setActiveFilePath(path);
+    }
   }, [openFiles]);
 
   const handleFileClose = useCallback((path: string) => {
@@ -317,17 +330,25 @@ function App() {
   // 打开文件夹对话框
   const handleOpenFolder = useCallback(async () => {
     try {
+      console.log('[App] 开始打开文件夹对话框...');
       const selectedPath = await fileService.openFolderDialog();
+      console.log('[App] 选择的路径:', selectedPath);
       if (selectedPath) {
+        // 初始化工作区配置（创建 .soloncode/settings.json）
+        await fileService.initWorkspaceConfig(selectedPath);
+
         const info = await fileService.getWorkspaceInfo(selectedPath);
-        const files = await fileService.listDirectoryTree(selectedPath, 5);
+        console.log('[App] 工作区信息:', info);
+        // 加载目录树，深度10层
+        const files = await fileService.listDirectoryTree(selectedPath, 10);
+        console.log('[App] 加载文件树:', files, '数量:', files.length);
         setWorkspacePath(selectedPath);
         setWorkspaceName(info.name);
         setWorkspaceFiles(convertToFileTree(files));
         setActiveActivity('explorer');
       }
     } catch (err) {
-      console.error('打开文件夹失败:', err);
+      console.error('[App] 打开文件夹失败:', err);
     }
   }, []);
 
@@ -379,13 +400,14 @@ function App() {
       case 'explorer':
         return (
           <ExplorerPanel
-            files={workspaceFiles.length > 0 ? workspaceFiles : []}
-            workspaceName={workspaceName || '未打开文件夹'}
+            files={workspaceFiles}
+            workspaceName={workspaceName}
+            hasWorkspace={!!workspacePath}
             onFileSelect={handleFileSelect}
             onOpenFolder={handleOpenFolder}
             onRefresh={async () => {
               if (workspacePath) {
-                const files = await fileService.listDirectoryTree(workspacePath, 5);
+                const files = await fileService.listDirectoryTree(workspacePath, 10);
                 setWorkspaceFiles(convertToFileTree(files));
               }
             }}

@@ -5,6 +5,18 @@
 }
 
 :root {
+  /* 字体变量 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Consolas", "Liberation Mono", "Menlo", "Courier New", monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
   /* 暗色主题变量（默认） */
   --cb-vscode-editor-background: #1e1e1e;
   --cb-vscode-sideBar-background: #252526;
@@ -57,17 +69,56 @@ html, body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
   color: var(--cb-vscode-foreground);
   background-color: var(--cb-vscode-editor-background);
   transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   width: 100%;
   height: 100%;
+  overflow: hidden;
+}
+
+/* 全局文本溢出处理 */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 代码/等宽字体 */
+code, pre, .mono, .editor-content, .chat-message code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+/* 防止文本选择时溢出 */
+::selection {
+  background: var(--cb-accent);
+  color: white;
+}
+
+/* 所有可滚动区域 */
+.scrollable {
+  overflow: auto;
+  overflow-x: hidden;
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* 侧边栏容器 */
@@ -84,8 +135,8 @@ body {
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -93,12 +144,20 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--cb-vscode-widget-border);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--cb-border-color);
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* 面板通用样式 */
@@ -163,6 +222,112 @@ body {
   background-color: var(--cb-vscode-input-background);
   padding: 2px 8px;
   border-radius: 10px;
+}
+
+/* 文件树通用样式 */
+.file-tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.file-node {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  user-select: none;
+}
+
+.file-node:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.file-node.selected {
+  background-color: var(--cb-vscode-list-activeSelectionBackground);
+}
+
+.file-node.folder {
+  font-weight: 500;
+}
+
+.file-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  color: var(--cb-text-secondary);
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--cb-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* 工作区头部 */
+.workspace-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--cb-vscode-sideBar-background);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cb-text-primary);
+  cursor: pointer;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.workspace-header:hover {
+  background: var(--cb-vscode-list-hoverBackground);
+}
+
+.workspace-name {
+  margin-left: 6px;
+}
+
+/* 展开/折叠箭头 */
+.chevron-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 2px;
+  color: var(--cb-text-secondary);
+  flex-shrink: 0;
+}
+
+.chevron-placeholder {
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--cb-text-secondary);
+}
+
+.empty-state .empty-icon {
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.empty-state .empty-text {
+  font-size: 14px;
+  margin-bottom: 16px;
 }
 
 /* 输入框通用样式 */

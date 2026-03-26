@@ -125,13 +125,14 @@
   text-align: right;
   min-width: 40px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .line-number {
   padding: 0 8px;
-  font-size: 13px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  line-height: 1.5;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  line-height: var(--line-height-relaxed);
   color: var(--cb-text-secondary);
   opacity: 0.5;
 }
@@ -142,13 +143,15 @@
   background-color: transparent;
   border: none;
   color: var(--cb-text-primary);
-  font-size: 13px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  line-height: 1.5;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  line-height: var(--line-height-relaxed);
   resize: none;
   outline: none;
   white-space: pre;
   overflow: auto;
+  tab-size: 2;
+  -moz-tab-size: 2;
 }
 
 .code-area::selection {

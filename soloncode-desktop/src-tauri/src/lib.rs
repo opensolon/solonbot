@@ -186,6 +186,47 @@ fn get_workspace_info(path: &str) -> Result<WorkspaceInfo, String> {
     })
 }
 
+/// 初始化工作区配置
+#[tauri::command]
+fn init_workspace_config(workspace_path: &str) -> Result<String, String> {
+    let workspace = Path::new(workspace_path);
+    if !workspace.exists() {
+        return Err("工作区路径不存在".to_string());
+    }
+
+    // 创建 .soloncode 目录
+    let soloncode_dir = workspace.join(".soloncode");
+    if !soloncode_dir.exists() {
+        fs::create_dir_all(&soloncode_dir)
+            .map_err(|e| format!("创建 .soloncode 目录失败: {}", e))?;
+    }
+
+    // 创建 settings.json 文件（如果不存在）
+    let settings_file = soloncode_dir.join("settings.json");
+    if !settings_file.exists() {
+        let default_settings = r#"{
+  "version": "1.0.0",
+  "project": {
+    "name": "",
+    "description": ""
+  },
+  "ai": {
+    "model": "glm-4.7",
+    "maxSteps": 30
+  },
+  "editor": {
+    "fontSize": 14,
+    "tabSize": 2,
+    "autoSave": true
+  }
+}"#;
+        fs::write(&settings_file, default_settings)
+            .map_err(|e| format!("创建 settings.json 失败: {}", e))?;
+    }
+
+    Ok(settings_file.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -203,7 +244,8 @@ pub fn run() {
             delete_directory,
             rename_item,
             path_exists,
-            get_workspace_info
+            get_workspace_info,
+            init_workspace_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

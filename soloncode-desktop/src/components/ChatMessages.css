@@ -1,6 +1,7 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -45,6 +46,7 @@
   border-radius: 12px;
   position: relative;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* 用户消息气泡 */
@@ -129,8 +131,10 @@
 }
 
 .message-text code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .message-text p {

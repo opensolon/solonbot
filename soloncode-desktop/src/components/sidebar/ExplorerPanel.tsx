@@ -17,6 +17,7 @@ interface FileNode {
 interface ExplorerPanelProps {
   files: FileNode[];
   workspaceName?: string;
+  hasWorkspace?: boolean;
   onFileSelect: (path: string) => void;
   onOpenFolder?: () => void;
   onRefresh?: () => void;
@@ -27,6 +28,7 @@ interface ExplorerPanelProps {
 export function ExplorerPanel({
   files,
   workspaceName,
+  hasWorkspace: hasWorkspaceProp,
   onFileSelect,
   onOpenFolder,
   onRefresh,
@@ -34,6 +36,9 @@ export function ExplorerPanel({
   onNewFolder
 }: ExplorerPanelProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // 如果有 hasWorkspace prop 则使用，否则根据 files 判断
+  const hasWorkspace = hasWorkspaceProp !== undefined ? hasWorkspaceProp : files.length > 0;
 
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => {
@@ -66,13 +71,15 @@ export function ExplorerPanel({
         >
           {node.type === 'folder' ? (
             <>
+              <span className="chevron-icon">
+                <Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={12} />
+              </span>
               <Icon name={isExpanded ? 'folder-open' : 'folder'} size={16} className="file-icon" />
-              <Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={12} className="chevron-icon" />
             </>
           ) : (
             <>
-              <Icon name={getFileIconName(node.name)} size={16} className="file-icon" />
               <span className="chevron-placeholder" />
+              <Icon name={getFileIconName(node.name)} size={16} className="file-icon" />
             </>
           )}
           <span className="file-name">{node.name}</span>
@@ -86,8 +93,6 @@ export function ExplorerPanel({
       </div>
     );
   }
-
-  const hasWorkspace = files.length > 0 || workspaceName;
 
   return (
     <div className="explorer-panel">

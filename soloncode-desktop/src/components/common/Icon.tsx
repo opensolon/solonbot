@@ -12,7 +12,7 @@ type IconName =
   | 'close' | 'collapse' | 'expand' | 'swap'
   | 'send' | 'attach' | 'theme' | 'user' | 'assistant' | 'bot'
   // 状态图标
-  | 'modified' | 'added' | 'deleted' | 'untracked' | 'warning' | 'error' | 'success'
+  | 'modified' | 'added' | 'deleted' | 'untracked' | 'warning' | 'error' | 'success' | 'loading'
   // 其他
   | 'chevron-right' | 'chevron-down' | 'chevron-up' | 'more' | 'menu';
 
@@ -72,6 +72,7 @@ const iconPaths: Record<IconName, string> = {
   'warning': 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4M12 17h.01',
   'error': 'M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M15 9l-6 6M9 9l6 6',
   'success': 'M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3',
+  'loading': 'M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83',
 
   // 其他
   'chevron-right': 'M9 18l6-6-6-6',
