@@ -45,6 +45,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -174,7 +175,9 @@ public class CliShellOld implements Runnable {
             final AtomicBoolean isFirstReasonChunk = new AtomicBoolean(true);
 
 
-            Disposable disposable = agentRuntime.stream(session.getSessionId(), Prompt.of(currentInput))
+            Prompt prompt = Prompt.of(currentInput).attrPut("start_time" , System.currentTimeMillis());
+
+            Disposable disposable = agentRuntime.stream(session.getSessionId(), prompt)
                     .subscribeOn(Schedulers.boundedElastic())
                     .doOnNext(chunk -> {
                         if (chunk instanceof ReasonChunk) {
@@ -298,8 +301,29 @@ public class CliShellOld implements Runnable {
             onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
         }
 
+        Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
+
+        StringBuilder buf = new StringBuilder();
+        buf.append(" (");
+
         if (react.getTrace().getMetrics() != null) {
-            terminal.writer().println(DIM + " (" + react.getTrace().getMetrics().getTotalTokens() + " tokens)" + RESET);
+            buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
+        }
+
+        if (start_time != null) {
+            long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
+            if (buf.length() > 2) {
+                buf.append(", ");
+            }
+
+            buf.append(seconds).append(" seconds");
+        }
+
+        buf.append(")");
+
+
+        if (buf.length() > 4) {
+            terminal.writer().println(DIM + buf + RESET);
         }
     }
 
