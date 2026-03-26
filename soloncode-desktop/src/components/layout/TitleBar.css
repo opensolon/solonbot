@@ -1,0 +1,94 @@
+.title-bar {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  background: var(--cb-vscode-sideBar-background, #252526);
+  border-bottom: 1px solid var(--cb-vscode-panel-border, #474747);
+  padding: 0 8px;
+  user-select: none;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 24px;
+  color: var(--cb-accent, #0078d4);
+}
+
+.menu-trigger {
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--cb-text-primary, #cccccc);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.menu-trigger:hover {
+  background: var(--cb-vscode-list-hoverBackground, #2a2d2e);
+}
+
+.title-bar-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cb-text-secondary, #858585);
+}
+
+.app-title {
+  font-weight: 500;
+}
+
+.workspace-name {
+  color: var(--cb-text-primary, #cccccc);
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--cb-text-secondary, #858585);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.toolbar-btn:hover {
+  background: var(--cb-vscode-list-hoverBackground, #2a2d2e);
+  color: var(--cb-text-primary, #cccccc);
+}
+
+.toolbar-btn.active {
+  background: var(--cb-vscode-input-background, #3c3c3c);
+  color: var(--cb-text-primary, #cccccc);
+}
+
+.toolbar-btn span {
+  display: none;
+}
+
+@media (min-width: 800px) {
+  .toolbar-btn span {
+    display: inline;
+  }
+}

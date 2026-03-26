@@ -1,0 +1,57 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--cb-text-primary);
+  transition: color 0.15s;
+  vertical-align: middle;
+}
+
+.icon:hover {
+  color: var(--cb-text-primary);
+}
+
+/* 禁用状态 */
+.icon.disabled {
+  color: var(--cb-text-secondary);
+  opacity: 0.5;
+}
+
+/* 活动状态 */
+.icon.active {
+  color: var(--cb-accent);
+}
+
+/* 次要图标 */
+.icon.secondary {
+  color: var(--cb-text-secondary);
+}
+
+/* 文本对齐 */
+.icon + span {
+  margin-left: 6px;
+}
+
+/* 状态图标颜色 */
+.status-icon.modified {
+  color: #e2c08d;
+}
+
+.status-icon.added {
+  color: #89d185;
+}
+
+.status-icon.deleted {
+  color: #c74e39;
+}
+
+.status-icon.untracked {
+  color: var(--cb-text-secondary);
+}
+
+/* 文件图标 */
+.file-icon {
+  margin-right: 6px;
+  flex-shrink: 0;
+}

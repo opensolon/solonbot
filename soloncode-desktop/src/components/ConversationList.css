@@ -1,73 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { type Conversation } from '../types';
-
-interface Props {
-  conversations: Conversation[];
-  currentId: number;
-}
-
-interface Emits {
-  (e: 'select', conv: Conversation): void;
-}
-
-const props = defineProps<Props>();
-defineEmits<Emits>();
-
-// 分离固定会话和普通会话
-const permanentConversations = computed(() =>
-  props.conversations.filter(conv => conv.isPermanent)
-);
-
-const regularConversations = computed(() =>
-  props.conversations.filter(conv => !conv.isPermanent)
-);
-</script>
-
-<template>
-   <!-- 固定会话按钮 -->
-    <div
-      v-for="conv in permanentConversations"
-      :key="conv.id"
-      class="conversation-item permanent"
-      :class="{ active: conv.id === props.currentId }"
-      @click="$emit('select', conv)"
-    >
-      <div class="conversation-title">
-        <span v-if="conv.icon" class="conversation-icon">{{ conv.icon }}</span>
-        {{ conv.title }}
-      </div>
-    </div>
-    <div class="section-header">
-       <span class="section-title">会话</span>
-       <span class="section-count">{{ regularConversations.length }}</span>
-    </div>
-  <div class="conversation-list">
-    <!-- 普通会话 -->
-    <div v-if="regularConversations.length > 0" class="conversations-section">
-      <div
-        v-for="conv in regularConversations"
-        :key="conv.id"
-        class="conversation-item"
-        :class="{ active: conv.id === props.currentId }"
-        @click="$emit('select', conv)"
-      >
-        <div class="conversation-title">
-          <span v-if="conv.icon" class="conversation-icon">{{ conv.icon }}</span>
-          {{ conv.title }}
-        </div>
-        <div class="conversation-time">{{ conv.timestamp }}</div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-if="props.conversations.length === 0" class="empty-conversations">
-      <span>暂无会话</span>
-    </div>
-  </div>
-</template>
-
-<style scoped>
 .conversation-list {
   flex: 1;
   overflow-y: auto;
@@ -121,7 +51,6 @@ const regularConversations = computed(() =>
   background-color: var(--cb-vscode-list-activeSelectionBackground);
 }
 
-/* 固定会话按钮样式 */
 .conversation-item.permanent {
   background-color: var(--cb-vscode-input-background);
   border: 1px solid var(--cb-vscode-widget-border);
@@ -198,4 +127,3 @@ const regularConversations = computed(() =>
 .empty-conversations span {
   opacity: 0.7;
 }
-</style>

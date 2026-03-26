@@ -1,0 +1,58 @@
+.activity-bar {
+  width: 48px;
+  height: 100%;
+  background-color: var(--cb-vscode-sideBar-background);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid var(--cb-vscode-panel-border);
+  flex-shrink: 0;
+}
+
+.activity-bar-top,
+.activity-bar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.activity-bar-top {
+  flex: 1;
+}
+
+.activity-item {
+  width: 48px;
+  height: 48px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.15s;
+}
+
+.activity-item:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.activity-item.active {
+  background-color: var(--cb-vscode-list-activeSelectionBackground);
+}
+
+.activity-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--cb-accent);
+}
+
+.activity-icon {
+  font-size: 22px;
+  line-height: 1;
+}

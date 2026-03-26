@@ -1,0 +1,272 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* 暗色主题变量（默认） */
+  --cb-vscode-editor-background: #1e1e1e;
+  --cb-vscode-sideBar-background: #252526;
+  --cb-vscode-input-background: #3c3c3c;
+  --cb-vscode-foreground: #cccccc;
+  --cb-vscode-button-background: #0e639c;
+  --cb-vscode-button-foreground: #ffffff;
+  --cb-vscode-button-hoverBackground: #1177bb;
+  --cb-vscode-list-hoverBackground: #2a2d2e;
+  --cb-vscode-list-activeSelectionBackground: #094771;
+  --cb-vscode-widget-border: #414141;
+  --cb-vscode-panel-border: #474747;
+  --cb-text-primary: #cccccc;
+  --cb-text-secondary: #858699;
+  --cb-border-color: #4a5568;
+  --cb-accent: #6b7cff;
+  --cb-accent-light: #7b8dff;
+  --cb-success: #4ade80;
+  --cb-warning: #f59e0b;
+  --cb-error: #ef4444;
+}
+
+/* 亮色主题变量 */
+[data-theme="light"] {
+  --cb-vscode-editor-background: #ffffff;
+  --cb-vscode-sideBar-background: #f3f3f3;
+  --cb-vscode-input-background: #f5f5f5;
+  --cb-vscode-foreground: #333333;
+  --cb-vscode-button-background: #007acc;
+  --cb-vscode-button-foreground: #ffffff;
+  --cb-vscode-button-hoverBackground: #0062a3;
+  --cb-vscode-list-hoverBackground: #e8e8e8;
+  --cb-vscode-list-activeSelectionBackground: #e1e1e1;
+  --cb-vscode-widget-border: #d0d7de;
+  --cb-vscode-panel-border: #d0d7de;
+  --cb-text-primary: #333333;
+  --cb-text-secondary: #656d76;
+  --cb-border-color: #d0d7de;
+  --cb-accent: #007acc;
+  --cb-accent-light: #0b57d0;
+  --cb-success: #1a7f37;
+  --cb-warning: #bf8700;
+  --cb-error: #cf222e;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cb-vscode-foreground);
+  background-color: var(--cb-vscode-editor-background);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* 侧边栏容器 */
+.sidebar-container {
+  display: flex;
+  flex-shrink: 0;
+  background-color: var(--cb-vscode-sideBar-background);
+  border-right: 1px solid var(--cb-vscode-panel-border);
+}
+
+.sidebar-container.collapsed {
+  display: none;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cb-vscode-widget-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cb-border-color);
+}
+
+/* 面板通用样式 */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--cb-vscode-sideBar-background);
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  user-select: none;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cb-text-secondary);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-action {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--cb-text-secondary);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.panel-action:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+  color: var(--cb-text-primary);
+}
+
+/* 分组通用样式 */
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cb-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.group-count {
+  font-size: 11px;
+  background-color: var(--cb-vscode-input-background);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* 输入框通用样式 */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+  font-family: inherit;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  color: var(--cb-text-primary);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--cb-accent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--cb-text-secondary);
+}
+
+select {
+  cursor: pointer;
+}
+
+select option {
+  background-color: var(--cb-vscode-sideBar-background);
+  color: var(--cb-text-primary);
+}
+
+/* 按钮通用样式 */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* 复选框样式 */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--cb-accent);
+}
+
+/* 列表项通用样式 */
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.list-item:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.list-item.active {
+  background-color: var(--cb-vscode-list-activeSelectionBackground);
+}
+
+/* 确保所有分割线可见 */
+.app-container > * {
+  border-color: var(--cb-vscode-panel-border);
+}
+
+.activity-bar {
+  border-right: 1px solid var(--cb-vscode-panel-border);
+}
+
+.panels-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  background-color: var(--cb-vscode-editor-background);
+}
+
+.panels-container > .panel-wrapper {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  background-color: var(--cb-vscode-editor-background);
+}
+
+.panels-container > .panel-wrapper:first-child {
+  border-right: 1px solid var(--cb-vscode-panel-border);
+}
+
+/* 最后一个面板填满剩余空间 */
+.panels-container > .panel-wrapper:last-child {
+  flex: 1;
+}
