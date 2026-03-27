@@ -85,7 +85,7 @@ public class SharedTaskList {
      *
      * @param eventBus 事件总线
      * @param maxCompletedTasks 最大保留已完成任务数
-     * @deprecated 使用配置构造函数 {@link #SharedTaskList(EventBus, AgentProperties.TeamsConfig)}
+     * @deprecated 使用配置构造函数 {@link #SharedTaskList(EventBus, TeamsConfig)}
      */
     public SharedTaskList(EventBus eventBus, int maxCompletedTasks) {
         this(eventBus, null, null, maxCompletedTasks);
@@ -97,7 +97,7 @@ public class SharedTaskList {
      * @param eventBus 事件总线
      * @param config Teams 配置
      */
-    public SharedTaskList(EventBus eventBus, AgentProperties.TeamsConfig config) {
+    public SharedTaskList(EventBus eventBus,TeamsConfig config) {
         this(eventBus,
              config != null ? config.taskExecutorThreads : null,
              config != null ? config.eventExecutorThreads : null,
