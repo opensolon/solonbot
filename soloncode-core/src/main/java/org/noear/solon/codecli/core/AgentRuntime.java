@@ -15,8 +15,6 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.skills.cli.CliSkillProvider;
 import org.noear.solon.ai.skills.cli.TodoSkill;
-import org.noear.solon.ai.skills.diff.ApplyPatchTool;
-import org.noear.solon.ai.skills.lucene.LuceneSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.web.*;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
@@ -26,7 +24,6 @@ import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.codecli.core.agent.GenerateTool;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
 import org.noear.solon.core.util.Assert;
-import org.noear.solon.core.util.ClassUtil;
 import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.core.util.ResourceUtil;
 import org.slf4j.Logger;
@@ -55,9 +52,6 @@ public class AgentRuntime {
     public final static String SOLONCODE_SESSIONS = ".soloncode/sessions/";
     public final static String SOLONCODE_SKILLS = ".soloncode/skills/";
     public final static String SOLONCODE_AGENTS = ".soloncode/agents/";
-    public final static String SOLONCODE_AGENTS_TEAMS = ".soloncode/agentsTeams/";
-    public final static String SOLONCODE_DOWNLOADS = ".soloncode/downloads/";
-    public final static String SOLONCODE_BROWSER = ".soloncode/browser/";
     public final static String SOLONCODE_MEMORY = ".soloncode/memory/";
 
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
@@ -68,10 +62,9 @@ public class AgentRuntime {
     private final AgentProperties properties;
 
     private final CodeSkill codeSkill = new CodeSkill();
-    private final LuceneSkill luceneSkill = new LuceneSkill();
     private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
     private final TaskSkill taskSkill = new TaskSkill(this);
-    private final GenerateTool generateTool =  new GenerateTool(this);
+    private final GenerateTool generateTool = new GenerateTool(this);
 
     private final ReActAgent reActAgent;
 
@@ -86,7 +79,7 @@ public class AgentRuntime {
     private AgentManager agentManager;
 
     public String getVersion() {
-        return "v2026.2.23";
+        return "v2026.3.26";
     }
 
     public String getName() {
@@ -133,8 +126,8 @@ public class AgentRuntime {
         return taskSkill;
     }
 
-    public GenerateTool getGenerateTool() {
-        return generateTool;
+    public CodeSkill getCodeSkill() {
+        return codeSkill;
     }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
@@ -186,12 +179,13 @@ public class AgentRuntime {
         cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
 
         cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@installed_skills", Paths.get(properties.getWorkDir(), "skills"));
+
         cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
         cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
 
         agentManager = new AgentManager();
         agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS));
-        agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS_TEAMS), true);
 
         //上下文摘要
         SummarizationStrategy strategy = new CompositeSummarizationStrategy()
@@ -205,24 +199,17 @@ public class AgentRuntime {
 
         agentBuilder.defaultInterceptorAdd(summarizationInterceptor);
 
-        if (properties.isSubagentEnabled()) {
-            //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
-            agentBuilder.defaultSkillAdd(todoSkill);
-            agentBuilder.defaultSkillAdd(cliSkills.getExpertSkill());
+        agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
+        agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
+        agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
 
-            agentBuilder.defaultToolAdd(generateTool);
+        agentBuilder.defaultSkillAdd(getCliSkills());
+        agentBuilder.defaultSkillAdd(getTodoSkill());
+        agentBuilder.defaultSkillAdd(getCodeSkill());
+
+        if(properties.isSubagentEnabled()) {
             agentBuilder.defaultSkillAdd(taskSkill);
-        } else {
-            //agentBuilder.defaultToolAdd(MemorySkill.getInstance());
-            agentBuilder.defaultToolAdd(WebfetchTool.getInstance());
-            agentBuilder.defaultToolAdd(WebsearchTool.getInstance());
-            agentBuilder.defaultToolAdd(CodeSearchTool.getInstance());
-            agentBuilder.defaultToolAdd(new ApplyPatchTool());
-
-            agentBuilder.defaultSkillAdd(cliSkills);
-            agentBuilder.defaultSkillAdd(todoSkill);
-            agentBuilder.defaultSkillAdd(codeSkill);
-            agentBuilder.defaultSkillAdd(luceneSkill);
+            agentBuilder.defaultToolAdd(generateTool);
         }
 
         if (getMcpProviders() != null) {
@@ -317,12 +304,11 @@ public class AgentRuntime {
                 .getOrDefault(ATTR_CWD, properties.getWorkDir());
 
         String code = codeSkill.refresh(effectiveWorkDir);
-        String search = luceneSkill.refreshSearchIndex(effectiveWorkDir);
 
         if (Assert.isNotEmpty(code)) {
-            return search + "\n" + code;
+            return "已初始化：" + code;
         } else {
-            return search;
+            return "已初始化...";
         }
     }
 

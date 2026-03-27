@@ -31,6 +31,8 @@ import org.noear.solon.core.util.MimeType;
 import org.noear.solon.lang.Preview;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
+
 /**
  * Code CLI 终端 (Pool-Box 模型)
  * <p>基于 ReAct 模式的代码协作终端，提供多池挂载与任务盒隔离体验</p>
@@ -40,10 +42,10 @@ import reactor.core.publisher.Flux;
  */
 @Preview("3.9.1")
 public class WebGate implements Handler {
-    private final AgentRuntime kernel;
+    private final AgentRuntime agentRuntime;
 
-    public WebGate(AgentRuntime kernel) {
-        this.kernel = kernel;
+    public WebGate(AgentRuntime agentRuntime) {
+        this.agentRuntime = agentRuntime;
     }
 
     @Override
@@ -70,14 +72,14 @@ public class WebGate implements Handler {
                 return;
             }
 
-            AgentSession session = kernel.getSession(sessionId);
+            AgentSession session = agentRuntime.getSession(sessionId);
             session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, sessionCwd);
         }
 
         // HITL approve/reject handling
         String hitlAction = ctx.param("hitlAction");
         if (Assert.isNotEmpty(hitlAction)) {
-            AgentSession session = kernel.getSession(sessionId);
+            AgentSession session = agentRuntime.getSession(sessionId);
             HITLTask task = HITL.getPendingTask(session);
             if (task != null) {
                 if ("approve".equals(hitlAction)) {
@@ -95,7 +97,7 @@ public class WebGate implements Handler {
         if (Assert.isNotEmpty(input)) {
             if ("call".equals(mode)) {
                 ctx.contentType(MimeType.TEXT_PLAIN_UTF8_VALUE);
-                String result = kernel.call(sessionId, Prompt.of(input))
+                String result = agentRuntime.call(sessionId, Prompt.of(input))
                         .getContent();
 
                 ctx.output(result);
@@ -107,47 +109,16 @@ public class WebGate implements Handler {
     }
 
     private Flux<String> buildStreamFlux(String sessionId, String input) {
-        return kernel.stream(sessionId, Prompt.of(input))
+        Prompt prompt = Prompt.of(input).attrPut("start_time" , System.currentTimeMillis());
+
+        return agentRuntime.stream(sessionId, prompt)
                 .map(chunk -> {
-                    if (chunk.hasContent()) {
-                        if (chunk instanceof ReasonChunk) {
-                            ReasonChunk reason = (ReasonChunk) chunk;
-
-                            if (!reason.isToolCalls() && reason.hasContent()) {
-                                if (reason.getMessage().isThinking()) {
-                                    return new ONode().set("type", "reason")
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                } else {
-                                    return new ONode().set("type", "text")
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                }
-                            }
-                        } else if (chunk instanceof ActionEndChunk) {
-                            ActionEndChunk action = (ActionEndChunk) chunk;
-                            ONode oNode = new ONode().set("type", "action")
-                                    .set("text", chunk.getContent());
-
-                            if (Assert.isNotEmpty(action.getToolName())) {
-                                oNode.set("toolName", action.getToolName());
-                                oNode.set("args", action.getArgs());
-                            }
-
-                            return oNode.toJson();
-                        } else if (chunk instanceof ReActChunk) {
-                            ReActChunk react = (ReActChunk) chunk;
-
-                            if (react.isNormal() == false) {
-                                return new ONode().set("type", "reason")
-                                        .set("text", chunk.getContent())
-                                        .toJson();
-                            }
-
-                            return new ONode().set("type", "agent")
-                                    .set("text", chunk.getContent())
-                                    .toJson();
-                        }
+                    if (chunk instanceof ReasonChunk) {
+                        return onReasonChunk((ReasonChunk) chunk);
+                    } else if (chunk instanceof ActionEndChunk) {
+                        return onActionEndChunk((ActionEndChunk) chunk);
+                    } else if (chunk instanceof ReActChunk) {
+                        return onReActChunk((ReActChunk) chunk);
                     }
 
                     return "";
@@ -162,7 +133,7 @@ public class WebGate implements Handler {
                 })
                 .concatWith(Flux.defer(() -> {
                     // Check HITL state after stream completes
-                    AgentSession session = kernel.getSession(sessionId);
+                    AgentSession session = agentRuntime.getSession(sessionId);
                     if (HITL.isHitl(session)) {
                         HITLTask task = HITL.getPendingTask(session);
                         if (task != null) {
@@ -178,5 +149,73 @@ public class WebGate implements Handler {
                     }
                     return Flux.just("[DONE]");
                 }));
+    }
+
+    private String onReasonChunk(ReasonChunk reason){
+        if (!reason.isToolCalls() && reason.hasContent()) {
+            if (reason.getMessage().isThinking()) {
+                return new ONode().set("type", "reason")
+                        .set("text", reason.getContent())
+                        .toJson();
+            } else {
+                return new ONode().set("type", "text")
+                        .set("text", reason.getContent())
+                        .toJson();
+            }
+        }
+
+        return "";
+    }
+
+    private String onActionEndChunk(ActionEndChunk action){
+        if (Assert.isNotEmpty(action.getToolName())) {
+            ONode oNode = new ONode().set("type", "action")
+                    .set("text", action.getContent());
+
+            if (Assert.isNotEmpty(action.getToolName())) {
+                if (agentRuntime.getName().equals(action.getAgentName())) {
+                    oNode.set("toolName", action.getToolName());
+                } else {
+                    oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
+                }
+                oNode.set("args", action.getArgs());
+            }
+
+            return oNode.toJson();
+        }
+
+        return "";
+    }
+
+    private String onReActChunk(ReActChunk react){
+        StringBuilder buf = new StringBuilder();
+
+        if (react.isNormal() == false) {
+            buf.append(react.getContent());
+        }
+
+        Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
+
+
+        buf.append(" (");
+
+        if (react.getTrace().getMetrics() != null) {
+            buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
+        }
+
+        if (start_time != null) {
+            long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
+            if (buf.length() > 2) {
+                buf.append(", ");
+            }
+
+            buf.append(seconds).append(" seconds");
+        }
+
+        buf.append(")");
+
+        return new ONode().set("type", "text")
+                .set("text", buf.toString())
+                .toJson();
     }
 }
