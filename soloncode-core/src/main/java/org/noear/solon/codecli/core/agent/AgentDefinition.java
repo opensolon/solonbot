@@ -208,6 +208,10 @@ public class AgentDefinition {
             }
         }
 
+        public void addTools(String... toolNames){
+            tools.addAll(Arrays.asList(toolNames));
+        }
+
 
         public boolean hasModel() {
             return model != null && !model.isEmpty();

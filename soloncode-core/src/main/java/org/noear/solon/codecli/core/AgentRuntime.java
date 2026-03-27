@@ -166,13 +166,6 @@ public class AgentRuntime {
         }
 
 
-        //final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel).name("main");
-        AgentDefinition agentDefinition = new AgentDefinition();
-
-        agentDefinition.getMetadata().setName("main");
-        agentDefinition.setSystemPrompt(getAgentsMd());
-
-
         if (Assert.isNotEmpty(properties.getMountPool())) {
             properties.getMountPool().forEach((alias, dir) -> {
                 cliSkills.skillPool(alias, dir);
@@ -206,18 +199,20 @@ public class AgentRuntime {
                 properties.getSummaryWindowToken(),
                 strategy);
 
-        agentDefinition.getMetadata().getTools().add("*");
-        agentDefinition.getMetadata().getTools().add("mcp");
-        agentDefinition.getMetadata().getTools().add("restapi");
+        //final ReActAgent.Builder agentBuilder = ReActAgent.of(chatModel).name("main");
+        AgentDefinition agentDefinition = new AgentDefinition();
+
+        agentDefinition.getMetadata().setName("main");
+        agentDefinition.setSystemPrompt(getAgentsMd());
+        agentDefinition.getMetadata().addTools("*", "mcp", "restapi");
 
         if (properties.isSubagentEnabled()) {
-            agentDefinition.getMetadata().getTools().add("task");
-            agentDefinition.getMetadata().getTools().add("generate");
+            agentDefinition.getMetadata().addTools("task", "generate");
 
         }
 
         if (properties.isHitlEnabled()) {
-            agentDefinition.getMetadata().getTools().add("hitl");
+            agentDefinition.getMetadata().addTools("hitl");
         }
 
         // 添加步数
