@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.teams;
+package org.noear.solon.codecli.core.teams.config;
 
 /**
  * 消息通道配置类

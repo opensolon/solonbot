@@ -15,7 +15,7 @@
  */
 package org.noear.solon.codecli.core.teams;
 
-import org.noear.solon.codecli.core.AgentProperties;
+import org.noear.solon.codecli.core.teams.config.TeamsConfig;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.AgentEventType;
 import org.noear.solon.codecli.core.teams.event.EventBus;

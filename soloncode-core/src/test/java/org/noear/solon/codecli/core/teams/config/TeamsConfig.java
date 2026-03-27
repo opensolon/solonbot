@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.teams;
+package org.noear.solon.codecli.core.teams.config;
 
 /**
  * Agent Teams 模式配置类

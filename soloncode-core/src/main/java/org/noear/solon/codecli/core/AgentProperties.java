@@ -20,7 +20,6 @@ import lombok.Setter;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
 import org.noear.solon.ai.skills.restapi.ApiSource;
-import org.noear.solon.codecli.core.teams.*;
 
 import java.io.*;
 import java.util.Map;
@@ -34,39 +33,8 @@ import java.util.Map;
 @Getter
 @Setter
 public class AgentProperties implements Serializable {
-    /**
-     * 共享记忆配置
-     */
-    public boolean sharedMemoryEnabled = false;
-    public SharedMemoryConfig sharedMemory = new SharedMemoryConfig();
-    /**
-     * 事件总线配置
-     */
-    public boolean eventBusEnabled = false;
-    public EventBusConfig eventBus = new EventBusConfig();
-    /**
-     * 消息通道配置
-     */
-    public boolean messageChannelEnabled = false;
-    public MessageChannelConfig messageChannel = new MessageChannelConfig();
-    /**
-     * Agent Teams 模式配置
-     */
-    public boolean teamsEnabled = false;
-    public TeamsConfig teams = new TeamsConfig();
-    public Map<String, McpServerParameters> mcpServers;
-    public ChatConfig chatModel;
-    /**
-     * SubAgent 模型配置
-     * 格式：subAgentCode -> modelName
-     * 例如：{"explore": "glm-4-flash", "plan": "glm-4.7"}
-     * 如果未配置，将使用默认的 chatModel.model
-     */
-    public Map<String, String> subAgentModels;
-    /**
-     * 子代理并发控制配置
-     */
-    public SubagentConcurrencyConfig subagentConcurrency = new SubagentConcurrencyConfig();
+    private Map<String, McpServerParameters> mcpServers;
+    private ChatConfig chatModel;
     private String workDir = System.getProperty("user.dir");
     private int maxSteps = 10;
     private boolean maxStepsAutoExtensible = false;

@@ -980,11 +980,11 @@ public class AgentTeamsSkill extends AbsSkill {
         }
     }
 
-    @ToolMapping(name = "isTeamsEnabled",
-            description = "检查是否已开启团队功能")
-    public String isTeamsEnabled() {
-        return agentRuntime.getProperties().isTeamsEnabled() ? "团队功能已启用" : "[WARN] 团队功能未启用。请先启用团队功能。";
-    }
+//    @ToolMapping(name = "isTeamsEnabled",
+//            description = "检查是否已开启团队功能")
+//    public String isTeamsEnabled() {
+//        return agentRuntime.getProperties().isTeamsEnabled() ? "团队功能已启用" : "[WARN] 团队功能未启用。请先启用团队功能。";
+//    }
 
     /**
      * 生成默认系统提示词

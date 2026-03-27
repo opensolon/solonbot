@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.teams;
+package org.noear.solon.codecli.core.teams.config;
 
 /**
  * 子代理并发控制配置类
