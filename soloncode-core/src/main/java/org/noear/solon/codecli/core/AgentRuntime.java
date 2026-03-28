@@ -177,9 +177,10 @@ public class AgentRuntime {
 
         cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
 
-        cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_SKILLS));
-        cliSkills.skillPool("@installed_skills", Paths.get(properties.getWorkDir(), "skills"));
+        cliSkills.skillPool("@global", Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@local", Paths.get(properties.getWorkDir(), "skills"));
 
+        cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_SKILLS));
         cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
         cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
 

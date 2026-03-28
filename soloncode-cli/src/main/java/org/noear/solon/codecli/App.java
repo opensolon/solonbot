@@ -47,7 +47,7 @@ public class App {
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
             //获取命令行运行的当前用户工作区
-            String workDir = Paths.get(System.getProperty("user.dir")).toAbsolutePath().normalize().toString();
+            String workDir = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
             AgentProperties c = app.cfg().toBean("solon.code.cli", AgentProperties.class);
 
             c.setWorkDir(workDir);
@@ -74,10 +74,8 @@ public class App {
         Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
         // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/
-        Path globalSessionsDir = ConfigLoader.getGlobalConfigDir().resolve("sessions");
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, globalSessionsDir.resolve(key).normalize().toFile().toString()));
-
+                new FileAgentSession(key, Paths.get(agentProperties.getWorkDir(), AgentRuntime.SOLONCODE_SESSIONS).resolve(key).normalize().toFile().toString()));
 
         AgentRuntime agentRuntime = AgentRuntime.builder()
                 .chatModel(chatModel)

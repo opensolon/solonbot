@@ -20,7 +20,7 @@ import java.util.Map;
 public class AgentProperties implements Serializable {
     private Map<String, McpServerParameters> mcpServers;
     private ChatConfig chatModel;
-    private String workDir = System.getProperty("user.dir");
+    private String workDir = "work";
     private int maxSteps = 10;
     private boolean maxStepsAutoExtensible = false;
     private String uiType = "old";
@@ -44,4 +44,18 @@ public class AgentProperties implements Serializable {
     @Deprecated
     private Map<String, String> mountPool;
     private Map<String, String> skillPools;
+
+    /**
+     * 当前目录
+     */
+    public static String getUserDir() {
+        return System.getProperty("user.dir");
+    }
+
+    /**
+     * 用户主目录
+     */
+    public static String getUserHome() {
+        return System.getProperty("user.home");
+    }
 }

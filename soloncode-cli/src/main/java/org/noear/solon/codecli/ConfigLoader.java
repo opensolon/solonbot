@@ -1,5 +1,7 @@
 package org.noear.solon.codecli;
 
+import org.noear.solon.codecli.core.AgentProperties;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,7 +16,7 @@ import java.nio.file.Paths;
  */
 public class ConfigLoader {
 
-    private static final String USER_HOME = System.getProperty("user.home");
+    private static final String USER_HOME = AgentProperties.getUserHome();
 
     /**
      * 加载最优配置文件路径
@@ -25,7 +27,7 @@ public class ConfigLoader {
      */
     public static Path loadConfig() {
         // 1. 当前目录的配置（项目级）
-        Path currentDirConfig = Paths.get(System.getProperty("user.dir"), ".soloncode", "config.yml");
+        Path currentDirConfig = Paths.get(AgentProperties.getUserDir(), ".soloncode", "config.yml");
         if (Files.exists(currentDirConfig)) {
             return currentDirConfig;
         }
