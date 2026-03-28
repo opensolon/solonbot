@@ -19,37 +19,105 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# 检测 shell 配置文件
-if [ -n "$ZSH_VERSION" ]; then
-    SHELL_CONFIG="$HOME/.zshrc"
-elif [ -n "$BASH_VERSION" ]; then
-    SHELL_CONFIG="$HOME/.bashrc"
-else
-    SHELL_CONFIG="$HOME/.profile"
+# 检测操作系统
+OS_TYPE="$(uname -s)"
+echo "[Info] Detected OS: $OS_TYPE"
+
+# ============================================
+#  清理 shell 配置文件中的 PATH 配置
+# ============================================
+echo ""
+echo "[1/3] Cleaning shell configuration files..."
+
+clean_shell_config() {
+    local config_file="$1"
+    if [ -f "$config_file" ]; then
+        # 备份
+        cp "$config_file" "${config_file}.bak" 2>/dev/null
+        
+        # 移除 Solon Code 相关行
+        if [[ "$OS_TYPE" == "Darwin" ]]; then
+            # macOS sed
+            sed -i '' '/# Solon Code/d' "$config_file" 2>/dev/null
+            sed -i '' '/SOLONCODE_HOME/d' "$config_file" 2>/dev/null
+            sed -i '' '/\.soloncode\/bin/d' "$config_file" 2>/dev/null
+        else
+            # Linux sed
+            sed -i '/# Solon Code/d' "$config_file" 2>/dev/null
+            sed -i '/SOLONCODE_HOME/d' "$config_file" 2>/dev/null
+            sed -i '/\.soloncode\/bin/d' "$config_file" 2>/dev/null
+        fi
+        echo "      Cleaned: $config_file"
+    fi
+}
+
+# 清理所有可能的配置文件
+# zsh
+clean_shell_config "$HOME/.zshrc"
+
+# bash
+clean_shell_config "$HOME/.bashrc"
+clean_shell_config "$HOME/.bash_profile"
+clean_shell_config "$HOME/.profile"
+
+# Fish shell
+FISH_CONFIG="$HOME/.config/fish/config.fish"
+if [ -f "$FISH_CONFIG" ]; then
+    cp "$FISH_CONFIG" "${FISH_CONFIG}.bak" 2>/dev/null
+    if [[ "$OS_TYPE" == "Darwin" ]]; then
+        sed -i '' '/# Solon Code/d' "$FISH_CONFIG" 2>/dev/null
+        sed -i '' '/SOLONCODE_HOME/d' "$FISH_CONFIG" 2>/dev/null
+        sed -i '' '/set -gx PATH.*soloncode/d' "$FISH_CONFIG" 2>/dev/null
+    else
+        sed -i '/# Solon Code/d' "$FISH_CONFIG" 2>/dev/null
+        sed -i '/SOLONCODE_HOME/d' "$FISH_CONFIG" 2>/dev/null
+        sed -i '/set -gx PATH.*soloncode/d' "$FISH_CONFIG" 2>/dev/null
+    fi
+    echo "      Cleaned: $FISH_CONFIG"
 fi
 
-# 从 shell 配置移除
-echo "[1/2] Removing from $SHELL_CONFIG..."
-if [ -f "$SHELL_CONFIG" ]; then
-    cp "$SHELL_CONFIG" "${SHELL_CONFIG}.bak"
-    # 移除 Solon Code 相关行
-    sed -i.tmp '/# Solon Code/d' "$SHELL_CONFIG"
-    sed -i.tmp '/SOLONCODE_HOME/d' "$SHELL_CONFIG"
-    # 清理空行
-    sed -i.tmp '/^$/N;/^\n$/d' "$SHELL_CONFIG" 2>/dev/null
-    rm -f "${SHELL_CONFIG}.tmp"
-    echo "      Cleaned $SHELL_CONFIG"
+# ============================================
+#  删除符号链接
+# ============================================
+echo ""
+echo "[2/3] Removing command symlinks..."
+
+# 系统级链接
+if [ -L "/usr/local/bin/soloncode" ] || [ -f "/usr/local/bin/soloncode" ]; then
+    if [ "$(id -u)" -eq 0 ]; then
+        rm -f /usr/local/bin/soloncode 2>/dev/null && echo "      Removed /usr/local/bin/soloncode"
+    elif command -v sudo &> /dev/null; then
+        sudo rm -f /usr/local/bin/soloncode 2>/dev/null && echo "      Removed /usr/local/bin/soloncode"
+    fi
 fi
 
-# 删除软链接
-echo "[2/2] Removing command symlink..."
-if [ "$(id -u)" -eq 0 ]; then
-    rm -f /usr/local/bin/soloncode 2>/dev/null && echo "      Removed /usr/local/bin/soloncode"
-elif command -v sudo &> /dev/null; then
-    sudo rm -f /usr/local/bin/soloncode 2>/dev/null && echo "      Removed /usr/local/bin/soloncode"
+# 用户级链接 (homebrew 或用户 bin)
+if [ -L "$HOME/.local/bin/soloncode" ] || [ -f "$HOME/.local/bin/soloncode" ]; then
+    rm -f "$HOME/.local/bin/soloncode" 2>/dev/null && echo "      Removed ~/.local/bin/soloncode"
 fi
 
-# 完成
+if [ -L "$HOME/bin/soloncode" ] || [ -f "$HOME/bin/soloncode" ]; then
+    rm -f "$HOME/bin/soloncode" 2>/dev/null && echo "      Removed ~/bin/soloncode"
+fi
+
+# ============================================
+#  清理启动脚本 (如果有安装在安装目录外)
+# ============================================
+echo ""
+echo "[3/3] Cleaning up..."
+
+# 检查是否有残留的启动脚本
+for cmd_path in "/usr/local/bin/soloncode" "$HOME/.local/bin/soloncode" "$HOME/bin/soloncode"; do
+    if [ -L "$cmd_path" ]; then
+        rm -f "$cmd_path" 2>/dev/null
+    fi
+done
+
+echo "      Cleanup complete"
+
+# ============================================
+#  完成
+# ============================================
 echo ""
 echo "============================================"
 echo "   Uninstall Complete!"
