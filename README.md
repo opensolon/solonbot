@@ -1,61 +1,58 @@
 
-<p align="center">
-<img width="500" src="SHOW.png" />
-</p>
+<div align="center">
+<h1>SolonCode</h1>
+<p>基于 <a href="../../../../opensolon/solon-ai">Solon AI</a> 与 Java 实现的开源编码智能体（支持 Java8 到 Java26 环境启动）</p>
+<p>最新版本：v2026.4.1</p>
+<img width="600" src="SHOW.png" />
+</div>
 
 
-# Solon Code（[Solon AI](../../../../opensolon/solon-ai) 框架综合应用展示）
+## 安装与配置
 
-Solon Code 是基于 [Solon AI](../../../../opensolon/solon-ai) （支持 Java8 到 Java25）框架构建的高性能、自主式 AI 终端助手。
+```bash
+# Mac / Linux:
+curl -fsSL https://solon.noear.org/soloncode/setup.sh | bash
 
-它（相当于）是用 Java8 实现的 Claude Code，100% 对齐 Claude Code（或 OpenCode）核心体验，允许 AI 智能体直接与你的本地开发环境交互：阅读代码、运行测试、修复 Bug 以及执行复杂的重构任务。
+# Windows (PowerShell):
+irm https://solon.noear.org/soloncode/setup.ps1 | iex
+```
+
+安装后的目录：
+
+* `~/soloncode/bin/`，
+
+配置修改（安装后，先修改配置）：
+
+* 找到 `~/solnocode/bin/config.yml` 配置文件，（主要）修改 `chatModel` 配置。
+
+## 运行
+
+在控制台“任意”目录下，运行 `soloncode` 命令即可。
+
+```bash
+demo@MacBook-Pro ~ % soloncode
+SolonCode v2026.4.1
+/Users/noear
+Tips: (esc) interrupt | '/exit': quit | '/resume': resume | '/clear': reset
+
+User
+> 
+```
+
+命令测试：
+
+* `你好`
+* `用网络分析下 ai mcp 协议，然后生成个 ppt`（最好提前安装些 skill）
 
 
-## 核心特性
+## 文档
 
-* 强大技能：完全兼容 Claude Code Agent Skills 规范，可无缝接入现有的技能集。
-* 环境感知：自动索引项目结构，支持文件读写、Grep 搜索及 Bash 命令执行。
-* 安全受控：关键操作（如删除文件、执行写入）支持人工审批（Human-in-the-loop）。
-* 广泛兼容：支持 Java 8 ~ 25 全环境运行（即便在老旧企业级项目中也能起飞）。
-* 网络能力：自带 Webfetch、Websearch 工具，方便感知网络（基于 `mcp.exa.ai/mcp` 封装）
-* 开源定制：（MIT 开源协议）方便企业基于 Java 生态去定制自己的 Agent
-* 兼容第三方规范：
-  * 支持自动加载 `.opencode/skills` 作为 `@opencode_skills` 只读池
-  * 支持自动加载 `.claude/skills` 作为 `@claude_skills` 只读池
-  * 支持自动加载 `CLAUDE.md` 作为代码项目规范
+更多配置说明请查看我们的 [官方文档](https://solon.noear.org/article/soloncode)。
 
-## 多态运行支持
+## 参与贡献
 
-* CLI：沉浸式的终端开发体验。
-* Web API：标准化的 HTTP/JSON 接口，便于集成。
-* ACP 协议：支持 Agent Context Protocol，可作为插件接入各类现代 IDE。
+如有兴趣贡献代码，请在提交 PR 前阅读 [贡献指南 (Contributing Docs)](https://solon.noear.org/article/623)。
 
+## 基于 SolonCode 进行开发
 
-## 下载与入门
-
-* 下载程序包
-
-[程序发布包（跨平台通用）](../../../../opensolon/soloncode/releases)
-
-* Bilibili 入门视频
-
-[《Solon Code CLI 如何下载与运行？》](https://www.bilibili.com/video/BV1ArfjBiEU4/)
-
-## 扩展技能 (Skills)：
-
-* https://github.com/opensolon/skills （内部只有一个 solon 框架开发技能，可能会偶尔更新）
-* https://github.com/zrt-ai-lab/opencode-skills 
-* https://github.com/openclaw/skills
-* https://github.com/anthropics/skills
-* https://github.com/ComposioHQ/awesome-claude-skills
-
-重要提醒：
-
-* 如果有跨技能 `.opencode` 或 `.claude` 开头的脚本调用，要放到工作区的规范目录下
-* 如果没有（跨技能），按普通技能池配置挂载
-
-兼容第三方规范：
-
-* 支持自动加载 `.opencode/skills` 作为 `@opencode_skills` 只读池
-* 支持自动加载 `.claude/skills` 作为 `@claude_skills` 只读池
-
+如果你在项目名中使用了 “soloncode”（如 “soloncode-dashboard” 或 “soloncode-mobile”），请在 README 里注明该项目不是 OpenSolon 团队官方开发，且不存在隶属关系。
