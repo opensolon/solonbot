@@ -43,6 +43,7 @@ User
 
 * `你好`
 * `用网络分析下 ai mcp 协议，然后生成个 ppt`（最好提前安装些 skill）
+* `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
 
 ## 文档
