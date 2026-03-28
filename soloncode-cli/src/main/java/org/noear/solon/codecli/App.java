@@ -45,11 +45,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class App {
 
     public static void main(String[] args) {
-        // 在 Solon 启动前，确定外部配置文件路径（三级优先级）
-        Path externalConfig = ConfigLoader.loadConfig();
-        if (externalConfig != null) {
-            System.setProperty("solon.config.load", externalConfig.toAbsolutePath().toString());
-        }
+        // 在 Solon 启动前，确定外部配置文件路径（三级优先级）//命令安装到 user/.opencode/bin/ 后，仍是读相对位置
+//        Path externalConfig = ConfigLoader.loadConfig();
+//        if (externalConfig != null) {
+//            System.setProperty("solon.config.load", externalConfig.toAbsolutePath().toString());
+//        }
 
         Solon.start(App.class, args, app -> {
             AgentProperties c = app.cfg().toBean("solon.code.cli", AgentProperties.class);
