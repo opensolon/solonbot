@@ -32,7 +32,6 @@ import org.noear.solon.annotation.Param;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.core.agent.AgentDefinition;
 import org.noear.solon.codecli.core.agent.AgentManager;
-import org.noear.solon.codecli.core.agent.AgentDefinition.Metadata;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.AgentEventType;
 import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
@@ -2242,7 +2241,7 @@ public class AgentTeamsSkill extends AbsSkill {
             }
 
             // 4. 构建 TeamAgent
-            ChatModel chatModel = agentRuntime.getChatModel();
+            ChatModel chatModel = agentRuntime.getLlm();
 
                 TeamAgent.Builder teamBuilder = TeamAgent.of(chatModel)
                         .name(teamName)

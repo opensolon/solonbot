@@ -13,10 +13,12 @@ import org.noear.solon.ai.agent.react.intercept.SummarizationStrategy;
 import org.noear.solon.ai.agent.react.intercept.summarize.*;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
+import org.noear.solon.ai.mcp.client.McpClientProvider;
 import org.noear.solon.ai.skills.cli.CliSkillProvider;
 import org.noear.solon.ai.skills.cli.TodoSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
+import org.noear.solon.ai.skills.toolgateway.ToolGatewaySkill;
 import org.noear.solon.codecli.core.agent.*;
 import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.codecli.core.code.CodeSkill;
@@ -64,10 +66,10 @@ public class AgentRuntime {
     private final TaskSkill taskSkill = new TaskSkill(this);
     private final GenerateTool generateTool = new GenerateTool(this);
 
-    private final ReActAgent reActAgent;
+    private final ReActAgent rootAgent;
 
-    private final McpProviders mcpProviders;
-    private final RestApiSkill restApis;
+    private final ToolGatewaySkill mcpGatewaySkill;
+    private final RestApiSkill restApiSkill;
 
     private final CliSkillProvider cliSkills = new CliSkillProvider();
 
@@ -82,27 +84,15 @@ public class AgentRuntime {
     }
 
     public String getName() {
-        return reActAgent.name();
+        return rootAgent.name();
     }
 
     public AgentProperties getProps() {
         return properties;
     }
 
-    public AgentProperties getProperties() {
-        return properties;
-    }
-
-    public ChatModel getChatModel() {
+    public ChatModel getLlm() {
         return chatModel;
-    }
-
-    public McpProviders getMcpProviders() {
-        return mcpProviders;
-    }
-
-    public RestApiSkill getRestApis() {
-        return restApis;
     }
 
     public AgentManager getAgentManager() {
@@ -137,25 +127,37 @@ public class AgentRuntime {
         return generateTool;
     }
 
+    public ToolGatewaySkill getMcpGatewaySkill() {
+        return mcpGatewaySkill;
+    }
+
+    public RestApiSkill getRestApiSkill() {
+        return restApiSkill;
+    }
+
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
         this.chatModel = chatModel;
         this.properties = properties;
         this.sessionProvider = sessionProvider;
 
         if (Assert.isNotEmpty(properties.getRestApis())) {
-            restApis = new RestApiSkill();
+            restApiSkill = new RestApiSkill();
             for (Map.Entry<String, ApiSource> entry : properties.getRestApis().entrySet()) {
-                restApis.addApi(entry.getValue());
+                restApiSkill.addApi(entry.getValue());
             }
         } else {
-            restApis = null;
+            restApiSkill = null;
         }
 
         try {
             if (Assert.isNotEmpty(properties.getMcpServers())) {
-                mcpProviders = McpProviders.fromMcpServers(properties.getMcpServers());
+                McpProviders mcpProviders = McpProviders.fromMcpServers(properties.getMcpServers());
+                mcpGatewaySkill = new ToolGatewaySkill();
+                for (Map.Entry<String, McpClientProvider> entry : mcpProviders.getProviders().entrySet()) {
+                    mcpGatewaySkill.addTool(entry.getKey(), entry.getValue());
+                }
             } else {
-                mcpProviders = null;
+                mcpGatewaySkill = null;
             }
         } catch (IOException e) {
             throw new RuntimeException("Mcp servers load failure", e);
@@ -229,7 +231,7 @@ public class AgentRuntime {
             }
         }
 
-        reActAgent = agentBuilder.build();
+        rootAgent = agentBuilder.build();
     }
 
 
@@ -279,7 +281,7 @@ public class AgentRuntime {
         String activatedWorkDir = (String) session.attrs()
                 .getOrDefault(ATTR_CWD, properties.getWorkDir());
 
-        return reActAgent.prompt(prompt)
+        return rootAgent.prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.toolContextPut(AgentRuntime.ATTR_CWD, activatedWorkDir);

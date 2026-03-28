@@ -27,7 +27,7 @@ public class AgentFactory {
      * 根据定义生成代理
      */
     public static ReActAgent.Builder create(AgentRuntime agentRuntime, AgentDefinition agentDefinition) {
-        ReActAgent.Builder builder = ReActAgent.of(agentRuntime.getChatModel());
+        ReActAgent.Builder builder = ReActAgent.of(agentRuntime.getLlm());
 
         AgentDefinition.Metadata metadata = agentDefinition.getMetadata();
 
@@ -126,7 +126,7 @@ public class AgentFactory {
                         builder.defaultToolAdd(WebsearchTool.getInstance());
                         builder.defaultToolAdd(CodeSearchTool.getInstance());
 
-                        if (agentRuntime.getProperties().isSubagentEnabled()) {
+                        if (agentRuntime.getProps().isSubagentEnabled()) {
                             builder.defaultSkillAdd(agentRuntime.getTaskSkill());
                         }
                         break;
@@ -136,16 +136,14 @@ public class AgentFactory {
 
 
                     case "mcp": {
-                        if (agentRuntime.getMcpProviders() != null) {
-                            for (McpClientProvider mcpProvider : agentRuntime.getMcpProviders().getProviders().values()) {
-                                builder.defaultToolAdd(mcpProvider);
-                            }
+                        if (agentRuntime.getMcpGatewaySkill() != null) {
+                            builder.defaultSkillAdd(agentRuntime.getMcpGatewaySkill());
                         }
                         break;
                     }
                     case "restapi": {
-                        if (agentRuntime.getRestApis() != null) {
-                            builder.defaultSkillAdd(agentRuntime.getRestApis());
+                        if (agentRuntime.getRestApiSkill() != null) {
+                            builder.defaultSkillAdd(agentRuntime.getRestApiSkill());
                         }
                     }
                     case "generate": {
