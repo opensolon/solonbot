@@ -90,9 +90,10 @@ public class AgentManager {
      */
     public void clear() {
         agentMap.clear();
+        pathCached.clear();
     }
 
-    private Set<Path> pathCached = new HashSet<>();
+    private final Set<Path> pathCached = new HashSet<>();
     /**
      * 注册自定义 agents 池
      *
