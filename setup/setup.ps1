@@ -62,20 +62,21 @@ try {
     
     if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
         Write-Error "Installer failed with exit code: $LASTEXITCODE"
-        Write-Host ""
-        Write-Host "Press any key to exit..." -ForegroundColor Yellow
-        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-        exit 1
+        throw "Installation failed"
     }
 
+    # Refresh PATH for current session
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $env:Path = $env:Path.TrimEnd(';')
+
     Write-Host ""
-    Write-Host "Press any key to exit..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    Write-Info "Installation complete!"
+    Write-Host ""
+    Write-Host "You can now run: " -NoNewline
+    Write-Host "soloncode" -ForegroundColor Cyan
+    Write-Host ""
 
 } catch {
     Write-Error $_.Exception.Message
-    Write-Host ""
-    Write-Host "Press any key to exit..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-    exit 1
+    throw $_
 }
