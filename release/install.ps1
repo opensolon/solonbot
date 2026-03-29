@@ -1,4 +1,4 @@
-﻿#
+#
 # Solon Code Installer for Windows PowerShell
 # 支持重复安装，保留已有 config.yml
 #
@@ -24,9 +24,18 @@ if (-not $javaPath) {
     Read-Host "Press Enter to exit"
     exit 1
 }
-# 获取 Java 版本
-$javaVersion = & java -version 2>&1 | Select-String -Pattern "version" | Select-Object -First 1
-Write-Host "      Java $javaVersion" -ForegroundColor Gray
+# 获取 Java 版本 (java -version 输出到 stderr，使用 .NET 进程避免 PowerShell 错误显示)
+$process = New-Object System.Diagnostics.Process
+$process.StartInfo.FileName = "java"
+$process.StartInfo.Arguments = "-version"
+$process.StartInfo.RedirectStandardError = $true
+$process.StartInfo.RedirectStandardOutput = $true
+$process.StartInfo.UseShellExecute = $false
+$process.Start() | Out-Null
+$javaVersionOutput = $process.StandardError.ReadToEnd()
+$process.WaitForExit()
+$javaVersion = ($javaVersionOutput -split "`n" | Where-Object { $_ -match "version" } | Select-Object -First 1).Trim()
+Write-Host "      $javaVersion" -ForegroundColor Gray
 Write-Host ""
 # =============================================
 # 设置源目录和目标目录
