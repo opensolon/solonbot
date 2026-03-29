@@ -25,6 +25,14 @@
             <includes>
                 <include>install.sh</include>
                 <include>install.ps1</include>
+            </includes>
+        </fileSet>
+
+        <fileSet>
+            <directory>${project.basedir}/../release/bin</directory>
+            <outputDirectory>./bin</outputDirectory>
+            <fileMode>0755</fileMode>
+            <includes>
                 <include>uninstall.sh</include>
                 <include>uninstall.ps1</include>
             </includes>
