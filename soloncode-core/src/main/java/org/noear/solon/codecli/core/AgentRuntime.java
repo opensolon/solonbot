@@ -48,6 +48,7 @@ public class AgentRuntime {
 
     public final static String ATTR_CWD = "__cwd";
 
+    public final static String SOLONCODE_CONFIG = ".soloncode/bin/config.yml";
     public final static String SOLONCODE_SESSIONS = ".soloncode/sessions/";
     public final static String SOLONCODE_SKILLS = ".soloncode/skills/";
     public final static String SOLONCODE_AGENTS = ".soloncode/agents/";

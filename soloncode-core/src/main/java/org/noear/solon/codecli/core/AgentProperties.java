@@ -5,8 +5,14 @@ import lombok.Setter;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
 import org.noear.solon.ai.skills.restapi.ApiSource;
+import org.noear.solon.core.util.ResourceUtil;
 
 import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -56,5 +62,34 @@ public class AgentProperties implements Serializable {
      */
     public static String getUserHome() {
         return System.getProperty("user.home");
+    }
+
+    public static URL getConfigUrl() throws MalformedURLException {
+        //1. 资源文件（一般开发时）
+        URL tmp = ResourceUtil.getResource("config.yml");
+        if (tmp != null) {
+            return tmp;
+        }
+
+        //2. 工作区配置
+        Path path = Paths.get(AgentProperties.getUserDir(), AgentRuntime.SOLONCODE_CONFIG);
+        if (Files.exists(path)) {
+            return path.toUri().toURL();
+        }
+
+        //3. 用户目录区配置
+        path = Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_CONFIG);
+
+        if (Files.exists(path)) {
+            return path.toUri().toURL();
+        }
+
+        //4. 程序边上的配置文件
+        tmp = ResourceUtil.getResourceByFile("config.yml");
+        if (tmp != null) {
+            return tmp;
+        }
+
+        return null;
     }
 }
