@@ -138,4 +138,4 @@ Write-Host "  [Note] Please restart your terminal for" -ForegroundColor Yellow
 Write-Host "         PATH changes to take effect." -ForegroundColor Yellow
 Write-Host ""
 
-Read-Host "Press Enter to exit"
+Read-Host "Press Enter to exit"
