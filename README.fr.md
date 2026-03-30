@@ -71,6 +71,7 @@ Si vous utilisez « soloncode » dans le nom de votre projet (par exemple, « so
 Ils sont fonctionnellement similaires, avec des différences clés :
 
 * Construit avec Java, 100% open-source.
+* Entièrement piloté et construit par des prompts en chinois
 * Indépendant du fournisseur. Nécessite une configuration du modèle. L'itération des modèles réduira les écarts et les coûts, rendant l'approche indépendante du fournisseur importante.
 * Concentré sur l'interface en ligne de commande (CLI) du terminal, s'exécutant via la ligne de commande.
 * Prend en charge Web, le protocole ACP pour la communication à distance.

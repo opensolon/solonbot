@@ -71,6 +71,7 @@ Wenn Sie "soloncode" in Ihrem Projektnamen verwenden (z.B. "soloncode-dashboard"
 Sie sind funktionell ähnlich, mit folgenden wesentlichen Unterschieden:
 
 * Mit Java entwickelt, 100% Open-Source.
+* Rein chinesisch Prompt-gesteuert und gebaut
 * Anbieterunabhängig. Erfordert Modellkonfiguration. Die Modelliteration wird Lücken schließen und Kosten senken, was den anbieterunabhängigen Ansatz wichtig macht.
 * Fokussiert auf Terminal-Kommandozeilenschnittstelle (CLI), läuft über die Befehlszeile.
 * Unterstützt Web, ACP-Protokoll zur Fernkommunikation.

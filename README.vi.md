@@ -71,6 +71,7 @@ Nếu bạn sử dụng "soloncode" trong tên dự án của mình (ví dụ: "
 Về mặt chức năng, chúng tương tự nhau, với các điểm khác biệt chính:
 
 * Được xây dựng bằng Java, 100% mã nguồn mở.
+* Hoàn toàn được điều khiển và xây dựng bằng prompt tiếng Trung
 * Không phụ thuộc vào nhà cung cấp. Yêu cầu cấu hình mô hình. Việc lặp lại mô hình sẽ thu hẹp khoảng cách và giảm chi phí, khiến phương pháp không phụ thuộc nhà cung cấp trở nên quan trọng.
 * Tập trung vào giao diện dòng lệnh terminal (CLI), chạy thông qua dòng lệnh.
 * Hỗ trợ Web, giao thức ACP để giao tiếp từ xa.

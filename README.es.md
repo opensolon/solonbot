@@ -71,6 +71,7 @@ Si utiliza "soloncode" en el nombre de su proyecto (por ejemplo, "soloncode-dash
 Son funcionalmente similares, con las siguientes diferencias clave:
 
 * Desarrollado con Java, 100% de código abierto.
+* Completamente impulsado y construido con prompts en chino
 * Agnóstico del proveedor. Requiere configuración del modelo. La iteración de modelos reducirá brechas y costos, haciendo importante el enfoque agnóstico del proveedor.
 * Enfocado en la interfaz de línea de comandos (CLI) del terminal, ejecutándose mediante línea de comandos.
 * Compatible con Web, protocolo ACP para comunicación remota.

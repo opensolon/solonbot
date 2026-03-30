@@ -71,6 +71,7 @@ Proje adınızda "soloncode" kullanıyorsanız (örneğin "soloncode-dashboard" 
 İşlevsel olarak benzerdirler, temel farklar şunlardır:
 
 * Java ile oluşturulmuş, %100 açık kaynaklıdır.
+* Tamamen Çince promptlarla yönetilir ve oluşturulur
 * Sağlayıcıdan bağımsızdır. Model yapılandırması gerektirir. Model yinelemeleri boşlukları daraltacak ve maliyetleri azaltacaktır, bu da sağlayıcıdan bağımsız yaklaşımı önemli kılar.
 * Terminal komut satırı arayüzüne (CLI) odaklanmıştır, komut satırı üzerinden çalışır.
 * Web, uzaktan iletişim için ACP protokolünü destekler.
