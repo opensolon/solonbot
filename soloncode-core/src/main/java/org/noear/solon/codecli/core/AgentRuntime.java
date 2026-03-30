@@ -56,6 +56,7 @@ public class AgentRuntime {
     public final static String SOLONCODE_AGENTS = SOLONCODE + "agents/";
     public final static String SOLONCODE_MEMORY = SOLONCODE + "memory/";
 
+    public final static String SKILLHUB_SKILLS = ".skillhub/skills/";
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
 
@@ -165,20 +166,21 @@ public class AgentRuntime {
             throw new RuntimeException("Mcp servers load failure", e);
         }
 
-        if (Assert.isNotEmpty(properties.getSkillPools())) {
-            properties.getSkillPools().forEach((alias, dir) -> {
-                cliSkills.skillPool(alias, dir);
-            });
-        }
-
         cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
 
         cliSkills.skillPool("@global", Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@skillhub", Paths.get(AgentProperties.getUserHome(), AgentRuntime.SKILLHUB_SKILLS));
         cliSkills.skillPool("@local", Paths.get(properties.getWorkDir(), "skills"));
 
         cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_SKILLS));
         cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
         cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
+
+        if (Assert.isNotEmpty(properties.getSkillPools())) {
+            properties.getSkillPools().forEach((alias, dir) -> {
+                cliSkills.skillPool(alias, dir);
+            });
+        }
 
         agentManager = new AgentManager();
         agentManager.agentPool(Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_AGENTS)); //global
