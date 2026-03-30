@@ -1,7 +1,7 @@
 
 ### v2026.4.1
 
-* 完成 soloncode-cli 命令化改造（重要）
+* 完成 soloncode-cli “系统命令”化改造（重要）
 * 添加 soloncode-code AgentRuntime.createSubagent 方法
 * 添加 soloncode-cli `soloncode run xxx` 脚本命令运行支持
 * 优化 soloncode-code cwd 动态传递
