@@ -1,0 +1,13 @@
+.side-panel {
+  height: 100%;
+  background-color: var(--cb-vscode-sideBar-background);
+  border-right: 1px solid var(--cb-vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.side-panel.collapsed {
+  display: none;
+}

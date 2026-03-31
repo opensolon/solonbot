@@ -1,0 +1,213 @@
+.git-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-action {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background-color 0.15s;
+}
+
+.panel-action:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.branch-info {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 6px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  background-color: var(--cb-vscode-sideBar-background);
+}
+
+.branch-icon {
+  font-size: 14px;
+}
+
+.branch-name {
+  font-size: 13px;
+  color: var(--cb-text-primary);
+  font-weight: 500;
+}
+
+.branch-ahead,
+.branch-behind {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: var(--cb-vscode-input-background);
+  color: var(--cb-text-secondary);
+}
+
+.commit-area {
+  padding: 8px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.commit-input {
+  width: 100%;
+  padding: 8px;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  color: var(--cb-text-primary);
+  font-size: 13px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.commit-input:focus {
+  border-color: var(--cb-accent);
+}
+
+.commit-input::placeholder {
+  color: var(--cb-text-secondary);
+}
+
+.commit-button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background-color: var(--cb-accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.commit-button:hover:not(:disabled) {
+  background-color: var(--cb-accent-light);
+}
+
+.commit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.git-files {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.file-group {
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cb-text-secondary);
+  text-transform: uppercase;
+}
+
+.group-count {
+  background-color: var(--cb-vscode-input-background);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.git-file-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.git-file-item:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.status-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-right: 8px;
+  min-width: 14px;
+  text-align: center;
+}
+
+.status-badge.modified {
+  color: #e2c08d;
+  background-color: rgba(226, 192, 141, 0.2);
+}
+
+.status-badge.added {
+  color: #89d185;
+  background-color: rgba(137, 209, 133, 0.2);
+}
+
+.status-badge.deleted {
+  color: #c74e39;
+  background-color: rgba(199, 78, 57, 0.2);
+}
+
+.status-badge.untracked {
+  color: var(--cb-text-secondary);
+  background-color: var(--cb-vscode-input-background);
+}
+
+.file-path {
+  flex: 1;
+  font-size: 13px;
+  color: var(--cb-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-btn,
+.unstage-btn {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  color: var(--cb-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.git-file-item:hover .stage-btn,
+.git-file-item:hover .unstage-btn {
+  opacity: 1;
+}
+
+.stage-btn:hover,
+.unstage-btn:hover {
+  background-color: var(--cb-accent);
+  border-color: var(--cb-accent);
+  color: white;
+}

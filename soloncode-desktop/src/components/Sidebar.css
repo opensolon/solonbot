@@ -1,0 +1,51 @@
+.sidebar {
+  width: 280px;
+  background-color: var(--cb-vscode-sideBar-background);
+  border-right: 1px solid var(--cb-vscode-panel-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.sidebar-top {
+  padding: 12px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn,
+.plugin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 10px 12px;
+  background-color: var(--cb-vscode-input-background);
+  color: var(--cb-text-primary);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover,
+.plugin-btn:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+  border-color: var(--cb-accent);
+}
+
+.plugin-btn.active {
+  background-color: var(--cb-accent);
+  color: white;
+  border-color: var(--cb-accent-light);
+}
+
+.action-btn svg,
+.plugin-btn svg {
+  flex-shrink: 0;
+}

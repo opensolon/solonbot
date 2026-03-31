@@ -1,0 +1,112 @@
+.search-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-input-container {
+  padding: 8px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  color: var(--cb-text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-input:focus {
+  border-color: var(--cb-accent);
+}
+
+.search-input::placeholder {
+  color: var(--cb-text-secondary);
+}
+
+.search-options {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.search-option {
+  padding: 2px 8px;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  color: var(--cb-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.search-option:hover {
+  color: var(--cb-text-primary);
+}
+
+.search-option.active {
+  background-color: var(--cb-accent);
+  border-color: var(--cb-accent);
+  color: white;
+}
+
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.search-loading,
+.no-results {
+  padding: 16px;
+  text-align: center;
+  color: var(--cb-text-secondary);
+  font-size: 13px;
+}
+
+.results-header {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--cb-text-secondary);
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.search-result-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.search-result-item:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.result-file {
+  font-size: 12px;
+  color: var(--cb-text-primary);
+  margin-bottom: 2px;
+}
+
+.result-line {
+  display: flex;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.line-number {
+  color: var(--cb-text-secondary);
+  min-width: 30px;
+  margin-right: 8px;
+}
+
+.line-text {
+  color: var(--cb-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

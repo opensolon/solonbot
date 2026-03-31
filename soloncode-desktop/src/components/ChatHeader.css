@@ -1,0 +1,53 @@
+.chat-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  background-color: var(--cb-vscode-editor-background);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.chat-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--cb-text-primary);
+}
+
+.chat-status {
+  font-size: 12px;
+  color: var(--cb-text-secondary);
+  background-color: var(--cb-vscode-input-background);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.theme-toggle-btn {
+  width: 36px;
+  height: 36px;
+  background-color: var(--cb-vscode-input-background);
+  color: var(--cb-text-primary);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+  border-color: var(--cb-accent);
+}
+
+.theme-toggle-btn svg {
+  color: var(--cb-text-primary);
+  transition: transform 0.3s;
+}
+
+.theme-toggle-btn:hover svg {
+  transform: rotate(180deg);
+}

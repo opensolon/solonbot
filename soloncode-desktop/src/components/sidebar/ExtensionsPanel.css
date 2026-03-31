@@ -1,0 +1,176 @@
+.extensions-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-container {
+  padding: 8px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  color: var(--cb-text-primary);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  border-color: var(--cb-accent);
+}
+
+.search-input::placeholder {
+  color: var(--cb-text-secondary);
+}
+
+.extensions-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.extension-group {
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.extension-item {
+  display: flex;
+  padding: 10px 12px;
+  gap: 10px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.extension-item:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.extension-icon {
+  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--cb-vscode-input-background);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.extension-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.extension-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cb-text-primary);
+  margin-bottom: 2px;
+}
+
+.extension-desc {
+  font-size: 12px;
+  color: var(--cb-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.extension-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cb-text-secondary);
+}
+
+.extension-author {
+  color: var(--cb-accent);
+}
+
+.extension-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.toggle-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid var(--cb-vscode-widget-border);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cb-text-secondary);
+  transition: all 0.15s;
+}
+
+.toggle-btn.enabled {
+  background-color: var(--cb-success);
+  border-color: var(--cb-success);
+  color: white;
+}
+
+.toggle-btn:hover {
+  border-color: var(--cb-accent);
+}
+
+.install-btn {
+  padding: 4px 12px;
+  background-color: var(--cb-accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.install-btn:hover {
+  background-color: var(--cb-accent-light);
+}
+
+.uninstall-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.uninstall-btn:hover {
+  opacity: 1;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 13px;
+  color: var(--cb-text-secondary);
+}
