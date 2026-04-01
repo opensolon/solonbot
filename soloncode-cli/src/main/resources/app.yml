@@ -1,3 +1,6 @@
+solon.app:
+  name: "soloncode"
+
 solon.logging.appender:
   console:
     enable: false
