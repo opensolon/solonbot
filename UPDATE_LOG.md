@@ -1,4 +1,11 @@
 
+### v2026.4.5
+
+* 添加 soloncode-cli pid 打印
+* 添加 soloncode-cli skillhub 自动索引
+* 优化 soloncode-cli edit 失败时的提示细节
+* 升级 jansi 版本，在 java25 下不会有警告了
+
 ### v2026.4.1
 
 * 完成 soloncode-cli “系统命令”化改造（重要）
