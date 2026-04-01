@@ -20,7 +20,6 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
-import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
@@ -78,29 +77,32 @@ public class WebSocketGate extends SimpleWebSocketListener {
         try {
             // 解析请求
             ONode req = ONode.ofJson(text);
-            String input = req.get("input").getString();
-            String sessionId = req.get("sessionId").getString();
-            String sessionCwd = req.get("cwd").getString();
+            String input = req.get("input") != null ? req.get("input").getString() : null;
+            String sessionId = req.get("sessionId") != null ? req.get("sessionId").getString() : null;
+            String sessionCwd = req.get("cwd") != null ? req.get("cwd").getString() : null;
 
             if (Assert.isEmpty(sessionId)) {
                 sessionId = "ws_" + System.currentTimeMillis();
+                // 及时通知客户端自动生成的 sessionId
+                socket.send(new ONode().set("type", "session")
+                        .set("sessionId", sessionId)
+                        .toJson());
             }
 
             // 验证 sessionId
             if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
-                socket.send("{\"type\":\"error\",\"text\":\"Invalid Session ID\"}");
+                socket.send(new ONode().set("type", "error")
+                        .set("text", "Invalid Session ID").toJson());
                 return;
             }
 
             // 验证 cwd
             if (Assert.isNotEmpty(sessionCwd)) {
                 if (sessionCwd.contains("..")) {
-                    socket.send("{\"type\":\"error\",\"text\":\"Invalid Session Cwd\"}");
+                    socket.send(new ONode().set("type", "error")
+                            .set("text", "Invalid Session Cwd").toJson());
                     return;
                 }
-
-                AgentSession session = kernel.getSession(sessionId);
-                session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, sessionCwd);
             }
 
             if (Assert.isEmpty(input)) {
@@ -116,7 +118,18 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
             // 流式处理
             final String finalSessionId = sessionId;
-            Flux<String> stringFlux = kernel.stream(sessionId, Prompt.of(input))
+            AgentSession session = kernel.getSession(sessionId);
+            if (Assert.isNotEmpty(sessionCwd)) {
+                session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, sessionCwd);
+            }
+
+            Flux<String> stringFlux = kernel.getRootAgent()
+                    .prompt(input)
+                    .session(session)
+                    .options(o -> {
+                        o.toolContextPut(AgentRuntime.ATTR_CWD, session.attrs().get(AgentRuntime.ATTR_CWD));
+                    })
+                    .stream()
                     .map(chunk -> {
                         String chunkType = chunk.getClass().getSimpleName();
                         LOG.debug("[WS] chunk: type={}, hasContent={}, isNormal={}",
@@ -208,7 +221,9 @@ public class WebSocketGate extends SimpleWebSocketListener {
             });
 
         } catch (Exception e) {
-            socket.send("{\"type\":\"error\",\"text\":\"" + e.getMessage().replace("\"", "\\\"") + "\"}");
+            String errorMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            socket.send(new ONode().set("type", "error")
+                    .set("text", errorMsg).toJson());
         }
     }
 }

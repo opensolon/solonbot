@@ -21,7 +21,7 @@ export interface ChatMessagesRef {
 function ContentItemRenderer({ item, theme }: { item: ContentItem; theme?: Theme }) {
   // 思考内容
   if (item.type === 'think') {
-    return <ThinkBlock content={item.text} />;
+    return <ThinkBlock content={item.text} theme={theme} />;
   }
 
   // 工具执行结果
