@@ -3,3 +3,4 @@ solon.logging.appender:
     enable: false
   file:
     level: DEBUG
+    name: ".soloncode/logs/${solon.app.name}"
