@@ -83,7 +83,7 @@ public class AgentRuntime {
     private AgentManager agentManager;
 
     public String getVersion() {
-        return "v2026.4.1";
+        return "v2026.4.5";
     }
 
     public String getName() {
