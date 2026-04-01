@@ -1,37 +1,47 @@
 package org.noear.solon.codecli.core;
 
+import org.noear.solon.ai.agent.AgentChunk;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActAgentExtension;
+import org.noear.solon.ai.agent.react.ReActRequest;
 import org.noear.solon.ai.agent.react.intercept.HITLInterceptor;
 import org.noear.solon.ai.agent.react.intercept.SummarizationInterceptor;
 import org.noear.solon.ai.agent.react.intercept.SummarizationStrategy;
-import org.noear.solon.ai.agent.react.intercept.summarize.*;
+import org.noear.solon.ai.agent.react.intercept.summarize.CompositeSummarizationStrategy;
+import org.noear.solon.ai.agent.react.intercept.summarize.HierarchicalSummarizationStrategy;
+import org.noear.solon.ai.agent.react.intercept.summarize.KeyInfoExtractionStrategy;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.mcp.client.McpClientProvider;
+import org.noear.solon.ai.mcp.client.McpProviders;
 import org.noear.solon.ai.skills.cli.CliSkillProvider;
 import org.noear.solon.ai.skills.cli.TodoSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
 import org.noear.solon.ai.skills.toolgateway.ToolGatewaySkill;
-import org.noear.solon.codecli.core.agent.*;
-import org.noear.solon.ai.mcp.client.McpProviders;
+import org.noear.solon.codecli.core.agent.AgentDefinition;
+import org.noear.solon.codecli.core.agent.AgentFactory;
+import org.noear.solon.codecli.core.agent.AgentManager;
+import org.noear.solon.codecli.core.agent.GenerateTool;
+import org.noear.solon.codecli.core.agent.TaskSkill;
 import org.noear.solon.codecli.core.code.CodeSkill;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.IoUtil;
-import org.noear.solon.core.util.ResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.*;
+import java.net.*;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * 智能体运行时
@@ -39,27 +49,20 @@ import java.util.*;
  * @author noear
  */
 public class AgentRuntime {
-    private final static Logger LOG = LoggerFactory.getLogger(AgentRuntime.class);
-
     public final static String ATTR_CWD = "__cwd";
-
     public final static String NAME_AGENTS = "AGENTS.md";
     public final static String NAME_CONFIG = "config.yml";
-
     public final static String SESSION_DEFAULT = "default";
-
     public final static String SOLONCODE = ".soloncode/";
     public final static String SOLONCODE_BIN = SOLONCODE + "bin/";
-
     public final static String SOLONCODE_SESSIONS = SOLONCODE + "sessions/";
     public final static String SOLONCODE_SKILLS = SOLONCODE + "skills/";
     public final static String SOLONCODE_AGENTS = SOLONCODE + "agents/";
     public final static String SOLONCODE_MEMORY = SOLONCODE + "memory/";
-
     public final static String SKILLHUB_SKILLS = ".skillhub/skills/";
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
-
+    private final static Logger LOG = LoggerFactory.getLogger(AgentRuntime.class);
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
     private final AgentProperties properties;
@@ -81,62 +84,6 @@ public class AgentRuntime {
 
 
     private AgentManager agentManager;
-
-    public String getVersion() {
-        return "v2026.4.5";
-    }
-
-    public String getName() {
-        return rootAgent.name();
-    }
-
-    public AgentProperties getProps() {
-        return properties;
-    }
-
-    public ChatModel getChatModel() {
-        return chatModel;
-    }
-
-    public AgentManager getAgentManager() {
-        return agentManager;
-    }
-
-    public SummarizationInterceptor getSummarizationInterceptor() {
-        return summarizationInterceptor;
-    }
-
-    public HITLInterceptor getHitlInterceptor() {
-        return hitlInterceptor;
-    }
-
-    public CliSkillProvider getCliSkills() {
-        return cliSkills;
-    }
-
-    public TodoSkill getTodoSkill() {
-        return todoSkill;
-    }
-
-    public TaskSkill getTaskSkill() {
-        return taskSkill;
-    }
-
-    public CodeSkill getCodeSkill() {
-        return codeSkill;
-    }
-
-    public GenerateTool getGenerateTool() {
-        return generateTool;
-    }
-
-    public ToolGatewaySkill getMcpGatewaySkill() {
-        return mcpGatewaySkill;
-    }
-
-    public RestApiSkill getRestApiSkill() {
-        return restApiSkill;
-    }
 
     private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
         this.chatModel = chatModel;
@@ -223,6 +170,65 @@ public class AgentRuntime {
         rootAgent = agentBuilder.build();
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public String getVersion() {
+        return "v2026.4.5";
+    }
+
+    public String getName() {
+        return rootAgent.name();
+    }
+
+    public AgentProperties getProps() {
+        return properties;
+    }
+
+    public ChatModel getChatModel() {
+        return chatModel;
+    }
+
+    public AgentManager getAgentManager() {
+        return agentManager;
+    }
+
+    public SummarizationInterceptor getSummarizationInterceptor() {
+        return summarizationInterceptor;
+    }
+
+    public HITLInterceptor getHitlInterceptor() {
+        return hitlInterceptor;
+    }
+
+    public CliSkillProvider getCliSkills() {
+        return cliSkills;
+    }
+
+    public TodoSkill getTodoSkill() {
+        return todoSkill;
+    }
+
+    public TaskSkill getTaskSkill() {
+        return taskSkill;
+    }
+
+    public CodeSkill getCodeSkill() {
+        return codeSkill;
+    }
+
+    public GenerateTool getGenerateTool() {
+        return generateTool;
+    }
+
+    public ToolGatewaySkill getMcpGatewaySkill() {
+        return mcpGatewaySkill;
+    }
+
+    public RestApiSkill getRestApiSkill() {
+        return restApiSkill;
+    }
 
     public AgentSession getSession(String instanceId) {
         return sessionProvider.getSession(instanceId);
@@ -258,8 +264,25 @@ public class AgentRuntime {
         return null;
     }
 
-    public static Builder builder() {
-        return new Builder();
+    private ReActRequest buildRequest(String sessonId, Prompt prompt) {
+        if (sessonId == null) {
+            sessonId = SESSION_DEFAULT;
+        }
+
+        AgentSession session = sessionProvider.getSession(sessonId);
+        String activatedWorkDir = (String) session.attrs()
+            .getOrDefault(ATTR_CWD, properties.getWorkDir());
+
+        return rootAgent.prompt(prompt)
+            .session(session)
+            .options(o -> {
+                o.toolContextPut(AgentRuntime.ATTR_CWD, activatedWorkDir);
+            });
+    }
+
+    public Flux<AgentChunk> stream(String sessionId, Prompt prompt) {
+        return buildRequest(sessionId, prompt)
+            .stream();
     }
 
     public static class Builder {

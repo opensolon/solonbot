@@ -27,11 +27,11 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.portal.AcpLink;
-import org.noear.solon.codecli.portal.CliShellNew;
 import org.noear.solon.codecli.portal.CliShellOld;
 import org.noear.solon.codecli.portal.WebGate;
+import org.noear.solon.codecli.portal.ui.CliShellNew;
 
-import java.net.URL;
+import java.net.*;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

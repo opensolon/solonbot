@@ -9,6 +9,9 @@
  */
 package org.noear.solon.codecli.portal.ui;
 
+import org.noear.solon.codecli.portal.ui.theme.PortalTheme;
+import org.noear.solon.codecli.portal.ui.theme.PortalThemes;
+
 /**
  * 流式 Markdown 渲染器 — 接收逐字符/逐 token 输入，输出 ANSI 彩色终端文本
  *
@@ -32,20 +35,20 @@ public class MarkdownRenderer {
     private static final String RESET = "\033[0m";
     private static final String ITALIC = "\033[3m";
 
-    // 颜色
-    private static final String C_HEADER = "\033[1;38;2;255;125;144m";
-    private static final String C_CODE_INLINE = "\033[38;2;232;194;122m";
-    private static final String C_CODE_BLOCK = "\033[38;2;165;214;132m";
-    private static final String C_CODE_BORDER = "\033[38;2;60;65;75m";
-    private static final String C_CODE_LANG = "\033[2;38;2;114;123;137m";
-    private static final String C_BOLD = "\033[1;38;2;243;245;247m";
-    private static final String C_LIST_BULLET = "\033[38;2;255;125;144m";
-    private static final String C_LIST_NUM = "\033[38;2;130;170;255m";
-    private static final String C_BLOCKQUOTE = "\033[38;2;114;123;137m";
-    private static final String C_HR = "\033[38;2;60;65;75m";
-    private static final String C_STRIKE = "\033[9;38;2;114;123;137m";
-    private static final String C_TABLE_BORDER = "\033[38;2;80;90;110m";
-    private static final String C_TABLE_HEADER = "\033[1;38;2;200;210;220m";
+    private PortalTheme theme = PortalThemes.defaultTheme();
+    private String cHeader = theme.markdownHeader().ansiBoldFg();
+    private String cCodeInline = theme.markdownInlineCode().ansiFg();
+    private String cCodeBlock = theme.markdownCodeText().ansiFg();
+    private String cCodeBorder = theme.markdownCodeBorder().ansiFg();
+    private String cCodeLang = theme.textMuted().ansiDimFg();
+    private String cBold = theme.markdownBold().ansiBoldFg();
+    private String cListBullet = theme.markdownListBullet().ansiFg();
+    private String cListNum = theme.markdownListNumber().ansiFg();
+    private String cBlockquote = theme.markdownBlockquote().ansiFg();
+    private String cHr = theme.markdownRule().ansiFg();
+    private String cStrike = theme.textMuted().ansiStyledFg("9");
+    private String cTableBorder = theme.tableBorder().ansiFg();
+    private String cTableHeader = theme.tableHeader().ansiBoldFg();
 
     // ── 渲染状态 ──
     private enum State {
@@ -85,6 +88,23 @@ public class MarkdownRenderer {
 
     public MarkdownRenderer(LineOutput output) {
         this.output = output;
+    }
+
+    public void setTheme(PortalTheme theme) {
+        this.theme = theme == null ? PortalThemes.defaultTheme() : theme;
+        this.cHeader = this.theme.markdownHeader().ansiBoldFg();
+        this.cCodeInline = this.theme.markdownInlineCode().ansiFg();
+        this.cCodeBlock = this.theme.markdownCodeText().ansiFg();
+        this.cCodeBorder = this.theme.markdownCodeBorder().ansiFg();
+        this.cCodeLang = this.theme.textMuted().ansiDimFg();
+        this.cBold = this.theme.markdownBold().ansiBoldFg();
+        this.cListBullet = this.theme.markdownListBullet().ansiFg();
+        this.cListNum = this.theme.markdownListNumber().ansiFg();
+        this.cBlockquote = this.theme.markdownBlockquote().ansiFg();
+        this.cHr = this.theme.markdownRule().ansiFg();
+        this.cStrike = this.theme.textMuted().ansiStyledFg("9");
+        this.cTableBorder = this.theme.tableBorder().ansiFg();
+        this.cTableHeader = this.theme.tableHeader().ansiBoldFg();
     }
 
     /** 重置状态（新的 AI 回复开始时调用） */
@@ -149,7 +169,7 @@ public class MarkdownRenderer {
             }
             if (ch == '>') {
                 state = State.IN_BLOCKQUOTE;
-                output.append("  " + C_BLOCKQUOTE + "│ " + RESET + C_BLOCKQUOTE);
+                output.append("  " + cBlockquote + "│ " + RESET + cBlockquote);
                 atLineStart = false;
                 return;
             }
@@ -167,7 +187,7 @@ public class MarkdownRenderer {
                 inTableRow = true;
                 isTableDivider = false;
                 output.append("  ");
-                output.append(C_TABLE_BORDER + "│" + RESET);
+                output.append(cTableBorder + "│" + RESET);
                 atLineStart = false;
                 return;
             }
@@ -205,7 +225,7 @@ public class MarkdownRenderer {
                 // 结束代码块
                 output.append(RESET);
                 output.flushLine();
-                output.append("  " + C_CODE_BORDER + "└" + repeatChar('─', 40) + RESET);
+                output.append("  " + cCodeBorder + "└" + repeatChar('─', 40) + RESET);
                 output.flushLine();
                 state = State.NORMAL;
                 atLineStart = true;
@@ -237,7 +257,7 @@ public class MarkdownRenderer {
                 state = State.NORMAL;
             } else if (state == State.NORMAL || state == State.IN_HEADER || state == State.IN_BLOCKQUOTE) {
                 state = State.IN_CODE_INLINE;
-                output.append(C_CODE_INLINE);
+                output.append(cCodeInline);
             }
             // buf 剩余字符（第2个字符开始）继续喂入
             for (int i = 1; i < buf.length(); i++) {
@@ -257,7 +277,7 @@ public class MarkdownRenderer {
                 state = State.NORMAL;
             } else if (state == State.NORMAL) {
                 state = State.IN_BOLD;
-                output.append(C_BOLD);
+                output.append(cBold);
             }
             // 第3个字符开始继续喂入
             for (int i = 2; i < buf.length(); i++) {
@@ -274,7 +294,7 @@ public class MarkdownRenderer {
             pendingBuf.setLength(0);
             if (atLineStart && buf.charAt(1) == ' ') {
                 // 无序列表符号
-                output.append("  " + C_LIST_BULLET + "• " + RESET);
+                output.append("  " + cListBullet + "• " + RESET);
                 atLineStart = false;
                 // 后续字符
                 for (int i = 2; i < buf.length(); i++) {
@@ -307,7 +327,7 @@ public class MarkdownRenderer {
                 while (level < buf.length() && buf.charAt(level) == '#')
                     level++;
                 state = State.IN_HEADER;
-                output.append("  " + C_HEADER);
+                output.append("  " + cHeader);
                 atLineStart = false;
                 // 跳过 # 和空格，输出标题内容
                 int start = level;
@@ -327,14 +347,14 @@ public class MarkdownRenderer {
         if (buf.equals("- ") || (buf.length() == 2 && buf.charAt(0) == '-' && buf.charAt(1) == ' ')) {
             pendingBuf.setLength(0);
             if (atLineStart) {
-                output.append("  " + C_LIST_BULLET + "• " + RESET);
+                output.append("  " + cListBullet + "• " + RESET);
                 atLineStart = false;
                 return true;
             }
         }
         if (buf.equals("---") || buf.equals("***") || buf.equals("___")) {
             pendingBuf.setLength(0);
-            output.append("  " + C_HR + repeatChar('─', 40) + RESET);
+            output.append("  " + cHr + repeatChar('─', 40) + RESET);
             output.flushLine();
             atLineStart = true;
             return true;
@@ -375,7 +395,7 @@ public class MarkdownRenderer {
                 state = State.NORMAL;
             } else if (state == State.NORMAL) {
                 state = State.IN_STRIKETHROUGH;
-                output.append(C_STRIKE);
+                output.append(cStrike);
             }
             for (int i = 2; i < buf.length(); i++) {
                 feedChar(buf.charAt(i));
@@ -400,7 +420,7 @@ public class MarkdownRenderer {
             if (atLineStart) {
                 // 提取数字部分
                 String num = buf.substring(0, buf.indexOf('.'));
-                output.append("  " + C_LIST_NUM + num + ". " + RESET);
+                output.append("  " + cListNum + num + ". " + RESET);
                 atLineStart = false;
                 return true;
             }
@@ -413,7 +433,7 @@ public class MarkdownRenderer {
                 if (atLineStart) {
                     int dotIdx = buf.indexOf('.');
                     String num = buf.substring(0, dotIdx);
-                    output.append("  " + C_LIST_NUM + num + ". " + RESET);
+                    output.append("  " + cListNum + num + ". " + RESET);
                     atLineStart = false;
                     for (int i = dotIdx + 2; i < buf.length(); i++) {
                         feedChar(buf.charAt(i));
@@ -450,7 +470,7 @@ public class MarkdownRenderer {
                 codeBlockCloseBuf.setLength(0);
                 output.append(RESET);
                 output.flushLine();
-                output.append("  " + C_CODE_BORDER + "└" + repeatChar('─', 40) + RESET);
+                output.append("  " + cCodeBorder + "└" + repeatChar('─', 40) + RESET);
                 output.flushLine();
                 state = State.NORMAL;
                 atLineStart = true;
@@ -473,8 +493,8 @@ public class MarkdownRenderer {
             if (codeBlockLang != null && !codeBlockLang.isEmpty()) {
                 // 第一个换行 — 输出代码块头
                 output.flushLine();
-                output.append("  " + C_CODE_BORDER + "┌" + repeatChar('─', 30)
-                        + " " + C_CODE_LANG + codeBlockLang + " " + C_CODE_BORDER + repeatChar('─', 9) + RESET);
+                output.append("  " + cCodeBorder + "┌" + repeatChar('─', 30)
+                        + " " + cCodeLang + codeBlockLang + " " + cCodeBorder + repeatChar('─', 9) + RESET);
                 output.flushLine();
                 codeBlockLang = null;
                 atLineStart = true;
@@ -484,7 +504,7 @@ public class MarkdownRenderer {
             if (codeBlockLang != null) {
                 // 空语言名 — 输出无语言标签的代码头
                 output.flushLine();
-                output.append("  " + C_CODE_BORDER + "┌" + repeatChar('─', 40) + RESET);
+                output.append("  " + cCodeBorder + "┌" + repeatChar('─', 40) + RESET);
                 output.flushLine();
                 codeBlockLang = null;
                 atLineStart = true;
@@ -494,7 +514,7 @@ public class MarkdownRenderer {
             // 正常代码行换行
             if (lineCharCount == 0) {
                 // 空行：仍需输出 │ 保持边框连续
-                output.append("  " + C_CODE_BORDER + "│" + RESET);
+                output.append("  " + cCodeBorder + "│" + RESET);
             }
             output.append(RESET);
             output.flushLine();
@@ -514,7 +534,7 @@ public class MarkdownRenderer {
 
     private void outputCodeBlockChar(char ch) {
         if (atLineStart || lineCharCount == 0) {
-            output.append("  " + C_CODE_BORDER + "│ " + RESET + C_CODE_BLOCK);
+            output.append("  " + cCodeBorder + "│ " + RESET + cCodeBlock);
             atLineStart = false; // ← 关键修复：设置为 false，后续字符不再加 │
             lineCharCount = 1;
         }
@@ -579,14 +599,14 @@ public class MarkdownRenderer {
 
         // 表格行内的 | 用边框色
         if (inTableRow && ch == '|') {
-            output.append(C_TABLE_BORDER + "│" + RESET);
+            output.append(cTableBorder + "│" + RESET);
             lineCharCount++;
             return;
         }
         // 表格分隔行检测: |---| 中的 - 和 :
         if (inTableRow && (ch == '-' || ch == ':')) {
             isTableDivider = true;
-            output.append(C_TABLE_BORDER + String.valueOf(ch) + RESET);
+            output.append(cTableBorder + String.valueOf(ch) + RESET);
             lineCharCount++;
             return;
         }
