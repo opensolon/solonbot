@@ -144,6 +144,10 @@ public class AgentFactory {
                         }
                         break;
                     }
+                    case "code": {
+                        builder.defaultSkillAdd(agentRuntime.getCodeSkill());
+                        break;
+                    }
                     case "mcp": {
                         if (agentRuntime.getMcpGatewaySkill() != null) {
                             builder.defaultSkillAdd(agentRuntime.getMcpGatewaySkill());
