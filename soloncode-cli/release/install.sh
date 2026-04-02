@@ -58,6 +58,8 @@ TARGET_SKILLS_DIR="$TARGET_DIR/skills"
 # 源目录
 SOURCE_BIN_DIR="$SOURCE_DIR/bin"
 SOURCE_SKILLS_DIR="$SOURCE_DIR/skills"
+SOURCE_CONFIG="$SOURCE_DIR/config.yml"
+SOURCE_AGENTS="$SOURCE_DIR/AGENTS.md"
 
 # =============================================
 # 检查源目录是否存在
@@ -68,14 +70,28 @@ if [ ! -d "$SOURCE_BIN_DIR" ]; then
 fi
 
 # =============================================
-# [1/5] 检查并备份已有的 config.yml 和 AGENTS.md
+# [1/5] 检查并备份已有的 config.yml 和 AGENTS.md，并迁移旧版本文件
 # =============================================
 echo "[1/5] Checking for existing configuration..."
 CONFIG_BACKUP=""
 AGENTS_BACKUP=""
-TARGET_CONFIG="$TARGET_BIN_DIR/config.yml"
-TARGET_AGENTS="$TARGET_BIN_DIR/AGENTS.md"
+TARGET_CONFIG="$TARGET_DIR/config.yml"
+TARGET_AGENTS="$TARGET_DIR/AGENTS.md"
+OLD_TARGET_CONFIG="$TARGET_BIN_DIR/config.yml"
+OLD_TARGET_AGENTS="$TARGET_BIN_DIR/AGENTS.md"
 
+# 迁移旧版本的配置文件（从 bin/ 目录移动到根目录）
+if [ -f "$OLD_TARGET_CONFIG" ] && [ ! -f "$TARGET_CONFIG" ]; then
+    mv "$OLD_TARGET_CONFIG" "$TARGET_CONFIG"
+    echo "      Migrated config.yml from bin/ to root directory"
+fi
+
+if [ -f "$OLD_TARGET_AGENTS" ] && [ ! -f "$TARGET_AGENTS" ]; then
+    mv "$OLD_TARGET_AGENTS" "$TARGET_AGENTS"
+    echo "      Migrated AGENTS.md from bin/ to root directory"
+fi
+
+# 备份现有的配置文件
 if [ -f "$TARGET_CONFIG" ]; then
     CONFIG_BACKUP=$(mktemp)
     cp "$TARGET_CONFIG" "$CONFIG_BACKUP"
@@ -114,6 +130,17 @@ echo "[3/5] Copying files..."
 cp -R "$SOURCE_BIN_DIR/"* "$TARGET_BIN_DIR/" 2>/dev/null || true
 echo "      Copied bin/ directory"
 
+# 复制 config.yml 和 AGENTS.md（从根目录）
+if [ -f "$SOURCE_CONFIG" ]; then
+    cp "$SOURCE_CONFIG" "$TARGET_CONFIG" 2>/dev/null || true
+    echo "      Copied config.yml"
+fi
+
+if [ -f "$SOURCE_AGENTS" ]; then
+    cp "$SOURCE_AGENTS" "$TARGET_AGENTS" 2>/dev/null || true
+    echo "      Copied AGENTS.md"
+fi
+
 # 复制 skills 目录（覆盖更新）
 if [ -d "$SOURCE_SKILLS_DIR" ]; then
     # 如果目标 skills 目录存在，先删除再复制
@@ -142,6 +169,15 @@ if [ -n "$AGENTS_BACKUP" ]; then
     cp "$AGENTS_BACKUP" "$TARGET_AGENTS"
     rm -f "$AGENTS_BACKUP"
     echo "      Preserved existing AGENTS.md"
+fi
+
+# 清理旧位置的配置文件（如果还存在）
+if [ -f "$OLD_TARGET_CONFIG" ]; then
+    rm -f "$OLD_TARGET_CONFIG"
+fi
+
+if [ -f "$OLD_TARGET_AGENTS" ]; then
+    rm -f "$OLD_TARGET_AGENTS"
 fi
 
 # 检查 jar 文件是否存在
@@ -316,11 +352,11 @@ fi
 echo ""
 echo -e "  ${CYAN}Directory structure:${NC}"
 echo "    ~/.soloncode/"
-echo "    ├── bin/           (executables)"
+echo "    ├── config.yml      (configuration, preserved if exists)"
+echo "    ├── AGENTS.md       (agents config, preserved if exists)"
+echo "    ├── bin/            (executables)"
 echo "    │   ├── soloncode-cli.jar"
-echo "    │   ├── soloncode   (launcher)"
-echo "    │   └── config.yml  (configuration, preserved if exists)"
-echo "    │   └── AGENTS.md   (agents config, preserved if exists)"
+echo "    │   └── soloncode   (launcher)"
 echo "    └── skills/        (skill modules)"
 echo ""
 echo -e "  ${YELLOW}[Tip]${NC} To use soloncode immediately in current terminal:"
