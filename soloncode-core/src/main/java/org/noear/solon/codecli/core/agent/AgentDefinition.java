@@ -23,6 +23,30 @@ import java.util.Map;
  */
 public class AgentDefinition {
     public static final String AGENT_GENERAL = "general";
+
+    public static final String TOOL_HITL = "hitl";
+    public static final String TOOL_GENERATE = "generate";
+    public static final String TOOL_RESTAPI = "restapi";
+    public static final String TOOL_MCP = "mcp";
+
+    public static final String TOOL_CODESEARCH = "codesearch";
+    public static final String TOOL_WEBSEARCH = "websearch";
+    public static final String TOOL_WEBFETCH = "webfetch";
+    public static final String TOOL_TODO = "todo";
+    public static final String TOOL_SKILL = "skill";
+    public static final String TOOL_TASK = "task";
+
+    public static final String TOOL_BASH = "bash";
+    public static final String TOOL_LS = "ls";
+    public static final String TOOL_GREP = "grep";
+    public static final String TOOL_GLOB = "glob";
+    public static final String TOOL_EDIT = "edit";
+    public static final String TOOL_READ = "read";
+
+    public static final String TOOL_ALL_PUBC = "*"; //全部公有的
+    public static final String TOOL_ALL_FULL = "**"; // 全部（包括公有，私有）
+
+
     protected Metadata metadata = new Metadata();
     protected String systemPrompt;
 
