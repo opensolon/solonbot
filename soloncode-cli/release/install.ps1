@@ -272,6 +272,7 @@ Write-Host "  Directory structure:" -ForegroundColor Cyan
 Write-Host "    $env:USERPROFILE\.soloncode\"
 Write-Host "    +-- config.yml      (configuration, preserved)"
 Write-Host "    +-- AGENTS.md       (agents config, preserved)"
+Write-Host "    +-- uninstall.ps1  (uninstall script)"
 Write-Host "    +-- bin/            (executables)"
 Write-Host "    |   +-- soloncode-cli.jar"
 Write-Host "    |   +-- soloncode.ps1   (PowerShell launcher)"
