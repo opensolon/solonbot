@@ -18,6 +18,8 @@ interface EditorPanelProps {
   onFileClose: (path: string) => void;
   onContentChange: (path: string, content: string) => void;
   onFileSave: (path: string) => void;
+  onFileDelete?: (path: string) => void;
+  onFileRename?: (path: string) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -141,6 +143,23 @@ export function EditorPanel({
             </button>
           </div>
         ))}
+        <div className="editor-tabs-actions">
+          <button
+            className="tab-action-btn"
+            title="保存当前文件 (Ctrl+S)"
+            disabled={!activeFilePath}
+            onClick={() => activeFilePath && onFileSave(activeFilePath)}
+          >
+            <Icon name="save" size={14} />
+          </button>
+          <button
+            className="tab-action-btn"
+            title="关闭所有文件"
+            onClick={() => files.forEach(f => onFileClose(f.path))}
+          >
+            <Icon name="close" size={14} />
+          </button>
+        </div>
       </div>
 
       {activeFile && (

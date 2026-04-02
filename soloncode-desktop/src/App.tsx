@@ -14,6 +14,8 @@ import { ChatView } from './components/ChatView';
 import { fileService, type FileInfo } from './services/fileService';
 import { gitService, type GitStatus } from './services/gitService';
 import { settingsService } from './services/settingsService';
+import { backendService } from './services/backendService';
+import { setBackendPort as setChatBackendPort, setWorkspacePath as setChatWorkspacePath } from './components/ChatView';
 import { useFileWatcher } from './hooks/useFileWatcher';
 import type { Conversation, Plugin } from './types';
 import './App.css';
@@ -97,6 +99,14 @@ function App() {
 
   // Git 状态
   const [gitStatus, setGitStatus] = useState<GitStatus>(emptyGitStatus);
+
+  // 后端端口状态
+  const [backendPort, setBackendPortState] = useState<number | null>(null);
+
+  // 同步后端端口到 ChatView
+  useEffect(() => {
+    setChatBackendPort(backendPort);
+  }, [backendPort]);
 
   // 刷新 Git 状态
   const refreshGitStatus = useCallback(async () => {
@@ -362,23 +372,55 @@ function App() {
       const selectedPath = await fileService.openFolderDialog();
       console.log('[App] 选择的路径:', selectedPath);
       if (selectedPath) {
-        // 初始化工作区配置（创建 .soloncode/settings.json）
+        // 1. 清理旧工作区：停后端 → 断 WS → 重置状态
+        if (workspacePath) {
+          try {
+            await backendService.stop();
+          } catch (_) { /* ignore */ }
+          setChatBackendPort(null);
+          setChatWorkspacePath(null);
+          setBackendPortState(null);
+          setOpenFiles([]);
+          setActiveFilePath(null);
+          setGitStatus(emptyGitStatus);
+        }
+
+        // 2. 初始化工作区配置（创建 .soloncode/settings.json）
         await fileService.initWorkspaceConfig(selectedPath);
 
         const info = await fileService.getWorkspaceInfo(selectedPath);
         console.log('[App] 工作区信息:', info);
-        // 加载目录树，深度10层
+
+        // 3. 先设置工作区路径（WS 连接需要）
+        setWorkspacePath(selectedPath);
+        setChatWorkspacePath(selectedPath);
+        setWorkspaceName(info.name);
+
+        // 4. 启动后端 CLI 服务（异步，不阻塞）
+        backendService.start(selectedPath).then((port) => {
+          if (port) {
+            setBackendPortState(port);
+            setChatBackendPort(port);
+            console.log('[App] 后端已启动，端口:', port);
+          } else {
+            setBackendPortState(null);
+            console.warn('[App] 后端启动失败或 JAR 不存在，AI 功能不可用');
+          }
+        }).catch((err) => {
+          console.warn('[App] 后端启动异常:', err);
+          setBackendPortState(null);
+        });
+
+        // 5. 加载目录树
         const files = await fileService.listDirectoryTree(selectedPath, 10);
         console.log('[App] 加载文件树:', files, '数量:', files.length);
-        setWorkspacePath(selectedPath);
-        setWorkspaceName(info.name);
         setWorkspaceFiles(convertToFileTree(files));
         setActiveActivity('explorer');
       }
     } catch (err) {
       console.error('[App] 打开文件夹失败:', err);
     }
-  }, []);
+  }, [workspacePath]);
 
   // 刷新文件树
   const refreshFileTree = useCallback(async () => {
@@ -620,6 +662,7 @@ function App() {
           <ChatView
             currentConversation={currentConversation}
             plugins={plugins}
+            workspacePath={workspacePath || undefined}
           />
         </div>
       );

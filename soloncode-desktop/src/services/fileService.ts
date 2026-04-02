@@ -375,6 +375,33 @@ export const fileService = {
   },
 
   /**
+   * 启动后端 CLI 进程（通过 soloncode 命令）
+   */
+  async startBackend(workspacePath: string, port: number): Promise<number> {
+    if (!isTauriEnv()) {
+      console.log('[fileService] mock startBackend');
+      return 0;
+    }
+    return await invoke<number>('start_backend', { workspacePath, port });
+  },
+
+  /**
+   * 停止后端 CLI 进程
+   */
+  async stopBackend(): Promise<void> {
+    if (!isTauriEnv()) return;
+    await invoke('stop_backend');
+  },
+
+  /**
+   * 检查后端进程状态
+   */
+  async backendStatus(): Promise<boolean> {
+    if (!isTauriEnv()) return false;
+    return await invoke<boolean>('backend_status');
+  },
+
+  /**
    * 重命名文件或目录
    */
   async renameItem(oldPath: string, newPath: string): Promise<void> {

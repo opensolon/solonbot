@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { Theme } from '../types';
@@ -25,6 +26,7 @@ export function ThinkBlock({ content, theme }: ThinkBlockProps) {
       {isExpanded && (
         <div className="think-content">
           <ReactMarkdown
+            remarkPlugins={[remarkBreaks]}
             components={{
               code({ node, inline, className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || '');

@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Child, Command};
+use std::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -131,8 +132,8 @@ fn list_directory_tree(path: &str, max_depth: usize) -> Result<Vec<FileInfo>, St
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
 
-            // 跳过隐藏文件和常见忽略目录
-            if name.starts_with('.') || name == "node_modules" || name == "target" {
+            // 跳过常见忽略目录
+            if name == "node_modules" || name == "target" {
                 continue;
             }
 
@@ -518,6 +519,132 @@ fn move_item(source_path: &str, dest_path: &str) -> Result<(), String> {
     fs::rename(source_path, dest_path).map_err(|e| format!("移动失败: {}", e))
 }
 
+// ==================== 后端进程管理 ====================
+
+/// 全局后端进程句柄
+static BACKEND_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+
+/// 检查 soloncode 命令是否可用
+fn find_soloncode_command() -> Option<String> {
+    // Windows: 检查 ~/.soloncode/bin/soloncode.ps1
+    if cfg!(windows) {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            let ps1 = Path::new(&home).join(".soloncode").join("bin").join("soloncode.ps1");
+            if ps1.exists() {
+                return Some(ps1.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // 通用: 尝试 which/where 查找
+    let check = Command::new(if cfg!(windows) { "where" } else { "which" })
+        .arg("soloncode")
+        .output();
+
+    if let Ok(output) = check {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Some(path.lines().next().unwrap_or(&path).to_string());
+            }
+        }
+    }
+
+    None
+}
+
+/// 启动后端 CLI 进程
+#[tauri::command]
+fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
+    // 先停止已有进程
+    stop_backend()?;
+
+    // 查找 soloncode 命令
+    let soloncode_cmd = find_soloncode_command()
+        .ok_or("未找到 soloncode 命令。请先运行 setup.ps1 安装 SolonCode CLI。")?;
+
+    // 确保工作区 .soloncode 目录存在
+    let soloncode_dir = Path::new(workspace_path).join(".soloncode");
+    if !soloncode_dir.exists() {
+        fs::create_dir_all(&soloncode_dir)
+            .map_err(|e| format!("创建 .soloncode 目录失败: {}", e))?;
+    }
+
+    // 日志文件
+    let log_path = soloncode_dir.join("cli.log");
+    let log_file = fs::File::create(&log_path)
+        .map_err(|e| format!("创建日志文件失败: {}", e))?;
+    let log_file_clone = log_file.try_clone()
+        .map_err(|e| format!("复制文件句柄失败: {}", e))?;
+
+    let child = if cfg!(windows) && soloncode_cmd.ends_with(".ps1") {
+        // Windows: 通过 powershell 运行 .ps1
+        Command::new("powershell")
+            .args([
+                "-ExecutionPolicy", "Bypass",
+                "-File", &soloncode_cmd,
+                &format!("--server.port={}", port),
+            ])
+            .current_dir(workspace_path)
+            .stdout(log_file)
+            .stderr(log_file_clone)
+            .spawn()
+            .map_err(|e| format!("启动后端进程失败: {}", e))?
+    } else {
+        // Unix 或非 .ps1: 直接运行
+        Command::new(&soloncode_cmd)
+            .args([&format!("--server.port={}", port)])
+            .current_dir(workspace_path)
+            .stdout(log_file)
+            .stderr(log_file_clone)
+            .spawn()
+            .map_err(|e| format!("启动后端进程失败: {}", e))?
+    };
+
+    let pid = child.id();
+
+    let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
+    *proc = Some(child);
+
+    Ok(pid)
+}
+
+/// 停止后端 CLI 进程
+#[tauri::command]
+fn stop_backend() -> Result<(), String> {
+    let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
+
+    if let Some(mut child) = proc.take() {
+        // 尝试优雅终止
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    Ok(())
+}
+
+/// 检查后端进程是否运行中
+#[tauri::command]
+fn backend_status() -> Result<bool, String> {
+    let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
+
+    match proc.as_mut() {
+        Some(child) => {
+            // 尝试检查进程状态（非阻塞）
+            match child.try_wait() {
+                Ok(Some(_status)) => {
+                    // 进程已退出
+                    *proc = None;
+                    Ok(false)
+                }
+                Ok(None) => Ok(true), // 仍在运行
+                Err(e) => Err(format!("检查进程状态失败: {}", e)),
+            }
+        }
+        None => Ok(false),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -548,8 +675,22 @@ pub fn run() {
             git_checkout,
             git_discard,
             copy_item,
-            move_item
+            move_item,
+            start_backend,
+            stop_backend,
+            backend_status
         ])
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // 应用退出时停止后端进程
+                if let Ok(mut proc) = BACKEND_PROCESS.lock() {
+                    if let Some(mut child) = proc.take() {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

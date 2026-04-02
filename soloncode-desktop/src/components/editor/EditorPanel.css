@@ -71,6 +71,39 @@
   transition: background-color 0.1s;
 }
 
+.editor-tabs-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.tab-action-btn {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--cb-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.tab-action-btn:hover:not(:disabled) {
+  background-color: var(--cb-vscode-list-hoverBackground);
+  color: var(--cb-text-primary);
+}
+
+.tab-action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .editor-tab:hover {
   background-color: var(--cb-vscode-list-hoverBackground);
 }

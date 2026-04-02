@@ -16,11 +16,15 @@
 package org.noear.solon.codecli.remoting;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.Solon;
+import org.noear.solon.SolonApp;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.core.AppContext;
+import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
@@ -48,9 +52,8 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
     @Override
     public void onOpen(WebSocket socket) {
-        // 可以在这里做认证
         String sessionId = socket.param("sessionId");
-        String sessionCwd = socket.param("cwd");
+        String sessionCwd = socket.param("X-Session-Cwd");//工作区
 
         if (Assert.isNotEmpty(sessionId)) {
             if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
@@ -76,18 +79,25 @@ public class WebSocketGate extends SimpleWebSocketListener {
     public void onMessage(WebSocket socket, String text) throws IOException {
         try {
             // 解析请求
-            ONode req = ONode.ofJson(text);
-            String input = req.get("input") != null ? req.get("input").getString() : null;
-            String sessionId = req.get("sessionId") != null ? req.get("sessionId").getString() : null;
-            String sessionCwd = req.get("cwd") != null ? req.get("cwd").getString() : null;
+            ChatMessage req = ONode.ofJson(text).toBean(ChatMessage.class);
+            String sessionId = req.getSessionId();
+            String input = req.getInput();
 
             if (Assert.isEmpty(sessionId)) {
                 sessionId = "ws_" + System.currentTimeMillis();
                 // 及时通知客户端自动生成的 sessionId
                 socket.send(new ONode().set("type", "session")
-                        .set("sessionId", sessionId)
+                        .set("sessionId", req.getSessionId())
                         .toJson());
             }
+
+            AgentSession session = kernel.getSession(sessionId);
+
+            if (Assert.isNotEmpty(req.getSessionCwd())){
+                session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, req.getSessionCwd());
+            }
+
+            String sessionCwd = session.attrs().getOrDefault(AgentRuntime.ATTR_CWD, ".").toString();
 
             // 验证 sessionId
             if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
@@ -118,10 +128,6 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
             // 流式处理
             final String finalSessionId = sessionId;
-            AgentSession session = kernel.getSession(sessionId);
-            if (Assert.isNotEmpty(sessionCwd)) {
-                session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, sessionCwd);
-            }
 
             Flux<String> stringFlux = kernel.getRootAgent()
                     .prompt(input)
@@ -136,6 +142,38 @@ public class WebSocketGate extends SimpleWebSocketListener {
                                 chunkType,
                                 chunk.hasContent(),
                                 chunk instanceof ReActChunk ? ((ReActChunk) chunk).isNormal() : "N/A");
+
+                        // ReActChunk 需要优先处理 metrics 收集（无论 hasContent 状态）
+                        if (chunk instanceof ReActChunk) {
+                            ReActChunk react = (ReActChunk) chunk;
+
+                            // 收集 metrics 信息（无论 isNormal 和 hasContent 状态，trace 都可能携带 metrics）
+                            if (react.getTrace() != null) {
+                                if (react.getTrace().getMetrics() != null) {
+                                    totalTokens[0] = react.getTrace().getMetrics().getTotalTokens();
+                                }
+                                if (react.getTrace().getConfig() != null && react.getTrace().getConfig().getChatModel() != null) {
+                                    modelName[0] = react.getTrace().getConfig().getChatModel().toString();
+                                }
+                            }
+
+                            // 参考 CLI 的 CliShellNew.onFinalChunk 逻辑：
+                            // - isNormal==false: 内容通过 reason 类型发送（和 ReasonChunk 一样处理）
+                            // - isNormal==true: 这是最终汇总，内容已经通过 ReasonChunk 发送过了，跳过避免重复
+                            if (!react.isNormal() && react.hasContent()) {
+                                LOG.debug("[WS] sending reason from ReActChunk: {}",
+                                        chunk.getContent().substring(0, Math.min(50, chunk.getContent().length())));
+                                return new ONode().set("type", "reason")
+                                        .set("sessionId", finalSessionId)
+                                        .set("text", chunk.getContent())
+                                        .toJson();
+                            }
+
+                            // isNormal==true 或无内容时，内容已通过 ReasonChunk 完整发送，此处跳过
+                            LOG.debug("[WS] skipping ReActChunk (isNormal={}, hasContent={})",
+                                    react.isNormal(), react.hasContent());
+                            return "";
+                        }
 
                         if (chunk.hasContent()) {
                             if (chunk instanceof ReasonChunk) {
@@ -165,32 +203,6 @@ public class WebSocketGate extends SimpleWebSocketListener {
                                 }
 
                                 return oNode.toJson();
-                            } else if (chunk instanceof ReActChunk) {
-                                ReActChunk react = (ReActChunk) chunk;
-
-                                // 收集 metrics 信息
-                                if (react.getTrace() != null && react.getTrace().getMetrics() != null) {
-                                    totalTokens[0] = react.getTrace().getMetrics().getTotalTokens();
-                                }
-                                if (react.getTrace() != null && react.getTrace().getConfig().getChatModel() != null) {
-                                    modelName[0] = react.getTrace().getConfig().getChatModel().toString();
-                                }
-
-                                // 参考 CLI 的 CliShellNew.onFinalChunk 逻辑：
-                                // - isNormal==false: 内容通过 reason 类型发送（和 ReasonChunk 一样处理）
-                                // - isNormal==true: 这是最终汇总，内容已经通过 ReasonChunk 发送过了，跳过避免重复
-                                if (!react.isNormal()) {
-                                    LOG.debug("[WS] sending reason from ReActChunk: {}",
-                                            chunk.getContent().substring(0, Math.min(50, chunk.getContent().length())));
-                                    return new ONode().set("type", "reason")
-                                            .set("sessionId", finalSessionId)
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                }
-
-                                // isNormal==true 时，内容已通过 ReasonChunk 完整发送，此处跳过
-                                LOG.debug("[WS] skipping ReActChunk with isNormal=true (content already sent via ReasonChunk)");
-                                return "";
                             }
                         }
 
