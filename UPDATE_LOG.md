@@ -1,4 +1,9 @@
 
+
+### v2026.4.6
+
+* 调整 config.yml 和 AGENTS.md 安装位置（从 bin 移到上一级）//与工作区位置相同
+
 ### v2026.4.5
 
 * 添加 soloncode-cli pid 打印

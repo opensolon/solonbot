@@ -72,13 +72,13 @@ public class AgentProperties implements Serializable {
         }
 
         //2. 工作区配置
-        Path path = Paths.get(AgentProperties.getUserDir(), AgentRuntime.SOLONCODE, AgentRuntime.NAME_CONFIG);
+        Path path = Paths.get(AgentProperties.getUserDir(), AgentRuntime.SOLONCODE_CONFIG_YML);
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //3. 用户目录区配置
-        path = Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_BIN, AgentRuntime.NAME_CONFIG);
+        path = Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_CONFIG_YML);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();
@@ -101,7 +101,7 @@ public class AgentProperties implements Serializable {
         }
 
         //2. 用户目录区配置
-        path = Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_BIN, AgentRuntime.NAME_AGENTS);
+        path = Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_AGENTS_MD);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();

@@ -21,15 +21,12 @@ import org.noear.solon.codecli.core.code.CodeSkill;
 import org.noear.solon.codecli.core.hitl.HitlStrategy;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.IoUtil;
-import org.noear.solon.core.util.ResourceUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -43,19 +40,21 @@ public class AgentRuntime {
 
     public final static String ATTR_CWD = "__cwd";
 
-    public final static String NAME_AGENTS = "AGENTS.md";
-    public final static String NAME_CONFIG = "config.yml";
-
     public final static String SESSION_DEFAULT = "default";
 
+    public final static String NAME_CONFIG = "config.yml";
+    public final static String NAME_AGENTS = "AGENTS.md";
+
     public final static String SOLONCODE = ".soloncode/";
-    public final static String SOLONCODE_BIN = SOLONCODE + "bin/";
 
     public final static String SOLONCODE_SESSIONS = SOLONCODE + "sessions/";
     public final static String SOLONCODE_SKILLS = SOLONCODE + "skills/";
     public final static String SOLONCODE_AGENTS = SOLONCODE + "agents/";
     public final static String SOLONCODE_MEMORY = SOLONCODE + "memory/";
-    public final static String SOLONCODE_CLAUDE = SOLONCODE + "CLAUDE.md";
+
+    public final static String SOLONCODE_CONFIG_YML = SOLONCODE + NAME_CONFIG;
+    public final static String SOLONCODE_AGENTS_MD = SOLONCODE + NAME_AGENTS;
+    public final static String SOLONCODE_CLAUDE_MD = SOLONCODE + "CLAUDE.md";
 
     public final static String SKILLHUB_SKILLS = ".skillhub/skills/";
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
