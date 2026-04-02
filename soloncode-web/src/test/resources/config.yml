@@ -32,10 +32,9 @@ soloncode:
   acpEndpoint: "/acp"
 
   chatModel:
-    apiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    #    apiUrl: "http://43.130.41.153:1279/v1/chat/completions"
-    apiKey: "2d3699d64be147d5ae39ce410de2c956.1wgMvtcx8xjY1fSI"
-    model: "glm-4.7"
+    apiUrl: "https://ai.gitee.com/v1/chat/completions"
+    apiKey: "******"
+    model: "glm-5.0"
     timeout: "120s"
     userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; SolonCode/1.0; +https://solon.noear.org/)"
 #    defaultOptions:
