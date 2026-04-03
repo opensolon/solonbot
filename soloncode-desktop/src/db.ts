@@ -9,7 +9,7 @@ export interface DbMessage {
 }
 
 export interface DbConversation {
-  id?: number; // 建议与 schema ++id 保持一致，统一为 number
+  id?: number;
   title: string;
   timestamp: string;
   status: string;
@@ -17,20 +17,36 @@ export interface DbConversation {
   icon?: string;
 }
 
+/** 全局设置（单行记录，key-value 模式） */
+export interface DbGlobalSetting {
+  key: string;
+  value: string; // JSON 序列化存储
+}
+
+/** 工作区状态 */
+export interface WorkspaceState {
+  lastFolder: string | null;
+  lastSessionId: string | null;
+}
+
 class SolonCodeDatabase extends Dexie {
   messages!: Table<DbMessage>;
   conversations!: Table<DbConversation>;
+  globalSettings!: Table<DbGlobalSetting>;
 
   constructor() {
     super('SolonCodeDB');
-    this.version(1).stores({
+    this.version(2).stores({
       messages: '++id, conversationId, timestamp',
-      conversations: '++id, title, timestamp, status'
+      conversations: '++id, title, timestamp, status',
+      globalSettings: 'key',
     });
   }
 }
 
 export const db = new SolonCodeDatabase();
+
+// ==================== 消息 ====================
 
 export async function saveMessage(message: Omit<DbMessage, 'id'>): Promise<number> {
   return await db.messages.add(message);
@@ -44,7 +60,6 @@ export async function getMessagesByConversation(conversationId: string | number)
 }
 
 export async function saveConversation(conversation: DbConversation): Promise<number> {
-  // 统一返回数据库生成的 ID (number)，避免类型不一致
   if (conversation.id) {
     await db.conversations.update(conversation.id, conversation);
     return conversation.id;
@@ -59,11 +74,45 @@ export async function getAllConversations(): Promise<DbConversation[]> {
 
 export async function deleteConversation(id: string | number): Promise<void> {
   await db.messages.where('conversationId').equals(id).delete();
-  // 直接使用 where 查询删除，避免全量加载
   await db.conversations.where('id').equals(id).delete();
 }
 
 export async function updateConversation(id: string | number, updates: Partial<DbConversation>): Promise<void> {
-  // 直接使用 modify 更新，避免全量加载
   await db.conversations.where('id').equals(id).modify(updates);
+}
+
+// ==================== 全局设置 ====================
+
+async function getSetting<T>(key: string, defaultValue: T): Promise<T> {
+  const row = await db.globalSettings.get(key);
+  if (!row) return defaultValue;
+  try {
+    return JSON.parse(row.value) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
+async function setSetting<T>(key: string, value: T): Promise<void> {
+  await db.globalSettings.put({ key, value: JSON.stringify(value) });
+}
+
+/** 保存最后打开的工作区文件夹 */
+export async function saveLastFolder(folderPath: string): Promise<void> {
+  await setSetting('lastFolder', folderPath);
+}
+
+/** 读取最后打开的工作区文件夹 */
+export async function loadLastFolder(): Promise<string | null> {
+  return await getSetting<string | null>('lastFolder', null);
+}
+
+/** 保存工作区对应的最后会话 ID */
+export async function saveLastSessionId(folderPath: string, sessionId: string): Promise<void> {
+  await setSetting(`lastSession:${folderPath}`, sessionId);
+}
+
+/** 读取工作区对应的最后会话 ID */
+export async function loadLastSessionId(folderPath: string): Promise<string | null> {
+  return await getSetting<string | null>(`lastSession:${folderPath}`, null);
 }

@@ -8,7 +8,7 @@ import { SearchPanel } from './components/sidebar/SearchPanel';
 import { GitPanel } from './components/sidebar/GitPanel';
 import { ExtensionsPanel } from './components/sidebar/ExtensionsPanel';
 import { SessionsPanel, type Session } from './components/sidebar/SessionsPanel';
-import { getAllConversations, saveConversation, deleteConversation, updateConversation } from './db';
+import { getAllConversations, saveConversation, deleteConversation, updateConversation, saveLastFolder, loadLastFolder, saveLastSessionId, loadLastSessionId } from './db';
 import { SettingsPanel, type Settings } from './components/sidebar/SettingsPanel';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { ChatView } from './components/ChatView';
@@ -176,6 +176,13 @@ function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>();
 
+  // 会话或工作区变化时，保存最后会话 ID
+  useEffect(() => {
+    if (workspacePath && currentSessionId) {
+      saveLastSessionId(workspacePath, currentSessionId);
+    }
+  }, [workspacePath, currentSessionId]);
+
   // 从 IndexedDB 加载会话列表
   useEffect(() => {
     getAllConversations().then(convs => {
@@ -187,6 +194,41 @@ function App() {
         isPermanent: c.isPermanent,
       }));
       setSessions(loaded);
+    });
+
+    // 启动时恢复上次打开的文件夹
+    loadLastFolder().then(async (lastFolder) => {
+      if (!lastFolder) return;
+      try {
+        console.log('[App] 恢复上次工作区:', lastFolder);
+        await fileService.initWorkspaceConfig(lastFolder);
+        const info = await fileService.getWorkspaceInfo(lastFolder);
+        setWorkspacePath(lastFolder);
+        setChatWorkspacePath(lastFolder);
+        setWorkspaceName(info.name);
+
+        backendService.start(lastFolder).then((port) => {
+          if (port) {
+            setBackendPortState(port);
+            setChatBackendPort(port);
+          } else {
+            setBackendPortState(null);
+          }
+        }).catch(() => setBackendPortState(null));
+
+        const files = await fileService.listDirectoryTree(lastFolder, 10);
+        setWorkspaceFiles(convertToFileTree(files));
+        setActiveActivity('explorer');
+
+        // 恢复该文件夹的最后会话
+        const lastSessionId = await loadLastSessionId(lastFolder);
+        if (lastSessionId) {
+          setCurrentSessionId(lastSessionId);
+          setActiveActivity('sessions');
+        }
+      } catch (err) {
+        console.warn('[App] 恢复工作区失败:', err);
+      }
     });
   }, []);
 
@@ -391,61 +433,65 @@ function App() {
   }, []);
 
   // 打开文件夹对话框
-  const handleOpenFolder = useCallback(async () => {
+  // 通过路径打开工作区（复用逻辑）
+  const openFolderByPath = useCallback(async (selectedPath: string) => {
     try {
-      console.log('[App] 开始打开文件夹对话框...');
-      const selectedPath = await fileService.openFolderDialog();
-      console.log('[App] 选择的路径:', selectedPath);
-      if (selectedPath) {
-        // 1. 清理旧工作区：停后端 → 断 WS → 重置状态
-        if (workspacePath) {
-          try {
-            await backendService.stop();
-          } catch (_) { /* ignore */ }
-          setChatBackendPort(null);
-          setChatWorkspacePath(null);
-          setBackendPortState(null);
-          setOpenFiles([]);
-          setActiveFilePath(null);
-          setGitStatus(emptyGitStatus);
-        }
-
-        // 2. 初始化工作区配置（创建 .soloncode/settings.json）
-        await fileService.initWorkspaceConfig(selectedPath);
-
-        const info = await fileService.getWorkspaceInfo(selectedPath);
-        console.log('[App] 工作区信息:', info);
-
-        // 3. 先设置工作区路径（WS 连接需要）
-        setWorkspacePath(selectedPath);
-        setChatWorkspacePath(selectedPath);
-        setWorkspaceName(info.name);
-
-        // 4. 启动后端 CLI 服务（异步，不阻塞）
-        backendService.start(selectedPath).then((port) => {
-          if (port) {
-            setBackendPortState(port);
-            setChatBackendPort(port);
-            console.log('[App] 后端已启动，端口:', port);
-          } else {
-            setBackendPortState(null);
-            console.warn('[App] 后端启动失败或 JAR 不存在，AI 功能不可用');
-          }
-        }).catch((err) => {
-          console.warn('[App] 后端启动异常:', err);
-          setBackendPortState(null);
-        });
-
-        // 5. 加载目录树
-        const files = await fileService.listDirectoryTree(selectedPath, 10);
-        console.log('[App] 加载文件树:', files, '数量:', files.length);
-        setWorkspaceFiles(convertToFileTree(files));
-        setActiveActivity('explorer');
+      // 1. 清理旧工作区
+      if (workspacePath) {
+        try { await backendService.stop(); } catch (_) {}
+        setChatBackendPort(null);
+        setChatWorkspacePath(null);
+        setBackendPortState(null);
+        setOpenFiles([]);
+        setActiveFilePath(null);
+        setGitStatus(emptyGitStatus);
       }
+
+      await fileService.initWorkspaceConfig(selectedPath);
+      const info = await fileService.getWorkspaceInfo(selectedPath);
+
+      setWorkspacePath(selectedPath);
+      setChatWorkspacePath(selectedPath);
+      setWorkspaceName(info.name);
+
+      // 保存最后打开的文件夹
+      saveLastFolder(selectedPath);
+
+      // 启动后端
+      backendService.start(selectedPath).then((port) => {
+        if (port) {
+          setBackendPortState(port);
+          setChatBackendPort(port);
+        } else {
+          setBackendPortState(null);
+        }
+      }).catch(() => setBackendPortState(null));
+
+      // 加载目录树
+      const files = await fileService.listDirectoryTree(selectedPath, 10);
+      setWorkspaceFiles(convertToFileTree(files));
+      setActiveActivity('explorer');
+
+      // 恢复该文件夹的最后会话
+      const lastSessionId = await loadLastSessionId(selectedPath);
+      if (lastSessionId) {
+        setCurrentSessionId(lastSessionId);
+      }
+
+      return true;
     } catch (err) {
       console.error('[App] 打开文件夹失败:', err);
+      return false;
     }
   }, [workspacePath]);
+
+  // 打开文件夹对话框
+  const handleOpenFolder = useCallback(async () => {
+    const selectedPath = await fileService.openFolderDialog();
+    if (selectedPath) {
+      await openFolderByPath(selectedPath);
+    }
+  }, [openFolderByPath]);
 
   // 刷新文件树
   const refreshFileTree = useCallback(async () => {
