@@ -6,9 +6,9 @@ import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.session.InMemoryAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentProperties;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.agent.AgentDefinition;
+import org.noear.solon.ai.harness.HarnessProperties;
+import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.lang.NonNull;
 
 import java.util.Map;
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DemoApp {
     public static void main(String[] args) throws Throwable {
         //--- 初始化（AgentRuntime 建议单测）
-        AgentProperties properties = new AgentProperties();
+        HarnessProperties properties = new HarnessProperties();
         ChatModel chatModel = ChatModel.of(properties.getChatModel()).build();
         AgentSessionProvider sessionProvider = new AgentSessionProvider() {
             private Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
@@ -28,22 +28,22 @@ public class DemoApp {
             }
         };
 
-        AgentRuntime agentRuntime = AgentRuntime.builder()
+        HarnessEngine agentRuntime = HarnessEngine.builder()
                 .properties(properties)
                 .chatModel(chatModel)
                 .sessionProvider(sessionProvider)
                 .build();
 
-        AgentSession session = agentRuntime.getSession(AgentRuntime.SESSION_DEFAULT);
+        AgentSession session = agentRuntime.getSession(HarnessEngine.SESSION_DEFAULT);
         Prompt prompt = Prompt.of("hello"); //动态指定工作区;
 
 
         //--- 用主代理模式
-        agentRuntime.getRootAgent().prompt(prompt)
+        agentRuntime.getMainAgent().prompt(prompt)
                 .session(session) //没有，则为临时会话
                 .options(o -> {
                     //按需，动态指定工作区（没有，则为默认工作区）
-                    o.toolContextPut(AgentRuntime.ATTR_CWD, "xxx");
+                    o.toolContextPut(HarnessEngine.ATTR_CWD, "xxx");
                 })
                 .call();
 
@@ -58,7 +58,7 @@ public class DemoApp {
                 .session(session) //没有，则为临时会话
                 .options(o -> {
                     //按需，动态指定工作区（没有，则为默认工作区）
-                    o.toolContextPut(AgentRuntime.ATTR_CWD, "xxx");
+                    o.toolContextPut(HarnessEngine.ATTR_CWD, "xxx");
                 })
                 .call();
     }

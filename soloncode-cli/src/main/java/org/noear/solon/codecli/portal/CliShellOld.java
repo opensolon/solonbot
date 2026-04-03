@@ -23,7 +23,6 @@ import org.jline.reader.impl.completer.FileNameCompleter;
 import org.jline.terminal.Attributes;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.InfoCmp;
 import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
@@ -35,8 +34,8 @@ import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.agent.react.task.ThoughtChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.agent.TaskSkill;
+import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.TaskSkill;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
@@ -60,7 +59,7 @@ public class CliShellOld implements Runnable {
 
     private Terminal terminal;
     private LineReader reader;
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
 
     // ANSI 颜色常量 - 严格对齐 Claude 极简风
     private final static String
@@ -72,7 +71,7 @@ public class CliShellOld implements Runnable {
             CYAN = "\033[36m",
             RESET = "\033[0m";
 
-    public CliShellOld(AgentRuntime agentRuntime) {
+    public CliShellOld(HarnessEngine agentRuntime) {
         this.agentRuntime = agentRuntime;
 
         try {
@@ -115,7 +114,7 @@ public class CliShellOld implements Runnable {
      * 单次调用
      */
     public void call(String input) {
-        AgentSession session = prepare(AgentRuntime.SESSION_DEFAULT);
+        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
 
         try {
             if (!isSystemCommand(session, input)) {
@@ -131,7 +130,7 @@ public class CliShellOld implements Runnable {
      */
     @Override
     public void run() {
-        AgentSession session = prepare(AgentRuntime.SESSION_DEFAULT);
+        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
 
         // 2. 主循环
         while (true) {
@@ -202,7 +201,7 @@ public class CliShellOld implements Runnable {
 
             Prompt prompt = Prompt.of(currentInput).attrPut("start_time", System.currentTimeMillis());
 
-            Disposable disposable = agentRuntime.getRootAgent()
+            Disposable disposable = agentRuntime.getMainAgent()
                     .prompt(prompt)
                     .session(session)
                     .stream()

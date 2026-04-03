@@ -15,7 +15,7 @@
  */
 package org.noear.solon.codecli.core.teams.memory;
 
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.core.teams.memory.bank.MemoryBank;
 import org.noear.solon.codecli.core.teams.memory.bank.Observation;
 import org.noear.solon.codecli.core.teams.memory.bank.store.FileMemoryStore;
@@ -46,7 +46,7 @@ public class MemoryManager {
 
     public static MemoryManager of(String __cwd) {
         return cached.computeIfAbsent(__cwd, k -> {
-            Path memoryPath = Paths.get(k, AgentRuntime.SOLONCODE_MEMORY);
+            Path memoryPath = Paths.get(k, HarnessEngine.SOLONCODE_MEMORY);
             return new MemoryManager(memoryPath);
         });
     }

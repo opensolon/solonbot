@@ -24,8 +24,8 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.codecli.core.AgentProperties;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessProperties;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.portal.AcpLink;
 import org.noear.solon.codecli.portal.CliShellNew;
 import org.noear.solon.codecli.portal.CliShellOld;
@@ -49,15 +49,15 @@ public class App {
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
             //加载配置文件
-            URL configUrl = AgentProperties.getConfigUrl();
+            URL configUrl = HarnessProperties.getConfigUrl();
             app.cfg().loadAdd(configUrl);
 
             //获取命令行运行的当前用户工作区
-            String workDir = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
-            AgentProperties c = app.cfg().toBean("soloncode", AgentProperties.class);
+            String workDir = Paths.get(HarnessProperties.getUserDir()).toAbsolutePath().normalize().toString();
+            HarnessProperties c = app.cfg().toBean("soloncode", HarnessProperties.class);
 
             c.setWorkDir(workDir);
-            app.context().wrapAndPut(AgentProperties.class, c);
+            app.context().wrapAndPut(HarnessProperties.class, c);
             app.enableHttp(false); //默认不启用 http
 
             if (c.isWebEnabled()) {
@@ -74,7 +74,7 @@ public class App {
             }
         });
 
-        AgentProperties agentProperties = Solon.context().getBean(AgentProperties.class);
+        HarnessProperties agentProperties = Solon.context().getBean(HarnessProperties.class);
 
         if (agentProperties == null || agentProperties.getChatModel() == null) {
             throw new RuntimeException("ChatModel config not found");
@@ -85,9 +85,9 @@ public class App {
 
         // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, Paths.get(agentProperties.getWorkDir(), AgentRuntime.SOLONCODE_SESSIONS).resolve(key).normalize().toFile().toString()));
+                new FileAgentSession(key, Paths.get(agentProperties.getWorkDir(), HarnessEngine.SOLONCODE_SESSIONS).resolve(key).normalize().toFile().toString()));
 
-        AgentRuntime agentRuntime = AgentRuntime.builder()
+        HarnessEngine agentRuntime = HarnessEngine.builder()
                 .chatModel(chatModel)
                 .properties(agentProperties)
                 .sessionProvider(sessionProvider)

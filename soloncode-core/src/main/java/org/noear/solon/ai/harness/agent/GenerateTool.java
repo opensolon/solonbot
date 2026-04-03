@@ -1,9 +1,9 @@
-package org.noear.solon.codecli.core.agent;
+package org.noear.solon.ai.harness.agent;
 
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.ai.chat.tool.AbsToolProvider;
 import org.noear.solon.annotation.Param;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +23,9 @@ import java.util.List;
 public class GenerateTool extends AbsToolProvider {
     private static final Logger LOG = LoggerFactory.getLogger(GenerateTool.class);
 
-    private AgentRuntime agentRuntime;
+    private HarnessEngine agentRuntime;
 
-    public GenerateTool(AgentRuntime agentRuntime) {
+    public GenerateTool(HarnessEngine agentRuntime) {
         this.agentRuntime = agentRuntime;
     }
 

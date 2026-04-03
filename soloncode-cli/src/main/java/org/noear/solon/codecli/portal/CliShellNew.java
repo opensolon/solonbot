@@ -36,12 +36,11 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
-import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.codecli.portal.ui.CommandRegistry;
 import org.noear.solon.codecli.portal.ui.SlashCommandCompleter;
 import org.noear.solon.codecli.portal.ui.MarkdownRenderer;
 import org.noear.solon.codecli.portal.ui.StatusBar;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.ConfigLoader;
 import org.noear.solon.codecli.SessionManager;
 import org.noear.solon.core.util.Assert;
@@ -67,7 +66,7 @@ public class CliShellNew implements Runnable {
 
     private Terminal terminal;
     private LineReader reader;
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
     private final CommandRegistry commandRegistry;
     private final SessionManager sessionManager = new SessionManager();
     private StatusBar statusBar;
@@ -119,7 +118,7 @@ public class CliShellNew implements Runnable {
             ICON_THINKING = "\u2699", // ⚙
             ICON_CHECK = "\u2714"; // ✔
 
-    public CliShellNew(AgentRuntime agentRuntime) {
+    public CliShellNew(HarnessEngine agentRuntime) {
         this.agentRuntime = agentRuntime;
         this.commandRegistry = new CommandRegistry();
         registerBuiltinCommands();
@@ -501,7 +500,7 @@ public class CliShellNew implements Runnable {
         final AtomicBoolean isFirstConversation = new AtomicBoolean(true);
         final AtomicBoolean isFirstReasonChunk = new AtomicBoolean(true);
 
-        currentDisposable = agentRuntime.getRootAgent()
+        currentDisposable = agentRuntime.getMainAgent()
                 .prompt(input)
                 .session(session)
                 .stream()
@@ -1098,7 +1097,7 @@ public class CliShellNew implements Runnable {
         statusBar.setModelName(modelName);
         statusBar.setWorkDir(new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath());
         statusBar.setVersion(agentRuntime.getVersion());
-        statusBar.setSessionId(AgentRuntime.SESSION_DEFAULT);
+        statusBar.setSessionId(HarnessEngine.SESSION_DEFAULT);
         statusBar.setCompactMode(agentRuntime.getProps().isCliPrintSimplified());
         statusBar.setup();
         // 把 JLine 内部的 ReentrantLock 传给 StatusBar，确保 draw() 跟 printAbove() 用同一把锁

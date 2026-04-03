@@ -16,7 +16,7 @@
 package org.noear.solon.codecli.controller;
 
 import org.noear.snack4.ONode;
-import org.noear.solon.codecli.core.AgentProperties;
+import org.noear.solon.ai.harness.HarnessProperties;
 import org.noear.solon.annotation.Controller;
 import org.noear.solon.annotation.Inject;
 import org.noear.solon.annotation.Mapping;
@@ -43,7 +43,7 @@ import java.util.List;
 public class WebController {
 
     @Inject
-    private AgentProperties config;
+    private HarnessProperties config;
 
     /**
      * 对话主界面

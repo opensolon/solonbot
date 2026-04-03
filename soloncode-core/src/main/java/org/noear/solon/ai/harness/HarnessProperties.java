@@ -1,15 +1,13 @@
-package org.noear.solon.codecli.core;
+package org.noear.solon.ai.harness;
 
 import lombok.Getter;
 import lombok.Setter;
 import org.noear.solon.ai.chat.ChatConfig;
-import org.noear.solon.ai.harness.HarnessEngine;
-import org.noear.solon.ai.harness.HarnessProperties;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.core.util.ResourceUtil;
 
-import java.io.Serializable;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -18,14 +16,13 @@ import java.nio.file.Paths;
 import java.util.Map;
 
 /**
- * 代理属性
+ * 马具属性
  *
  * @author noear
- * @since 3.9.1
  */
 @Getter
 @Setter
-public class AgentProperties extends HarnessProperties {
+public class HarnessProperties implements Serializable {
     private ChatConfig chatModel;
     private String workDir = "work";
     private String tools = "**";
@@ -77,13 +74,13 @@ public class AgentProperties extends HarnessProperties {
         }
 
         //2. 工作区配置
-        Path path = Paths.get(AgentProperties.getUserDir(), HarnessEngine.SOLONCODE_CONFIG_YML);
+        Path path = Paths.get(HarnessProperties.getUserDir(), HarnessEngine.SOLONCODE_CONFIG_YML);
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //3. 用户目录区配置
-        path = Paths.get(AgentProperties.getUserHome(), HarnessEngine.SOLONCODE_CONFIG_YML);
+        path = Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_CONFIG_YML);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();
@@ -106,7 +103,7 @@ public class AgentProperties extends HarnessProperties {
         }
 
         //2. 用户目录区配置
-        path = Paths.get(AgentProperties.getUserHome(), HarnessEngine.SOLONCODE_AGENTS_MD);
+        path = Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_AGENTS_MD);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();

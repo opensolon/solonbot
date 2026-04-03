@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core;
+package org.noear.solon.ai.harness;
 
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
@@ -15,10 +15,10 @@ import org.noear.solon.ai.skills.cli.TodoSkill;
 import org.noear.solon.ai.skills.restapi.ApiSource;
 import org.noear.solon.ai.skills.restapi.RestApiSkill;
 import org.noear.solon.ai.skills.toolgateway.ToolGatewaySkill;
-import org.noear.solon.codecli.core.agent.*;
+import org.noear.solon.ai.harness.agent.*;
 import org.noear.solon.ai.mcp.client.McpProviders;
-import org.noear.solon.codecli.core.code.CodeSkill;
-import org.noear.solon.codecli.core.hitl.HitlStrategy;
+import org.noear.solon.ai.harness.code.CodeSkill;
+import org.noear.solon.ai.harness.hitl.HitlStrategy;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.IoUtil;
 import org.slf4j.Logger;
@@ -31,12 +31,12 @@ import java.nio.file.Paths;
 import java.util.*;
 
 /**
- * 智能体运行时
+ * 马具引擎
  *
  * @author noear
  */
-public class AgentRuntime {
-    private final static Logger LOG = LoggerFactory.getLogger(AgentRuntime.class);
+public class HarnessEngine {
+    private final static Logger LOG = LoggerFactory.getLogger(HarnessEngine.class);
 
     public final static String ATTR_CWD = "__cwd";
 
@@ -62,14 +62,14 @@ public class AgentRuntime {
 
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
-    private final AgentProperties properties;
+    private final HarnessProperties properties;
 
     private final CodeSkill codeSkill = new CodeSkill();
     private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
     private final TaskSkill taskSkill = new TaskSkill(this);
     private final GenerateTool generateTool = new GenerateTool(this);
 
-    private final ReActAgent rootAgent;
+    private final ReActAgent mainAgent;
 
     private final ToolGatewaySkill mcpGatewaySkill;
     private final RestApiSkill restApiSkill;
@@ -87,10 +87,10 @@ public class AgentRuntime {
     }
 
     public String getName() {
-        return rootAgent.name();
+        return mainAgent.name();
     }
 
-    public AgentProperties getProps() {
+    public HarnessProperties getProps() {
         return properties;
     }
 
@@ -138,7 +138,7 @@ public class AgentRuntime {
         return restApiSkill;
     }
 
-    private AgentRuntime(ChatModel chatModel, AgentProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
+    private HarnessEngine(ChatModel chatModel, HarnessProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
         this.chatModel = chatModel;
         this.properties = properties;
         this.sessionProvider = sessionProvider;
@@ -168,13 +168,13 @@ public class AgentRuntime {
 
         cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
 
-        cliSkills.skillPool("@global", Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_SKILLS));
-        cliSkills.skillPool("@skillhub", Paths.get(AgentProperties.getUserHome(), AgentRuntime.SKILLHUB_SKILLS));
+        cliSkills.skillPool("@global", Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@skillhub", Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SKILLHUB_SKILLS));
         cliSkills.skillPool("@local", Paths.get(properties.getWorkDir(), "skills"));
 
-        cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_SKILLS));
-        cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), AgentRuntime.OPENCODE_SKILLS));
-        cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), AgentRuntime.CLAUDE_SKILLS));
+        cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), HarnessEngine.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), HarnessEngine.OPENCODE_SKILLS));
+        cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), HarnessEngine.CLAUDE_SKILLS));
 
         if (Assert.isNotEmpty(properties.getSkillPools())) {
             properties.getSkillPools().forEach((alias, dir) -> {
@@ -183,8 +183,8 @@ public class AgentRuntime {
         }
 
         agentManager = new AgentManager();
-        agentManager.agentPool(Paths.get(AgentProperties.getUserHome(), AgentRuntime.SOLONCODE_AGENTS)); //global
-        agentManager.agentPool(Paths.get(properties.getWorkDir(), AgentRuntime.SOLONCODE_AGENTS)); //local
+        agentManager.agentPool(Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_AGENTS)); //global
+        agentManager.agentPool(Paths.get(properties.getWorkDir(), HarnessEngine.SOLONCODE_AGENTS)); //local
 
         //上下文摘要
         SummarizationStrategy strategy = new CompositeSummarizationStrategy()
@@ -201,7 +201,7 @@ public class AgentRuntime {
         // 系统提示词
         agentDefinition.setSystemPrompt(getAgentsMd());
         // 名字
-        agentDefinition.getMetadata().setName("root");
+        agentDefinition.getMetadata().setName("main");
         // 主代理
         agentDefinition.getMetadata().setPrimary(true);
         // 工具权限
@@ -222,7 +222,7 @@ public class AgentRuntime {
             }
         }
 
-        rootAgent = agentBuilder.build();
+        mainAgent = agentBuilder.build();
     }
 
 
@@ -230,8 +230,8 @@ public class AgentRuntime {
         return sessionProvider.getSession(instanceId);
     }
 
-    public ReActAgent getRootAgent() {
-        return rootAgent;
+    public ReActAgent getMainAgent() {
+        return mainAgent;
     }
 
     public ReActAgent.Builder createSubagent(AgentDefinition definition) {
@@ -266,7 +266,7 @@ public class AgentRuntime {
 
     public static class Builder {
         private ChatModel chatModel;
-        private AgentProperties properties;
+        private HarnessProperties properties;
         private AgentSessionProvider sessionProvider;
         private List<ReActAgentExtension> extensions = new ArrayList<>();
 
@@ -275,7 +275,7 @@ public class AgentRuntime {
             return this;
         }
 
-        public Builder properties(AgentProperties properties) {
+        public Builder properties(HarnessProperties properties) {
             this.properties = properties;
             return this;
         }
@@ -290,12 +290,12 @@ public class AgentRuntime {
             return this;
         }
 
-        public AgentRuntime build() {
+        public HarnessEngine build() {
             Objects.nonNull(chatModel);
             Objects.nonNull(properties);
             Objects.nonNull(sessionProvider);
 
-            return new AgentRuntime(chatModel, properties, sessionProvider, extensions);
+            return new HarnessEngine(chatModel, properties, sessionProvider, extensions);
         }
     }
 }

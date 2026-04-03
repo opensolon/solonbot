@@ -1,8 +1,8 @@
-package org.noear.solon.codecli.core.code;
+package org.noear.solon.ai.harness.code;
 
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,15 +33,15 @@ public class CodeSkill extends AbsSkill {
 
     @Override
     public String description() {
-        return "代码专家技能。支持项目初始化、技术栈自动识别以及 `" + AgentRuntime.SOLONCODE_CLAUDE_MD + "` 规约生成。";
+        return "代码专家技能。支持项目初始化、技术栈自动识别以及 `" + HarnessEngine.SOLONCODE_CLAUDE_MD + "` 规约生成。";
     }
 
     @Override
     public boolean isSupported(Prompt prompt) {
-        String __cwd = prompt.attrAs(AgentRuntime.ATTR_CWD);
+        String __cwd = prompt.attrAs(HarnessEngine.ATTR_CWD);
         Path rootPath = getRootPath(__cwd);
 
-        if (rootExists(rootPath, AgentRuntime.SOLONCODE_CLAUDE_MD)) {
+        if (rootExists(rootPath, HarnessEngine.SOLONCODE_CLAUDE_MD)) {
             return true;
         }
 
@@ -56,7 +56,7 @@ public class CodeSkill extends AbsSkill {
 
     @Override
     public String getInstruction(Prompt prompt) {
-        String __cwd = prompt.attrAs(AgentRuntime.ATTR_CWD);
+        String __cwd = prompt.attrAs(HarnessEngine.ATTR_CWD);
 
         StringBuilder buf = new StringBuilder();
 
@@ -66,15 +66,15 @@ public class CodeSkill extends AbsSkill {
         buf.append("> Project Context: ").append(msg).append("\n\n");
 
         buf.append("为了确保工程质量，要严格执行以下操作：\n")
-                .append("1. **动作前导**: 在开始任何任务前，先读取根目录的 `" + AgentRuntime.SOLONCODE_CLAUDE_MD + "` 以获取构建和测试指令。\n")
-                .append("2. **验证驱动**: 修改代码后，根据 `" + AgentRuntime.SOLONCODE_CLAUDE_MD + "` 中的指令运行测试，严禁未验证提交。\n")
+                .append("1. **动作前导**: 在开始任何任务前，先读取根目录的 `" + HarnessEngine.SOLONCODE_CLAUDE_MD + "` 以获取构建和测试指令。\n")
+                .append("2. **验证驱动**: 修改代码后，根据 `" + HarnessEngine.SOLONCODE_CLAUDE_MD + "` 中的指令运行测试，严禁未验证提交。\n")
                 .append("3. **路径规范**: 严禁使用 `./` 前缀。使用相对于当前工作目录的纯净相对路径。\n");
 
         return buf.toString();
     }
 
     public String refresh(String __cwd) {
-        if (isSupported(Prompt.of().attrPut(AgentRuntime.ATTR_CWD, __cwd))) {
+        if (isSupported(Prompt.of().attrPut(HarnessEngine.ATTR_CWD, __cwd))) {
             return init(__cwd);
         } else {
             return null;
@@ -171,7 +171,7 @@ public class CodeSkill extends AbsSkill {
 
             appendGuidelines(newContent);
 
-            Path targetPath = rootPath.resolve(AgentRuntime.SOLONCODE_CLAUDE_MD);
+            Path targetPath = rootPath.resolve(HarnessEngine.SOLONCODE_CLAUDE_MD);
             String finalContent = newContent.toString();
             boolean updated = true;
             if (Files.exists(targetPath)) {

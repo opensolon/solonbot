@@ -1,11 +1,11 @@
-package org.noear.solon.codecli.core.agent;
+package org.noear.solon.ai.harness.agent;
 
 import lombok.*;
 import org.noear.snack4.ONode;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.util.Markdown;
 import org.noear.solon.ai.util.MarkdownUtil;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.core.util.Assert;
 import org.yaml.snakeyaml.Yaml;
 
@@ -149,7 +149,7 @@ public class AgentDefinition {
         return buf.toString();
     }
 
-    public ReActAgent.Builder builder(AgentRuntime agentRuntime) {
+    public ReActAgent.Builder builder(HarnessEngine agentRuntime) {
         return AgentFactory.create(agentRuntime, this);
     }
 

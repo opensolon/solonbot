@@ -23,7 +23,7 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.noear.solon.core.util.Assert;
@@ -42,9 +42,9 @@ import java.time.Duration;
  */
 @Preview("3.9.1")
 public class WebGate implements Handler {
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
 
-    public WebGate(AgentRuntime agentRuntime) {
+    public WebGate(HarnessEngine agentRuntime) {
         this.agentRuntime = agentRuntime;
     }
 
@@ -95,12 +95,12 @@ public class WebGate implements Handler {
         if (Assert.isNotEmpty(input)) {
             if ("call".equals(mode)) {
                 ctx.contentType(MimeType.TEXT_PLAIN_UTF8_VALUE);
-                String result = agentRuntime.getRootAgent()
+                String result = agentRuntime.getMainAgent()
                         .prompt(input)
                         .session(session)
                         .options(o -> {
                             if (Assert.isNotEmpty(sessionCwd)) {
-                                o.toolContextPut(AgentRuntime.ATTR_CWD, sessionCwd);
+                                o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
                             }
                         })
                         .call()
@@ -117,12 +117,12 @@ public class WebGate implements Handler {
     private Flux<String> buildStreamFlux(AgentSession session, String sessionCwd, String input) {
         Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
 
-        return agentRuntime.getRootAgent()
+        return agentRuntime.getMainAgent()
                 .prompt(prompt)
                 .session(session)
                 .options(o -> {
                     if (Assert.isNotEmpty(sessionCwd)) {
-                        o.toolContextPut(AgentRuntime.ATTR_CWD, sessionCwd);
+                        o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
                     }
                 })
                 .stream()
