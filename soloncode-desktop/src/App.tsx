@@ -8,6 +8,7 @@ import { SearchPanel } from './components/sidebar/SearchPanel';
 import { GitPanel } from './components/sidebar/GitPanel';
 import { ExtensionsPanel } from './components/sidebar/ExtensionsPanel';
 import { SessionsPanel, type Session } from './components/sidebar/SessionsPanel';
+import { getAllConversations, saveConversation, deleteConversation, updateConversation } from './db';
 import { SettingsPanel, type Settings } from './components/sidebar/SettingsPanel';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { ChatView } from './components/ChatView';
@@ -50,8 +51,6 @@ const emptyGitStatus: GitStatus = {
 const mockExtensions = [
   { id: '1', name: 'Markdown 渲染器', description: '增强 Markdown 渲染', version: '1.0.0', installed: true, enabled: true, author: 'SolonCode' },
   { id: '2', name: '代码格式化', description: '自动格式化代码', version: '2.1.0', installed: true, enabled: true, author: 'SolonCode' },
-  { id: '3', name: 'Python 支持', description: 'Python 语言支持', version: '1.5.0', installed: false, enabled: false, author: 'Community' },
-  { id: '4', name: 'Java 支持', description: 'Java 语言支持', version: '1.2.0', installed: false, enabled: false, author: 'Community' },
 ];
 
 // 插件（不变数据，放组件外）
@@ -60,13 +59,6 @@ const plugins: Plugin[] = [
 ];
 
 // 模拟会话
-const mockSessions: Session[] = [
-  { id: 'solonclaw', title: 'SolonClaw', timestamp: '固定', messageCount: 0, isPermanent: true },
-  { id: '1', title: '代码重构讨论', timestamp: '10:30', messageCount: 15 },
-  { id: '2', title: 'Bug 修复', timestamp: '昨天', messageCount: 8 },
-  { id: '3', title: '新功能实现', timestamp: '3天前', messageCount: 23 },
-];
-
 // 默认设置（从 settingsService 加载持久化配置）
 const defaultSettings: Settings = settingsService.load();
 
@@ -172,8 +164,22 @@ function App() {
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
 
   // 会话状态
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('solonclaw');
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>();
+
+  // 从 IndexedDB 加载会话列表
+  useEffect(() => {
+    getAllConversations().then(convs => {
+      const loaded: Session[] = convs.map(c => ({
+        id: c.id!.toString(),
+        title: c.title,
+        timestamp: c.timestamp,
+        messageCount: 0,
+        isPermanent: c.isPermanent,
+      }));
+      setSessions(loaded);
+    });
+  }, []);
 
   // 当前活动文件（用于状态栏）
   const activeFile = openFiles.find(f => f.path === activeFilePath);
@@ -518,25 +524,66 @@ function App() {
     }
   }, [activeFilePath, handleFileSave]);
 
+  // Toast 提示
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  }, []);
+
   // 会话操作
-  const handleNewSession = useCallback(() => {
+  const handleNewSession = useCallback((title?: string): string => {
+    // 点击"+"无标题时，当前已是空会话则提示
+    if (!title && currentSessionId && !sessions.find(s => s.id === currentSessionId)) {
+      showToast('已是最新对话');
+      return '';
+    }
+
     const newSession: Session = {
       id: Date.now().toString(),
-      title: '新会话',
+      title: title || '新会话',
       timestamp: '刚刚',
       messageCount: 0,
     };
-    setSessions(prev => [newSession, ...prev]);
+
+    // 有标题（发送消息触发）才加入列表显示；点击"+"只设ID不显示
+    if (title) {
+      setSessions(prev => [newSession, ...prev]);
+      saveConversation({ id: newSession.id, title: newSession.title, timestamp: newSession.timestamp, status: 'active' });
+    }
     setCurrentSessionId(newSession.id);
-  }, []);
+    return newSession.id;
+  }, [currentSessionId, sessions]);
 
   const handleDeleteSession = useCallback((id: string) => {
-    if (id === 'solonclaw') return;
-    setSessions(prev => prev.filter(s => s.id !== id));
+    const remaining = sessions.filter(s => s.id !== id);
+    setSessions(remaining);
+    deleteConversation(id);
     if (currentSessionId === id) {
-      setCurrentSessionId('solonclaw');
+      setCurrentSessionId(remaining.length > 0 ? remaining[0].id : undefined);
     }
-  }, [currentSessionId]);
+  }, [currentSessionId, sessions]);
+
+  // 更新会话标题（首次发送消息时自动命名，同时将未保存的会话加入列表）
+  const handleUpdateSessionTitle = useCallback((sessionId: string, title: string) => {
+    setSessions(prev => {
+      const exists = prev.find(s => s.id === sessionId);
+      if (!exists) {
+        // 会话不在列表中，加入并持久化
+        saveConversation({ id: sessionId, title, timestamp: '刚刚', status: 'active' });
+        return [{ id: sessionId, title, timestamp: '刚刚', messageCount: 0 }, ...prev];
+      }
+      if (exists.title === '新会话') {
+        updateConversation(sessionId, { title });
+      }
+      return prev.map(s =>
+        s.id === sessionId && s.title === '新会话' ? { ...s, title } : s
+      );
+    });
+  }, []);
 
   // 渲染侧边栏内容
   const renderSidebarContent = () => {
@@ -663,6 +710,8 @@ function App() {
             currentConversation={currentConversation}
             plugins={plugins}
             workspacePath={workspacePath || undefined}
+            onUpdateSessionTitle={handleUpdateSessionTitle}
+            onNewSession={handleNewSession}
           />
         </div>
       );
@@ -733,6 +782,11 @@ function App() {
         language={activeFile?.language}
         hasUnsavedChanges={openFiles.some(f => f.modified)}
       />
+
+      {/* Toast 提示 */}
+      {toast && (
+        <div className="toast-message">{toast}</div>
+      )}
     </div>
   );
 }

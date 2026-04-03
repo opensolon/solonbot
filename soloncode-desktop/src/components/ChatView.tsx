@@ -10,6 +10,8 @@ interface ChatViewProps {
   currentConversation: Conversation;
   plugins?: Plugin[];
   workspacePath?: string;
+  onUpdateSessionTitle?: (sessionId: string, title: string) => void;
+  onNewSession?: (title?: string) => string;
 }
 
 // 全局 WebSocket 连接管理器（单例模式）
@@ -196,7 +198,7 @@ export function setWorkspacePath(path: string | null) {
   WebSocketManager.getInstance().setWorkspacePath(path);
 }
 
-export function ChatView({ currentConversation, workspacePath }: ChatViewProps) {
+export function ChatView({ currentConversation, plugins, workspacePath, onUpdateSessionTitle, onNewSession }: ChatViewProps) {
   const [currentTheme, setCurrentTheme] = useState<Theme>('dark');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -242,6 +244,7 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
 
   // 更新 ref
   useEffect(() => {
+    if (!currentConversation.id) return;
     sessionIdRef.current = currentConversation.id.toString();
     conversationIdRef.current = currentConversation.id;
   }, [currentConversation.id]);
@@ -297,6 +300,7 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
 
   // 注册消息回调
   useEffect(() => {
+    if (!currentConversation.id) return;
     const sessionId = currentConversation.id.toString();
     const wsManager = WebSocketManager.getInstance();
 
@@ -431,6 +435,17 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
   }, [currentConversation.id]);
 
   const sendMessage = useCallback(async (messageText: string, options: SendOptions) => {
+    let sessionId = currentConversation.id?.toString();
+
+    // 无会话时，创建新会话（标题取消息前20字），然后继续发送
+    if (!sessionId) {
+      if (!onNewSession) return;
+      const title = messageText.trim().slice(0, 20) + (messageText.trim().length > 20 ? '...' : '');
+      sessionId = onNewSession(title);
+      sessionIdRef.current = sessionId;
+      conversationIdRef.current = sessionId;
+    }
+
     let fullMessage = messageText;
 
     if (options.contexts.length > 0) {
@@ -447,8 +462,14 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
 
     setMessages(prev => [...prev, userMessage]);
 
+    // 将会话保存到列表（如果尚未保存）
+    if (onUpdateSessionTitle) {
+      const title = messageText.trim().slice(0, 20) + (messageText.trim().length > 20 ? '...' : '');
+      onUpdateSessionTitle(sessionId, title);
+    }
+
     await saveMessage({
-      conversationId: currentConversation.id,
+      conversationId: sessionId,
       role: 'user',
       timestamp: userMessage.timestamp,
       contents: JSON.stringify(userMessage.contents)
@@ -469,7 +490,6 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
     chatMessagesRef.current?.scrollToBottom();
 
     try {
-      const sessionId = currentConversation.id.toString();
       const wsManager = WebSocketManager.getInstance();
 
       const request = {
@@ -493,38 +513,14 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
       setMessages(prev => [...prev, errorMessage]);
 
       await saveMessage({
-        conversationId: currentConversation.id,
+        conversationId: sessionId,
         role: 'error',
         timestamp: errorMessage.timestamp,
         contents: JSON.stringify(errorMessage.contents)
       });
       setIsLoading(false);
     }
-  }, [currentConversation]);
-
-  async function loadSolonClawMessages() {
-    const storedMessages = await getMessagesByConversation('SolonClaw');
-
-    if (storedMessages.length > 0) {
-      setMessages(storedMessages.map((msg, index) => ({
-        ...msg,
-        id: Date.now() + index,
-        role: msg.role as Message['role'],
-        timestamp: msg.timestamp || new Date().toLocaleTimeString(),
-        contents: typeof msg.contents === 'string' ? JSON.parse(msg.contents) : msg.contents
-      })));
-    } else {
-      setMessages([{
-        id: 1,
-        role: 'assistant',
-        timestamp: new Date().toLocaleTimeString(),
-        contents: [{
-          type: 'text',
-          text: '🦊 SolonClaw 已启动\n\n这是一个强大的代码分析和管理工具。我可以帮助你:\n\n• 分析项目结构和依赖关系\n• 检测代码质量问题\n• 生成代码文档\n• 执行代码重构建议\n• 搜索代码\n• 知道项目配置\n\n请告诉我你需要什么帮助?'
-        }]
-      }]);
-    }
-  }
+  }, [currentConversation, onNewSession, onUpdateSessionTitle, workspacePath]);
 
   async function loadConversationMessages(convId: string | number) {
     const storedMessages = await getMessagesByConversation(convId);
@@ -538,15 +534,7 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
         contents: typeof msg.contents === 'string' ? JSON.parse(msg.contents) : msg.contents
       })));
     } else {
-      setMessages([{
-        id: 1,
-        role: 'assistant',
-        timestamp: new Date().toLocaleTimeString(),
-        contents: [{
-          type: 'text',
-          text: '你好！我是 SolonCode 助手。有什么我可以帮助你的吗?'
-        }]
-      }]);
+      setMessages([]);
     }
   }
 
@@ -555,10 +543,10 @@ export function ChatView({ currentConversation, workspacePath }: ChatViewProps) 
   }, []);
 
   useEffect(() => {
-    if (currentConversation.id === 'SolonClaw' && currentConversation.isPermanent) {
-      loadSolonClawMessages();
-    } else {
+    if (currentConversation.id) {
       loadConversationMessages(currentConversation.id);
+    } else {
+      setMessages([]);
     }
   }, [currentConversation]);
 

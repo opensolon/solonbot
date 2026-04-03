@@ -6,19 +6,11 @@ import { ChatView } from '../components/ChatView';
 import './ChatPage.css';
 
 const INITIAL_PLUGINS: Plugin[] = [
-  {
-    id: 'none',
-    name: '插件暂不支持',
-    icon: '🐱',
-    description: '插件暂不支持',
-    enabled: true,
-    version: '1.0.0'
-  }
 ];
 
 const SOLON_CLAW_CONV: Conversation = {
-  id: 'SolonClaw',
-  title: 'SolonClaw',
+  id: 'SolonCode',
+  title: 'SolonCode',
   timestamp: new Date().toLocaleString(),
   status: 'active',
   isPermanent: true,
@@ -58,11 +50,6 @@ export function ChatPage() {
       if (isInitialized) return;
 
       const stored = await getAllConversations();
-      const solonClawExists = stored.some(c => String(c.id) === 'SolonClaw');
-
-      if (!solonClawExists) {
-        await saveConversation(SOLON_CLAW_CONV);
-      }
 
       if (stored.length > 0) {
         setConversations(stored as Conversation[]);

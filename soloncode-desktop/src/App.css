@@ -341,3 +341,26 @@ select option {
   border: none;
   outline: none;
 }
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.toast-message {
+  position: fixed;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  border-radius: 4px;
+  background: var(--cb-vscode-input-background);
+  color: var(--cb-vscode-foreground);
+  font-size: 13px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: fadeInOut 5s ease-in-out forwards;
+  border: 1px solid var(--cb-vscode-panel-border);
+}

@@ -41,22 +41,22 @@
 
 /* 亮色主题变量 */
 [data-theme="light"] {
-  --cb-vscode-editor-background: #ffffff;
-  --cb-vscode-sideBar-background: #f3f3f3;
-  --cb-vscode-input-background: #f5f5f5;
-  --cb-vscode-foreground: #333333;
-  --cb-vscode-button-background: #007acc;
+  --cb-vscode-editor-background: #FFFFFF;
+  --cb-vscode-sideBar-background: #F9FAFB;
+  --cb-vscode-input-background: #F3F4F6;
+  --cb-vscode-foreground: #27272A;
+  --cb-vscode-button-background: #615CED;
   --cb-vscode-button-foreground: #ffffff;
-  --cb-vscode-button-hoverBackground: #0062a3;
-  --cb-vscode-list-hoverBackground: #e8e8e8;
-  --cb-vscode-list-activeSelectionBackground: #e1e1e1;
-  --cb-vscode-widget-border: #d0d7de;
-  --cb-vscode-panel-border: #d0d7de;
-  --cb-text-primary: #333333;
-  --cb-text-secondary: #656d76;
-  --cb-border-color: #d0d7de;
-  --cb-accent: #007acc;
-  --cb-accent-light: #0b57d0;
+  --cb-vscode-button-hoverBackground: #4F46E5;
+  --cb-vscode-list-hoverBackground: #F3F4F6;
+  --cb-vscode-list-activeSelectionBackground: #EEF2FF;
+  --cb-vscode-widget-border: #E4E4E7;
+  --cb-vscode-panel-border: #E4E4E7;
+  --cb-text-primary: #18181B;
+  --cb-text-secondary: #71717A;
+  --cb-border-color: #E4E4E7;
+  --cb-accent: #615CED;
+  --cb-accent-light: #4F46E5;
   --cb-success: #1a7f37;
   --cb-warning: #bf8700;
   --cb-error: #cf222e;

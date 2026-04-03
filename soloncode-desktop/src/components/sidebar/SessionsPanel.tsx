@@ -13,7 +13,7 @@ interface SessionsPanelProps {
   sessions: Session[];
   currentSessionId: string | null;
   onSelectSession: (id: string) => void;
-  onNewSession: () => void;
+  onNewSession: () => string | void;
   onDeleteSession: (id: string) => void;
 }
 
@@ -31,7 +31,7 @@ export function SessionsPanel({
     <div className="sessions-panel">
       <div className="panel-header">
         <span className="panel-title">会话</span>
-        <button className="new-session-btn" onClick={onNewSession} title="新建会话">
+        <button className="new-session-btn" onClick={() => onNewSession()} title="新建会话">
           <Icon name="add" size={16} />
         </button>
       </div>
@@ -91,14 +91,6 @@ export function SessionsPanel({
                 </button>
               </div>
             ))}
-          </div>
-        )}
-
-        {sessions.length === 0 && (
-          <div className="empty-state">
-            <Icon name="chat" size={40} className="empty-icon" />
-            <span className="empty-text">暂无会话</span>
-            <button className="start-btn" onClick={onNewSession}>开始对话</button>
           </div>
         )}
       </div>
