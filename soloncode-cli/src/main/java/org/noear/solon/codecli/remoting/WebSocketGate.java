@@ -48,7 +48,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
     @Override
     public void onOpen(WebSocket socket) {
-        String sessionId = socket.param("sessionId");
+        String sessionId = socket.paramOrDefault("sessionId", HarnessEngine.SESSION_DEFAULT);
         String sessionCwd = socket.param("X-Session-Cwd");//工作区
 
         if (Assert.isNotEmpty(sessionId)) {
