@@ -46,16 +46,15 @@ public class HarnessEngine {
     public final static String NAME_AGENTS_MD = "AGENTS.md";
     public final static String NAME_CLAUDE_MD = "CLAUDE.md";
 
-    private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
     private final HarnessProperties props;
+    private final Collection<ReActAgentExtension> extensions;
 
     private final CodeSkill codeSkill;
     private final TodoSkill todoSkill;
     private final TaskSkill taskSkill;
     private final GenerateTool generateTool;
 
-    private final ReActAgent mainAgent;
 
     private final ToolGatewaySkill mcpGatewaySkill;
     private final RestApiSkill restApiSkill;
@@ -63,10 +62,12 @@ public class HarnessEngine {
     private final CliSkillProvider cliSkills = new CliSkillProvider();
 
     private final SummarizationInterceptor summarizationInterceptor;
-    private final HITLInterceptor hitlInterceptor = new HITLInterceptor().onTool("bash", new HitlStrategy());
+    private final HITLInterceptor hitlInterceptor;
 
+    private final AgentManager agentManager;
 
-    private AgentManager agentManager;
+    private ChatModel chatModel; //允许运行时切换
+    private ReActAgent mainAgent; //允许运行时切换
 
     public String getVersion() {
         return "v2026.4.5";
@@ -125,11 +126,22 @@ public class HarnessEngine {
     }
 
 
-    private HarnessEngine(ChatModel chatModel, HarnessProperties props, AgentSessionProvider sessionProvider, SummarizationInterceptor summarizationInterceptor, Collection<ReActAgentExtension> extensions) {
+    public void setChatModel(ChatModel chatModel) {
+        Objects.nonNull(chatModel);
+
+        // chatModel 切换后，重新生成主代理
+        this.chatModel = chatModel;
+        this.mainAgent = createMainAgent();
+    }
+
+
+    private HarnessEngine(ChatModel chatModel, HarnessProperties props, AgentSessionProvider sessionProvider, SummarizationInterceptor summarizationInterceptor, HITLInterceptor hitlInterceptor, Collection<ReActAgentExtension> extensions) {
         this.chatModel = chatModel;
         this.props = props;
         this.sessionProvider = sessionProvider;
         this.summarizationInterceptor = summarizationInterceptor;
+        this.hitlInterceptor = hitlInterceptor;
+        this.extensions = extensions;
 
         this.todoSkill = new TodoSkill(props.HOME_SESSIONS());
         this.codeSkill = new CodeSkill(this);
@@ -178,7 +190,10 @@ public class HarnessEngine {
         agentManager.agentPool(Paths.get(HarnessProperties.getUserHome(), props.HOME_AGENTS())); //global
         agentManager.agentPool(Paths.get(props.getWorkspace(), props.HOME_AGENTS())); //local
 
+        mainAgent = createMainAgent();
+    }
 
+    protected ReActAgent createMainAgent() {
         AgentDefinition agentDefinition = new AgentDefinition();
 
         // 系统提示词
@@ -205,7 +220,7 @@ public class HarnessEngine {
             }
         }
 
-        mainAgent = agentBuilder.build();
+        return agentBuilder.build();
     }
 
 
@@ -252,6 +267,7 @@ public class HarnessEngine {
         private HarnessProperties properties;
         private AgentSessionProvider sessionProvider;
         private SummarizationInterceptor summarizationInterceptor;
+        private HITLInterceptor hitlInterceptor;
         private List<ReActAgentExtension> extensions = new ArrayList<>();
 
         public Builder chatModel(ChatModel chatModel) {
@@ -269,12 +285,26 @@ public class HarnessEngine {
             return this;
         }
 
+        /**
+         * 摘要拦截器
+         */
         public Builder summarizationInterceptor(SummarizationInterceptor summarizationInterceptor) {
             this.summarizationInterceptor = summarizationInterceptor;
             return this;
         }
 
-        public Builder extension(ReActAgentExtension extension) {
+        /**
+         * 人工介入拦截器
+         */
+        public Builder hitlInterceptor(HITLInterceptor hitlInterceptor) {
+            this.hitlInterceptor = hitlInterceptor;
+            return this;
+        }
+
+        /**
+         * 添加扩展
+         */
+        public Builder extensionAdd(ReActAgentExtension extension) {
             this.extensions.add(extension);
             return this;
         }
@@ -296,7 +326,11 @@ public class HarnessEngine {
                         strategy);
             }
 
-            return new HarnessEngine(chatModel, properties, sessionProvider, summarizationInterceptor, extensions);
+            if (hitlInterceptor == null) {
+                hitlInterceptor = new HITLInterceptor().onTool("bash", new HitlStrategy());
+            }
+
+            return new HarnessEngine(chatModel, properties, sessionProvider, summarizationInterceptor, hitlInterceptor, extensions);
         }
     }
 }
