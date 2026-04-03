@@ -20,8 +20,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
-import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.noear.solon.core.util.Assert;
@@ -38,9 +37,9 @@ import reactor.core.publisher.Flux;
  */
 @Preview("3.9.1")
 public class WebGate implements Handler {
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
 
-    public WebGate(AgentRuntime agentRuntime) {
+    public WebGate(HarnessEngine agentRuntime) {
         this.agentRuntime = agentRuntime;
     }
 
@@ -71,11 +70,11 @@ public class WebGate implements Handler {
         if (Assert.isNotEmpty(input)) {
             if ("call".equals(mode)) {
                 ctx.contentType(MimeType.TEXT_PLAIN_UTF8_VALUE);
-                String result = agentRuntime.getRootAgent()
+                String result = agentRuntime.getMainAgent()
                         .prompt(input)
                         .session(session)
                         .options(o -> {
-                            o.toolContextPut(AgentRuntime.ATTR_CWD, sessionCwd);
+                            o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
                         })
                         .call()
                         .getContent();
@@ -85,11 +84,11 @@ public class WebGate implements Handler {
                 ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
 
 
-                Flux<String> stringFlux = agentRuntime.getRootAgent()
+                Flux<String> stringFlux = agentRuntime.getMainAgent()
                         .prompt(input)
                         .session(session)
                         .options(o -> {
-                            o.toolContextPut(AgentRuntime.ATTR_CWD, sessionCwd);
+                            o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
                         })
                         .stream()
                         .map(chunk -> {

@@ -1,5 +1,9 @@
+solon.app:
+  name: "soloncode"
+
 solon.logging.appender:
   console:
     enable: false
   file:
     level: DEBUG
+    name: ".soloncode/logs/${solon.app.name}"

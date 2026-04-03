@@ -24,8 +24,8 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.core.AgentProperties;
-import org.noear.solon.codecli.core.AgentRuntime;
 import org.noear.solon.codecli.portal.AcpLink;
 import org.noear.solon.codecli.portal.CliShellNew;
 import org.noear.solon.codecli.portal.CliShellOld;
@@ -49,14 +49,15 @@ public class App {
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
             //加载配置文件
-            URL configUrl = AgentProperties.getConfigUrl();
+            AgentProperties c = new AgentProperties();
+            URL configUrl = c.getConfigUrl();
             app.cfg().loadAdd(configUrl);
 
             //获取命令行运行的当前用户工作区
-            String workDir = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
-            AgentProperties c = app.cfg().toBean("soloncode", AgentProperties.class);
+            String workspace = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
+            app.cfg().getProp("soloncode").bindTo( c);
 
-            c.setWorkDir(workDir);
+            c.setWorkspace(workspace);
             app.context().wrapAndPut(AgentProperties.class, c);
             app.enableHttp(false); //默认不启用 http
 
@@ -74,22 +75,22 @@ public class App {
             }
         });
 
-        AgentProperties agentProperties = Solon.context().getBean(AgentProperties.class);
+        AgentProperties agentProps = Solon.context().getBean(AgentProperties.class);
 
-        if (agentProperties == null || agentProperties.getChatModel() == null) {
+        if (agentProps == null || agentProps.getChatModel() == null) {
             throw new RuntimeException("ChatModel config not found");
         }
 
-        ChatModel chatModel = ChatModel.of(agentProperties.getChatModel()).build();
+        ChatModel chatModel = ChatModel.of(agentProps.getChatModel()).build();
         Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
         // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, Paths.get(agentProperties.getWorkDir(), AgentRuntime.SOLONCODE_SESSIONS).resolve(key).normalize().toFile().toString()));
+                new FileAgentSession(key, Paths.get(agentProps.getWorkspace(), agentProps.getHarnessSessions()).resolve(key).normalize().toFile().toString()));
 
-        AgentRuntime agentRuntime = AgentRuntime.builder()
+        HarnessEngine agentRuntime = HarnessEngine.builder()
                 .chatModel(chatModel)
-                .properties(agentProperties)
+                .properties(agentProps)
                 .sessionProvider(sessionProvider)
                 .build();
 
@@ -100,7 +101,7 @@ public class App {
             if ("run".equals(flag)) {
                 //单次任务态
                 String prompt = Solon.cfg().argx().flagAt(1);
-                new CliShellOld(agentRuntime).call(prompt);
+                new CliShellOld(agentRuntime, agentProps).call(prompt);
                 Solon.stop();
                 return;
             }
@@ -111,33 +112,33 @@ public class App {
 
 
         //cli
-        if (agentProperties.isCliEnabled()) {
-            if ("new".equals(agentProperties.getUiType())) {
-                new Thread(new CliShellNew(agentRuntime), "CLI-Interactive-Thread").start();
+        if (agentProps.isCliEnabled()) {
+            if ("new".equals(agentProps.getUiType())) {
+                new Thread(new CliShellNew(agentRuntime, agentProps), "CLI-Interactive-Thread").start();
             } else {
-                new Thread(new CliShellOld(agentRuntime), "CLI-Interactive-Thread").start();
+                new Thread(new CliShellOld(agentRuntime, agentProps), "CLI-Interactive-Thread").start();
             }
         }
 
         //web
-        if (agentProperties.isWebEnabled()) {
-            Solon.app().router().get(agentProperties.getWebEndpoint(), new WebGate(agentRuntime));
+        if (agentProps.isWebEnabled()) {
+            Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime));
         }
 
         //acp
-        if (agentProperties.isAcpEnabled()) {
+        if (agentProps.isAcpEnabled()) {
             AcpAgentTransport agentTransport;
-            if ("stdio".equals(agentProperties.getAcpTransport())) {
+            if ("stdio".equals(agentProps.getAcpTransport())) {
                 agentTransport = new StdioAcpAgentTransport();
             } else {
                 agentTransport = new WebSocketSolonAcpAgentTransport(
-                        agentProperties.getAcpTransport(), McpJsonMapper.getDefault());
+                        agentProps.getAcpTransport(), McpJsonMapper.getDefault());
             }
 
             new AcpLink(agentRuntime, agentTransport).run();
         }
 
-        if (agentProperties.isWsEnabled()){
+        if (agentProps.isWsEnabled()){
             WebSocketRouter.getInstance().of("ws", new WebSocketGate(agentRuntime));
         }
     }

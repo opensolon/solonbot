@@ -23,7 +23,7 @@ import org.jline.reader.impl.completer.FileNameCompleter;
 import org.jline.terminal.Attributes;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.jline.utils.InfoCmp;
+import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.intercept.HITL;
@@ -34,8 +34,9 @@ import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.agent.react.task.ThoughtChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.agent.TaskSkill;
+import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.TaskSkill;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
@@ -59,7 +60,8 @@ public class CliShellOld implements Runnable {
 
     private Terminal terminal;
     private LineReader reader;
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
+    private final AgentProperties agentProps;
 
     // ANSI 颜色常量 - 严格对齐 Claude 极简风
     private final static String
@@ -71,8 +73,9 @@ public class CliShellOld implements Runnable {
             CYAN = "\033[36m",
             RESET = "\033[0m";
 
-    public CliShellOld(AgentRuntime agentRuntime) {
+    public CliShellOld(HarnessEngine agentRuntime, AgentProperties agentProps) {
         this.agentRuntime = agentRuntime;
+        this.agentProps = agentProps;
 
         try {
             this.terminal = TerminalBuilder.builder()
@@ -96,8 +99,12 @@ public class CliShellOld implements Runnable {
         // Windows 下将控制台切换为 UTF-8 代码页，避免中文输入乱码
         if (System.getProperty("os.name").toLowerCase().contains("win")) {
             try {
-                new ProcessBuilder("cmd", "/c", "chcp", "65001")
-                        .inheritIO().start().waitFor();
+                Process process = new ProcessBuilder("cmd", "/c", "chcp", "65001").start();
+                // 读取并丢弃输出，避免显示到控制台
+                try (java.io.InputStream is = process.getInputStream()) {
+                    while (is.read() != -1) {}
+                }
+                process.waitFor();
             } catch (Exception ignored) {
             }
         }
@@ -110,7 +117,7 @@ public class CliShellOld implements Runnable {
      * 单次调用
      */
     public void call(String input) {
-        AgentSession session = prepare(AgentRuntime.SESSION_DEFAULT);
+        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
 
         try {
             if (!isSystemCommand(session, input)) {
@@ -126,7 +133,7 @@ public class CliShellOld implements Runnable {
      */
     @Override
     public void run() {
-        AgentSession session = prepare(AgentRuntime.SESSION_DEFAULT);
+        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
 
         // 2. 主循环
         while (true) {
@@ -197,7 +204,7 @@ public class CliShellOld implements Runnable {
 
             Prompt prompt = Prompt.of(currentInput).attrPut("start_time", System.currentTimeMillis());
 
-            Disposable disposable = agentRuntime.getRootAgent()
+            Disposable disposable = agentRuntime.getMainAgent()
                     .prompt(prompt)
                     .session(session)
                     .stream()
@@ -353,7 +360,7 @@ public class CliShellOld implements Runnable {
     private void onReasonChunk(ReasonChunk reason, AtomicBoolean isFirstReasonChunk, AtomicBoolean isFirstConversation) {
         if (!reason.isToolCalls() && reason.hasContent()) {
             //打印 think 或者 不是 think
-            if (agentRuntime.getProps().isThinkPrinted() || !reason.getMessage().isThinking()) {
+            if (agentProps.isThinkPrinted() || !reason.getMessage().isThinking()) {
                 String delta = clearThink(reason.getContent());
                 onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
             }
@@ -426,7 +433,7 @@ public class CliShellOld implements Runnable {
             String argsStr = argsBuilder.toString().replace("\n", " ");
             boolean hasBigArgs = argsStr.length() > 100 || (args != null && args.values().stream().anyMatch(v -> v instanceof String && ((String) v).contains("\n")));
 
-            if (agentRuntime.getProps().isCliPrintSimplified()) {
+            if (agentProps.isCliPrintSimplified()) {
                 // --- 简化风格：单行摘要模式 ---
                 String content = action.getContent() == null ? "" : action.getContent().trim();
                 String summary;
@@ -497,9 +504,9 @@ public class CliShellOld implements Runnable {
 //        terminal.puts(InfoCmp.Capability.clear_screen);
 //        terminal.flush();
 
-        String path = new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath();
+        String path = new File(agentRuntime.getProps().getWorkspace()).getAbsolutePath();
         // 连带版本号，紧凑排列
-        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + agentRuntime.getVersion() + RESET);
+        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + agentRuntime.getVersion() + " PID-" + Utils.pid() + RESET);
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().print(DIM + "Tips: " + RESET + "(esc)" + DIM + " interrupt | " +
                 RESET + "'/exit'" + DIM + ": quit | " +

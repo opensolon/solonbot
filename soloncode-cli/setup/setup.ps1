@@ -5,7 +5,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$VERSION = "v2026.4.1"
+$VERSION = "v2026.4.5"
 $PACKAGE_URL = "https://gitee.com/opensolon/soloncode/releases/download/$VERSION/soloncode-cli-bin-$VERSION.tar.gz"
 $TEMP_DIR = Join-Path $env:TEMP "soloncode-install"
 
@@ -79,4 +79,4 @@ try {
 } catch {
     Write-Error $_.Exception.Message
     throw $_
-}
+}

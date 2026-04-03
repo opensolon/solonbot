@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.core.agent;
+package org.noear.solon.ai.harness.agent;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

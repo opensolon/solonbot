@@ -23,8 +23,8 @@ import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.agent.AgentDefinition;
+import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.AgentEventType;
 import org.noear.solon.codecli.core.teams.event.EventBus;
@@ -75,7 +75,7 @@ public class MainAgent {
     private GoalKeeperIntegration goalKeeper;
 
     // 新增：用于访问 subagent 功能
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
     private final AgentDefinition agentDefinition;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -94,7 +94,7 @@ public class MainAgent {
      * 完整构造函数（支持 subagent 功能）
      */
     public MainAgent(
-            AgentRuntime agentRuntime,
+            HarnessEngine agentRuntime,
             AgentDefinition agentDefinition,
             MemoryManager sharedMemoryManager,
             EventBus eventBus,

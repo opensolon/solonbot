@@ -23,8 +23,8 @@ import org.noear.solon.ai.skills.cli.PoolManager;
 import org.noear.solon.codecli.core.teams.event.EventBus;
 import org.noear.solon.codecli.core.teams.message.MessageChannel;
 import org.noear.solon.codecli.core.teams.memory.MemoryManager;
-import org.noear.solon.codecli.core.agent.AgentDefinition;
-import org.noear.solon.codecli.core.agent.AgentManager;
+import org.noear.solon.ai.harness.agent.AgentDefinition;
+import org.noear.solon.ai.harness.agent.AgentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

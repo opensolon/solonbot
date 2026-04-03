@@ -23,6 +23,8 @@
             <outputDirectory>.</outputDirectory>
             <fileMode>0755</fileMode>
             <includes>
+                <include>config.yml</include>
+                <include>AGENTS.md</include>
                 <include>install.sh</include>
                 <include>install.ps1</include>
             </includes>
@@ -44,16 +46,6 @@
             <outputDirectory>./skills</outputDirectory>
             <includes>
                 <include>**/*</include>
-            </includes>
-        </fileSet>
-
-        <!-- default config template (placed in .soloncode/ subdirectory) -->
-        <fileSet>
-            <directory>${project.basedir}/release/bin</directory>
-            <outputDirectory>./bin</outputDirectory>
-            <includes>
-                <include>config.yml</include>
-                <include>AGENTS.md</include>
             </includes>
         </fileSet>
 

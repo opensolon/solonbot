@@ -16,15 +16,11 @@
 package org.noear.solon.codecli.remoting;
 
 import org.noear.snack4.ONode;
-import org.noear.solon.Solon;
-import org.noear.solon.SolonApp;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.core.AppContext;
-import org.noear.solon.core.handle.Context;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
@@ -44,9 +40,9 @@ import java.io.IOException;
 
 public class WebSocketGate extends SimpleWebSocketListener {
     private static final Logger LOG = LoggerFactory.getLogger(WebSocketGate.class);
-    private final AgentRuntime kernel;
+    private final HarnessEngine kernel;
 
-    public WebSocketGate(AgentRuntime kernel) {
+    public WebSocketGate(HarnessEngine kernel) {
         this.kernel = kernel;
     }
 
@@ -71,7 +67,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
             }
 
             AgentSession session = kernel.getSession(sessionId);
-            session.attrs().putIfAbsent(AgentRuntime.ATTR_CWD, sessionCwd);
+            session.attrs().putIfAbsent(HarnessEngine.ATTR_CWD, sessionCwd);
         }
     }
 
@@ -130,11 +126,11 @@ public class WebSocketGate extends SimpleWebSocketListener {
             final String finalSessionId = sessionId;
 
             String finalCwd = cwd;
-            Flux<String> stringFlux = kernel.getRootAgent()
+            Flux<String> stringFlux = kernel.getMainAgent()
                     .prompt(input)
                     .session(session)
                     .options(o -> {
-                        o.toolContextPut(AgentRuntime.ATTR_CWD, finalCwd);
+                        o.toolContextPut(HarnessEngine.ATTR_CWD, finalCwd);
                     })
                     .stream()
                     .map(chunk -> {

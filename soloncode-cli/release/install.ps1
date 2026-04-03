@@ -44,9 +44,15 @@ $SOURCE_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
 if (-not $SOURCE_DIR) { $SOURCE_DIR = $PWD.Path }
 $SOURCE_BIN_DIR = Join-Path $SOURCE_DIR "bin"
 $SOURCE_SKILLS_DIR = Join-Path $SOURCE_DIR "skills"
+$SOURCE_CONFIG = Join-Path $SOURCE_DIR "config.yml"
+$SOURCE_AGENTS = Join-Path $SOURCE_DIR "AGENTS.md"
 $TARGET_DIR = Join-Path $env:USERPROFILE ".soloncode"
 $TARGET_BIN_DIR = Join-Path $TARGET_DIR "bin"
 $TARGET_SKILLS_DIR = Join-Path $TARGET_DIR "skills"
+$TARGET_CONFIG = Join-Path $TARGET_DIR "config.yml"
+$TARGET_AGENTS = Join-Path $TARGET_DIR "AGENTS.md"
+$OLD_TARGET_CONFIG = Join-Path $TARGET_BIN_DIR "config.yml"
+$OLD_TARGET_AGENTS = Join-Path $TARGET_BIN_DIR "AGENTS.md"
 # =============================================
 # 检查源目录是否存在
 # =============================================
@@ -56,13 +62,24 @@ if (-not (Test-Path $SOURCE_BIN_DIR)) {
     exit 1
 }
 # =============================================
-# [1/5] 检查并备份已有的 config.yml 和 AGENTS.md
+# [1/5] 检查并备份已有的 config.yml 和 AGENTS.md，并迁移旧版本文件
 # =============================================
 Write-Host "[1/5] Checking for existing configuration..." -ForegroundColor Yellow
 $CONFIG_BACKUP = $null
 $AGENTS_BACKUP = $null
-$TARGET_CONFIG = Join-Path $TARGET_BIN_DIR "config.yml"
-$TARGET_AGENTS = Join-Path $TARGET_BIN_DIR "AGENTS.md"
+
+# 迁移旧版本的配置文件（从 bin/ 目录移动到根目录）
+if ((Test-Path $OLD_TARGET_CONFIG) -and -not (Test-Path $TARGET_CONFIG)) {
+    Move-Item $OLD_TARGET_CONFIG $TARGET_CONFIG -Force
+    Write-Host "      Migrated config.yml from bin/ to root directory" -ForegroundColor Gray
+}
+
+if ((Test-Path $OLD_TARGET_AGENTS) -and -not (Test-Path $TARGET_AGENTS)) {
+    Move-Item $OLD_TARGET_AGENTS $TARGET_AGENTS -Force
+    Write-Host "      Migrated AGENTS.md from bin/ to root directory" -ForegroundColor Gray
+}
+
+# 备份现有的配置文件
 if (Test-Path $TARGET_CONFIG) {
     $CONFIG_BACKUP = Join-Path $env:TEMP "soloncode_config_backup_$(Get-Random).yml"
     Copy-Item $TARGET_CONFIG $CONFIG_BACKUP -Force
@@ -94,6 +111,17 @@ Write-Host "[3/5] Copying files to target directory..." -ForegroundColor Yellow
 # 复制 bin 目录内容
 Copy-Item -Path "$SOURCE_BIN_DIR\*" -Destination $TARGET_BIN_DIR -Recurse -Force
 Write-Host "      Copied bin/ directory" -ForegroundColor Gray
+
+# 复制 config.yml 和 AGENTS.md（从根目录）
+if (Test-Path $SOURCE_CONFIG) {
+    Copy-Item $SOURCE_CONFIG $TARGET_CONFIG -Force
+    Write-Host "      Copied config.yml" -ForegroundColor Gray
+}
+
+if (Test-Path $SOURCE_AGENTS) {
+    Copy-Item $SOURCE_AGENTS $TARGET_AGENTS -Force
+    Write-Host "      Copied AGENTS.md" -ForegroundColor Gray
+}
 # 复制 skills 目录（如果目标存在，先删除再复制）
 if (Test-Path $SOURCE_SKILLS_DIR) {
     if (Test-Path $TARGET_SKILLS_DIR) {
@@ -121,6 +149,14 @@ if ($AGENTS_BACKUP -and (Test-Path $AGENTS_BACKUP)) {
     Copy-Item $AGENTS_BACKUP $TARGET_AGENTS -Force
     Remove-Item $AGENTS_BACKUP -Force
     Write-Host "      Preserved existing AGENTS.md" -ForegroundColor Gray
+}
+
+# 清理旧位置的配置文件（如果还存在）
+if (Test-Path $OLD_TARGET_CONFIG) {
+    Remove-Item $OLD_TARGET_CONFIG -Force
+}
+if (Test-Path $OLD_TARGET_AGENTS) {
+    Remove-Item $OLD_TARGET_AGENTS -Force
 }
 # 检查 jar 文件是否存在
 $JAR_FILE = Join-Path $TARGET_BIN_DIR "soloncode-cli.jar"
@@ -156,8 +192,29 @@ try {
 } catch {
     # 某些终端环境不支持设置编码，忽略错误
 }
+# 检测 Java 版本，如果是 21+ 则添加 --enable-native-access 参数
+$JavaArgs = @("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dstdin.encoding=UTF-8")
+try {
+    $VerProcess = New-Object System.Diagnostics.Process
+    $VerProcess.StartInfo.FileName = "java"
+    $VerProcess.StartInfo.Arguments = "-version"
+    $VerProcess.StartInfo.RedirectStandardError = $true
+    $VerProcess.StartInfo.RedirectStandardOutput = $true
+    $VerProcess.StartInfo.UseShellExecute = $false
+    $VerProcess.Start() | Out-Null
+    $VerOutput = $VerProcess.StandardError.ReadToEnd()
+    $VerProcess.WaitForExit()
+    if ($VerOutput -match '"(\d+)') {
+        $JavaMajor = [int]$Matches[1]
+        if ($JavaMajor -ge 21) {
+            $JavaArgs += "--enable-native-access=ALL-UNNAMED"
+        }
+    }
+} catch {
+    # 版本检测失败时忽略，继续执行
+}
 # 运行 Java 程序
-& java "-Dfile.encoding=UTF-8" "-Dstdout.encoding=UTF-8" "-Dstderr.encoding=UTF-8" "-Dstdin.encoding=UTF-8" -jar $JarFile @RestArgs
+& java @JavaArgs -jar $JarFile @RestArgs
 '@
 Set-Content -Path $LAUNCHER_PS1 -Value $LAUNCHER_CONTENT -Encoding UTF8
 Write-Host "      Created: soloncode.ps1" -ForegroundColor Gray
@@ -167,7 +224,17 @@ $LAUNCHER_SH_CONTENT = @'
 #!/bin/bash
 # Solon Code CLI Launcher for Git Bash / WSL
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-java -Dfile.encoding=UTF-8 -jar "$SCRIPT_DIR/soloncode-cli.jar" "$@"
+
+# 检测 Java 版本，如果是 21+ 则添加 --enable-native-access 参数
+JAVA_VER=$(java -version 2>&1 | head -n1 | grep -oE '"[0-9]+' | grep -oE '[0-9]+' | head -1)
+if [ -z "$JAVA_VER" ]; then
+    JAVA_VER=$(java -version 2>&1 | head -n1 | cut -d'"' -f2 | cut -d'.' -f1)
+fi
+JAVA_OPTS="-Dfile.encoding=UTF-8"
+if [ -n "$JAVA_VER" ] && [ "$JAVA_VER" -ge 21 ]; then
+    JAVA_OPTS="$JAVA_OPTS --enable-native-access=ALL-UNNAMED"
+fi
+java $JAVA_OPTS -jar "$SCRIPT_DIR/soloncode-cli.jar" "$@"
 '@
 Set-Content -Path $LAUNCHER_SH -Value $LAUNCHER_SH_CONTENT -Encoding UTF8 -NoNewline
 Write-Host "      Created: soloncode (for Git Bash)" -ForegroundColor Gray
@@ -203,12 +270,13 @@ Write-Host "    2. Run: soloncode"
 Write-Host ""
 Write-Host "  Directory structure:" -ForegroundColor Cyan
 Write-Host "    $env:USERPROFILE\.soloncode\"
-Write-Host "    +-- bin/           (executables)"
+Write-Host "    +-- config.yml      (configuration, preserved)"
+Write-Host "    +-- AGENTS.md       (agents config, preserved)"
+Write-Host "    +-- bin/            (executables)"
 Write-Host "    |   +-- soloncode-cli.jar"
 Write-Host "    |   +-- soloncode.ps1   (PowerShell launcher)"
 Write-Host "    |   +-- soloncode       (Git Bash launcher)"
-Write-Host "    |   +-- config.yml      (configuration, preserved)"
-Write-Host "    |   +-- AGENTS.md       (agents config, preserved)"
+Write-Host "    |   +-- uninstall.ps1   (uninstall script)"
 Write-Host "    +-- skills/        (skill modules)"
 Write-Host ""
 Write-Host "  [Tip] To use soloncode immediately in current terminal:" -ForegroundColor Yellow

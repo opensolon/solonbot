@@ -14,7 +14,7 @@ import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
-import org.noear.solon.codecli.core.AgentRuntime;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
@@ -25,10 +25,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AcpLink implements Runnable {
-    private final AgentRuntime agentRuntime; // CodeCLI 内部的 Agent
+    private final HarnessEngine agentRuntime; // CodeCLI 内部的 Agent
     private final AcpAgentTransport agentTransport;
 
-    public AcpLink(AgentRuntime agentRuntime, AcpAgentTransport agentTransport) {
+    public AcpLink(HarnessEngine agentRuntime, AcpAgentTransport agentTransport) {
         this.agentRuntime = agentRuntime;
         this.agentTransport = agentTransport;
     }
@@ -69,12 +69,12 @@ public class AcpLink implements Runnable {
                     AgentSession session = agentRuntime.getSession(sessionId);
 
                     // 将 ACP 的 Prompt 转发给 Solon ReActAgent
-                    return agentRuntime.getRootAgent()
+                    return agentRuntime.getMainAgent()
                             .prompt(userInput)
                             .session(session)
                             .options(o -> {
                                 if (Assert.isNotEmpty(context.getCwd())) {
-                                    o.toolContextPut(AgentRuntime.ATTR_CWD, context.getCwd());
+                                    o.toolContextPut(HarnessEngine.ATTR_CWD, context.getCwd());
                                 }
                             })
                             .stream()

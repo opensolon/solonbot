@@ -36,3 +36,5 @@ CLAUDE.md
 TODO.md
 /soloncode-cli/src/main/resources/config.yml
 work
+
+.soloncode/

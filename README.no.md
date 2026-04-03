@@ -1,7 +1,7 @@
 <div align="center">
 <h1>SolonCode</h1>
 <p>SolonCode er en åpen kildekode-kodingsagent basert på Solon AI og Java, som støtter kjøremiljøer fra Java8 til Java26.</p>
-<p>Siste versjon: v2026.4.1</p>
+<p>Siste versjon: v2026.4.5</p>
 <img width="600" src="SHOW.png" />
 </div>
 
@@ -39,7 +39,7 @@ Kjør `soloncode`-kommandoen fra hvilken som helst katalog i konsollen (dvs. arb
 
 ```bash
 demo@MacBook-Pro ~ % soloncode
-SolonCode v2026.4.1
+SolonCode v2026.4.5
 /Users/noear
 Tips: (esc) avbryt | '/exit': avslutt | '/resume': gjenoppta | '/clear': nullstill
 

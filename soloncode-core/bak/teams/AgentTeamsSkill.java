@@ -29,9 +29,9 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.chat.skill.AbsSkill;
 import org.noear.solon.ai.annotation.ToolMapping;
 import org.noear.solon.annotation.Param;
-import org.noear.solon.codecli.core.AgentRuntime;
-import org.noear.solon.codecli.core.agent.AgentDefinition;
-import org.noear.solon.codecli.core.agent.AgentManager;
+import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.AgentDefinition;
+import org.noear.solon.ai.harness.agent.AgentManager;
 import org.noear.solon.codecli.core.teams.event.AgentEvent;
 import org.noear.solon.codecli.core.teams.event.AgentEventType;
 import org.noear.solon.codecli.core.teams.memory.WorkingMemory;
@@ -72,7 +72,7 @@ public class AgentTeamsSkill extends AbsSkill {
     private static final Logger LOG = LoggerFactory.getLogger(AgentTeamsSkill.class);
     private static final String CURRENT_TEAM_KEY = "current_team_name"; // 当前团队名的内存键
 
-    private final AgentRuntime agentRuntime;
+    private final HarnessEngine agentRuntime;
     private final MainAgent mainAgent;
     private final EventBus eventBus;
     private final IntelligentMemoryManager intelligentMemoryManager;
@@ -80,14 +80,14 @@ public class AgentTeamsSkill extends AbsSkill {
     /**
      * 完整构造函数（支持子代理调用）
      */
-    public AgentTeamsSkill(AgentRuntime agentRuntime, MainAgent mainAgent, EventBus eventBus) {
+    public AgentTeamsSkill(HarnessEngine agentRuntime, MainAgent mainAgent, EventBus eventBus) {
         this.agentRuntime = agentRuntime;
         this.mainAgent = mainAgent;
         this.eventBus = eventBus;
 
         // 初始化智能记忆管理器
         if (mainAgent != null && mainAgent.getSharedMemoryManager() != null) {
-            this.intelligentMemoryManager = new IntelligentMemoryManager(Paths.get(mainAgent.getWorkDir(), AgentRuntime.SOLONCODE_MEMORY));
+            this.intelligentMemoryManager = new IntelligentMemoryManager(Paths.get(mainAgent.getWorkDir(), HarnessEngine.SOLONCODE_MEMORY));
         } else {
             this.intelligentMemoryManager = null;
         }

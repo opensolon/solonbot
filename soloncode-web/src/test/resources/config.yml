@@ -5,7 +5,9 @@ solon.logging.appender:
     level: TRACE
 
 soloncode:
-  workDir: "work" # 工作区目录
+  tools: "**"
+  workspace: "work" # 工作区目录
+
   maxSteps: 30 # ReAct 最大循环步数
   maxStepsAutoExtensible: true #最大步数自动续航（由 LLM 反思控制）
 
