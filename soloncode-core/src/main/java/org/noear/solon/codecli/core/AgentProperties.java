@@ -33,7 +33,7 @@ public class AgentProperties extends HarnessProperties {
     private String acpTransport = "stdio";
     private String acpEndpoint = "/acp";
 
-    private boolean wsEnabled = true;
+    private boolean wsEnabled = false;
     private String wsEndpoint = "/ws";
 
     public AgentProperties() {
