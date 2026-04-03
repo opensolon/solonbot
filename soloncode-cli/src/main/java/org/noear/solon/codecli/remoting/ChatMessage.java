@@ -13,5 +13,5 @@ public class ChatMessage {
 
     String agent;
 
-    String sessionCwd;
+    String cwd;
 }

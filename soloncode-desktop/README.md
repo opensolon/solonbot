@@ -44,7 +44,7 @@ npm install
 npm run tauri:dev
 ```
 
-前端热更新端口 `5173`，WebSocket 后端默认连接 `ws://localhost:8080`。
+前端热更新端口 `5173`，WebSocket 后端默认连接 `ws://localhost:18080`。
 
 ### 构建发布
 

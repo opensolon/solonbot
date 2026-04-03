@@ -2,16 +2,6 @@ import { useState, FormEvent, KeyboardEvent, useRef, useEffect, useCallback } fr
 import { Icon } from './common/Icon';
 import './ChatInput.css';
 
-// 可用的模型列表
-const AVAILABLE_MODELS = [
-  { id: 'glm-4.7', name: 'GLM-4.7' },
-  { id: 'gpt-4o', name: 'GPT-4o' },
-  { id: 'gpt-4', name: 'GPT-4' },
-  { id: 'claude-3-opus', name: 'Claude 3 Opus' },
-  { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet' },
-  { id: 'deepseek-chat', name: 'DeepSeek' },
-];
-
 // 可用的智能体列表
 const AVAILABLE_AGENTS = [
   { id: 'default', name: '助手', icon: 'bot', description: '通用编程助手' },
@@ -43,7 +33,7 @@ export interface SendOptions {
 
 export function ChatInput({ onSend, isLoading, onStop, availableFiles = [] }: ChatInputProps) {
   const [userInput, setUserInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('glm-4.7');
+  const [selectedModel, setSelectedModel] = useState('');
   const [selectedAgent, setSelectedAgent] = useState('default');
   const [contexts, setContexts] = useState<ContextRef[]>([]);
 

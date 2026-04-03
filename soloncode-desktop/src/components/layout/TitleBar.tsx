@@ -23,6 +23,7 @@ interface TitleBarProps {
   chatVisible?: boolean;
   onToggleEditor?: () => void;
   onToggleChat?: () => void;
+  onToggleTerminal?: () => void;
   onSwapPanels?: () => void;
 }
 
@@ -40,6 +41,7 @@ export function TitleBar({
   chatVisible,
   onToggleEditor,
   onToggleChat,
+  onToggleTerminal,
   onSwapPanels,
 }: TitleBarProps) {
   // 文件菜单项
@@ -205,6 +207,14 @@ export function TitleBar({
         >
           <Icon name="chat" size={14} />
           <span>对话</span>
+        </button>
+        <button
+          className="titlebar-btn"
+          onClick={onToggleTerminal}
+          title="新开终端"
+        >
+          <Icon name="terminal" size={14} />
+          <span>终端</span>
         </button>
         <button
           className="titlebar-btn"

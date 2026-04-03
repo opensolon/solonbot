@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{Read as IoRead, Write as IoWrite};
 use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::Mutex;
+use tauri::{Manager, Emitter};
+use portable_pty::{native_pty_system, PtySize, CommandBuilder as PtyCommandBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -483,6 +486,73 @@ fn git_discard(cwd: &str, paths: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+// ==================== Git Diff 相关 ====================
+
+/// Diff 行变更信息
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DiffLine {
+    line: u32,          // 文件中的行号（1-based）
+    r#type: String,     // "added" | "modified" | "deleted"
+}
+
+/// 获取单个文件的 git diff（与 HEAD 比较）
+/// 返回行级变更列表
+#[tauri::command]
+fn git_diff_file(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
+    // 先尝试与 HEAD 的 diff（已提交后修改）
+    let output = match run_git(&["diff", "HEAD", "--", file_path], cwd) {
+        Ok(o) => o,
+        Err(_) => {
+            // 可能没有 HEAD（新仓库），尝试与暂存区比较
+            match run_git(&["diff", "--", file_path], cwd) {
+                Ok(o) => o,
+                Err(_) => return Ok(Vec::new()),
+            }
+        }
+    };
+
+    if output.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut diff_lines = Vec::new();
+    let mut new_line = 0u32;
+
+    for line in output.lines() {
+        // 解析 @@ -a,b +c,d @@ 格式的 hunk header
+        if line.starts_with("@@") {
+            if let Some(pos) = line.find('+') {
+                let rest = &line[pos + 1..];
+                let end = rest.find(|c: char| c == ' ' || c == ',').unwrap_or(rest.len());
+                if let Ok(n) = rest[..end].parse::<u32>() {
+                    new_line = n;
+                }
+            }
+            continue;
+        }
+
+        // 新文件中的行
+        if line.starts_with('+') && !line.starts_with("+++") {
+            diff_lines.push(DiffLine {
+                line: new_line,
+                r#type: "added".to_string(),
+            });
+            new_line += 1;
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            // 删除的行，记录在当前位置（用 deleted 标记）
+            diff_lines.push(DiffLine {
+                line: new_line,
+                r#type: "deleted".to_string(),
+            });
+            // new_line 不增加（删除行不占新文件行号）
+        } else {
+            new_line += 1;
+        }
+    }
+
+    Ok(diff_lines)
+}
+
 /// 递归复制目录
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| format!("创建目录失败: {}", e))?;
@@ -519,6 +589,136 @@ fn move_item(source_path: &str, dest_path: &str) -> Result<(), String> {
     fs::rename(source_path, dest_path).map_err(|e| format!("移动失败: {}", e))
 }
 
+// ==================== 终端 (PTY) ====================
+
+use portable_pty::MasterPty;
+
+struct PtyState {
+    master: Box<dyn MasterPty + Send>,
+    writer: std::sync::Mutex<Box<dyn IoWrite + Send>>,
+    _child: Box<dyn portable_pty::Child + Send + 'static>,
+}
+
+static PTY_STATE: Mutex<Option<PtyState>> = Mutex::new(None);
+
+/// 启动终端（PowerShell）
+#[tauri::command]
+fn terminal_start(app_handle: tauri::AppHandle, rows: u16, cols: u16, cwd: Option<String>) -> Result<(), String> {
+    // 先关闭已有终端
+    {
+        let mut pty = PTY_STATE.lock().map_err(|e| format!("锁错误: {}", e))?;
+        if pty.is_some() {
+            *pty = None;
+        }
+    }
+
+    let pty_system = native_pty_system();
+
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| format!("创建 PTY 失败: {}", e))?;
+
+    let mut cmd = PtyCommandBuilder::new("powershell");
+    if let Some(dir) = cwd {
+        cmd.cwd(dir);
+    }
+
+    let child = pair
+        .slave
+        .spawn_command(cmd)
+        .map_err(|e| format!("启动 PowerShell 失败: {}", e))?;
+
+    let reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|e| format!("获取 PTY reader 失败: {}", e))?;
+
+    // take_writer 需要在 master 被装箱为 trait object 之前调用
+    let writer = pair
+        .master
+        .take_writer()
+        .map_err(|e| format!("获取 PTY writer 失败: {}", e))?;
+
+    let master = pair.master;
+
+    // 保存 PTY 状态
+    {
+        let mut pty = PTY_STATE.lock().map_err(|e| format!("锁错误: {}", e))?;
+        *pty = Some(PtyState {
+            master,
+            writer: std::sync::Mutex::new(writer),
+            _child: child,
+        });
+    }
+
+    // 在独立线程中读取 PTY 输出并通过 Tauri 事件发送到前端
+    std::thread::spawn(move || {
+        let mut reader = reader;
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => {
+                    // EOF
+                    let _ = app_handle.emit("terminal-output", "".to_string());
+                    break;
+                }
+                Ok(n) => {
+                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let _ = app_handle.emit("terminal-output", data);
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// 向终端写入数据
+#[tauri::command]
+fn terminal_write(data: String) -> Result<(), String> {
+    let pty = PTY_STATE.lock().map_err(|e| format!("锁错误: {}", e))?;
+    if let Some(state) = pty.as_ref() {
+        let mut writer = state.writer.lock().map_err(|e| format!("锁错误: {}", e))?;
+        writer.write_all(data.as_bytes()).map_err(|e| format!("写入失败: {}", e))?;
+        writer.flush().map_err(|e| format!("flush 失败: {}", e))?;
+    }
+    Ok(())
+}
+
+/// 调整终端大小
+#[tauri::command]
+fn terminal_resize(rows: u16, cols: u16) -> Result<(), String> {
+    let pty = PTY_STATE.lock().map_err(|e| format!("锁错误: {}", e))?;
+    if let Some(state) = pty.as_ref() {
+        state
+            .master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("调整大小失败: {}", e))?;
+    }
+    Ok(())
+}
+
+/// 关闭终端
+#[tauri::command]
+fn terminal_kill() -> Result<(), String> {
+    let mut pty = PTY_STATE.lock().map_err(|e| format!("锁错误: {}", e))?;
+    *pty = None;
+    Ok(())
+}
+
 // ==================== 后端进程管理 ====================
 
 /// 全局后端进程句柄
@@ -526,12 +726,18 @@ static BACKEND_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 
 /// 检查 soloncode 命令是否可用
 fn find_soloncode_command() -> Option<String> {
-    // Windows: 检查 ~/.soloncode/bin/soloncode.ps1
+    // Windows: 检查 ~/.soloncode/bin/soloncode.ps1 或 .bat
     if cfg!(windows) {
         if let Ok(home) = std::env::var("USERPROFILE") {
-            let ps1 = Path::new(&home).join(".soloncode").join("bin").join("soloncode.ps1");
+            let bin_dir = Path::new(&home).join(".soloncode").join("bin");
+            // 优先使用 .ps1（功能更完整）
+            let ps1 = bin_dir.join("soloncode.ps1");
             if ps1.exists() {
                 return Some(ps1.to_string_lossy().to_string());
+            }
+            let bat = bin_dir.join("soloncode.bat");
+            if bat.exists() {
+                return Some(bat.to_string_lossy().to_string());
             }
         }
     }
@@ -553,15 +759,125 @@ fn find_soloncode_command() -> Option<String> {
     None
 }
 
+/// 查找 install-cli 安装脚本路径
+fn find_install_script(app_handle: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    // 1. Tauri 打包资源目录中的 build/
+    if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        if cfg!(windows) {
+            let bat = resource_dir.join("build").join("install-cli.bat");
+            if bat.exists() { return Some(bat); }
+        } else {
+            let sh = resource_dir.join("build").join("install-cli.sh");
+            if sh.exists() { return Some(sh); }
+        }
+    }
+
+    // 2. 开发模式：从可执行文件向上查找
+    if let Ok(exe_dir) = std::env::current_exe() {
+        let mut dir = exe_dir.parent();
+        for _ in 0..10 {
+            if let Some(d) = dir {
+                if cfg!(windows) {
+                    let bat = d.join("soloncode-desktop").join("build").join("install-cli.bat");
+                    if bat.exists() { return Some(bat); }
+                } else {
+                    let sh = d.join("soloncode-desktop").join("build").join("install-cli.sh");
+                    if sh.exists() { return Some(sh); }
+                }
+                dir = d.parent();
+            } else {
+                break;
+            }
+        }
+    }
+
+    None
+}
+
+/// 查找 release 目录路径
+fn find_release_resource_dir(app_handle: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    // 1. Tauri 打包资源
+    if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        let release = resource_dir.join("soloncode-cli").join("release");
+        if release.join("bin").exists() { return Some(release); }
+        // resources 可能直接平铺
+        let release_flat = resource_dir.join("release");
+        if release_flat.join("bin").exists() { return Some(release_flat); }
+    }
+
+    // 2. 开发模式
+    if let Ok(exe_dir) = std::env::current_exe() {
+        let mut dir = exe_dir.parent();
+        for _ in 0..10 {
+            if let Some(d) = dir {
+                let release = d.join("soloncode-cli").join("release");
+                if release.join("bin").exists() { return Some(release); }
+                dir = d.parent();
+            } else {
+                break;
+            }
+        }
+    }
+
+    None
+}
+
+/// 自动安装 CLI（通过调用 install-cli 脚本）
+fn auto_install_cli(app_handle: &tauri::AppHandle) -> Result<(), String> {
+    let install_script = find_install_script(app_handle)
+        .ok_or("未找到 install-cli 安装脚本")?;
+
+    let release_dir = find_release_resource_dir(app_handle)
+        .ok_or("未找到 soloncode-cli/release 资源目录")?;
+
+    println!("[soloncode] Running install script: {:?}", install_script);
+    println!("[soloncode] Release dir: {:?}", release_dir);
+
+    let release_dir_str = release_dir.to_string_lossy().to_string();
+    let status = if cfg!(windows) {
+        Command::new("cmd")
+            .args(["/C", &install_script.to_string_lossy(), &release_dir_str])
+            .output()
+            .map_err(|e| format!("执行安装脚本失败: {}", e))?
+    } else {
+        Command::new("bash")
+            .arg(&install_script)
+            .arg(&release_dir_str)
+            .output()
+            .map_err(|e| format!("执行安装脚本失败: {}", e))?
+    };
+
+    if !status.status.success() {
+        let stderr = String::from_utf8_lossy(&status.stderr);
+        let stdout = String::from_utf8_lossy(&status.stdout);
+        return Err(format!("CLI 安装失败: {}\n{}", stdout, stderr));
+    }
+
+    // 输出脚本日志
+    let stdout = String::from_utf8_lossy(&status.stdout);
+    for line in stdout.lines() {
+        println!("{}", line);
+    }
+
+    Ok(())
+}
+
 /// 启动后端 CLI 进程
 #[tauri::command]
-fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
+fn start_backend(app_handle: tauri::AppHandle, workspace_path: &str, port: u16) -> Result<u32, String> {
     // 先停止已有进程
     stop_backend()?;
 
-    // 查找 soloncode 命令
-    let soloncode_cmd = find_soloncode_command()
-        .ok_or("未找到 soloncode 命令。请先运行 setup.ps1 安装 SolonCode CLI。")?;
+    // 查找 soloncode 命令，未找到则自动安装
+    let soloncode_cmd = match find_soloncode_command() {
+        Some(cmd) => cmd,
+        None => {
+            println!("[soloncode] CLI not found, auto-installing...");
+            auto_install_cli(&app_handle)?;
+            find_soloncode_command()
+                .ok_or("CLI 安装后仍未找到 soloncode 命令".to_string())?
+        }
+    };
 
     // 确保工作区 .soloncode 目录存在
     let soloncode_dir = Path::new(workspace_path).join(".soloncode");
@@ -585,6 +901,15 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
                 "-File", &soloncode_cmd,
                 &format!("--server.port={}", port),
             ])
+            .current_dir(workspace_path)
+            .stdout(log_file)
+            .stderr(log_file_clone)
+            .spawn()
+            .map_err(|e| format!("启动后端进程失败: {}", e))?
+    } else if cfg!(windows) && soloncode_cmd.ends_with(".bat") {
+        // Windows: 通过 cmd 运行 .bat
+        Command::new("cmd")
+            .args(["/C", &soloncode_cmd, &format!("--server.port={}", port)])
             .current_dir(workspace_path)
             .stdout(log_file)
             .stderr(log_file_clone)
@@ -674,11 +999,16 @@ pub fn run() {
             git_branches,
             git_checkout,
             git_discard,
+            git_diff_file,
             copy_item,
             move_item,
             start_backend,
             stop_backend,
-            backend_status
+            backend_status,
+            terminal_start,
+            terminal_write,
+            terminal_resize,
+            terminal_kill
         ])
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
@@ -688,6 +1018,10 @@ pub fn run() {
                         let _ = child.kill();
                         let _ = child.wait();
                     }
+                }
+                // 关闭终端
+                if let Ok(mut pty) = PTY_STATE.lock() {
+                    *pty = None;
                 }
             }
         })

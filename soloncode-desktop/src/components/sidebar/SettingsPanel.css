@@ -1,12 +1,71 @@
-.settings-panel {
-  height: 100%;
+/* 设置弹窗遮罩 */
+.settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* 设置弹窗 */
+.settings-modal {
+  width: 680px;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
+  background-color: var(--cb-vscode-sideBar-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  user-select: none;
+}
+
+.settings-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cb-text-primary);
+}
+
+.settings-modal-close {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--cb-text-secondary);
+  transition: background-color 0.15s;
+}
+
+.settings-modal-close:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+  color: var(--cb-text-primary);
+}
+
+.settings-modal-search {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
 }
 
 .search-container {
   padding: 8px;
-  border-bottom: 1px solid var(--cb-vscode-panel-border);
 }
 
 .search-input {
@@ -29,9 +88,10 @@
   color: var(--cb-text-secondary);
 }
 
-.settings-list {
+.settings-modal-body {
   flex: 1;
   overflow-y: auto;
+  padding: 0;
 }
 
 .settings-section {
@@ -39,15 +99,18 @@
 }
 
 .section-header {
-  padding: 10px 12px;
+  padding: 10px 16px;
   font-size: 12px;
   font-weight: 600;
   color: var(--cb-text-primary);
   background-color: var(--cb-vscode-input-background);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .setting-item {
-  padding: 8px 12px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -89,7 +152,7 @@
   color: var(--cb-text-primary);
   font-size: 13px;
   outline: none;
-  width: 180px;
+  width: 220px;
   box-sizing: border-box;
 }
 
@@ -98,7 +161,7 @@
 }
 
 .setting-input.number {
-  width: 60px;
+  width: 70px;
   text-align: center;
 }
 
@@ -111,7 +174,7 @@
   font-size: 13px;
   outline: none;
   cursor: pointer;
-  min-width: 120px;
+  min-width: 140px;
 }
 
 .setting-select:focus {
@@ -120,5 +183,51 @@
 
 .setting-select option {
   background-color: var(--cb-vscode-sideBar-background);
+  color: var(--cb-text-primary);
+}
+
+/* 底部按钮 */
+.settings-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--cb-vscode-panel-border);
+}
+
+.settings-btn {
+  padding: 6px 20px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--cb-vscode-widget-border);
+  transition: all 0.15s;
+}
+
+.settings-btn.cancel {
+  background: transparent;
+  color: var(--cb-text-primary);
+}
+
+.settings-btn.cancel:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.settings-btn.save {
+  background-color: var(--cb-accent);
+  color: #fff;
+  border-color: var(--cb-accent);
+}
+
+.settings-btn.save:hover {
+  opacity: 0.9;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
   color: var(--cb-text-primary);
 }

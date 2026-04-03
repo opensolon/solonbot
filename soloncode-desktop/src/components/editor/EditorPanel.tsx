@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import { Icon, getFileIconName } from '../common/Icon';
+import type { DiffLine } from '../../services/gitService';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -21,6 +23,7 @@ interface EditorPanelProps {
   onFileDelete?: (path: string) => void;
   onFileRename?: (path: string) => void;
   theme?: 'dark' | 'light';
+  diffLines?: DiffLine[];
 }
 
 // 文件扩展名到 Monaco 语言 ID 的映射
@@ -71,6 +74,7 @@ export function EditorPanel({
   onContentChange,
   onFileSave,
   theme: _themeProp,
+  diffLines = [],
 }: EditorPanelProps) {
   // 直接从 DOM 读取主题，确保与 ChatView 同步
   const [activeTheme, setActiveTheme] = useState<'dark' | 'light'>(getActiveTheme());
@@ -91,14 +95,83 @@ export function EditorPanel({
     return () => observer.disconnect();
   }, []);
 
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = useRef<editor.IEditorDecorationsCollection | null>(null);
+
+  // 用 ref 保持最新值，避免 addCommand 回调闭包过期
+  const activeFilePathRef = useRef(activeFilePath);
+  activeFilePathRef.current = activeFilePath;
+  const onFileSaveRef = useRef(onFileSave);
+  onFileSaveRef.current = onFileSave;
+
   const handleEditorMount: OnMount = (editor) => {
+    editorRef.current = editor;
     // 注册 Ctrl+S 保存
     editor.addCommand(2097 /* KeyMod.CtrlCmd | KeyCode.KeyS */, () => {
-      if (activeFilePath) {
-        onFileSave(activeFilePath);
+      const path = activeFilePathRef.current;
+      if (path) {
+        onFileSaveRef.current(path);
       }
     });
   };
+
+  // 根据 diffLines 更新 Monaco decorations
+  useEffect(() => {
+    const editorInstance = editorRef.current;
+    if (!editorInstance) return;
+
+    if (decorationsRef.current) {
+      decorationsRef.current.clear();
+    }
+
+    if (!diffLines || diffLines.length === 0) {
+      return;
+    }
+
+    const decorations: editor.IModelDeltaDecoration[] = diffLines.map((d) => {
+      const line = d.line;
+
+      if (d.type === 'added') {
+        return {
+          range: new (window as any).monaco.Range(line, 1, line, 1),
+          options: {
+            isWholeLine: true,
+            glyphMarginClassName: 'diff-added-glyph',
+            overviewRuler: {
+              color: '#4ade80',
+              position: 2,
+            },
+          },
+        };
+      } else if (d.type === 'deleted') {
+        return {
+          range: new (window as any).monaco.Range(line, 1, line, 1),
+          options: {
+            isWholeLine: true,
+            glyphMarginClassName: 'diff-deleted-glyph',
+            overviewRuler: {
+              color: '#ef4444',
+              position: 2,
+            },
+          },
+        };
+      }
+      // modified
+      return {
+        range: new (window as any).monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          glyphMarginClassName: 'diff-modified-glyph',
+          overviewRuler: {
+            color: '#60a5fa',
+            position: 2,
+          },
+        },
+      };
+    });
+
+    decorationsRef.current = editorInstance.createDecorationsCollection(decorations);
+  }, [diffLines]);
 
   const handleEditorChange = (value: string | undefined) => {
     if (activeFilePath && value !== undefined) {
@@ -143,23 +216,6 @@ export function EditorPanel({
             </button>
           </div>
         ))}
-        <div className="editor-tabs-actions">
-          <button
-            className="tab-action-btn"
-            title="保存当前文件 (Ctrl+S)"
-            disabled={!activeFilePath}
-            onClick={() => activeFilePath && onFileSave(activeFilePath)}
-          >
-            <Icon name="save" size={14} />
-          </button>
-          <button
-            className="tab-action-btn"
-            title="关闭所有文件"
-            onClick={() => files.forEach(f => onFileClose(f.path))}
-          >
-            <Icon name="close" size={14} />
-          </button>
-        </div>
       </div>
 
       {activeFile && (

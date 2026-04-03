@@ -183,3 +183,63 @@
   align-items: center;
   gap: 4px;
 }
+
+/* ===== Git Diff 行级装饰样式 ===== */
+
+/* 深色主题 - 新增行 */
+.diff-added-line-dark {
+  background-color: rgba(74, 222, 128, 0.12) !important;
+  border-left: 3px solid #4ade80 !important;
+}
+
+/* 浅色主题 - 新增行 */
+.diff-added-line-light {
+  background-color: rgba(34, 197, 94, 0.1) !important;
+  border-left: 3px solid #22c55e !important;
+}
+
+/* 深色主题 - 删除行 */
+.diff-deleted-line-dark {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+
+/* 浅色主题 - 删除行 */
+.diff-deleted-line-light {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+
+/* 深色主题 - 修改行 */
+.diff-modified-line-dark {
+  background-color: rgba(96, 165, 250, 0.12) !important;
+  border-left: 3px solid #60a5fa !important;
+}
+
+/* 浅色主题 - 修改行 */
+.diff-modified-line-light {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  border-left: 3px solid #3b82f6 !important;
+}
+
+/* Gutter 图标 */
+.diff-added-glyph {
+  background-color: #4ade80;
+  width: 4px !important;
+  margin-left: 2px;
+  border-radius: 2px;
+}
+
+.diff-deleted-glyph {
+  background-color: #ef4444;
+  width: 4px !important;
+  margin-left: 2px;
+  border-radius: 2px;
+}
+
+.diff-modified-glyph {
+  background-color: #60a5fa;
+  width: 4px !important;
+  margin-left: 2px;
+  border-radius: 2px;
+}

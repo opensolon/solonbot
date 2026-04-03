@@ -159,13 +159,6 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
 
     return (
       <div className="chat-messages" ref={chatContainer}>
-        {messages.length === 0 && !isLoading && (
-          <div className="empty-messages">
-            <Icon name="chat" size={48} className="empty-icon" />
-            <span className="empty-text">开始对话</span>
-          </div>
-        )}
-
         {messages.map((message) => (
           <div
             key={message.id}

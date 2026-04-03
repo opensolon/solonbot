@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Icon } from '../common/Icon';
+import { useState, useEffect, useRef } from 'react';
+import { Icon, type IconName } from '../common/Icon';
 import './SettingsPanel.css';
 
 export interface Settings {
@@ -25,209 +25,199 @@ export interface Settings {
 }
 
 interface SettingsPanelProps {
+  visible: boolean;
   settings: Settings;
   onSettingsChange: (settings: Settings) => void;
+  onClose: () => void;
 }
 
-export function SettingsPanel({ settings, onSettingsChange }: SettingsPanelProps) {
+export function SettingsPanel({ visible, settings, onSettingsChange, onClose }: SettingsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [localSettings, setLocalSettings] = useState(settings);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // 打开时同步最新设置
+  useEffect(() => {
+    if (visible) {
+      setLocalSettings(settings);
+      setSearchQuery('');
+    }
+  }, [visible, settings]);
+
+  // ESC 关闭
+  useEffect(() => {
+    if (!visible) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [visible, onClose]);
+
+  if (!visible) return null;
 
   function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
-    onSettingsChange({ ...settings, [key]: value });
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
   }
 
+  function handleSave() {
+    onSettingsChange(localSettings);
+    onClose();
+  }
+
+  // 搜索过滤
+  const sections: { key: string; icon: IconName; label: string; items: any[] }[] = [
+    {
+      key: 'ai',
+      icon: 'bot',
+      label: 'AI 配置',
+      items: [
+        { id: 'apiUrl', label: 'API 地址', type: 'text' as const },
+        { id: 'apiKey', label: 'API Key', type: 'password' as const },
+        { id: 'model', label: '模型', type: 'select' as const, options: [
+          { value: 'glm-4.7', label: 'GLM-4.7' },
+          { value: 'gpt-4', label: 'GPT-4' },
+          { value: 'gpt-4o', label: 'GPT-4o' },
+          { value: 'claude-3-opus', label: 'Claude 3 Opus' },
+          { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+          { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+        ]},
+        { id: 'maxSteps', label: '最大步数', type: 'number' as const, min: 1, max: 100 },
+      ]
+    },
+    {
+      key: 'appearance',
+      icon: 'theme',
+      label: '外观',
+      items: [
+        { id: 'theme', label: '主题', type: 'select' as const, options: [
+          { value: 'dark', label: '暗色' },
+          { value: 'light', label: '亮色' },
+        ]},
+        { id: 'fontSize', label: '字体大小', type: 'number' as const, min: 10, max: 24 },
+        { id: 'language', label: '语言', type: 'select' as const, options: [
+          { value: 'zh-CN', label: '中文' },
+          { value: 'en-US', label: 'English' },
+        ]},
+      ]
+    },
+    {
+      key: 'editor',
+      icon: 'code',
+      label: '编辑器',
+      items: [
+        { id: 'tabSize', label: 'Tab 大小', type: 'number' as const, min: 1, max: 8 },
+        { id: 'autoSave', label: '自动保存', type: 'checkbox' as const },
+        { id: 'formatOnSave', label: '保存时格式化', type: 'checkbox' as const },
+      ]
+    },
+    {
+      key: 'terminal',
+      icon: 'terminal',
+      label: '终端',
+      items: [
+        { id: 'shell', label: 'Shell', type: 'select' as const, options: [
+          { value: 'bash', label: 'Bash' },
+          { value: 'zsh', label: 'Zsh' },
+          { value: 'powershell', label: 'PowerShell' },
+          { value: 'cmd', label: 'CMD' },
+        ]},
+        { id: 'terminalFontSize', label: '终端字体大小', type: 'number' as const, min: 10, max: 24 },
+      ]
+    },
+  ];
+
+  const query = searchQuery.toLowerCase();
+  const filteredSections = query
+    ? sections.map(s => ({
+        ...s,
+        items: s.items.filter(item => item.label.toLowerCase().includes(query) || s.label.toLowerCase().includes(query)),
+      })).filter(s => s.items.length > 0)
+    : sections;
+
   return (
-    <div className="settings-panel">
-      <div className="panel-header">
-        <span className="panel-title">设置</span>
-      </div>
-
-      <div className="search-container">
-        <div className="search-wrapper">
-          <Icon name="search" size={14} className="search-prefix" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="搜索设置..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+    <div className="settings-modal-overlay" ref={overlayRef} onClick={(e) => {
+      if (e.target === overlayRef.current) onClose();
+    }}>
+      <div className="settings-modal">
+        <div className="settings-modal-header">
+          <span className="settings-modal-title">设置</span>
+          <button className="settings-modal-close" onClick={onClose}>
+            <Icon name="close" size={16} />
+          </button>
         </div>
-      </div>
 
-      <div className="settings-list">
-        <div className="settings-section">
-          <div className="section-header">
-            <Icon name="bot" size={16} />
-            <span>AI 配置</span>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">API 地址</label>
+        <div className="settings-modal-search">
+          <div className="search-wrapper">
+            <Icon name="search" size={14} className="search-prefix" />
             <input
               type="text"
-              className="setting-input"
-              value={settings.apiUrl}
-              onChange={(e) => updateSetting('apiUrl', e.target.value)}
-              placeholder="https://api.example.com/v1/chat/completions"
-            />
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">API Key</label>
-            <input
-              type="password"
-              className="setting-input"
-              value={settings.apiKey}
-              onChange={(e) => updateSetting('apiKey', e.target.value)}
-              placeholder="sk-..."
-            />
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">模型</label>
-            <select
-              className="setting-select"
-              value={settings.model}
-              onChange={(e) => updateSetting('model', e.target.value)}
-            >
-              <option value="glm-4.7">GLM-4.7</option>
-              <option value="gpt-4">GPT-4</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="claude-3-opus">Claude 3 Opus</option>
-              <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-              <option value="deepseek-chat">DeepSeek Chat</option>
-            </select>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">最大步数</label>
-            <input
-              type="number"
-              className="setting-input number"
-              value={settings.maxSteps}
-              onChange={(e) => updateSetting('maxSteps', parseInt(e.target.value) || 30)}
-              min={1}
-              max={100}
+              className="search-input"
+              placeholder="搜索设置..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="settings-section">
-          <div className="section-header">
-            <Icon name="theme" size={16} />
-            <span>外观</span>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">主题</label>
-            <select
-              className="setting-select"
-              value={settings.theme}
-              onChange={(e) => updateSetting('theme', e.target.value as 'dark' | 'light')}
-            >
-              <option value="dark">暗色</option>
-              <option value="light">亮色</option>
-            </select>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">字体大小</label>
-            <input
-              type="number"
-              className="setting-input number"
-              value={settings.fontSize}
-              onChange={(e) => updateSetting('fontSize', parseInt(e.target.value) || 14)}
-              min={10}
-              max={24}
-            />
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">语言</label>
-            <select
-              className="setting-select"
-              value={settings.language}
-              onChange={(e) => updateSetting('language', e.target.value)}
-            >
-              <option value="zh-CN">中文</option>
-              <option value="en-US">English</option>
-            </select>
-          </div>
+        <div className="settings-modal-body">
+          {filteredSections.map(section => (
+            <div className="settings-section" key={section.key}>
+              <div className="section-header">
+                <Icon name={section.icon} size={16} />
+                <span>{section.label}</span>
+              </div>
+              {section.items.map(item => (
+                <div className={`setting-item${item.type === 'checkbox' ? ' checkbox' : ''}`} key={item.id}>
+                  {item.type === 'checkbox' ? (
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={localSettings[item.id as keyof Settings] as boolean}
+                        onChange={(e) => updateSetting(item.id as keyof Settings, e.target.checked)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ) : (
+                    <>
+                      <label className="setting-label">{item.label}</label>
+                      {item.type === 'select' ? (
+                        <select
+                          className="setting-select"
+                          value={localSettings[item.id as keyof Settings] as string}
+                          onChange={(e) => updateSetting(item.id as keyof Settings, e.target.value)}
+                        >
+                          {item.options?.map((opt: { value: string; label: string }) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={item.type}
+                          className={`setting-input${item.type === 'number' ? ' number' : ''}`}
+                          value={localSettings[item.id as keyof Settings] as string | number}
+                          onChange={(e) => {
+                            const val = item.type === 'number'
+                              ? (parseInt(e.target.value) || 0)
+                              : e.target.value;
+                            updateSetting(item.id as keyof Settings, val as any);
+                          }}
+                          min={item.min}
+                          max={item.max}
+                          placeholder={item.type === 'text' ? '请输入...' : undefined}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
 
-        <div className="settings-section">
-          <div className="section-header">
-            <Icon name="code" size={16} />
-            <span>编辑器</span>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">Tab 大小</label>
-            <input
-              type="number"
-              className="setting-input number"
-              value={settings.tabSize}
-              onChange={(e) => updateSetting('tabSize', parseInt(e.target.value) || 2)}
-              min={1}
-              max={8}
-            />
-          </div>
-
-          <div className="setting-item checkbox">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={settings.autoSave}
-                onChange={(e) => updateSetting('autoSave', e.target.checked)}
-              />
-              <span>自动保存</span>
-            </label>
-          </div>
-
-          <div className="setting-item checkbox">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={settings.formatOnSave}
-                onChange={(e) => updateSetting('formatOnSave', e.target.checked)}
-              />
-              <span>保存时格式化</span>
-            </label>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <div className="section-header">
-            <Icon name="terminal" size={16} />
-            <span>终端</span>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">Shell</label>
-            <select
-              className="setting-select"
-              value={settings.shell}
-              onChange={(e) => updateSetting('shell', e.target.value)}
-            >
-              <option value="bash">Bash</option>
-              <option value="zsh">Zsh</option>
-              <option value="powershell">PowerShell</option>
-              <option value="cmd">CMD</option>
-            </select>
-          </div>
-
-          <div className="setting-item">
-            <label className="setting-label">终端字体大小</label>
-            <input
-              type="number"
-              className="setting-input number"
-              value={settings.terminalFontSize}
-              onChange={(e) => updateSetting('terminalFontSize', parseInt(e.target.value) || 14)}
-              min={10}
-              max={24}
-            />
-          </div>
+        <div className="settings-modal-footer">
+          <button className="settings-btn cancel" onClick={onClose}>取消</button>
+          <button className="settings-btn save" onClick={handleSave}>保存</button>
         </div>
       </div>
     </div>

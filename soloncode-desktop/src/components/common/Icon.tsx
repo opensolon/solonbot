@@ -1,6 +1,6 @@
 import './Icon.css';
 
-type IconName =
+export type IconName =
   // 文件类型
   | 'file' | 'folder' | 'folder-open' | 'folder-root' | 'folder-add'
   // 功能图标

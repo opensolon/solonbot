@@ -78,6 +78,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
             ChatMessage req = ONode.ofJson(text).toBean(ChatMessage.class);
             String sessionId = req.getSessionId();
             String input = req.getInput();
+            String cwd = req.getCwd();
 
             if (Assert.isEmpty(sessionId)) {
                 sessionId = "ws_" + System.currentTimeMillis();
@@ -89,11 +90,10 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
             AgentSession session = kernel.getSession(sessionId);
 
-            if (Assert.isNotEmpty(req.getSessionCwd())){
-                session.attrs().putIfAbsent(HarnessEngine.ATTR_CWD, req.getSessionCwd());
+            if (Assert.isEmpty(req.getCwd())){
+                cwd = session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, ".").toString();
             }
 
-            String sessionCwd = session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, ".").toString();
 
             // 验证 sessionId
             if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
@@ -103,8 +103,8 @@ public class WebSocketGate extends SimpleWebSocketListener {
             }
 
             // 验证 cwd
-            if (Assert.isNotEmpty(sessionCwd)) {
-                if (sessionCwd.contains("..")) {
+            if (Assert.isNotEmpty(cwd)) {
+                if (cwd.contains("..")) {
                     socket.send(new ONode().set("type", "error")
                             .set("text", "Invalid Session Cwd").toJson());
                     return;
@@ -125,11 +125,12 @@ public class WebSocketGate extends SimpleWebSocketListener {
             // 流式处理
             final String finalSessionId = sessionId;
 
+            String finalCwd = cwd;
             Flux<String> stringFlux = kernel.getMainAgent()
                     .prompt(input)
                     .session(session)
                     .options(o -> {
-                        o.toolContextPut(HarnessEngine.ATTR_CWD, session.attrs().get(HarnessEngine.ATTR_CWD));
+                        o.toolContextPut(HarnessEngine.ATTR_CWD, finalCwd);
                     })
                     .stream()
                     .map(chunk -> {

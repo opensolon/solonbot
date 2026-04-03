@@ -28,6 +28,11 @@ export interface GitLogEntry {
   message: string;
 }
 
+export interface DiffLine {
+  line: number;
+  type: 'added' | 'modified' | 'deleted';
+}
+
 // 检测 Tauri 环境
 function isTauriEnv(): boolean {
   return typeof window !== 'undefined' &&
@@ -181,6 +186,22 @@ export const gitService = {
       return;
     }
     await invoke('git_discard', { cwd, paths });
+  },
+
+  /**
+   * 获取单个文件的 git diff（与 HEAD 比较）
+   */
+  async diffFile(cwd: string, filePath: string): Promise<DiffLine[]> {
+    if (!isTauriEnv()) {
+      console.log('[gitService] mock diffFile:', filePath);
+      return [];
+    }
+    try {
+      return await invoke<DiffLine[]>('git_diff_file', { cwd, filePath });
+    } catch (err) {
+      console.error('[gitService] git_diff_file 失败:', err);
+      return [];
+    }
   },
 };
 
