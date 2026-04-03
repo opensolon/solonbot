@@ -42,32 +42,22 @@ public class HarnessEngine {
 
     public final static String SESSION_DEFAULT = "default";
 
-    public final static String NAME_CONFIG = "config.yml";
-    public final static String NAME_AGENTS = "AGENTS.md";
-
-    public final static String SOLONCODE = ".soloncode/";
-
-    public final static String SOLONCODE_SESSIONS = SOLONCODE + "sessions/";
-    public final static String SOLONCODE_SKILLS = SOLONCODE + "skills/";
-    public final static String SOLONCODE_AGENTS = SOLONCODE + "agents/";
-    public final static String SOLONCODE_MEMORY = SOLONCODE + "memory/";
-
-    public final static String SOLONCODE_CONFIG_YML = SOLONCODE + NAME_CONFIG;
-    public final static String SOLONCODE_AGENTS_MD = SOLONCODE + NAME_AGENTS;
-    public final static String SOLONCODE_CLAUDE_MD = SOLONCODE + "CLAUDE.md";
-
     public final static String SKILLHUB_SKILLS = ".skillhub/skills/";
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
 
+    public final static String NAME_CONFIG_YML = "config.yml";
+    public final static String NAME_AGENTS_MD = "AGENTS.md";
+    public final static String NAME_CLAUDE_MD = "CLAUDE.md";
+
     private final ChatModel chatModel;
     private final AgentSessionProvider sessionProvider;
-    private final HarnessProperties properties;
+    private final HarnessProperties props;
 
-    private final CodeSkill codeSkill = new CodeSkill();
-    private final TodoSkill todoSkill = new TodoSkill(SOLONCODE_SESSIONS);
-    private final TaskSkill taskSkill = new TaskSkill(this);
-    private final GenerateTool generateTool = new GenerateTool(this);
+    private final CodeSkill codeSkill;
+    private final TodoSkill todoSkill;
+    private final TaskSkill taskSkill;
+    private final GenerateTool generateTool;
 
     private final ReActAgent mainAgent;
 
@@ -91,7 +81,7 @@ public class HarnessEngine {
     }
 
     public HarnessProperties getProps() {
-        return properties;
+        return props;
     }
 
     public ChatModel getChatModel() {
@@ -138,14 +128,22 @@ public class HarnessEngine {
         return restApiSkill;
     }
 
-    private HarnessEngine(ChatModel chatModel, HarnessProperties properties, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
+
+
+    private HarnessEngine(ChatModel chatModel, HarnessProperties props, AgentSessionProvider sessionProvider, Collection<ReActAgentExtension> extensions) {
         this.chatModel = chatModel;
-        this.properties = properties;
+        this.props = props;
         this.sessionProvider = sessionProvider;
 
-        if (Assert.isNotEmpty(properties.getRestApis())) {
+
+        this.todoSkill = new TodoSkill(props.HOME_SESSIONS());
+        this.codeSkill = new CodeSkill(this);
+        this.taskSkill = new TaskSkill(this);
+        this.generateTool = new GenerateTool(this);
+
+        if (Assert.isNotEmpty(props.getRestApis())) {
             restApiSkill = new RestApiSkill();
-            for (Map.Entry<String, ApiSource> entry : properties.getRestApis().entrySet()) {
+            for (Map.Entry<String, ApiSource> entry : props.getRestApis().entrySet()) {
                 restApiSkill.addApi(entry.getValue());
             }
         } else {
@@ -153,8 +151,8 @@ public class HarnessEngine {
         }
 
         try {
-            if (Assert.isNotEmpty(properties.getMcpServers())) {
-                McpProviders mcpProviders = McpProviders.fromMcpServers(properties.getMcpServers());
+            if (Assert.isNotEmpty(props.getMcpServers())) {
+                McpProviders mcpProviders = McpProviders.fromMcpServers(props.getMcpServers());
                 mcpGatewaySkill = new ToolGatewaySkill();
                 for (Map.Entry<String, McpClientProvider> entry : mcpProviders.getProviders().entrySet()) {
                     mcpGatewaySkill.addTool(entry.getKey(), entry.getValue());
@@ -166,25 +164,25 @@ public class HarnessEngine {
             throw new RuntimeException("Mcp servers load failure", e);
         }
 
-        cliSkills.getTerminalSkill().setSandboxMode(properties.isSandboxMode());
+        cliSkills.getTerminalSkill().setSandboxMode(props.isSandboxMode());
 
-        cliSkills.skillPool("@global", Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_SKILLS));
+        cliSkills.skillPool("@global", Paths.get(HarnessProperties.getUserHome(), props.HOME_SKILLS()));
         cliSkills.skillPool("@skillhub", Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SKILLHUB_SKILLS));
-        cliSkills.skillPool("@local", Paths.get(properties.getWorkDir(), "skills"));
+        cliSkills.skillPool("@local", Paths.get(props.getWorkspace(), "skills"));
 
-        cliSkills.skillPool("@soloncode_skills", Paths.get(properties.getWorkDir(), HarnessEngine.SOLONCODE_SKILLS));
-        cliSkills.skillPool("@opencode_skills", Paths.get(properties.getWorkDir(), HarnessEngine.OPENCODE_SKILLS));
-        cliSkills.skillPool("@claude_skills", Paths.get(properties.getWorkDir(), HarnessEngine.CLAUDE_SKILLS));
+        cliSkills.skillPool("@soloncode_skills", Paths.get(props.getWorkspace(), props.HOME_SKILLS()));
+        cliSkills.skillPool("@opencode_skills", Paths.get(props.getWorkspace(), HarnessEngine.OPENCODE_SKILLS));
+        cliSkills.skillPool("@claude_skills", Paths.get(props.getWorkspace(), HarnessEngine.CLAUDE_SKILLS));
 
-        if (Assert.isNotEmpty(properties.getSkillPools())) {
-            properties.getSkillPools().forEach((alias, dir) -> {
+        if (Assert.isNotEmpty(props.getSkillPools())) {
+            props.getSkillPools().forEach((alias, dir) -> {
                 cliSkills.skillPool(alias, dir);
             });
         }
 
         agentManager = new AgentManager();
-        agentManager.agentPool(Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_AGENTS)); //global
-        agentManager.agentPool(Paths.get(properties.getWorkDir(), HarnessEngine.SOLONCODE_AGENTS)); //local
+        agentManager.agentPool(Paths.get(HarnessProperties.getUserHome(), props.HOME_AGENTS())); //global
+        agentManager.agentPool(Paths.get(props.getWorkspace(), props.HOME_AGENTS())); //local
 
         //上下文摘要
         SummarizationStrategy strategy = new CompositeSummarizationStrategy()
@@ -192,8 +190,8 @@ public class HarnessEngine {
                 .addStrategy(new HierarchicalSummarizationStrategy(chatModel)); // 滚动更新摘要
 
         summarizationInterceptor = new SummarizationInterceptor(
-                properties.getSummaryWindowSize(),
-                properties.getSummaryWindowToken(),
+                props.getSummaryWindowSize(),
+                props.getSummaryWindowToken(),
                 strategy);
 
         AgentDefinition agentDefinition = new AgentDefinition();
@@ -205,14 +203,14 @@ public class HarnessEngine {
         // 主代理
         agentDefinition.getMetadata().setPrimary(true);
         // 工具权限
-        agentDefinition.getMetadata().addTools(properties.getTools());
+        agentDefinition.getMetadata().addTools(props.getTools());
 
         // 添加步数
-        agentDefinition.getMetadata().setMaxSteps(properties.getMaxSteps());
+        agentDefinition.getMetadata().setMaxSteps(props.getMaxSteps());
         // 添加步数自动扩展
-        agentDefinition.getMetadata().setMaxStepsAutoExtensible(properties.isMaxStepsAutoExtensible());
+        agentDefinition.getMetadata().setMaxStepsAutoExtensible(props.isMaxStepsAutoExtensible());
         // 添加会话窗口大小
-        agentDefinition.getMetadata().setSessionWindowSize(properties.getSessionWindowSize());
+        agentDefinition.getMetadata().setSessionWindowSize(props.getSessionWindowSize());
 
         ReActAgent.Builder agentBuilder = AgentFactory.create(this, agentDefinition);
 
@@ -240,7 +238,7 @@ public class HarnessEngine {
 
     private String getAgentsMd() {
         try {
-            URL agentsUrl = properties.getAgentsUrl();
+            URL agentsUrl = props.getAgentsUrl();
 
             if (agentsUrl != null) {
                 try (InputStream is = agentsUrl.openStream()) {

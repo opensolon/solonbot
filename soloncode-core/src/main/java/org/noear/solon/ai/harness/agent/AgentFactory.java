@@ -32,8 +32,8 @@ public class AgentFactory {
 
         builder.name(agentDefinition.getName());
 
-        if (Assert.isNotEmpty(agentRuntime.getProps().getWorkDir())) {
-            builder.defaultToolContextPut(HarnessEngine.ATTR_CWD, agentRuntime.getProps().getWorkDir());
+        if (Assert.isNotEmpty(agentRuntime.getProps().getWorkspace())) {
+            builder.defaultToolContextPut(HarnessEngine.ATTR_CWD, agentRuntime.getProps().getWorkspace());
         }
 
         if (Assert.isNotEmpty(agentDefinition.getSystemPrompt())) {

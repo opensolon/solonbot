@@ -36,6 +36,7 @@ import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.TaskSkill;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
@@ -60,6 +61,7 @@ public class CliShellOld implements Runnable {
     private Terminal terminal;
     private LineReader reader;
     private final HarnessEngine agentRuntime;
+    private final AgentProperties agentProps;
 
     // ANSI 颜色常量 - 严格对齐 Claude 极简风
     private final static String
@@ -71,8 +73,9 @@ public class CliShellOld implements Runnable {
             CYAN = "\033[36m",
             RESET = "\033[0m";
 
-    public CliShellOld(HarnessEngine agentRuntime) {
+    public CliShellOld(HarnessEngine agentRuntime, AgentProperties agentProps) {
         this.agentRuntime = agentRuntime;
+        this.agentProps = agentProps;
 
         try {
             this.terminal = TerminalBuilder.builder()
@@ -357,7 +360,7 @@ public class CliShellOld implements Runnable {
     private void onReasonChunk(ReasonChunk reason, AtomicBoolean isFirstReasonChunk, AtomicBoolean isFirstConversation) {
         if (!reason.isToolCalls() && reason.hasContent()) {
             //打印 think 或者 不是 think
-            if (agentRuntime.getProps().isThinkPrinted() || !reason.getMessage().isThinking()) {
+            if (agentProps.isThinkPrinted() || !reason.getMessage().isThinking()) {
                 String delta = clearThink(reason.getContent());
                 onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
             }
@@ -430,7 +433,7 @@ public class CliShellOld implements Runnable {
             String argsStr = argsBuilder.toString().replace("\n", " ");
             boolean hasBigArgs = argsStr.length() > 100 || (args != null && args.values().stream().anyMatch(v -> v instanceof String && ((String) v).contains("\n")));
 
-            if (agentRuntime.getProps().isCliPrintSimplified()) {
+            if (agentProps.isCliPrintSimplified()) {
                 // --- 简化风格：单行摘要模式 ---
                 String content = action.getContent() == null ? "" : action.getContent().trim();
                 String summary;
@@ -501,7 +504,7 @@ public class CliShellOld implements Runnable {
 //        terminal.puts(InfoCmp.Capability.clear_screen);
 //        terminal.flush();
 
-        String path = new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath();
+        String path = new File(agentRuntime.getProps().getWorkspace()).getAbsolutePath();
         // 连带版本号，紧凑排列
         terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + agentRuntime.getVersion() + " PID-" + Utils.pid() + RESET);
         terminal.writer().println(DIM + path + RESET);

@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.mcp.client.McpServerParameters;
 import org.noear.solon.ai.skills.restapi.ApiSource;
+import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.ResourceUtil;
 
 import java.io.*;
@@ -24,33 +25,38 @@ import java.util.Map;
 @Setter
 public class HarnessProperties implements Serializable {
     private ChatConfig chatModel;
-    private String workDir = "work";
+
+    private final String home;
+
+    private String workspace = "work";
+
     private String tools = "**";
+
     private int maxSteps = 30;
     private boolean maxStepsAutoExtensible = false;
-    private String uiType = "old";
+
     private int sessionWindowSize = 8;
     private int summaryWindowSize = 15;
     private int summaryWindowToken = 15000;
+
     private boolean sandboxMode = true;
-    private boolean thinkPrinted = false;
     private boolean hitlEnabled = false;
     private boolean subagentEnabled = true;
-    private boolean cliEnabled = true;
-    private boolean cliPrintSimplified = true;
-    private boolean webEnabled = false;
-    private String webEndpoint = "/cli";
-    private boolean acpEnabled = false;
-    private String acpTransport = "stdio";
-    private String acpEndpoint = "/acp";
-
-    private boolean wsEnabled = true;
-    private String wsEndpoint = "/ws";
 
     private Map<String, String> skillPools;
 
     private Map<String, McpServerParameters> mcpServers;
     private Map<String, ApiSource> restApis;
+
+    public HarnessProperties(String home) {
+        if (Assert.isEmpty(home)) {
+            home = ".solon/";
+        } else if (home.endsWith("/") == false) {
+            home = home + "/";
+        }
+
+        this.home = home;
+    }
 
     /**
      * 当前目录
@@ -66,28 +72,28 @@ public class HarnessProperties implements Serializable {
         return System.getProperty("user.home");
     }
 
-    public static URL getConfigUrl() throws MalformedURLException {
+    public URL getConfigUrl() throws MalformedURLException {
         //1. 资源文件（一般开发时）
-        URL tmp = ResourceUtil.getResource(HarnessEngine.NAME_CONFIG);
+        URL tmp = ResourceUtil.getResource(HarnessEngine.NAME_CONFIG_YML);
         if (tmp != null) {
             return tmp;
         }
 
         //2. 工作区配置
-        Path path = Paths.get(HarnessProperties.getUserDir(), HarnessEngine.SOLONCODE_CONFIG_YML);
+        Path path = Paths.get(HarnessProperties.getUserDir(), getHome(), HarnessEngine.NAME_CONFIG_YML);
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //3. 用户目录区配置
-        path = Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_CONFIG_YML);
+        path = Paths.get(HarnessProperties.getUserHome(), getHome(), HarnessEngine.NAME_CONFIG_YML);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //4. 程序边上的配置文件
-        tmp = ResourceUtil.getResourceByFile(HarnessEngine.NAME_CONFIG);
+        tmp = ResourceUtil.getResourceByFile(HarnessEngine.NAME_CONFIG_YML);
         if (tmp != null) {
             return tmp;
         }
@@ -97,24 +103,40 @@ public class HarnessProperties implements Serializable {
 
     public URL getAgentsUrl() throws MalformedURLException {
         //1. 工作区配置
-        Path path = Paths.get(getWorkDir(), HarnessEngine.SOLONCODE, HarnessEngine.NAME_AGENTS);
+        Path path = Paths.get(getWorkspace(), getHome(), HarnessEngine.NAME_AGENTS_MD);
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //2. 用户目录区配置
-        path = Paths.get(HarnessProperties.getUserHome(), HarnessEngine.SOLONCODE_AGENTS_MD);
+        path = Paths.get(HarnessProperties.getUserHome(), getHome(), HarnessEngine.NAME_AGENTS_MD);
 
         if (Files.exists(path)) {
             return path.toUri().toURL();
         }
 
         //3. 程序边上的配置文件
-        URL tmp = ResourceUtil.getResourceByFile(HarnessEngine.NAME_CONFIG);
+        URL tmp = ResourceUtil.getResourceByFile(HarnessEngine.NAME_AGENTS_MD);
         if (tmp != null) {
             return tmp;
         }
 
         return null;
+    }
+
+    public final String HOME_SESSIONS() {
+        return getHome() + "sessions/";
+    }
+
+    public final String HOME_SKILLS() {
+        return getHome() + "skills/";
+    }
+
+    public final String HOME_AGENTS() {
+        return getHome() + "agents/";
+    }
+
+    public final String HOME_MEMORY() {
+        return getHome() + "memory/";
     }
 }

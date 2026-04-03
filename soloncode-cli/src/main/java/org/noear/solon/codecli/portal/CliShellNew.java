@@ -36,6 +36,7 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.chat.message.ChatMessage;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.codecli.portal.ui.CommandRegistry;
 import org.noear.solon.codecli.portal.ui.SlashCommandCompleter;
 import org.noear.solon.codecli.portal.ui.MarkdownRenderer;
@@ -67,6 +68,7 @@ public class CliShellNew implements Runnable {
     private Terminal terminal;
     private LineReader reader;
     private final HarnessEngine agentRuntime;
+    private final AgentProperties agentProps;
     private final CommandRegistry commandRegistry;
     private final SessionManager sessionManager = new SessionManager();
     private StatusBar statusBar;
@@ -118,8 +120,10 @@ public class CliShellNew implements Runnable {
             ICON_THINKING = "\u2699", // ⚙
             ICON_CHECK = "\u2714"; // ✔
 
-    public CliShellNew(HarnessEngine agentRuntime) {
+    public CliShellNew(HarnessEngine agentRuntime, AgentProperties agentProps) {
         this.agentRuntime = agentRuntime;
+        this.agentProps = agentProps;
+
         this.commandRegistry = new CommandRegistry();
         registerBuiltinCommands();
 
@@ -323,7 +327,7 @@ public class CliShellNew implements Runnable {
                 return;
             }
 
-            String cwd = agentRuntime.getProps().getWorkDir();
+            String cwd = agentRuntime.getProps().getWorkspace();
             List<SessionManager.SessionMeta> sessions = sessionManager.listSessions(cwd);
             if (sessions.isEmpty()) {
                 terminal.writer().println(DIM + "  No sessions for this directory." + RESET);
@@ -357,19 +361,19 @@ public class CliShellNew implements Runnable {
         });
 
         commandRegistry.register("/thinking", "切换思考内容显示", ctx -> {
-            agentRuntime.getProps().setThinkPrinted(!agentRuntime.getProps().isThinkPrinted());
-            String mode = agentRuntime.getProps().isThinkPrinted() ? "ON" : "OFF";
+            agentProps.setThinkPrinted(!agentProps.isThinkPrinted());
+            String mode = agentProps.isThinkPrinted() ? "ON" : "OFF";
             terminal.writer().println(DIM + "  Thinking display: " + RESET + BOLD + mode + RESET);
             terminal.flush();
         });
 
         commandRegistry.register("/details", "切换工具调用详情显示", ctx -> {
-            agentRuntime.getProps().setCliPrintSimplified(!agentRuntime.getProps().isCliPrintSimplified());
-            String mode = agentRuntime.getProps().isCliPrintSimplified() ? "simplified" : "detailed";
+            agentProps.setCliPrintSimplified(!agentProps.isCliPrintSimplified());
+            String mode = agentProps.isCliPrintSimplified() ? "simplified" : "detailed";
             terminal.writer().println(DIM + "  Tool details: " + RESET + BOLD + mode + RESET);
             terminal.flush();
             if (statusBar != null) {
-                statusBar.setCompactMode(agentRuntime.getProps().isCliPrintSimplified());
+                statusBar.setCompactMode(agentProps.isCliPrintSimplified());
             }
         });
 
@@ -761,7 +765,7 @@ public class CliShellNew implements Runnable {
                 }
             }
 
-            if (agentRuntime.getProps().isCliPrintSimplified()) {
+            if (agentProps.isCliPrintSimplified()) {
                 // 简化模式 — 一行式
                 String shortArgs = argsStr.length() > 40 ? argsStr.substring(0, 37) + "..." : argsStr;
                 printAboveLine("");
@@ -986,7 +990,7 @@ public class CliShellNew implements Runnable {
         String sid = currentSession.getSessionId();
         if (sid.startsWith("_tmp_")) {
             // First real message — create a persistent session
-            String newId = sessionManager.createSession(agentRuntime.getProps().getWorkDir());
+            String newId = sessionManager.createSession(agentProps.getWorkspace());
             sessionManager.updateTitle(newId, firstMessage);
             currentSession = agentRuntime.getSession(newId);
             if (statusBar != null) {
@@ -1091,14 +1095,14 @@ public class CliShellNew implements Runnable {
     protected void printWelcome() {
         // 初始化状态栏
         this.statusBar = new StatusBar(terminal);
-        String modelName = agentRuntime.getProps().getChatModel() != null
-                ? agentRuntime.getProps().getChatModel().getModel()
+        String modelName = agentProps.getChatModel() != null
+                ? agentProps.getChatModel().getModel()
                 : "unknown";
         statusBar.setModelName(modelName);
-        statusBar.setWorkDir(new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath());
+        statusBar.setWorkDir(new File(agentProps.getWorkspace()).getAbsolutePath());
         statusBar.setVersion(agentRuntime.getVersion());
         statusBar.setSessionId(HarnessEngine.SESSION_DEFAULT);
-        statusBar.setCompactMode(agentRuntime.getProps().isCliPrintSimplified());
+        statusBar.setCompactMode(agentProps.isCliPrintSimplified());
         statusBar.setup();
         // 把 JLine 内部的 ReentrantLock 传给 StatusBar，确保 draw() 跟 printAbove() 用同一把锁
         try {
@@ -1113,7 +1117,7 @@ public class CliShellNew implements Runnable {
         terminal.flush();
         statusBar.draw(); // 清屏后重绘
 
-        String path = new File(agentRuntime.getProps().getWorkDir()).getAbsolutePath();
+        String path = new File(agentProps.getWorkspace()).getAbsolutePath();
         String version = agentRuntime.getVersion();
 
         // ── ASCII Art Logo (对齐 Go TUI renderWelcomeLogo) ──

@@ -9,6 +9,7 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessProperties;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.AgentDefinition;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.lang.NonNull;
 
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DemoApp {
     public static void main(String[] args) throws Throwable {
         //--- 初始化（AgentRuntime 建议单测）
-        HarnessProperties properties = new HarnessProperties();
+        AgentProperties properties = new AgentProperties();
         ChatModel chatModel = ChatModel.of(properties.getChatModel()).build();
         AgentSessionProvider sessionProvider = new AgentSessionProvider() {
             private Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();

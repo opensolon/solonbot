@@ -20,6 +20,7 @@ import org.noear.solon.ai.harness.HarnessProperties;
 import org.noear.solon.annotation.Controller;
 import org.noear.solon.annotation.Inject;
 import org.noear.solon.annotation.Mapping;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.ModelAndView;
 
@@ -43,7 +44,7 @@ import java.util.List;
 public class WebController {
 
     @Inject
-    private HarnessProperties config;
+    private AgentProperties config;
 
     /**
      * 对话主界面
@@ -68,7 +69,7 @@ public class WebController {
     public void sessions(Context ctx) throws Exception {
         ctx.contentType("application/json; charset=utf-8");
 
-        Path sessionsPath = Paths.get(config.getWorkDir(), ".soloncode", "sessions").toAbsolutePath().normalize();
+        Path sessionsPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions").toAbsolutePath().normalize();
         File sessionsDir = sessionsPath.toFile();
         List<ONode> result = new ArrayList<>();
 
@@ -113,7 +114,7 @@ public class WebController {
             return;
         }
 
-        Path sessionsPath = Paths.get(config.getWorkDir(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
+        Path sessionsPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
         List<ONode> result = new ArrayList<>();
 
@@ -161,7 +162,7 @@ public class WebController {
             return;
         }
 
-        Path sessionPath = Paths.get(config.getWorkDir(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
+        Path sessionPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File sessionDir = sessionPath.toFile();
 
         if (sessionDir.exists() && sessionDir.isDirectory()) {
