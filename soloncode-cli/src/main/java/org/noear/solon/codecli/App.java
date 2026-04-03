@@ -30,6 +30,7 @@ import org.noear.solon.codecli.portal.AcpLink;
 import org.noear.solon.codecli.portal.CliShellOld;
 import org.noear.solon.codecli.portal.WebGate;
 import org.noear.solon.codecli.portal.ui.CliShellNew;
+import org.noear.solon.codecli.portal.ui.theme.PortalThemes;
 
 import java.net.*;
 import java.nio.file.Paths;
@@ -55,6 +56,7 @@ public class App {
             AgentProperties c = app.cfg().toBean("soloncode", AgentProperties.class);
 
             c.setWorkDir(workDir);
+            PortalThemes.replaceCustomThemes(c.getUiThemes());
             app.context().wrapAndPut(AgentProperties.class, c);
             app.enableHttp(false); //默认不启用 http
 

@@ -119,7 +119,18 @@ public class CliShellNew implements Runnable {
     private String MUTED = theme.textMuted().ansiFg();
     private String ERROR_COLOR = theme.error().ansiFg();
     private String WARN = theme.warning().ansiFg();
+    private String SUCCESS_COLOR = theme.success().ansiFg();
     private String TEXT = theme.textPrimary().ansiFg();
+    private String USER_TITLE = theme.userTitle().ansiBoldFg();
+    private String ASSISTANT_TITLE = theme.assistantTitle().ansiBoldFg();
+    private String THINKING_TITLE = theme.thinkingTitle().ansiFg();
+    private String THINKING_BORDER = theme.thinkingBorder().ansiFg();
+    private String TOOL_TITLE = theme.toolTitle().ansiFg();
+    private String TOOL_META = theme.toolMeta().ansiFg();
+    private String TOOL_VALUE = theme.toolValue().ansiFg();
+    private String TOOL_RESULT = theme.toolResult().ansiFg();
+    private String TOOL_PREVIEW = theme.toolPreview().ansiFg();
+    private String TIME_COLOR = DIM;
 
     // ═══════════════════════════════════════════════════════════
     // 内置命令注册
@@ -226,7 +237,7 @@ public class CliShellNew implements Runnable {
                             }
                         }
                     });
-            applyTheme(theme);
+            applyTheme(resolveConfiguredTheme());
             this.reader = bottomInputController.createReader();
 
         } catch (Throwable e) {
@@ -252,7 +263,18 @@ public class CliShellNew implements Runnable {
         this.MUTED = this.theme.textMuted().ansiFg();
         this.ERROR_COLOR = this.theme.error().ansiFg();
         this.WARN = this.theme.warning().ansiFg();
+        this.SUCCESS_COLOR = this.theme.success().ansiFg();
         this.TEXT = this.theme.textPrimary().ansiFg();
+        this.USER_TITLE = this.theme.userTitle().ansiBoldFg();
+        this.ASSISTANT_TITLE = this.theme.assistantTitle().ansiBoldFg();
+        this.THINKING_TITLE = this.theme.thinkingTitle().ansiFg();
+        this.THINKING_BORDER = this.theme.thinkingBorder().ansiFg();
+        this.TOOL_TITLE = this.theme.toolTitle().ansiFg();
+        this.TOOL_META = this.theme.toolMeta().ansiFg();
+        this.TOOL_VALUE = this.theme.toolValue().ansiFg();
+        this.TOOL_RESULT = this.theme.toolResult().ansiFg();
+        this.TOOL_PREVIEW = this.theme.toolPreview().ansiFg();
+        this.TIME_COLOR = DIM;
         mdRenderer.setTheme(this.theme);
         if (bottomInputController != null) {
             bottomInputController.setTheme(this.theme);
@@ -260,6 +282,20 @@ public class CliShellNew implements Runnable {
         if (statusBar != null) {
             statusBar.setTheme(this.theme);
         }
+    }
+
+    private PortalTheme resolveConfiguredTheme() {
+        String configured = kernel.getProps().getUiTheme();
+        PortalTheme resolved = PortalThemes.find(configured);
+        if (resolved != null) {
+            return resolved;
+        }
+
+        if (Assert.isNotEmpty(configured)) {
+            LOG.warn("Unknown configured portal theme: {}", configured);
+        }
+
+        return PortalThemes.defaultTheme();
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -340,15 +376,25 @@ public class CliShellNew implements Runnable {
             printAboveLine(DIM + "Model: " + RESET + BOLD + model + RESET);
         });
 
-        commandRegistry.register("/theme", "打开主题选项面板", ctx -> {
+        commandRegistry.register("/theme", "打开主题选项面板，支持 /theme list|tokens|<name>", ctx -> {
             String arg = ctx.getArg() == null ? "" : ctx.getArg().trim();
             if (!arg.isEmpty()) {
+                if ("list".equalsIgnoreCase(arg)) {
+                    printThemeList();
+                    return;
+                }
+                if ("tokens".equalsIgnoreCase(arg)) {
+                    printThemeTokens();
+                    return;
+                }
+
                 PortalTheme matched = PortalThemes.find(arg);
                 if (matched == null) {
                     printAboveLine(ERROR_COLOR + "  Unknown theme: " + RESET + arg);
                     return;
                 }
                 applyTheme(matched);
+                kernel.getProps().setUiTheme(matched.name());
                 printAboveLine(DIM + "  Theme: " + RESET + TEXT + BOLD + matched.name() + RESET);
                 return;
             }
@@ -524,12 +570,12 @@ public class CliShellNew implements Runnable {
         printAboveLine(MUTED + "  " + repeatChar('\u2500', 20) + RESET);
         printAboveLine(WARN + "  " + ICON_WARN + " Permission Required" + RESET);
         if ("bash".equals(task.getToolName())) {
-            printAboveLine(MUTED + "     Command: " + RESET + String.valueOf(task.getArgs().get("command")));
+            printAboveLine(TOOL_META + "     Command: " + RESET + TOOL_VALUE + String.valueOf(task.getArgs().get("command")) + RESET);
         } else {
-            printAboveLine(MUTED + "     Tool: " + RESET + task.getToolName());
+            printAboveLine(TOOL_META + "     Tool: " + RESET + TOOL_VALUE + task.getToolName() + RESET);
         }
         printAboveLine("");
-        printAboveLine("     " + ACCENT_BOLD + ICON_CHECK + " allow" + RESET + MUTED + "    允许执行" + RESET);
+        printAboveLine("     " + SUCCESS_COLOR + ICON_CHECK + " allow" + RESET + MUTED + "    允许执行" + RESET);
         printAboveLine("     " + ERROR_COLOR + ICON_CROSS + " deny" + RESET + MUTED + "     拒绝执行" + RESET);
         printAboveLine(MUTED + "  " + repeatChar('\u2500', 20) + RESET);
         printAboveLine("");
@@ -544,7 +590,7 @@ public class CliShellNew implements Runnable {
         String choice = input.trim().toLowerCase();
         if ("allow".equals(choice) || "y".equals(choice) || "yes".equals(choice) || "a".equals(choice)) {
             HITL.approve(currentSession, task.getToolName());
-            printAboveLine(DIM + "  " + ICON_CHECK + " Approved" + RESET);
+            printAboveLine(SUCCESS_COLOR + "  " + ICON_CHECK + " Approved" + RESET);
             // 继续 AI ReAct 循环
             startAgentTask(currentSession, null);
         } else {
@@ -576,7 +622,7 @@ public class CliShellNew implements Runnable {
         if (react.getTrace().getMetrics() != null) {
             long tokens = react.getTrace().getMetrics().getTotalTokens();
             String timeInfo = statusBar != null ? ", " + statusBar.getTaskTimeText() : "";
-            printAboveLine(DIM + "  (" + tokens + " tokens" + timeInfo + ")" + RESET);
+            printAboveLine(TIME_COLOR + "  (" + tokens + " tokens" + timeInfo + ")" + RESET);
             // 状态栏：任务结束
             if (statusBar != null) {
                 statusBar.taskEnd(tokens);
@@ -602,7 +648,7 @@ public class CliShellNew implements Runnable {
                 // ── 思考内容：MUTED 色 + │ 左边线 ──
                 if (!thinkingStarted) {
                     flushLineBuffer();
-                    printTimedHeader(ICON_THINKING, "Thinking", MUTED, LocalDateTime.now());
+                    printTimedHeader(ICON_THINKING, "Thinking", THINKING_TITLE, LocalDateTime.now());
                     thinkingStarted = true;
                     thinkingLineStart = true;
                 }
@@ -620,7 +666,7 @@ public class CliShellNew implements Runnable {
                             thinkingLineStart = true;
                         } else if (ch != '\r') {
                             if (thinkingLineStart) {
-                                appendToLineBuffer(MUTED + "  \u2502 ");
+                                appendToLineBuffer(THINKING_BORDER + "  \u2502 " + RESET + MUTED);
                                 thinkingLineStart = false;
                             }
                             appendToLineBuffer(String.valueOf(ch));
@@ -676,7 +722,7 @@ public class CliShellNew implements Runnable {
                 if (Assert.isNotEmpty(trimmed)) {
                     isFirstConversation.set(false);
                     isFirstReasonChunk.set(false);
-                    printTimedHeader(ICON_ASSISTANT, "Assistant", ACCENT_BOLD, LocalDateTime.now());
+                    printTimedHeader(ICON_ASSISTANT, "Assistant", ASSISTANT_TITLE, LocalDateTime.now());
                     mdRenderer.reset(); // 新回合重置渲染器
                     mdRenderer.feed(trimmed);
                 }
@@ -740,11 +786,12 @@ public class CliShellNew implements Runnable {
             if (kernel.getProps().isCliPrintSimplified()) {
                 // 简化模式 — 一行式
                 String shortArgs = argsStr.length() > 40 ? argsStr.substring(0, 37) + "..." : argsStr;
-                printTimedHeader(ICON_TOOL, fullToolName, SOFT, LocalDateTime.now());
-                printAboveLine(MUTED + "  " + shortArgs + " (" + summary + ")" + RESET);
+                printTimedHeader(ICON_TOOL, fullToolName, TOOL_TITLE, LocalDateTime.now());
+                printAboveLine(TOOL_META + "  " + shortArgs + RESET
+                        + TOOL_RESULT + " (" + summary + ")" + RESET);
             } else {
                 // 详细模式 — 工具名 + 缩进参数（无边框）
-                printTimedHeader(ICON_TOOL, fullToolName, SOFT, LocalDateTime.now());
+                printTimedHeader(ICON_TOOL, fullToolName, TOOL_TITLE, LocalDateTime.now());
 
                 // 参数
                 if (args != null && !args.isEmpty()) {
@@ -753,7 +800,7 @@ public class CliShellNew implements Runnable {
                         if (val.length() > 80) {
                             val = val.substring(0, 77) + "...";
                         }
-                        printAboveLine(MUTED + "     " + k + ": " + val + RESET);
+                        printAboveLine(TOOL_META + "     " + k + ": " + RESET + TOOL_VALUE + val + RESET);
                     });
                 }
 
@@ -764,18 +811,18 @@ public class CliShellNew implements Runnable {
                     if (contentLines.length > 10) {
                         // 只显示首3行 + ... + 末1行
                         for (int i = 0; i < 3; i++) {
-                            printAboveLine(MUTED + "     " + contentLines[i] + RESET);
+                            printAboveLine(TOOL_PREVIEW + "     " + contentLines[i] + RESET);
                         }
-                        printAboveLine(MUTED + "     ..." + RESET);
-                        printAboveLine(MUTED + "     " + contentLines[contentLines.length - 1] + RESET);
+                        printAboveLine(TOOL_PREVIEW + "     ..." + RESET);
+                        printAboveLine(TOOL_PREVIEW + "     " + contentLines[contentLines.length - 1] + RESET);
                     } else {
                         for (String line : contentLines) {
-                            printAboveLine(MUTED + "     " + line + RESET);
+                            printAboveLine(TOOL_PREVIEW + "     " + line + RESET);
                         }
                     }
                 }
 
-                printAboveLine(MUTED + "     (" + summary + ")" + RESET);
+                printAboveLine(TOOL_RESULT + "     (" + summary + ")" + RESET);
             }
 
             isFirstReasonChunk.set(true);
@@ -818,7 +865,7 @@ public class CliShellNew implements Runnable {
             return;
         }
 
-        printTimedHeader(ICON_USER, "You", ACCENT_BOLD, LocalDateTime.now());
+        printTimedHeader(ICON_USER, "You", USER_TITLE, LocalDateTime.now());
         printAboveLine("  " + lines[0]);
         for (int i = 1; i < lines.length; i++) {
             printAboveLine("  " + lines[i]);
@@ -840,16 +887,15 @@ public class CliShellNew implements Runnable {
         String timeText = time == null ? "" : TIME_FORMATTER.format(time);
         String leftPlain = icon + " " + title;
         int terminalWidth = Math.max(20, terminal.getWidth());
-        int timeWidth = displayWidth(timeText);
-        int gapWidth = timeText.isEmpty() ? 0 : 2;
-        int availableLeftWidth = Math.max(1, terminalWidth - timeWidth - gapWidth);
+        String timeSuffix = timeText.isEmpty() ? "" : " · " + timeText;
+        int suffixWidth = displayWidth(timeSuffix);
+        int availableLeftWidth = Math.max(1, terminalWidth - suffixWidth);
         String clippedLeft = clipToWidth(leftPlain, availableLeftWidth);
         if (timeText.isEmpty()) {
             return titleStyle + clippedLeft + RESET;
         }
         return titleStyle + clippedLeft + RESET
-                + "  "
-                + theme.blockTime().ansiFg() + timeText + RESET;
+                + TIME_COLOR + timeSuffix + RESET;
     }
 
     private String clipToWidth(String text, int maxWidth) {
@@ -980,6 +1026,7 @@ public class CliShellNew implements Runnable {
                 });
 
         if (selected != null) {
+            kernel.getProps().setUiTheme(selected.name());
             printAboveLine(DIM + "  Theme: " + RESET + TEXT + BOLD + selected.name() + RESET);
         } else {
             printAboveLine(DIM + "  Cancelled." + RESET);
@@ -988,9 +1035,12 @@ public class CliShellNew implements Runnable {
 
     private List<BottomListPanel.Item<PortalTheme>> buildThemeSelectionItems() {
         List<BottomListPanel.Item<PortalTheme>> items = new ArrayList<BottomListPanel.Item<PortalTheme>>();
-        for (PortalTheme item : PortalThemes.builtIns()) {
+        for (PortalTheme item : PortalThemes.allThemes()) {
             boolean current = item.name().equalsIgnoreCase(theme.name());
-            String secondary = current ? "preview · current" : "preview";
+            String secondary = PortalThemes.isCustom(item.name()) ? "custom" : "builtin";
+            if (current) {
+                secondary += " · current";
+            }
             items.add(new BottomListPanel.Item<PortalTheme>(
                     item,
                     item.name(),
@@ -998,6 +1048,36 @@ public class CliShellNew implements Runnable {
                     current ? BottomListPanel.Tone.ACCENT : BottomListPanel.Tone.TEXT));
         }
         return items;
+    }
+
+    private void printThemeList() {
+        printAboveLine("");
+        printAboveLine(TEXT + BOLD + "  Themes" + RESET);
+        printAboveLine("");
+        for (PortalTheme item : PortalThemes.allThemes()) {
+            boolean current = item.name().equalsIgnoreCase(theme.name());
+            String type = PortalThemes.isCustom(item.name()) ? "custom" : "builtin";
+            String currentMark = current ? ACCENT_BOLD + " current" + RESET : "";
+            printAboveLine("    " + ACCENT_BOLD + item.name() + RESET
+                    + MUTED + "  (" + type + ")" + RESET
+                    + currentMark);
+        }
+        printAboveLine("");
+        printAboveLine(MUTED + "  Tip: /theme <name> 可直接切换；自定义主题请放到 .soloncode/config.yml 的 soloncode.uiThemes" + RESET);
+        printAboveLine("");
+    }
+
+    private void printThemeTokens() {
+        printAboveLine("");
+        printAboveLine(TEXT + BOLD + "  Theme Tokens" + RESET);
+        printAboveLine("");
+        for (String key : PortalThemes.supportedKeys()) {
+            printAboveLine("    " + ACCENT_BOLD + key + RESET);
+        }
+        printAboveLine("");
+        printAboveLine(MUTED + "  Config path: " + RESET + SOFT + ".soloncode/config.yml" + RESET);
+        printAboveLine(MUTED + "  Example: " + RESET + SOFT + "soloncode.uiThemes.my-theme.extends: solon" + RESET);
+        printAboveLine("");
     }
 
     private void printSessionList(List<SessionManager.SessionMeta> sessions) {

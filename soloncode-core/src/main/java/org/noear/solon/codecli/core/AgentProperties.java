@@ -39,6 +39,8 @@ public class AgentProperties implements Serializable {
     private boolean subagentEnabled = true;
     private boolean cliEnabled = true;
     private boolean cliPrintSimplified = true;
+    private String uiTheme = "solon";
+    private Map<String, Map<String, String>> uiThemes;
     private boolean webEnabled = false;
     private String webEndpoint = "/cli";
     private boolean acpEnabled = false;
