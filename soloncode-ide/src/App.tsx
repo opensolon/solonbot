@@ -4,7 +4,6 @@ import { TitleBar } from './components/layout/TitleBar';
 import { SidePanel } from './components/layout/SidePanel';
 import { StatusBar } from './components/layout/StatusBar';
 import { ExplorerPanel } from './components/sidebar/ExplorerPanel';
-import { SearchPanel } from './components/sidebar/SearchPanel';
 import { GitPanel } from './components/sidebar/GitPanel';
 import { ExtensionsPanel } from './components/sidebar/ExtensionsPanel';
 import { SessionsPanel, type Session } from './components/sidebar/SessionsPanel';
@@ -687,13 +686,6 @@ function App() {
             onDelete={handleDelete}
             onCopy={handleCopy}
             onMove={handleMove}
-          />
-        );
-      case 'search':
-        return (
-          <SearchPanel
-            onSearch={async (query) => { console.log('搜索:', query); return []; }}
-            onResultClick={(result) => console.log('点击结果:', result)}
           />
         );
       case 'git':

@@ -57,11 +57,6 @@ export function TitleBar({
     },
     { id: 'divider1', label: '', divider: true },
     {
-      id: 'open-file',
-      label: '打开文件...',
-      shortcut: 'Ctrl+O',
-    },
-    {
       id: 'open-folder',
       label: '打开文件夹...',
       shortcut: 'Ctrl+K Ctrl+O',
