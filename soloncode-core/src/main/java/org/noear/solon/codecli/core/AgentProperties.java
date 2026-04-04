@@ -21,6 +21,7 @@ public class AgentProperties extends HarnessProperties {
 
     public final static String X_SESSION_ID = "X-Session-Id";
     public final static String X_SESSION_CWD = "X-Session-Cwd";
+    public final static String X_CTX = "X-Ctx";
 
     public final static String ARG_SESSION = "session";
 

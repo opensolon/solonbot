@@ -118,6 +118,14 @@ public class WebSocketGate extends SimpleWebSocketListener {
                 return;
             }
 
+            final String finalInput;
+            if (Assert.isNotEmpty(req.getContext())) {
+                finalInput = input + "<context>" + req.getContext() + "</context>";
+            } else {
+                finalInput = input;
+            }
+
+
             // 记录开始时间
             final long startTime = System.currentTimeMillis();
 
@@ -130,7 +138,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
             String finalCwd = cwd;
             Flux<String> stringFlux = kernel.getMainAgent()
-                    .prompt(input)
+                    .prompt(finalInput)
                     .session(session)
                     .options(o -> {
                         o.toolContextPut(HarnessEngine.ATTR_CWD, finalCwd);

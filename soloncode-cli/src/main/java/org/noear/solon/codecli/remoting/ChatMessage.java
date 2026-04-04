@@ -14,4 +14,6 @@ public class ChatMessage {
     String agent;
 
     String cwd;
+
+    String context;
 }
