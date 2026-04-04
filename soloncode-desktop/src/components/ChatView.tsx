@@ -49,7 +49,7 @@ class WebSocketManager {
   private getWebSocketUrl(): string {
     const host = this.backendPort
       ? `localhost:${this.backendPort}`
-      : (import.meta.env.VITE_WS_HOST || 'localhost:18080');
+      : (import.meta.env.VITE_WS_HOST || 'localhost:4808');
     const protocol = import.meta.env.VITE_WS_PROTOCOL || 'ws';
     const params = new URLSearchParams();
     if (this.workspacePath) {
