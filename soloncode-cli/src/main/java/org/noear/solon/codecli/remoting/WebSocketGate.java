@@ -52,7 +52,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
     @Override
     public void onOpen(WebSocket socket) {
         String sessionId = socket.paramOrDefault("sessionId", agentPros.getSessionId());
-        String sessionCwd = socket.param("X-Session-Cwd");//工作区
+        String sessionCwd = socket.param(AgentProperties.X_SESSION_CWD);//工作区
 
         if (Assert.isNotEmpty(sessionId)) {
             if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
