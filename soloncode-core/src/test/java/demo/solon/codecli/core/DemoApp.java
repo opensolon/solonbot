@@ -35,7 +35,7 @@ public class DemoApp {
                 .sessionProvider(sessionProvider)
                 .build();
 
-        AgentSession session = agentRuntime.getSession(HarnessEngine.SESSION_DEFAULT);
+        AgentSession session = agentRuntime.getSession(properties.getSessionId());
         Prompt prompt = Prompt.of("hello"); //动态指定工作区;
 
 

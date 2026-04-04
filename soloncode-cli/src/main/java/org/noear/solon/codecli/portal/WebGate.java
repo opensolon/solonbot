@@ -21,6 +21,7 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.noear.solon.core.util.Assert;
@@ -38,17 +39,19 @@ import reactor.core.publisher.Flux;
 @Preview("3.9.1")
 public class WebGate implements Handler {
     private final HarnessEngine agentRuntime;
+    private final AgentProperties agentProps;
 
-    public WebGate(HarnessEngine agentRuntime) {
+    public WebGate(HarnessEngine agentRuntime, AgentProperties agentProps) {
         this.agentRuntime = agentRuntime;
+        this.agentProps = agentProps;
     }
 
     @Override
     public void handle(Context ctx) throws Throwable {
         String input = ctx.param("input");
         String mode = ctx.param("m");
-        String sessionId = ctx.headerOrDefault("X-Session-Id", "web");
-        String sessionCwd = ctx.header("X-Session-Cwd");//工作区
+        String sessionId = ctx.headerOrDefault(AgentProperties.X_SESSION_ID, agentProps.getSessionId());
+        String sessionCwd = ctx.header(AgentProperties.X_SESSION_CWD);//工作区
 
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             ctx.status(400);

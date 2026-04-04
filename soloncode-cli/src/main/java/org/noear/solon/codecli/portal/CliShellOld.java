@@ -117,7 +117,7 @@ public class CliShellOld implements Runnable {
      * 单次调用
      */
     public void call(String input) {
-        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
+        AgentSession session = prepare(agentProps.getSessionId());
 
         try {
             if (!isSystemCommand(session, input)) {
@@ -133,7 +133,7 @@ public class CliShellOld implements Runnable {
      */
     @Override
     public void run() {
-        AgentSession session = prepare(HarnessEngine.SESSION_DEFAULT);
+        AgentSession session = prepare(agentProps.getSessionId());
 
         // 2. 主循环
         while (true) {

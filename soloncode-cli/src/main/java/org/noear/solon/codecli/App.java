@@ -20,6 +20,7 @@ import com.agentclientprotocol.sdk.agent.transport.WebSocketSolonAcpAgentTranspo
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import org.noear.solon.Solon;
+import org.noear.solon.SolonApp;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
@@ -31,6 +32,7 @@ import org.noear.solon.codecli.portal.CliShellNew;
 import org.noear.solon.codecli.portal.CliShellOld;
 import org.noear.solon.codecli.portal.WebGate;
 import org.noear.solon.codecli.remoting.WebSocketGate;
+import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocketRouter;
 
 import java.net.URL;
@@ -48,31 +50,7 @@ public class App {
 
     public static void main(String[] args) {
         Solon.start(App.class, args, app -> {
-            //加载配置文件
-            AgentProperties c = new AgentProperties();
-            URL configUrl = c.getConfigUrl();
-            app.cfg().loadAdd(configUrl);
-
-            //获取命令行运行的当前用户工作区
-            String workspace = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
-            app.cfg().getProp("soloncode").bindTo( c);
-
-            c.setWorkspace(workspace);
-            app.context().wrapAndPut(AgentProperties.class, c);
-            app.enableHttp(false); //默认不启用 http
-
-            if (c.isWebEnabled()) {
-                app.enableHttp(true);
-            }
-
-            if (c.isAcpEnabled() && "stdio".equals(c.getAcpTransport()) == false) {
-                app.enableHttp(true);
-                app.enableWebSocket(true);
-            }
-
-            if (c.isWsEnabled()) {
-                app.enableWebSocket(true);
-            }
+            initAgentProperties(app);
         });
 
         AgentProperties agentProps = Solon.context().getBean(AgentProperties.class);
@@ -95,7 +73,7 @@ public class App {
                 .build();
 
         //flag
-        if(Solon.cfg().argx().flags().size() > 0){
+        if (Solon.cfg().argx().flags().size() > 0) {
             String flag = Solon.cfg().argx().flagAt(0);
 
             if ("run".equals(flag)) {
@@ -110,7 +88,6 @@ public class App {
         }
 
 
-
         //cli
         if (agentProps.isCliEnabled()) {
             if ("new".equals(agentProps.getUiType())) {
@@ -122,7 +99,7 @@ public class App {
 
         //web
         if (agentProps.isWebEnabled()) {
-            Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime));
+            Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime, agentProps));
         }
 
         //acp
@@ -138,8 +115,48 @@ public class App {
             new AcpLink(agentRuntime, agentTransport).run();
         }
 
-        if (agentProps.isWsEnabled()){
-            WebSocketRouter.getInstance().of("ws", new WebSocketGate(agentRuntime));
+        if (agentProps.isWsEnabled()) {
+            WebSocketRouter.getInstance().of("ws", new WebSocketGate(agentRuntime, agentProps));
+        }
+    }
+
+    private static void initAgentProperties(SolonApp app) throws Throwable {
+        //加载配置文件
+        AgentProperties c = new AgentProperties();
+        URL configUrl = c.getConfigUrl();
+        app.cfg().loadAdd(configUrl);
+
+        //获取命令行运行的当前用户工作区
+        String workspace = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
+        app.cfg().getProp("soloncode").bindTo(c);
+
+        //设定默认会话id
+        String sessionId = Solon.cfg().argx().get(AgentProperties.ARG_SESSION);
+        if (Assert.isNotEmpty(sessionId)) {
+            c.setSessionId(sessionId);
+        }
+
+        //设定默认工作区
+        c.setWorkspace(workspace);
+
+        //推入容器
+        app.context().wrapAndPut(AgentProperties.class, c);
+
+        //-----
+
+        app.enableHttp(false); //默认不启用 http
+
+        if (c.isWebEnabled()) {
+            app.enableHttp(true);
+        }
+
+        if (c.isAcpEnabled() && "stdio".equals(c.getAcpTransport()) == false) {
+            app.enableHttp(true);
+            app.enableWebSocket(true);
+        }
+
+        if (c.isWsEnabled()) {
+            app.enableWebSocket(true);
         }
     }
 }

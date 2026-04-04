@@ -19,7 +19,14 @@ public class AgentProperties extends HarnessProperties {
     public final static String OPENCODE_SKILLS = ".opencode/skills/";
     public final static String CLAUDE_SKILLS = ".claude/skills/";
 
+    public final static String X_SESSION_ID = "X-Session-Id";
+    public final static String X_SESSION_CWD = "X-Session-Cwd";
+
+    public final static String ARG_SESSION = "session";
+
     private String uiType = "old";
+
+    private String sessionId = "default"; //默认会话
 
     private boolean thinkPrinted = false;
 

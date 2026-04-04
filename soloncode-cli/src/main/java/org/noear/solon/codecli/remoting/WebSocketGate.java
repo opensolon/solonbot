@@ -21,6 +21,7 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
@@ -41,14 +42,16 @@ import java.io.IOException;
 public class WebSocketGate extends SimpleWebSocketListener {
     private static final Logger LOG = LoggerFactory.getLogger(WebSocketGate.class);
     private final HarnessEngine kernel;
+    private final AgentProperties agentPros;
 
-    public WebSocketGate(HarnessEngine kernel) {
+    public WebSocketGate(HarnessEngine kernel, AgentProperties agentPros) {
         this.kernel = kernel;
+        this.agentPros = agentPros;
     }
 
     @Override
     public void onOpen(WebSocket socket) {
-        String sessionId = socket.paramOrDefault("sessionId", HarnessEngine.SESSION_DEFAULT);
+        String sessionId = socket.paramOrDefault("sessionId", agentPros.getSessionId());
         String sessionCwd = socket.param("X-Session-Cwd");//工作区
 
         if (Assert.isNotEmpty(sessionId)) {
@@ -90,7 +93,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
 
             AgentSession session = kernel.getSession(sessionId);
 
-            if (Assert.isEmpty(req.getCwd())){
+            if (Assert.isEmpty(req.getCwd())) {
                 cwd = session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, ".").toString();
             }
 

@@ -1,4 +1,9 @@
 
+
+### v2026.4.6
+
+* 添加 `soloncode -session=test` 支持（启动时指定默认会话id）
+
 ### v2026.4.5
 
 * 添加 soloncode-cli pid 打印
