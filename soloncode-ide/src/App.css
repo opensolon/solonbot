@@ -151,6 +151,19 @@
   right: auto;
 }
 
+.resize-handle.horizontal {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+  background-color: transparent;
+  transition: background-color 0.15s;
+  z-index: 10;
+}
+
 .resize-handle:hover,
 .resize-handle.dragging {
   background-color: var(--cb-accent);

@@ -117,9 +117,6 @@ export function TitleBar({
       case 'new-folder':
         onNewFolder?.();
         break;
-      case 'open-file':
-        onOpenFile?.();
-        break;
       case 'open-folder':
         onOpenFolder?.();
         break;
@@ -178,7 +175,6 @@ export function TitleBar({
 
       {/* 中间标题 */}
       <div className="title-bar-center">
-        <span className="app-title">SolonCode IDE</span>
         {workspaceName && (
           <span className="workspace-name"> - {workspaceName}</span>
         )}

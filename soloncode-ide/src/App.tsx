@@ -71,6 +71,7 @@ interface PanelState {
   chatVisible: boolean;
   editorWidth: number;
   chatWidth: number;
+  terminalHeight: number;
   panelOrder: PanelPosition[];
 }
 
@@ -128,6 +129,7 @@ function App() {
     chatVisible: true,
     editorWidth: 0, // 将在 useEffect 中根据比例计算
     chatWidth: 0,   // 将在 useEffect 中根据比例计算
+    terminalHeight: 200,
     panelOrder: ['editor', 'chat'],
   });
 
@@ -315,6 +317,10 @@ function App() {
         const totalWidth = containerRect.width - sw;
         const newChatWidth = Math.max(200, totalWidth - relativeX);
         setPanelState(prev => ({ ...prev, chatWidth: newChatWidth }));
+      } else if (isResizing === 'terminal') {
+        // 终端高度调整：从底部向上计算
+        const newTerminalHeight = Math.max(100, containerRect.height - (e.clientY - containerRect.top));
+        setPanelState(prev => ({ ...prev, terminalHeight: newTerminalHeight }));
       }
     };
 
@@ -329,7 +335,7 @@ function App() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, sidebarCollapsed]);
+  }, [isResizing, sidebarCollapsed, sidebarWidth, panelState.terminalHeight]);
 
   // 文件操作
   const handleFileSelect = useCallback(async (path: string) => {
@@ -902,56 +908,62 @@ function App() {
           <div className="panels-container">
             {panelState.panelOrder.map(panel => renderPanel(panel))}
           </div>
-          {/* 终端面板 - 支持多标签 */}
-          <div className="terminal-tabs-container">
-            <div className="terminal-tabs-header">
-              {terminalTabs.map(tab => (
-                <div
-                  key={tab.id}
-                  className={`terminal-tab ${activeTerminalId === tab.id ? 'active' : ''}`}
-                  onClick={() => setActiveTerminalId(tab.id)}
+          {/* 终端面板 - 支持多标签和调整大小 */}
+          <div className="terminal-wrapper" style={{ height: panelState.terminalHeight }}>
+            <div
+              className="resize-handle horizontal"
+              onMouseDown={(e) => startResize('terminal', e)}
+            />
+            <div className="terminal-tabs-container">
+              <div className="terminal-tabs-header">
+                {terminalTabs.map(tab => (
+                  <div
+                    key={tab.id}
+                    className={`terminal-tab ${activeTerminalId === tab.id ? 'active' : ''}`}
+                    onClick={() => setActiveTerminalId(tab.id)}
+                  >
+                    <span>{tab.title}</span>
+                    {terminalTabs.length > 1 && (
+                      <button
+                        className="terminal-tab-close"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await invoke('terminal_kill', { terminalId: tab.id });
+                          } catch (e) {
+                            console.error('[Terminal] kill error:', e);
+                          }
+                          setTerminalTabs(prev => prev.filter(t => t.id !== tab.id));
+                          if (activeTerminalId === tab.id) {
+                            setActiveTerminalId(terminalTabs[0].id);
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  className="terminal-tab-add"
+                  onClick={() => {
+                    const newId = `terminal-${Date.now()}`;
+                    setTerminalTabs(prev => [...prev, { id: newId, title: '终端' }]);
+                    setActiveTerminalId(newId);
+                  }}
                 >
-                  <span>{tab.title}</span>
-                  {terminalTabs.length > 1 && (
-                    <button
-                      className="terminal-tab-close"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        try {
-                          await invoke('terminal_kill', { terminalId: tab.id });
-                        } catch (e) {
-                          console.error('[Terminal] kill error:', e);
-                        }
-                        setTerminalTabs(prev => prev.filter(t => t.id !== tab.id));
-                        if (activeTerminalId === tab.id) {
-                          setActiveTerminalId(terminalTabs[0].id);
-                        }
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
+                  +
+                </button>
+              </div>
+              {terminalTabs.map(tab => (
+                <TerminalPanel
+                  key={tab.id}
+                  terminalId={tab.id}
+                  visible={terminalVisible && activeTerminalId === tab.id}
+                  cwd={workspacePath || undefined}
+                />
               ))}
-              <button
-                className="terminal-tab-add"
-                onClick={() => {
-                  const newId = `terminal-${Date.now()}`;
-                  setTerminalTabs(prev => [...prev, { id: newId, title: '终端' }]);
-                  setActiveTerminalId(newId);
-                }}
-              >
-                +
-              </button>
             </div>
-            {terminalTabs.map(tab => (
-              <TerminalPanel
-                key={tab.id}
-                terminalId={tab.id}
-                visible={terminalVisible && activeTerminalId === tab.id}
-                cwd={workspacePath || undefined}
-              />
-            ))}
           </div>
         </div>
       </div>
