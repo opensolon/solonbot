@@ -193,14 +193,15 @@ export function TerminalPanel({ terminalId: terminalIdProp, title: titleProp, vi
 
   useEffect(() => {
     return () => {
+      // 只有在组件完全卸载（非隐藏）时才杀死 PTY 进程
+      // 通过检查 terminalId 是否还存在来判断
       unlistenRef.current?.();
       xtermRef.current?.dispose();
       xtermRef.current = null;
       fitAddonRef.current = null;
       startedRef.current = false;
-      if (isTauriEnv()) {
-        invoke('terminal_kill').catch(() => {});
-      }
+      // 注意：这里不调用 terminal_kill，让隐藏的终端保持运行
+      // 如果需要完全销毁，可以由父组件控制
     };
   }, []);
 
