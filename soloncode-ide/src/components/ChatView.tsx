@@ -9,7 +9,12 @@ import '../views/ChatPage.css';
 import { ContextRef } from './ChatInput';
 
 interface ChatViewProps {
-  currentConversation: Conversation;
+  // 新增：独立面板模式（用于多会话）
+  sessionId?: string;
+  title?: string;
+  visible?: boolean;
+  // 原有：兼容模式
+  currentConversation?: Conversation;
   plugins?: Plugin[];
   workspacePath?: string;
   onUpdateSessionTitle?: (sessionId: string, title: string) => void;
@@ -206,7 +211,13 @@ export function setWorkspacePath(path: string | null) {
   WebSocketManager.getInstance().setWorkspacePath(path);
 }
 
-export function ChatView({ currentConversation, plugins, workspacePath, onUpdateSessionTitle, onNewSession, availableFiles }: ChatViewProps) {
+export function ChatView({ currentConversation, sessionId: sessionIdProp, title: titleProp, visible: visibleProp, plugins: _plugins, workspacePath, onUpdateSessionTitle, onNewSession, availableFiles }: ChatViewProps) {
+  // 兼容新旧模式：新模式用 sessionId/title/visible，旧模式用 currentConversation
+  const sessionId = sessionIdProp || currentConversation?.id?.toString() || '';
+  const title = titleProp || currentConversation?.title || '新会话';
+  const status = currentConversation?.status || 'ready';
+  const visible = visibleProp !== undefined ? visibleProp : true;
+
   const [currentTheme, setCurrentTheme] = useState<Theme>('dark');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -252,10 +263,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
 
   // 更新 ref
   useEffect(() => {
-    if (!currentConversation.id) return;
-    sessionIdRef.current = currentConversation.id.toString();
-    conversationIdRef.current = currentConversation.id;
-  }, [currentConversation.id]);
+    if (!sessionId) return;
+    sessionIdRef.current = sessionId;
+    conversationIdRef.current = sessionId;
+  }, [sessionId]);
 
   function toggleTheme() {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -308,8 +319,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
 
   // 注册消息回调
   useEffect(() => {
-    if (!currentConversation.id) return;
-    const sessionId = currentConversation.id.toString();
+    if (!sessionId) return;
     const wsManager = WebSocketManager.getInstance();
 
     const handleMessage = (data: any) => {
@@ -449,18 +459,18 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
     return () => {
       wsManager.unregisterCallback(sessionId);
     };
-  }, [currentConversation.id]);
+  }, [sessionId]);
 
   const sendMessage = useCallback(async (messageText: string, options: SendOptions) => {
-    let sessionId = currentConversation.id?.toString();
+    let currentSessionId = sessionId;
 
     // 无会话时，创建新会话（标题取消息前20字），然后继续发送
-    if (!sessionId) {
+    if (!currentSessionId) {
       if (!onNewSession) return;
-      const title = messageText.trim().slice(0, 20) + (messageText.trim().length > 20 ? '...' : '');
-      sessionId = onNewSession(title);
-      sessionIdRef.current = sessionId;
-      conversationIdRef.current = sessionId;
+      const msgTitle = messageText.trim().slice(0, 20) + (messageText.trim().length > 20 ? '...' : '');
+      currentSessionId = onNewSession(msgTitle);
+      sessionIdRef.current = currentSessionId;
+      conversationIdRef.current = currentSessionId;
     }
 
     let fullMessage = messageText;
@@ -560,12 +570,12 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
   }, []);
 
   useEffect(() => {
-    if (currentConversation.id) {
-      loadConversationMessages(currentConversation.id);
+    if (sessionId) {
+      loadConversationMessages(sessionId);
     } else {
       setMessages([]);
     }
-  }, [currentConversation]);
+  }, [sessionId]);
 
   // 停止当前请求
   const handleStop = useCallback(() => {
@@ -597,10 +607,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
   }, []);
 
   return (
-    <main className="main-content">
+    <main className="main-content" style={{ display: visible ? 'flex' : 'none' }}>
       <ChatHeader
-        title={currentConversation.title}
-        status={currentConversation.status}
+        title={title}
+        status={status}
         theme={currentTheme}
         onToggleTheme={toggleTheme}
       />

@@ -7,7 +7,11 @@ import '@xterm/xterm/css/xterm.css';
 import './TerminalPanel.css';
 
 interface TerminalPanelProps {
-  visible: boolean;
+  // 新增：独立面板模式（用于多终端）
+  terminalId?: string;
+  title?: string;
+  visible?: boolean;
+  // 原有：兼容模式
   cwd?: string;
 }
 
@@ -70,7 +74,12 @@ const TERM_THEMES = {
   },
 };
 
-export function TerminalPanel({ visible, cwd }: TerminalPanelProps) {
+export function TerminalPanel({ terminalId: terminalIdProp, title: titleProp, visible: visibleProp, cwd }: TerminalPanelProps) {
+  // 兼容新旧模式：新模式用 terminalId/title/visible，旧模式用 visible
+  const _terminalId = terminalIdProp || 'default';
+  const title = titleProp || 'TERMINAL';
+  const visible = visibleProp !== undefined ? visibleProp : true;
+  
   const termRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -198,7 +207,7 @@ export function TerminalPanel({ visible, cwd }: TerminalPanelProps) {
   return (
     <div className={`terminal-panel${visible ? '' : ' hidden'}`}>
       <div className="terminal-header">
-        <span className="terminal-title">TERMINAL</span>
+        <span className="terminal-title">{title}</span>
         <div className="terminal-actions">
           <button
             className="terminal-action"

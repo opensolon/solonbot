@@ -174,6 +174,12 @@ function App() {
   // 会话状态
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>();
+  
+  // 多会话聊天标签页状态
+  const [chatTabs, setChatTabs] = useState<Array<{ id: string; title: string }>>([
+    { id: 'default', title: '聊天' }
+  ]);
+  const [activeChatTabId, setActiveChatTabId] = useState('default');
 
   // 会话或工作区变化时，保存最后会话 ID
   useEffect(() => {
@@ -603,6 +609,12 @@ function App() {
   // Toast 提示
   // 终端面板状态
   const [terminalVisible, setTerminalVisible] = useState(false);
+  
+  // 多终端标签页状态
+  const [terminalTabs, setTerminalTabs] = useState<Array<{ id: string; title: string }>>([
+    { id: 'default', title: '终端' }
+  ]);
+  const [activeTerminalId, setActiveTerminalId] = useState('default');
 
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -774,15 +786,61 @@ function App() {
           opacity: panelState.chatVisible ? 1 : 0,
           pointerEvents: panelState.chatVisible ? 'auto' : 'none',
           transition: 'width 0.2s, opacity 0.2s',
+          display: 'flex',
+          flexDirection: 'column',
         }}>
-          <ChatView
-            currentConversation={currentConversation}
-            plugins={plugins}
-            workspacePath={workspacePath || undefined}
-            onUpdateSessionTitle={handleUpdateSessionTitle}
-            onNewSession={handleNewSession}
-            availableFiles={workspaceFiles}
-          />
+          {/* 聊天面板标签栏 */}
+          {panelState.chatVisible && (
+            <div className="chat-tabs-header">
+              {chatTabs.map(tab => (
+                <div
+                  key={tab.id}
+                  className={`chat-tab ${activeChatTabId === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveChatTabId(tab.id)}
+                >
+                  <span>{tab.title}</span>
+                  {chatTabs.length > 1 && (
+                    <button
+                      className="chat-tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChatTabs(prev => prev.filter(t => t.id !== tab.id));
+                        if (activeChatTabId === tab.id) {
+                          setActiveChatTabId(chatTabs[0].id);
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                className="chat-tab-add"
+                onClick={() => {
+                  const newId = `chat-${Date.now()}`;
+                  setChatTabs(prev => [...prev, { id: newId, title: '新会话' }]);
+                  setActiveChatTabId(newId);
+                }}
+              >
+                +
+              </button>
+            </div>
+          )}
+          {/* 渲染所有聊天面板，仅活动面板显示 */}
+          {panelState.chatVisible && chatTabs.map(tab => (
+            <ChatView
+              key={tab.id}
+              sessionId={tab.id}
+              title={tab.title}
+              visible={activeChatTabId === tab.id}
+              plugins={plugins}
+              workspacePath={workspacePath || undefined}
+              onUpdateSessionTitle={handleUpdateSessionTitle}
+              onNewSession={handleNewSession}
+              availableFiles={workspaceFiles}
+            />
+          ))}
         </div>
       );
     }
@@ -843,7 +901,53 @@ function App() {
           <div className="panels-container">
             {panelState.panelOrder.map(panel => renderPanel(panel))}
           </div>
-          <TerminalPanel visible={terminalVisible} cwd={workspacePath || undefined} />
+          {/* 终端面板 - 支持多标签 */}
+          <div className="terminal-tabs-container">
+            <div className="terminal-tabs-header">
+              {terminalTabs.map(tab => (
+                <div
+                  key={tab.id}
+                  className={`terminal-tab ${activeTerminalId === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTerminalId(tab.id)}
+                >
+                  <span>{tab.title}</span>
+                  {terminalTabs.length > 1 && (
+                    <button
+                      className="terminal-tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTerminalTabs(prev => prev.filter(t => t.id !== tab.id));
+                        if (activeTerminalId === tab.id) {
+                          setActiveTerminalId(terminalTabs[0].id);
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                className="terminal-tab-add"
+                onClick={() => {
+                  const newId = `terminal-${Date.now()}`;
+                  setTerminalTabs(prev => [...prev, { id: newId, title: '终端' }]);
+                  setActiveTerminalId(newId);
+                }}
+              >
+                +
+              </button>
+            </div>
+            {terminalTabs.map(tab => (
+              <TerminalPanel
+                key={tab.id}
+                terminalId={tab.id}
+                title={tab.title}
+                visible={terminalVisible && activeTerminalId === tab.id}
+                cwd={workspacePath || undefined}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
