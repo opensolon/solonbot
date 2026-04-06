@@ -9,12 +9,14 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.PlanChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
+import org.noear.solon.ai.agent.react.task.ThoughtChunk;
 import org.noear.solon.ai.chat.content.Contents;
 import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
@@ -25,12 +27,18 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AcpLink implements Runnable {
-    private final HarnessEngine agentRuntime; // CodeCLI 内部的 Agent
+    private final HarnessEngine agentRuntime;
     private final AcpAgentTransport agentTransport;
+    private final AgentProperties agentProps;
 
     public AcpLink(HarnessEngine agentRuntime, AcpAgentTransport agentTransport) {
+        this(agentRuntime, agentTransport, AgentProperties.get());
+    }
+
+    public AcpLink(HarnessEngine agentRuntime, AcpAgentTransport agentTransport, AgentProperties agentProps) {
         this.agentRuntime = agentRuntime;
         this.agentTransport = agentTransport;
+        this.agentProps = agentProps;
     }
 
     private final Map<String, AcpSessionContext> sessionStates = new ConcurrentHashMap<>();
@@ -55,7 +63,7 @@ public class AcpLink implements Runnable {
                 })
                 .newSessionHandler(req -> {
                     String sessionId = UUID.randomUUID().toString();
-                    String cwd = req.cwd(); // 拿到初始化时的路径
+                    String cwd = req.cwd();
 
                     sessionStates.put(sessionId, new AcpSessionContext(cwd));
 
@@ -68,7 +76,8 @@ public class AcpLink implements Runnable {
                     Prompt userInput = toPrompt(request);
                     AgentSession session = agentRuntime.getSession(sessionId);
 
-                    // 将 ACP 的 Prompt 转发给 Solon ReActAgent
+                    final long startTime = System.currentTimeMillis();
+
                     return agentRuntime.getMainAgent()
                             .prompt(userInput)
                             .session(session)
@@ -89,50 +98,116 @@ public class AcpLink implements Runnable {
                                 // --- 思考阶段 ---
                                 else if (chunk instanceof ReasonChunk) {
                                     ReasonChunk reasonChunk = (ReasonChunk) chunk;
-                                    // 过滤掉包含工具调用的原始思考片段（让 UI 更整洁）
                                     if (chunk.hasContent() && !reasonChunk.isToolCalls()) {
-                                        return acpContext.sendUpdate(sessionId, new AcpSchema.AgentThoughtChunk(
-                                                        "agent_thought_chunk",
-                                                        new AcpSchema.TextContent(chunk.getContent())))
-
-                                                .thenReturn(chunk);
+                                        if (agentProps.isThinkPrinted() || !reasonChunk.getMessage().isThinking()) {
+                                            return acpContext.sendUpdate(sessionId, new AcpSchema.AgentThoughtChunk(
+                                                            "agent_thought_chunk",
+                                                            new AcpSchema.TextContent(chunk.getContent())))
+                                                    .thenReturn(chunk);
+                                        }
+                                    }
+                                }
+                                // --- ThoughtChunk (多任务并行) ---
+                                else if (chunk instanceof ThoughtChunk) {
+                                    ThoughtChunk thoughtChunk = (ThoughtChunk) chunk;
+                                    if (thoughtChunk.hasMeta("multitask")) {
+                                        String content = thoughtChunk.getAssistantMessage().getResultContent();
+                                        if (Assert.isNotEmpty(content)) {
+                                            return acpContext.sendUpdate(sessionId, new AcpSchema.AgentThoughtChunk(
+                                                            "agent_thought_chunk",
+                                                            new AcpSchema.TextContent(content)))
+                                                    .thenReturn(chunk);
+                                        }
                                     }
                                 }
                                 // --- 工具执行阶段 (Action/Observation) ---
                                 else if (chunk instanceof ActionEndChunk) {
                                     ActionEndChunk actionChunk = (ActionEndChunk) chunk;
                                     String toolName = actionChunk.getToolName();
-                                    String content = chunk.getContent();
 
+                                    // 跳过内部工具
+                                    if ("multitask".equals(toolName) || "task".equals(toolName)) {
+                                        return Mono.just(chunk);
+                                    }
+
+                                    String content = chunk.getContent();
                                     String output;
-                                    if (Assert.isNotEmpty(toolName)) {
-                                        // 参考 CodeCLI: ⚙️ [toolName] Observation:
-                                        output = String.format("\n⚙️ [%s] Observation:\n%s", toolName, content);
+
+                                    if (agentProps.isCliPrintSimplified()) {
+                                        // 简化模式
+                                        if (Assert.isNotEmpty(toolName)) {
+                                            String summary;
+                                            if (Assert.isEmpty(content)) {
+                                                summary = "completed";
+                                            } else {
+                                                String[] lines = content.split("\n");
+                                                if (lines.length > 1) {
+                                                    summary = "returned " + lines.length + " lines";
+                                                } else {
+                                                    summary = content.length() > 40 ? content.substring(0, 37) + "..." : content;
+                                                }
+                                            }
+                                            output = String.format("\n⚙️ [%s] (%s)", toolName, summary);
+                                        } else {
+                                            output = "\n⚙️ " + content;
+                                        }
                                     } else {
-                                        output = "\n⚙️ " + content;
+                                        // 全量模式
+                                        if (Assert.isNotEmpty(toolName)) {
+                                            String argsStr = buildArgsStr(actionChunk.getArgs());
+                                            if (argsStr.length() > 100) {
+                                                output = String.format("\n⚙️ [%s]\n  Args: %s\n  Result: %s\n  (End of output)",
+                                                        toolName, argsStr.substring(0, 97) + "...", content);
+                                            } else {
+                                                output = String.format("\n⚙️ [%s] Args: %s\n  Result: %s\n  (End of output)",
+                                                        toolName, argsStr, content);
+                                            }
+                                        } else {
+                                            output = "\n⚙️ " + content + "\n  (End of output)";
+                                        }
                                     }
 
                                     return acpContext.sendUpdate(sessionId, new AcpSchema.AgentMessageChunk(
                                                     "agent_message_chunk",
                                                     new AcpSchema.TextContent(output)))
-
                                             .thenReturn(chunk);
                                 }
                                 // --- 最终回复阶段 ---
                                 else if (chunk instanceof ReActChunk) {
-                                    // 参考 CodeCLI 的分割线风格
-                                    String finalContent = "\n----------------------\n" + chunk.getContent();
+                                    ReActChunk reActChunk = (ReActChunk) chunk;
+
+                                    String finalContent;
+                                    if (reActChunk.isNormal()) {
+                                        finalContent = chunk.getContent();
+                                    } else {
+                                        finalContent = clearThink(chunk.getContent());
+                                    }
+
+                                    // 统计信息
+                                    StringBuilder stats = new StringBuilder();
+                                    if (reActChunk.getTrace() != null && reActChunk.getTrace().getMetrics() != null) {
+                                        stats.append(reActChunk.getTrace().getMetrics().getTotalTokens()).append(" tokens");
+                                    }
+                                    long seconds = Duration.ofMillis(System.currentTimeMillis() - startTime).getSeconds();
+                                    if (stats.length() > 0) {
+                                        stats.append(", ");
+                                    }
+                                    stats.append(seconds).append(" seconds");
+
+                                    String output = "\n----------------------\n" + finalContent + "\n  (" + stats + ")";
+
                                     return acpContext.sendUpdate(sessionId, new AcpSchema.AgentMessageChunk(
                                                     "agent_message_chunk",
-                                                    new AcpSchema.TextContent(finalContent)))
-
+                                                    new AcpSchema.TextContent(output)))
                                             .thenReturn(chunk);
                                 }
 
                                 return Mono.just(chunk);
                             })
+                            .doFinally(signal -> {
+                                sessionStates.remove(sessionId);
+                            })
                             .onErrorResume(e -> {
-                                // 向 IDE 发送错误消息块，避免界面假死
                                 acpContext.sendUpdate(request.sessionId(), new AcpSchema.AgentMessageChunk(
                                         "agent_message_chunk",
                                         new AcpSchema.TextContent("\n❌ 错误: " + e.getMessage())));
@@ -141,6 +216,22 @@ public class AcpLink implements Runnable {
                             .then(Mono.just(new AcpSchema.PromptResponse(AcpSchema.StopReason.END_TURN)));
                 })
                 .build();
+    }
+
+    private String buildArgsStr(Map<String, Object> args) {
+        if (args == null || args.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        args.forEach((k, v) -> {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(k).append("=").append(v);
+        });
+        return sb.toString().replace("\n", " ");
+    }
+
+    private String clearThink(String chunk) {
+        return chunk.replaceAll("(?s)<\\s*/?think\\s*>", "");
     }
 
     public Prompt toPrompt(AcpSchema.PromptRequest promptRequest) {
