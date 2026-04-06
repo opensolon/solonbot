@@ -8,4 +8,5 @@ package org.noear.solon.codecli.core;
 public class AgentFlags {
     public final static String FLAG_RUN = "run";
     public final static String FLAG_SERVE = "serve";
+    public final static String FLAG_ACP = "acp";
 }

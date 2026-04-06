@@ -91,6 +91,10 @@ public class App {
                 return;
             }
 
+            if (AgentFlags.FLAG_ACP.equals(flag)) {
+                runAcp(agentRuntime, agentProps);
+                return;
+            }
             //未来可以支持更多控制标记
         }
 
@@ -116,18 +120,20 @@ public class App {
 
         //acp
         if (agentProps.isAcpEnabled()) {
-            AcpAgentTransport agentTransport;
-            if ("stdio".equals(agentProps.getAcpTransport())) {
-                agentTransport = new StdioAcpAgentTransport();
-            } else {
-                agentTransport = new WebSocketSolonAcpAgentTransport(
-                        agentProps.getAcpTransport(), McpJsonMapper.getDefault());
-            }
+            runAcp(agentRuntime, agentProps);
+        }
+    }
 
-            new AcpLink(agentRuntime, agentTransport, agentProps).run();
+    private static void runAcp(HarnessEngine agentRuntime, AgentProperties agentProps) {
+        AcpAgentTransport agentTransport;
+        if ("stdio".equals(agentProps.getAcpTransport())) {
+            agentTransport = new StdioAcpAgentTransport();
+        } else {
+            agentTransport = new WebSocketSolonAcpAgentTransport(
+                    agentProps.getAcpTransport(), McpJsonMapper.getDefault());
         }
 
-
+        new AcpLink(agentRuntime, agentTransport, agentProps).run();
     }
 
     private static void initAgentProperties(SolonApp app) throws Throwable {
@@ -156,6 +162,17 @@ public class App {
 
         app.enableHttp(false); //默认不启用 http
 
+        String flag = app.cfg().argx().flagAt(0);
+
+        if (AgentFlags.FLAG_ACP.equals(flag)) {
+            c.setAcpEnabled(true);
+            c.setCliEnabled(false);
+            c.setWebEnabled(false);
+
+            //开始控制台日志
+            app.cfg().setProperty("solon.logging.appender.console.enable", "true");
+        }
+
         if (c.isWebEnabled()) {
             app.enableHttp(true);
         }
@@ -170,7 +187,7 @@ public class App {
             app.enableWebSocket(true);
         }
 
-        if (AgentFlags.FLAG_SERVE.equals(app.cfg().argx().flagAt(0))) {
+        if (AgentFlags.FLAG_SERVE.equals(flag)) {
             app.enableHttp(true);
             app.enableWebSocket(true);
 
