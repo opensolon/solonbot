@@ -805,52 +805,6 @@ fn find_soloncode_command() -> Option<String> {
     None
 }
 
-/// 查找 install-cli 安装脚本路径
-fn find_install_script(app_handle: &tauri::AppHandle) -> Option<std::path::PathBuf> {
-    // 1. Tauri 打包资源目录中的 build/
-    if let Ok(resource_dir) = app_handle.path().resource_dir() {
-        if cfg!(windows) {
-            let bat = resource_dir.join("build").join("install-cli.bat");
-            if bat.exists() {
-                return Some(bat);
-            }
-        } else {
-            let sh = resource_dir.join("build").join("install-cli.sh");
-            if sh.exists() {
-                return Some(sh);
-            }
-        }
-    }
-
-    // 2. 开发模式：从可执行文件向上查找
-    if let Ok(exe_dir) = std::env::current_exe() {
-        let mut dir = exe_dir.parent();
-        for _ in 0..10 {
-            if let Some(d) = dir {
-                if cfg!(windows) {
-                    let bat = d
-                        .join("soloncode-ide")
-                        .join("build")
-                        .join("install-cli.bat");
-                    if bat.exists() {
-                        return Some(bat);
-                    }
-                } else {
-                    let sh = d.join("soloncode-ide").join("build").join("install-cli.sh");
-                    if sh.exists() {
-                        return Some(sh);
-                    }
-                }
-                dir = d.parent();
-            } else {
-                break;
-            }
-        }
-    }
-
-    None
-}
-
 /// 启动后端 CLI 进程
 #[tauri::command]
 fn start_backend(
