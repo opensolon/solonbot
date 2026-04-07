@@ -147,12 +147,6 @@ public class WebSocketGate extends SimpleWebSocketListener {
                 return;
             }
 
-            // 记录开始时间
-            final long startTime = System.currentTimeMillis();
-
-            // 用于收集 metrics 的容器
-            final String[] modelName = {""};
-
             // 流式处理
             final String finalSessionId = sessionId;
             Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());

@@ -553,6 +553,30 @@ fn git_diff_file(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
     Ok(diff_lines)
 }
 
+/// 获取文件在 HEAD 中的内容（原始版本）
+#[tauri::command]
+fn git_show_head(cwd: &str, file_path: &str) -> Result<String, String> {
+    run_git(&["show", &format!("HEAD:{}", file_path)], cwd)
+}
+
+/// 获取文件的完整 diff 文本（unified diff 格式）
+#[tauri::command]
+fn git_diff_text(cwd: &str, file_path: &str) -> Result<String, String> {
+    match run_git(&["diff", "HEAD", "--", file_path], cwd) {
+        Ok(o) => {
+            if o.trim().is_empty() {
+                match run_git(&["diff", "--cached", "--", file_path], cwd) {
+                    Ok(o2) => Ok(o2),
+                    Err(_) => Ok(o),
+                }
+            } else {
+                Ok(o)
+            }
+        }
+        Err(_) => run_git(&["diff", "--", file_path], cwd),
+    }
+}
+
 /// 递归复制目录
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| format!("创建目录失败: {}", e))?;
@@ -1000,6 +1024,8 @@ pub fn run() {
             git_checkout,
             git_discard,
             git_diff_file,
+            git_show_head,
+            git_diff_text,
             copy_item,
             move_item,
             start_backend,

@@ -32,24 +32,18 @@ class WebSocketManager {
 
   /** 设置后端端口（由 App.tsx 调用，打开工作区后设置） */
   setBackendPort(port: number | null) {
-    if (this.backendPort !== port) {
-      this.backendPort = port;
-      this.closeConnection(); // 只关闭连接，不清除回调
-    }
+    this.backendPort = port;
   }
 
   /** 设置工作区路径（由 App.tsx 调用） */
   setWorkspacePath(path: string | null) {
-    if (this.workspacePath !== path) {
-      this.workspacePath = path;
-      this.closeConnection(); // 只关闭连接，不清除回调
-    }
+    this.workspacePath = path;
   }
 
   private getWebSocketUrl(): string {
     const host = this.backendPort
       ? `localhost:${this.backendPort}`
-      : (import.meta.env.VITE_WS_HOST || 'localhost:18080');
+      : (import.meta.env.VITE_WS_HOST || 'localhost:4808');
     const protocol = import.meta.env.VITE_WS_PROTOCOL || 'ws';
     const params = new URLSearchParams();
     if (this.workspacePath) {
@@ -89,6 +83,7 @@ class WebSocketManager {
       }
 
       const wsUrl = this.getWebSocketUrl();
+      console.log('[WS] Connecting to:', wsUrl);
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
@@ -101,8 +96,8 @@ class WebSocketManager {
         reject(new Error('WebSocket connection failed'));
       };
 
-      this.ws.onclose = () => {
-        console.log('[WS] Disconnected');
+      this.ws.onclose = (event) => {
+        console.log('[WS] Disconnected, code:', event.code, 'reason:', event.reason, 'wasClean:', event.wasClean);
         this.ws = null;
       };
 

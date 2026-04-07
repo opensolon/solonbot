@@ -493,12 +493,17 @@ function App() {
     }
   }, [openFolderByPath]);
 
-  // 刷新文件树
+  // 刷新文件树（带防抖，避免短时间内多次全量扫描）
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshFileTree = useCallback(async () => {
-    if (workspacePath) {
+    if (!workspacePath) return;
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = setTimeout(async () => {
       const files = await fileService.listDirectoryTree(workspacePath, 10);
       setWorkspaceFiles(convertToFileTree(files));
-    }
+    }, 300);
   }, [workspacePath]);
 
   // 新建文件（在工作区根目录）
@@ -706,7 +711,13 @@ function App() {
             onDiscard={async (path) => {
               if (workspacePath) { await gitService.discard(workspacePath, [path]); refreshGitStatus(); }
             }}
-            onFileClick={handleFileSelect}
+            onFileClick={(relPath) => {
+              // Git 返回相对路径，拼接为完整路径后打开
+              if (workspacePath) {
+                const fullPath = workspacePath.replace(/\\/g, '/') + '/' + relPath;
+                handleFileSelect(fullPath);
+              }
+            }}
           />
         );
       case 'extensions':
