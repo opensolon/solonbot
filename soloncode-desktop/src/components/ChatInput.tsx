@@ -28,6 +28,7 @@ interface ChatInputProps {
   providers?: ModelProvider[];
   activeProviderId?: string;
   onModelChange?: (providerId: string) => void;
+  activeFileName?: string;
 }
 
 export interface SendOptions {
@@ -36,7 +37,7 @@ export interface SendOptions {
   contexts: ContextRef[];
 }
 
-export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], providers = [], activeProviderId, onModelChange }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], providers = [], activeProviderId, onModelChange, activeFileName }: ChatInputProps) {
   const enabledProviders = providers.filter(p => p.enabled && p.model);
 
   const [userInput, setUserInput] = useState('');
@@ -336,6 +337,12 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], prov
             >
               #
             </button>
+            {activeFileName && (
+              <span className="input-active-file">
+                <Icon name="file" size={10} />
+                <span>{activeFileName}</span>
+              </span>
+            )}
           </div>
         </form>
 

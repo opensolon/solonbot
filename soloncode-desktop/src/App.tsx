@@ -812,6 +812,8 @@ function App() {
             onNewSession={handleNewSession}
             providers={settings.providers}
             activeProviderId={settings.activeProviderId}
+            activeFileName={activeFile?.name}
+            activeFilePath={activeFilePath || undefined}
           />
         </div>
       );

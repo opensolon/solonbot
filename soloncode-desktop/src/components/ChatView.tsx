@@ -15,6 +15,8 @@ interface ChatViewProps {
   onNewSession?: (title?: string) => string;
   providers?: ModelProvider[];
   activeProviderId?: string;
+  activeFileName?: string;
+  activeFilePath?: string;
 }
 
 // 全局 WebSocket 连接管理器（单例模式）
@@ -215,7 +217,7 @@ export async function sendModelConfig(chatModel: { apiUrl?: string; apiKey?: str
   }
 }
 
-export function ChatView({ currentConversation, plugins, workspacePath, onUpdateSessionTitle, onNewSession, providers = [], activeProviderId }: ChatViewProps) {
+export function ChatView({ currentConversation, plugins, workspacePath, onUpdateSessionTitle, onNewSession, providers = [], activeProviderId, activeFileName, activeFilePath }: ChatViewProps) {
   const [currentTheme, setCurrentTheme] = useState<Theme>('dark');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -348,12 +350,12 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
             return [...filtered, finalMsg];
           });
 
-          // 保存到数据库
+          // 保存到数据库（包含 metadata）
           saveMessage({
             conversationId: msgSessionId,
             role: 'assistant',
             timestamp: finalMsg.timestamp,
-            contents: JSON.stringify(contentItems)
+            contents: JSON.stringify({ items: contentItems, metadata: finalMsg.metadata })
           }).catch(err => console.error('Failed to save message:', err));
         }
 
@@ -474,6 +476,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
 
     let fullMessage = messageText;
 
+    if (activeFilePath) {
+      // Todo 需要将当前文件加入到上下文中
+    }
+
     if (options.contexts.length > 0) {
       const contextStr = options.contexts.map(c => `[${c.name}]`).join(' ');
       fullMessage = `${contextStr}\n\n${messageText}`;
@@ -562,13 +568,19 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
     const storedMessages = await getMessagesByConversation(convId);
 
     if (storedMessages.length > 0) {
-      setMessages(storedMessages.map((msg, index) => ({
-        ...msg,
-        id: Date.now() + index,
-        role: msg.role as Message['role'],
-        timestamp: msg.timestamp || new Date().toLocaleTimeString(),
-        contents: typeof msg.contents === 'string' ? JSON.parse(msg.contents) : msg.contents
-      })));
+      setMessages(storedMessages.map((msg, index) => {
+        let parsed: any = typeof msg.contents === 'string' ? JSON.parse(msg.contents) : msg.contents;
+        // 兼容新旧格式：新格式 { items, metadata }，旧格式为数组
+        let contents = Array.isArray(parsed) ? parsed : parsed.items || [];
+        let metadata = !Array.isArray(parsed) && parsed.metadata ? parsed.metadata : undefined;
+        return {
+          id: Date.now() + index,
+          role: msg.role as Message['role'],
+          timestamp: msg.timestamp || new Date().toLocaleTimeString(),
+          contents,
+          metadata,
+        };
+      }));
     } else {
       setMessages([]);
     }
@@ -650,7 +662,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, onUpdate
         isLoading={isLoading}
         theme={currentTheme}
       />
-      <ChatInput onSend={sendMessage} isLoading={isLoading} onStop={handleStop} providers={providers} activeProviderId={activeProviderId} onModelChange={handleModelChange} />
+      <ChatInput onSend={sendMessage} isLoading={isLoading} onStop={handleStop} providers={providers} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={activeFileName} />
     </main>
   );
 }

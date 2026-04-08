@@ -37,6 +37,8 @@ import reactor.core.Disposable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Code CLI WebSocket 网关
@@ -355,7 +357,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
     private void saveConfigToFile(String apiUrl, String apiKey, String model) {
         try {
             String home = System.getProperty("user.home");
-            Path configDir = Path.of(home, ".soloncode");
+            Path configDir = Paths.get(home, ".soloncode");
             Files.createDirectories(configDir);
 
             Path configFile = configDir.resolve("chat-model.yml");
@@ -376,7 +378,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
             if (finalApiKey != null) yaml.append("    apiKey: \"").append(escapeYaml(finalApiKey)).append("\"\n");
             if (finalModel != null) yaml.append("    model: \"").append(escapeYaml(finalModel)).append("\"\n");
 
-            Files.writeString(configFile, yaml.toString());
+            Files.write(configFile, yaml.toString().getBytes(StandardCharsets.UTF_8));
             LOG.info("[WS] Config persisted to: {}", configFile);
         } catch (Exception e) {
             LOG.error("[WS] Failed to persist config to YAML", e);
