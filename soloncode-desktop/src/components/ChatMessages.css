@@ -55,7 +55,6 @@
 
 /* 助手消息 */
 .message.assistant .message-bubble {
-  border-top: 1px solid var(--cb-vscode-panel-border);
   padding-top: 8px;
 }
 

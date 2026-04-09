@@ -172,10 +172,6 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
             className={`message ${message.role}`}
           >
             <div className="message-bubble">
-              <div className="message-header">
-                <Icon name={getRoleIcon(message.role)} size={12} />
-                <span className="message-role">{getRoleLabel(message.role)}</span>
-              </div>
               <div className="message-text">
                 {message.contents.map((item, index) => (
                   <ContentItemRenderer key={index} item={item} theme={theme} />
