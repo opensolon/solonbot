@@ -1,5 +1,14 @@
 
 
+
+### v2026.4.10
+
+* 添加 soloncode-core subagent 切换模型的能力; 
+* 添加 soloncode-core models 配置属性（用于替代 chatModel 单配置）;
+* 优化 soloncode-core model 重试条件（改用新的空判断）
+* 优化 soloncode-cli ws 通道的输出打印
+* 调整 soloncode-core restApis 更名为 apiServers；取消 chatModel（由 models 替代）
+
 ### v2026.4.6
 
 * 添加 `soloncode --session=test` 指令（启动时指定默认会话id）
