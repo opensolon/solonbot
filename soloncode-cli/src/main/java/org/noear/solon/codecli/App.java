@@ -33,6 +33,7 @@ import org.noear.solon.codecli.portal.WebGate;
 import org.noear.solon.codecli.portal.ui.CliShellNew;
 import org.noear.solon.codecli.remoting.WebSocketGate;
 import org.noear.solon.core.util.Assert;
+import org.noear.solon.core.util.JavaUtil;
 import org.noear.solon.net.websocket.WebSocketRouter;
 
 import java.net.URL;
@@ -52,6 +53,18 @@ public class App {
         Solon.start(App.class, args, app -> {
             initAgentProperties(app);
         });
+
+        if (AgentFlags.checkUpdate()) {
+            // 使用颜色代码让提示更醒目
+            System.out.println("\033[33mDiscover the new version: " + AgentFlags.getLastVersion() + "\033[0m");
+
+            if (JavaUtil.IS_WINDOWS) {
+                System.out.println("Update: \033[36mirm https://solon.noear.org/soloncode/setup.ps1 | iex\033[0m");
+            } else {
+                System.out.println("Update: \033[36mcurl -fsSL https://solon.noear.org/soloncode/setup.sh | bash\033[0m");
+            }
+            System.out.println();
+        }
 
         AgentProperties agentProps = Solon.context().getBean(AgentProperties.class);
 
@@ -139,7 +152,7 @@ public class App {
         String workspace = Paths.get(AgentProperties.getUserDir()).toAbsolutePath().normalize().toString();
         app.cfg().getProp("soloncode").bindTo(c);
 
-        if(c.getChatModel() != null){
+        if (c.getChatModel() != null) {
             c.addModel(c.getChatModel());
         }
 
