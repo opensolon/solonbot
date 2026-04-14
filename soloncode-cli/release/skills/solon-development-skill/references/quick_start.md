@@ -115,9 +115,82 @@ java -jar target/demo.jar
 java -jar demo.jar --solon.env=pro
 ```
 
-### Native Image (GraalVM)
+### AOT & Native Image (GraalVM)
 
-Solon supports AOT and GraalVM native image compilation via `solon-native` module.
+Solon 支持 AOT (Ahead-of-Time Processing) 编译和 GraalVM Native Image 打包。
+
+Dependency:
+```xml
+<dependency>
+    <groupId>org.noear</groupId>
+    <artifactId>solon-aot</artifactId>
+</dependency>
+```
+
+#### AOT 编译
+
+单模块项目：
+```bash
+mvn clean -DskipTests=true -P aot package
+```
+
+多模块项目：
+1. 所有模块先 `mvn install`（不勾选 aot）
+2. 主模块 `mvn -P aot package`
+
+#### Native Image 编译
+
+要求：`graalvm 17+` + `native-image`
+
+单模块项目：
+```bash
+mvn clean -DskipTests=true -P native native:compile
+```
+
+多模块项目：
+1. 所有模块先 `mvn install`（不勾选 native）
+2. 主模块 `mvn -P native package`
+
+运行：
+```bash
+./target/demo
+```
+
+#### Native 定制（RuntimeNativeRegistrar）
+
+Solon AOT 自动处理托管部分的反射和资源登记。第三方框架需要手动补充：
+
+```java
+@Component
+public class RuntimeNativeRegistrarImpl implements RuntimeNativeRegistrar {
+    @Override
+    public void register(AppContext context, RuntimeNativeMetadata metadata) {
+        // 登记资源
+        metadata.registerResourceInclude("com.mysql.jdbc.LocalizedErrorMessages.properties");
+        // 登记序列化
+        metadata.registerSerialization(MyDto.class);
+        // 登记反射
+        metadata.registerReflection(MyClass.class, MemberCategory.INVOKE_DECLARED_METHODS);
+    }
+}
+```
+
+#### Native 兼容工具
+
+| 工具 | 描述 |
+|---|---|
+| `ScanUtil` | 兼容原生编译的资源或文件扫描 |
+| `ResourceUtil` | 兼容原生编译的资源获取或查找 |
+| `ReflectUtil` | 兼容原生编译的基础反射工具 |
+| `NativeDetector` | 环境探测：`isAotRuntime()`, `inNativeImage()` |
+
+#### Native 注意事项
+
+- 所有反射必须提前登记（Solon AOT 自动处理托管部分）
+- 所有资源文件必须提前登记
+- 不能扫描资源文件（使用 `ResourceUtil.scanResources`）
+- 不能用动态编译（可换脚本或表达式工具）
+- 不能用字节码构建类（Solon AOT 自动处理托管部分）
 
 ## Ecosystem Overview — Sub-Projects
 
