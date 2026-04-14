@@ -1,4 +1,7 @@
 
+### v2026.4.16
+
+* 修复 soloncode-cli 因 snackjson 自动解包引起的部分 llm 不兼容问题
 
 ### v2026.4.15
 
