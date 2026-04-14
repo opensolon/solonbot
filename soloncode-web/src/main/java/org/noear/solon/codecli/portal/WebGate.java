@@ -203,10 +203,6 @@ public class WebGate implements Handler {
     private String onReActChunk(ReActChunk react) {
         StringBuilder buf = new StringBuilder();
 
-        if (react.isNormal() == false) {
-            buf.append(react.getContent());
-        }
-
         Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
 
 

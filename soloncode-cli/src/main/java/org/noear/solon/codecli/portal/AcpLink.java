@@ -189,12 +189,7 @@ public class AcpLink implements Runnable {
                                 else if (chunk instanceof ReActChunk) {
                                     ReActChunk reActChunk = (ReActChunk) chunk;
 
-                                    String finalContent;
-                                    if (reActChunk.isNormal()) {
-                                        finalContent = chunk.getContent();
-                                    } else {
-                                        finalContent = clearThink(chunk.getContent());
-                                    }
+                                    String finalContent = chunk.getContent();
 
                                     // 统计信息
                                     StringBuilder stats = new StringBuilder();

@@ -1,4 +1,9 @@
 
+
+### v2026.4.16
+
+* 优化 soloncode-cli chunk 的打印，不再需要 isNormal 判断了（内部溶进了 ReasonChunk）
+
 ### v2026.4.14
 
 * 添加 soloncode-cli 更新检测与提示

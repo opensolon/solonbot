@@ -658,11 +658,6 @@ public class CliShellNew implements Runnable {
 
     private void onFinalChunk(ReActChunk react, AtomicBoolean isFirstReasonChunk,
                               AtomicBoolean isFirstConversation) {
-        String delta = clearThink(react.getContent());
-        if (Assert.isNotEmpty(delta) && (react.isNormal() == false || isFirstReasonChunk.get())) {
-            onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
-        }
-
         if (isFirstReasonChunk.get() && agentProps.isThinkPrinted()) {
             String thinkingFallback = consumeThinkingTranscript();
             if (Assert.isNotEmpty(thinkingFallback)) {

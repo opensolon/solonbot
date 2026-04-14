@@ -175,12 +175,6 @@ public class WebSocketGate extends SimpleWebSocketListener {
                     })
                     .stream()
                     .doOnNext(chunk -> {
-                        String chunkType = chunk.getClass().getSimpleName();
-                        LOG.debug("[WS] chunk: type={}, hasContent={}, isNormal={}",
-                                chunkType,
-                                chunk.hasContent(),
-                                chunk instanceof ReActChunk ? ((ReActChunk) chunk).isNormal() : "N/A");
-
                         // ReActChunk 需要优先处理 metrics 收集（无论 hasContent 状态）
                         String msg = null;
                         if (chunk instanceof ReActChunk) {
@@ -216,23 +210,6 @@ public class WebSocketGate extends SimpleWebSocketListener {
     }
 
     private void onReActChunk(ReActChunk chunk, String finalSessionId, WebSocket socket) {
-        // 参考 CLI 的 CliShellNew.onFinalChunk 逻辑：
-        // - isNormal==false: 内容通过 reason 类型发送（和 ReasonChunk 一样处理）
-        // - isNormal==true: 这是最终汇总，内容已经通过 ReasonChunk 发送过了，跳过避免重复
-        if (!chunk.isNormal() && chunk.hasContent()) {
-            LOG.debug("[WS] sending reason from ReActChunk: {}",
-                    chunk.getContent().substring(0, Math.min(50, chunk.getContent().length())));
-            String msg = new ONode().set("type", "reason")
-                    .set("sessionId", finalSessionId)
-                    .set("text", chunk.getContent())
-                    .toJson();
-            socket.send(msg);
-        }
-
-        // isNormal==true 或无内容时，内容已通过 ReasonChunk 完整发送，此处跳过
-        LOG.debug("[WS] skipping ReActChunk (isNormal={}, hasContent={})",
-                chunk.isNormal(), chunk.hasContent());
-
         Long start_time = chunk.getTrace().getOriginalPrompt().attrAs("start_time");
 
         String msg2 = new ONode().set("type", "done")

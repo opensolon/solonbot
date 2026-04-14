@@ -116,14 +116,6 @@ public class WebGate implements Handler {
 
                                     return oNode.toJson();
                                 } else if (chunk instanceof ReActChunk) {
-                                    ReActChunk react = (ReActChunk) chunk;
-
-                                    if (react.isNormal() == false) {
-                                        return new ONode().set("type", "reason")
-                                                .set("text", chunk.getContent())
-                                                .toJson();
-                                    }
-
                                     return new ONode().set("type", "agent")
                                             .set("text", chunk.getContent())
                                             .toJson();

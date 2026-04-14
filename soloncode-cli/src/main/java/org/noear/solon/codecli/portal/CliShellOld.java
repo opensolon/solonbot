@@ -327,11 +327,6 @@ public class CliShellOld implements Runnable {
     }
 
     private void onFinalChunk(ReActChunk react, AtomicBoolean isFirstReasonChunk, AtomicBoolean isFirstConversation) {
-        if (react.isNormal() == false) {
-            String delta = clearThink(react.getContent());
-            onReasonChunkDo(delta, isFirstReasonChunk, isFirstConversation);
-        }
-
         Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
 
         StringBuilder buf = new StringBuilder();
