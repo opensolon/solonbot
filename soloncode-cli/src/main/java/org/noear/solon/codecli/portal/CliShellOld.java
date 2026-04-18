@@ -503,7 +503,7 @@ public class CliShellOld implements Runnable {
 
         String path = new File(agentRuntime.getProps().getWorkspace()).getAbsolutePath();
         // 连带版本号，紧凑排列
-        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + AgentFlags.getVersion() + " PID-" + Utils.pid() + RESET + " Model:" + agentRuntime.getMainModel().getModel());
+        terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + AgentFlags.getVersion() + " PID-" + Utils.pid() + " Model:" + agentRuntime.getMainModel().getModel() + RESET );
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().print(DIM + "Tips: " + RESET + "(esc)" + DIM + " interrupt | " +
                 RESET + "'/exit'" + DIM + ": quit | " +
