@@ -18,16 +18,20 @@ package org.noear.solon.codecli.portal;
 import org.noear.snack4.ONode;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
+import org.noear.solon.ai.agent.react.intercept.HITL;
+import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
+import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
-import org.noear.solon.codecli.core.AgentProperties;
-import org.noear.solon.core.handle.Context;
+import org.noear.solon.codecli.core.AgentProperties;import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Handler;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.MimeType;
 import org.noear.solon.lang.Preview;
 import reactor.core.publisher.Flux;
+
+import java.time.Duration;
 
 /**
  * Code CLI 终端 (Pool-Box 模型)
@@ -50,8 +54,11 @@ public class WebGate implements Handler {
     public void handle(Context ctx) throws Throwable {
         String input = ctx.param("input");
         String mode = ctx.param("m");
-        String sessionId = ctx.headerOrDefault(AgentProperties.X_SESSION_ID, agentProps.getSessionId());
-        String sessionCwd = ctx.header(AgentProperties.X_SESSION_CWD);//工作区
+        String sessionId = ctx.param("sessionId");
+        if (sessionId == null || sessionId.isEmpty()) {
+            sessionId = ctx.headerOrDefault("X-Session-Id", "web");
+        }
+        String sessionCwd = ctx.header("X-Session-Cwd");//工作区
 
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             ctx.status(400);
@@ -70,6 +77,23 @@ public class WebGate implements Handler {
 
         AgentSession session = agentRuntime.getSession(sessionId);
 
+        // HITL approve/reject handling
+        String hitlAction = ctx.param("hitlAction");
+        if (Assert.isNotEmpty(hitlAction)) {
+            HITLTask task = HITL.getPendingTask(session);
+            if (task != null) {
+                if ("approve".equals(hitlAction)) {
+                    HITL.approve(session, task.getToolName());
+                } else {
+                    HITL.reject(session, task.getToolName());
+                }
+            }
+            // Resume streaming after HITL decision
+            ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
+            ctx.returnValue(buildStreamFlux(session, sessionCwd, null));
+            return;
+        }
+
         if (Assert.isNotEmpty(input)) {
             if ("call".equals(mode)) {
                 ctx.contentType(MimeType.TEXT_PLAIN_UTF8_VALUE);
@@ -77,7 +101,9 @@ public class WebGate implements Handler {
                         .prompt(input)
                         .session(session)
                         .options(o -> {
-                            o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
+                            if (Assert.isNotEmpty(sessionCwd)) {
+                                o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
+                            }
                         })
                         .call()
                         .getContent();
@@ -85,57 +111,122 @@ public class WebGate implements Handler {
                 ctx.output(result);
             } else {
                 ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
-
-
-                Flux<String> stringFlux = agentRuntime.getMainAgent()
-                        .prompt(input)
-                        .session(session)
-                        .options(o -> {
-                            o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
-                        })
-                        .stream()
-                        .map(chunk -> {
-                            if (chunk.hasContent()) {
-                                if (chunk instanceof ReasonChunk) {
-                                    ReasonChunk reason = (ReasonChunk) chunk;
-
-                                    if (!reason.isToolCalls() && reason.hasContent()) {
-                                        return new ONode().set("type", "reason")
-                                                .set("text", chunk.getContent())
-                                                .toJson();
-                                    }
-                                } else if (chunk instanceof ActionEndChunk) {
-                                    ActionEndChunk action = (ActionEndChunk) chunk;
-                                    ONode oNode = new ONode().set("type", "action")
-                                            .set("text", chunk.getContent());
-
-                                    if (Assert.isNotEmpty(action.getToolName())) {
-                                        oNode.set("toolName", action.getToolName());
-                                        oNode.set("args", action.getArgs());
-                                    }
-
-                                    return oNode.toJson();
-                                } else if (chunk instanceof ReActChunk) {
-                                    return new ONode().set("type", "agent")
-                                            .set("text", chunk.getContent())
-                                            .toJson();
-                                }
-                            }
-
-                            return "";
-                        })
-                        .filter(Assert::isNotEmpty)
-                        .onErrorResume(e -> {
-                            String message = new ONode().set("type", "error")
-                                    .set("text", e.getMessage())
-                                    .toJson();
-
-                            return Flux.just(message);
-                        })
-                        .concatWithValues("[DONE]");
-
-                ctx.returnValue(stringFlux);
+                ctx.returnValue(buildStreamFlux(session, sessionCwd, input));
             }
         }
+    }
+
+    private Flux<String> buildStreamFlux(AgentSession session, String sessionCwd, String input) {
+        Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
+
+        return agentRuntime.getMainAgent()
+                .prompt(prompt)
+                .session(session)
+                .options(o -> {
+                    if (Assert.isNotEmpty(sessionCwd)) {
+                        o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
+                    }
+                })
+                .stream()
+                .map(chunk -> {
+                    if (chunk instanceof ReasonChunk) {
+                        return onReasonChunk((ReasonChunk) chunk);
+                    } else if (chunk instanceof ActionEndChunk) {
+                        return onActionEndChunk((ActionEndChunk) chunk);
+                    } else if (chunk instanceof ReActChunk) {
+                        return onReActChunk((ReActChunk) chunk);
+                    }
+
+                    return "";
+                })
+                .filter(Assert::isNotEmpty)
+                .onErrorResume(e -> {
+                    String message = new ONode().set("type", "error")
+                            .set("text", e.getMessage())
+                            .toJson();
+
+                    return Flux.just(message);
+                })
+                .concatWith(Flux.defer(() -> {
+                    // Check HITL state after stream completes
+                    if (HITL.isHitl(session)) {
+                        HITLTask task = HITL.getPendingTask(session);
+                        if (task != null) {
+                            String command = "bash".equals(task.getToolName())
+                                    ? String.valueOf(task.getArgs().get("command"))
+                                    : null;
+                            String hitlMsg = new ONode().set("type", "hitl")
+                                    .set("toolName", task.getToolName())
+                                    .set("command", command)
+                                    .toJson();
+                            return Flux.just(hitlMsg, "[DONE]");
+                        }
+                    }
+                    return Flux.just("[DONE]");
+                }));
+    }
+
+    private String onReasonChunk(ReasonChunk reason) {
+        if (!reason.isToolCalls() && reason.hasContent()) {
+            if (reason.getMessage().isThinking()) {
+                return new ONode().set("type", "reason")
+                        .set("text", reason.getContent())
+                        .toJson();
+            } else {
+                return new ONode().set("type", "text")
+                        .set("text", reason.getContent())
+                        .toJson();
+            }
+        }
+
+        return "";
+    }
+
+    private String onActionEndChunk(ActionEndChunk action) {
+        if (Assert.isNotEmpty(action.getToolName())) {
+            ONode oNode = new ONode().set("type", "action")
+                    .set("text", action.getContent());
+
+            if (Assert.isNotEmpty(action.getToolName())) {
+                if (agentRuntime.getName().equals(action.getAgentName())) {
+                    oNode.set("toolName", action.getToolName());
+                } else {
+                    oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
+                }
+                oNode.set("args", action.getArgs());
+            }
+
+            return oNode.toJson();
+        }
+
+        return "";
+    }
+
+    private String onReActChunk(ReActChunk react) {
+        StringBuilder buf = new StringBuilder();
+
+        Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
+
+
+        buf.append(" (");
+
+        if (react.getTrace().getMetrics() != null) {
+            buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
+        }
+
+        if (start_time != null) {
+            long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
+            if (buf.length() > 2) {
+                buf.append(", ");
+            }
+
+            buf.append(seconds).append(" seconds");
+        }
+
+        buf.append(")");
+
+        return new ONode().set("type", "text")
+                .set("text", buf.toString())
+                .toJson();
     }
 }

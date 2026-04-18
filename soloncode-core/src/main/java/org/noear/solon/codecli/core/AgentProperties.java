@@ -36,17 +36,13 @@ public class AgentProperties extends HarnessProperties {
 
     private boolean thinkPrinted = false;
 
-    private boolean cliEnabled = true;
     private boolean cliPrintSimplified = true;
 
-    private boolean webEnabled = false;
     private String webEndpoint = "/cli";
 
-    private boolean acpEnabled = false;
     private String acpTransport = "stdio";
     private String acpEndpoint = "/acp";
 
-    private boolean wsEnabled = false;
     private String wsEndpoint = "/ws";
 
     private String startupSessionMode = "resume";

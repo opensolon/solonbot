@@ -3,6 +3,8 @@
 ### v2026.4.20
 
 * 优化 启动时打印主代理模型
+* 调整 取消 isCliEnabled, isWebEnabled, isWsEnabled, isAcpEnabled 配置。统一由命令控制：`soloncode server`（启动后端服务，cli 会自动关闭）, 统一由命令控制：`soloncode web`（启动 web 服务）, `soloncode acp`（启动 acp 服务）
+* 调整 soloncode-web 合并到 soloncode-cli （作为一个发布包发布）
 
 ### v2026.4.18
 

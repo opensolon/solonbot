@@ -83,7 +83,7 @@ public class App {
         if (Solon.cfg().argx().flags().size() > 0) {
             String flag = Solon.cfg().argx().flagAt(0);
 
-            if (AgentFlags.FLAG_RUN.equals(flag)) {
+            if (AgentFlags.FLAG_RUN.equals(flag)) { // java -jar soloncode.jar run '你好' // soloncode run '你好'
                 //单次任务态
                 String prompt = Solon.cfg().argx().flagAt(1);
                 new CliShellOld(agentRuntime, agentProps).call(prompt);
@@ -91,43 +91,33 @@ public class App {
                 return;
             }
 
-            if (AgentFlags.FLAG_SERVE.equals(flag)) {
-                Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime, agentProps));
-                WebSocketRouter.getInstance().of(agentProps.getWsEndpoint(), new WebSocketGate(agentRuntime, agentProps));
-                return;
-            }
-
-            if (AgentFlags.FLAG_ACP.equals(flag)) {
+            if (AgentFlags.FLAG_SERVE.equals(flag)) { // java -jar soloncode.jar server // soloncode server
+                runWeb(agentRuntime, agentProps);
                 runAcp(agentRuntime, agentProps);
                 return;
             }
+
+            if (AgentFlags.FLAG_WEB.equals(flag)) { // java -jar soloncode.jar web // soloncode web
+                runWeb(agentRuntime, agentProps);
+                return;
+            }
+
+            if (AgentFlags.FLAG_ACP.equals(flag)) { // java -jar soloncode.jar acp // soloncode acp
+                runAcp(agentRuntime, agentProps);
+                return;
+            }
+
             //未来可以支持更多控制标记
         }
 
 
-        //cli
-        if (agentProps.isCliEnabled()) {
-            if ("new".equals(agentProps.getUiType())) {
-                new Thread(new CliShellNew(agentRuntime, agentProps), "CLI-Interactive-Thread").start();
-            } else {
-                new Thread(new CliShellOld(agentRuntime, agentProps), "CLI-Interactive-Thread").start();
-            }
-        }
+        //cli - default
+        new Thread(new CliShellOld(agentRuntime, agentProps), "CLI-Interactive-Thread").start();
+    }
 
-        //web
-        if (agentProps.isWebEnabled()) {
-            Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime, agentProps));
-        }
-
-        //ws
-        if (agentProps.isWsEnabled()) {
-            WebSocketRouter.getInstance().of(agentProps.getWsEndpoint(), new WebSocketGate(agentRuntime, agentProps));
-        }
-
-        //acp
-        if (agentProps.isAcpEnabled()) {
-            runAcp(agentRuntime, agentProps);
-        }
+    private static void runWeb(HarnessEngine agentRuntime, AgentProperties agentProps) {
+        WebSocketRouter.getInstance().of(agentProps.getWsEndpoint(), new WebSocketGate(agentRuntime, agentProps));
+        Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime, agentProps));
     }
 
     private static void runAcp(HarnessEngine agentRuntime, AgentProperties agentProps) {
@@ -174,38 +164,39 @@ public class App {
 
         String flag = app.cfg().argx().flagAt(0);
 
-        if (AgentFlags.FLAG_ACP.equals(flag)) {
-            c.setAcpEnabled(true);
-            c.setCliEnabled(false);
-            c.setWebEnabled(false);
-
-            //开始控制台日志
-            app.cfg().setProperty("solon.logging.appender.console.enable", "true");
-        }
-
-        if (c.isWebEnabled()) {
-            app.enableHttp(true);
-        }
-
-        if (c.isAcpEnabled() && "stdio".equals(c.getAcpTransport()) == false) {
-            app.enableHttp(true);
-            app.enableWebSocket(true);
-        }
-
-        if (c.isWsEnabled()) {
-            app.enableHttp(true);
-            app.enableWebSocket(true);
-        }
-
         if (AgentFlags.FLAG_SERVE.equals(flag)) {
+            enabledWeb(app, c);
+            enabledAcp(app, c);
+            return;
+        }
+
+        if (AgentFlags.FLAG_WEB.equals(flag)) {
+            //开始控制台日志
+            enabledWeb(app, c);
+            return;
+        }
+
+        if (AgentFlags.FLAG_ACP.equals(flag)) {
+            //开始控制台日志
+            enabledAcp(app, c);
+            return;
+        }
+    }
+
+    private static void enabledWeb(SolonApp app, AgentProperties c) {
+        app.enableHttp(true);
+        app.enableWebSocket(true);
+
+        //开始控制台日志
+        app.cfg().setProperty("solon.logging.appender.console.enable", "true");
+    }
+
+    private static void enabledAcp(SolonApp app, AgentProperties c) {
+        //开始控制台日志
+        if ("stdio".equals(c.getAcpTransport()) == false) {
             app.enableHttp(true);
             app.enableWebSocket(true);
-
-            c.setCliEnabled(false);
-            c.setAcpEnabled(false);
-
-            //开始控制台日志
-            app.cfg().setProperty("solon.logging.appender.console.enable", "true");
         }
+        app.cfg().setProperty("solon.logging.appender.console.enable", "true");
     }
 }
