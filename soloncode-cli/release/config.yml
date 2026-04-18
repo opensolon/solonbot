@@ -21,13 +21,10 @@ soloncode:
   hitlEnabled: false # 是否启用人工审核危险操作，和 maxSteps 动态继步
   subagentEnabled: true # 是否启用子代理模式
 
-  cliEnabled: true # 是否启用控制台
   cliPrintSimplified: true
 
-  webEnabled: false # 是否启用 WebApi
   webEndpoint: "/cli"
 
-  acpEnabled: false # 是否启用 Acp 协议（一些支持 Acp 的 IDE 可以连接）
   acpTransport: "websocket" # "stdio" or "websocket"
   acpEndpoint: "/acp"
 
