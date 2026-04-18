@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.remoting;
+package org.noear.solon.codecli.portal;
 
 import lombok.Data;
 

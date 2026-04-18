@@ -1,4 +1,4 @@
-package org.noear.solon.codecli;
+package org.noear.solon.codecli.portal.ui;
 
 import org.noear.solon.ai.harness.HarnessProperties;
 

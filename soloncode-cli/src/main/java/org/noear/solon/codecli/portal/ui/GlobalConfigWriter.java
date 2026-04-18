@@ -1,4 +1,4 @@
-package org.noear.solon.codecli;
+package org.noear.solon.codecli.portal.ui;
 
 import org.noear.solon.core.util.Assert;
 
@@ -28,7 +28,7 @@ public final class GlobalConfigWriter {
         return configPath;
     }
 
-    static void persistUiTheme(Path configPath, String themeName) {
+    public static void persistUiTheme(Path configPath, String themeName) {
         try {
             String current = Files.exists(configPath)
                 ? new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8)
@@ -45,7 +45,7 @@ public final class GlobalConfigWriter {
         }
     }
 
-    static String upsertUiTheme(String yamlContent, String themeName) {
+    public static String upsertUiTheme(String yamlContent, String themeName) {
         if (Assert.isEmpty(themeName)) {
             throw new IllegalArgumentException("themeName cannot be empty");
         }

@@ -2,6 +2,7 @@ package org.noear.solon.codecli;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.noear.solon.codecli.portal.ui.GlobalConfigWriter;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

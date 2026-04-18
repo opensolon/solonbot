@@ -15,9 +15,12 @@ import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.codecli.portal.AcpLink;
 import org.noear.solon.codecli.portal.CliShellOld;
 import org.noear.solon.codecli.portal.WebGate;
-import org.noear.solon.codecli.remoting.WsGate;
+import org.noear.solon.codecli.portal.WsGate;
 import org.noear.solon.core.util.JavaUtil;
+import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.websocket.WebSocketRouter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.Map;
@@ -29,7 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  */
 @Configuration
-public class Config {
+public class Configurator {
+    private static final Logger LOG = LoggerFactory.getLogger(Configurator.class);
+
     @Inject
     HarnessEngine agentRuntime;
 
@@ -106,6 +111,37 @@ public class Config {
     private void runWeb(HarnessEngine agentRuntime, AgentProperties agentProps) {
         WebSocketRouter.getInstance().of(agentProps.getWsEndpoint(), new WsGate(agentRuntime, agentProps));
         Solon.app().router().get(agentProps.getWebEndpoint(), new WebGate(agentRuntime, agentProps));
+
+        RunUtil.async(() -> {
+            try {
+                // 等待一小会儿确保服务完全就绪
+                Thread.sleep(500);
+                String url = "http://localhost:" + Solon.cfg().serverPort() + "/";
+                openSystemBrowser(url);
+            } catch (Throwable e) {
+                // 仅静默处理，不影响程序运行
+                LOG.warn("Failed to open browser: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 针对不同操作系统的备选打开方案
+     */
+    private void openSystemBrowser(String url) throws Exception {
+        try {
+            if (JavaUtil.IS_WINDOWS) {
+                new ProcessBuilder("cmd", "/c", "start", url.replace("&", "^&")).start();
+            } else if (JavaUtil.IS_MAC) {
+                new ProcessBuilder("open", url).start();
+            } else {
+                new ProcessBuilder("xdg-open", url).start();
+            }
+
+            LOG.info("{} Web started: {}", Solon.cfg().appTitle(), url);
+        } catch (Throwable e) { // 使用 Throwable 捕获更全面
+            LOG.warn("Backup browser launch failed: {}", e.getMessage());
+        }
     }
 
     private void runAcp(HarnessEngine agentRuntime, AgentProperties agentProps) {

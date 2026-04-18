@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.portal;
+package org.noear.solon.codecli.portal.ui;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
