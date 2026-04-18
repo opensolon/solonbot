@@ -504,6 +504,7 @@
         welcomeSendBtn.addEventListener('click', function() { sendMessage(); });
         chatSendBtn.addEventListener('click', function() {
             if (isStreaming && activeSessionId && sessionMap[activeSessionId]) {
+                // 停止流
                 finishStream(sessionMap[activeSessionId]);
             } else {
                 sendMessage();
