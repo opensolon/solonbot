@@ -1117,6 +1117,7 @@
         }
 
         function finishStream(sess) {
+            var wasStreaming = sess.isStreaming;
             sess.isStreaming = false;
             if (sess.silenceTimer) { clearTimeout(sess.silenceTimer); sess.silenceTimer = null; }
             removeThinking(sess);
@@ -1125,6 +1126,11 @@
             finishPendingTool(sess);
             if (sess.eventSource) { sess.eventSource.close(); sess.eventSource = null; }
             resetStreamState(sess);
+            if (wasStreaming) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/chat/sessions/interrupt?sessionId=' + encodeURIComponent(sess.sessionId), true);
+                xhr.send();
+            }
             if (sess.sessionId === activeSessionId) {
                 isStreaming = false;
                 setBtnSendMode();

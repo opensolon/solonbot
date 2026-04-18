@@ -15,6 +15,7 @@
  */
 package org.noear.solon.codecli.portal;
 
+import org.jline.utils.Log;
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
@@ -184,6 +185,7 @@ public class WebController {
         }
         session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
 
+        Log.info("用户已取消任务...");
 
         ctx.output("{\"ok\":true}");
     }
