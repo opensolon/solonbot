@@ -31,7 +31,7 @@ soloncode:
     - apiUrl: "https://ai.gitee.com/v1/chat/completions"
       apiKey: "******"
       model: "glm-5.0"
-      timeout: "600s"
+      timeout: "300s"
       userAgent: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; SolonCode/1.0; +https://solon.noear.org/)"
 #      defaultOptions:
 #        enable_thinking: false #不同模型可能不同
