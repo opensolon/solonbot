@@ -51,7 +51,7 @@ public class WebController {
      * @date 2026年3月14日
      * @return
      */
-    @Mapping("/chat")
+    @Mapping("/")
     public ModelAndView chat() {
         ModelAndView mv = new ModelAndView("chat.html");
         mv.put("nickname","Solon Code");
