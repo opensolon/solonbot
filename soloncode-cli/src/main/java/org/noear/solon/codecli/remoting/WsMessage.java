@@ -3,7 +3,7 @@ package org.noear.solon.codecli.remoting;
 import lombok.Data;
 
 @Data
-public class WebMessage {
+public class WsMessage {
 
     String input;
 

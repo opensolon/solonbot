@@ -21,7 +21,6 @@ import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.agent.react.task.ThoughtChunk;
-import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
@@ -48,12 +47,12 @@ import java.nio.charset.StandardCharsets;
  * @since 3.9.1
  */
 
-public class WebSocketGate extends SimpleWebSocketListener {
-    private static final Logger LOG = LoggerFactory.getLogger(WebSocketGate.class);
+public class WsGate extends SimpleWebSocketListener {
+    private static final Logger LOG = LoggerFactory.getLogger(WsGate.class);
     private final HarnessEngine kernel;
     private final AgentProperties agentPros;
 
-    public WebSocketGate(HarnessEngine kernel, AgentProperties agentPros) {
+    public WsGate(HarnessEngine kernel, AgentProperties agentPros) {
         this.kernel = kernel;
         this.agentPros = agentPros;
     }
@@ -96,7 +95,7 @@ public class WebSocketGate extends SimpleWebSocketListener {
             }
 
             // 解析请求
-            WebMessage req = root.toBean(WebMessage.class);
+            WsMessage req = root.toBean(WsMessage.class);
             String sessionId = req.getSessionId();
             String input = req.getInput();
             String cwd = req.getCwd();

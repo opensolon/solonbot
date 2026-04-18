@@ -17,12 +17,18 @@ package org.noear.solon.codecli.portal;
 
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
+import org.noear.solon.ai.agent.AgentSession;
+import org.noear.solon.ai.chat.message.ChatMessage;
+import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.annotation.Controller;
 import org.noear.solon.annotation.Inject;
 import org.noear.solon.annotation.Mapping;
+import org.noear.solon.annotation.Param;
 import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.ModelAndView;
+import org.noear.solon.core.util.Assert;
+import reactor.core.Disposable;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -42,23 +48,26 @@ import java.util.List;
  */
 @Controller
 public class WebController {
+    @Inject
+    HarnessEngine agentRuntime;
 
     @Inject
-    private AgentProperties config;
+    private AgentProperties agentProps;
 
     /**
      * 对话主界面
+     *
+     * @return
      * @author oisin
      * @date 2026年3月14日
-     * @return
      */
     @Mapping("/")
     public ModelAndView chat() {
         ModelAndView mv = new ModelAndView("chat.html");
         mv.put("appTitle", Solon.cfg().appTitle());
-        mv.put("sseEndpoint", config.getWebEndpoint());
-        mv.put("workspace", config.getWorkspace());
-        mv.put("workname", getLastSegment(config.getWorkspace()));
+        mv.put("sseEndpoint", agentProps.getWebEndpoint());
+        mv.put("workspace", agentProps.getWorkspace());
+        mv.put("workname", getLastSegment(agentProps.getWorkspace()));
         return mv;
     }
 
@@ -71,6 +80,7 @@ public class WebController {
 
     /**
      * 加载用户消息历史记录
+     *
      * @author oisin
      * @date 2026年3月14日
      */
@@ -78,7 +88,7 @@ public class WebController {
     public void sessions(Context ctx) throws Exception {
         ctx.contentType("application/json; charset=utf-8");
 
-        Path sessionsPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions").toAbsolutePath().normalize();
+        Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions").toAbsolutePath().normalize();
         File sessionsDir = sessionsPath.toFile();
         List<ONode> result = new ArrayList<>();
 
@@ -110,20 +120,20 @@ public class WebController {
 
     /**
      * 获取消息详细记录信息
+     *
      * @author oisin
      * @date 2026年3月15日
      */
     @Mapping("/chat/messages")
-    public void messages(Context ctx) throws Exception {
+    public void messages(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
         ctx.contentType("application/json; charset=utf-8");
 
-        String sessionId = ctx.param("sessionId");
-        if (sessionId == null || sessionId.isEmpty()) {
+        if (Assert.isEmpty(sessionId)) {
             ctx.output("[]");
             return;
         }
 
-        Path sessionsPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
+        Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
         List<ONode> result = new ArrayList<>();
 
@@ -150,16 +160,44 @@ public class WebController {
         ctx.output(ONode.serialize(result));
     }
 
+    @Mapping("/chat/sessions/interrupt")
+    public void interruptSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) {
+        ctx.contentType("application/json; charset=utf-8");
+
+        if (Assert.isEmpty(sessionId)) {
+            ctx.output("{\"ok\":false}");
+            return;
+        }
+
+        // Security: prevent path traversal
+        if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
+            ctx.output("{\"ok\":false}");
+            return;
+        }
+
+
+        AgentSession session = agentRuntime.getSession(sessionId);
+
+        Disposable disposable = (Disposable) session.attrs().get("disposable");
+        if (disposable != null) {
+            disposable.dispose();
+        }
+        session.addMessage(ChatMessage.ofAssistant("用户中途取消了这个任务."));
+
+
+        ctx.output("{\"ok\":true}");
+    }
+
     /**
      * 删除消息记录
+     *
      * @author oisin
      * @date 2026年3月15日
      */
     @Mapping("/chat/sessions/delete")
-    public void deleteSession(Context ctx) throws Exception {
+    public void deleteSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
         ctx.contentType("application/json; charset=utf-8");
 
-        String sessionId = ctx.param("sessionId");
         if (sessionId == null || sessionId.isEmpty()) {
             ctx.output("{\"ok\":false}");
             return;
@@ -171,7 +209,7 @@ public class WebController {
             return;
         }
 
-        Path sessionPath = Paths.get(config.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
+        Path sessionPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File sessionDir = sessionPath.toFile();
 
         if (sessionDir.exists() && sessionDir.isDirectory()) {
