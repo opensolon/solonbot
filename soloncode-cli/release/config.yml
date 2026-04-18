@@ -23,6 +23,10 @@ soloncode:
 
   cliPrintSimplified: true
 
+#  skillPools: # 技能池（可以多个）
+#    "@media": "/path/to/media-skills"
+
+  modelRetries: 3
   models: # llm 配置（参考 solon ai chatmodel 配置）
     - apiUrl: "https://ai.gitee.com/v1/chat/completions"
       apiKey: "******"
@@ -35,13 +39,13 @@ soloncode:
 #        top_p: 0.5
 #        frequency_penalty: 0.5
 #        presence_penalty: 0.4
-#  skillPools: # 技能池（可以多个）
-#    "@shared": "/path/to/shared-skills"
+#  apiRetries: 3
 #  apiServers: # rest-api
 #    api1:
 #      docUrl: ""
 #      apiBaseUrl: ""
 #      headers: { API_KEY: "xxx" }
+#  mcpRetries: 3
 #  mcpServers: # mcp
 #    gitee:
 #      type: "streamable"
