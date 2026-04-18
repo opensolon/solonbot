@@ -22,7 +22,7 @@ public class AgentFlags {
     public final static String FLAG_WEB = "web";
 
     public static String getVersion() {
-        return "v2026.4.18";
+        return "v2026.4.20";
     }
 
     private static String lastVersion;
