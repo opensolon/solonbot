@@ -95,6 +95,10 @@ public class App {
     private static void enabledWeb(SolonApp app, AgentProperties c) {
         String port = app.cfg().argx().flagAt(1);
 
+        if("0".equals(port)){
+            port =  findAvailablePort();
+        }
+
         if(Assert.isNotEmpty(port) && Assert.isNumber(port)){
             // soloncode web 1212 //= soloncode web -server.port=1212
             app.cfg().setProperty("server.port", port);
@@ -116,5 +120,14 @@ public class App {
         }
         app.cfg().setProperty("solon.logging.appender.console.level", "INFO");
         app.cfg().setProperty("solon.logging.appender.console.enable", "true");
+    }
+
+    private static String findAvailablePort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            return String.valueOf(socket.getLocalPort());
+        } catch (Throwable e) {
+            // 如果分配失败，返回一个保底的默认端口
+            return null;
+        }
     }
 }
