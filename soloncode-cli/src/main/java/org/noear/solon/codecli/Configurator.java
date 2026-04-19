@@ -91,6 +91,8 @@ public class Configurator {
             if (AgentFlags.FLAG_SERVE.equals(flag)) { // java -jar soloncode.jar server // soloncode server
                 runWeb(agentRuntime, agentProps, null);
                 runAcp(agentRuntime, agentProps, null);
+
+                cliShell.printWelcome("Server port: " + Solon.cfg().serverPort());
                 return;
             }
 
