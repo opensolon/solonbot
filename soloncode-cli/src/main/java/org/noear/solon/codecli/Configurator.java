@@ -5,6 +5,7 @@ import com.agentclientprotocol.sdk.agent.transport.WebSocketSolonAcpAgentTranspo
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import org.noear.solon.Solon;
+import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
@@ -22,6 +23,7 @@ import org.noear.solon.net.websocket.WebSocketRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -138,7 +140,12 @@ public class Configurator {
                 new ProcessBuilder("xdg-open", url).start();
             }
 
-            LOG.info("{} Web started: {}", Solon.cfg().appTitle(), url);
+            String path = new File(agentRuntime.getProps().getWorkspace()).getAbsolutePath();
+            // 连带版本号，紧凑排列
+            System.out.println("SolonCode" + " " + AgentFlags.getVersion() + " PID-" + Utils.pid() + " Model:" + agentRuntime.getMainModel().getModel());
+            System.out.println(path);
+
+            System.out.println("Web interface: " + url);
         } catch (Throwable e) { // 使用 Throwable 捕获更全面
             LOG.warn("Backup browser launch failed: {}", e.getMessage());
         }
