@@ -15,7 +15,6 @@
  */
 package org.noear.solon.codecli.portal;
 
-import org.jline.utils.Log;
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
@@ -39,10 +38,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Web Chat Controller
@@ -90,12 +86,10 @@ public class WebController {
      * @date 2026年3月14日
      */
     @Mapping("/chat/sessions")
-    public void sessions(Context ctx) throws Exception {
-        ctx.contentType("application/json; charset=utf-8");
-
+    public List<Map> sessions(Context ctx) throws Exception {
         Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions").toAbsolutePath().normalize();
         File sessionsDir = sessionsPath.toFile();
-        List<ONode> result = new ArrayList<>();
+        List<Map> result = new ArrayList<>();
 
         if (sessionsDir.exists() && sessionsDir.isDirectory()) {
             File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
@@ -111,16 +105,16 @@ public class WebController {
                     String label = extractFirstUserMessage(msgFile);
                     if (label == null || label.isEmpty()) continue;
 
-                    ONode item = new ONode();
-                    item.set("sessionId", sid);
-                    item.set("label", label.length() > 30 ? label.substring(0, 30) + "..." : label);
-                    item.set("time", dir.lastModified());
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("sessionId", sid);
+                    item.put("label", label.length() > 30 ? label.substring(0, 30) + "..." : label);
+                    item.put("time", dir.lastModified());
                     result.add(item);
                 }
             }
         }
 
-        ctx.output(ONode.serialize(result));
+        return result;
     }
 
     /**
@@ -130,17 +124,15 @@ public class WebController {
      * @date 2026年3月15日
      */
     @Mapping("/chat/messages")
-    public void messages(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
-        ctx.contentType("application/json; charset=utf-8");
+    public List<Map> messages(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
+        List<Map> result = new ArrayList<>();
 
         if (Assert.isEmpty(sessionId)) {
-            ctx.output("[]");
-            return;
+            return result;
         }
 
         Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
-        List<ONode> result = new ArrayList<>();
 
         if (msgFile.exists()) {
             try (BufferedReader br = new BufferedReader(
@@ -152,32 +144,33 @@ public class WebController {
                     ONode node = ONode.ofJson(line);
                     String role = node.get("role").getString();
                     String content = node.get("content").getString();
+
                     if (role != null && content != null) {
-                        ONode item = new ONode();
-                        item.set("role", role);
-                        item.set("content", content);
+                        Map<String, String> item = new LinkedHashMap<>();
+                        item.put("role", role);
+                        item.put("content", content);
                         result.add(item);
                     }
                 }
             }
         }
 
-        ctx.output(ONode.serialize(result));
+        return result;
     }
 
     @Mapping("/chat/sessions/interrupt")
-    public void interruptSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) {
-        ctx.contentType("application/json; charset=utf-8");
+    public Map interruptSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) {
+        Map<String, Boolean> result = new LinkedHashMap<>();
 
         if (Assert.isEmpty(sessionId)) {
-            ctx.output("{\"ok\":false}");
-            return;
+            result.put("ok", false);
+            return result;
         }
 
         // Security: prevent path traversal
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
-            ctx.output("{\"ok\":false}");
-            return;
+            result.put("ok", false);
+            return result;
         }
 
 
@@ -190,7 +183,8 @@ public class WebController {
         session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
         LOG.info("用户已取消任务.");
 
-        ctx.output("{\"ok\":true}");
+        result.put("ok", true);
+        return result;
     }
 
     /**
@@ -200,18 +194,18 @@ public class WebController {
      * @date 2026年3月15日
      */
     @Mapping("/chat/sessions/delete")
-    public void deleteSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
-        ctx.contentType("application/json; charset=utf-8");
+    public Map deleteSession(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
+        Map<String, Boolean> result = new LinkedHashMap<>();
 
         if (sessionId == null || sessionId.isEmpty()) {
-            ctx.output("{\"ok\":false}");
-            return;
+            result.put("ok", false);
+            return result;
         }
 
         // Security: prevent path traversal
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
-            ctx.output("{\"ok\":false}");
-            return;
+            result.put("ok", false);
+            return result;
         }
 
         Path sessionPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
@@ -221,7 +215,8 @@ public class WebController {
             deleteDirectory(sessionDir);
         }
 
-        ctx.output("{\"ok\":true}");
+        result.put("ok", true);
+        return result;
     }
 
     private void deleteDirectory(File dir) {
