@@ -10,6 +10,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.HarnessExtension;
 import org.noear.solon.annotation.*;
 import org.noear.solon.codecli.core.AgentFlags;
 import org.noear.solon.codecli.core.AgentProperties;
@@ -17,6 +18,7 @@ import org.noear.solon.codecli.portal.AcpLink;
 import org.noear.solon.codecli.portal.CliShell;
 import org.noear.solon.codecli.portal.WebGate;
 import org.noear.solon.codecli.portal.WsGate;
+import org.noear.solon.core.AppContext;
 import org.noear.solon.core.util.JavaUtil;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.websocket.WebSocketRouter;
@@ -44,12 +46,17 @@ public class Configurator {
     AgentProperties agentProps;
 
     @Bean
-    public HarnessEngine agentRuntime(AgentProperties props) {
+    public HarnessEngine agentRuntime(AppContext context, AgentProperties props) {
         Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
         // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/
         AgentSessionProvider sessionProvider = (sessionId) -> sessionMap.computeIfAbsent(sessionId, key ->
                 new FileAgentSession(key, Paths.get(props.getWorkspace(), props.getHarnessSessions()).resolve(key).normalize().toFile().toString()));
+
+        //订阅容器扩展
+        context.subBeansOfType(HarnessExtension.class, extension -> {
+            props.addExtension(extension);
+        });
 
         HarnessEngine engine = HarnessEngine.of(props)
                 .sessionProvider(sessionProvider)
