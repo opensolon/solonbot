@@ -156,7 +156,7 @@ public class CliShell implements Runnable {
                     terminal.writer().println();
                     terminal.flush();
 
-                    input = reader.readLine(BOLD + CYAN + "> " + RESET);
+                    input = reader.readLine(BOLD + CYAN + "> " + RESET).trim();
                 } catch (UserInterruptException e) {
                     continue;
                 } catch (EndOfFileException e) {
