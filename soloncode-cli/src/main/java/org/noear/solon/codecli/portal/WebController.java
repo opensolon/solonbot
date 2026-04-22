@@ -69,6 +69,7 @@ public class WebController {
     public ModelAndView chat() {
         ModelAndView mv = new ModelAndView("chat.html");
         mv.put("appTitle", Solon.cfg().appTitle());
+        mv.put("appVersion", AgentFlags.getVersion());
         mv.put("sseEndpoint", agentProps.getWebEndpoint());
         mv.put("workspace", agentProps.getWorkspace());
         mv.put("workname", getLastSegment(agentProps.getWorkspace()));
