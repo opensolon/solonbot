@@ -92,7 +92,7 @@ public class WebController {
      * @date 2026年3月14日
      */
     @Mapping("/chat/sessions")
-    public Result<List<Map>> sessions(Context ctx) throws Exception {
+    public Result<List<Map>> sessions() throws Exception {
         Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions").toAbsolutePath().normalize();
         File sessionsDir = sessionsPath.toFile();
         List<Map> data = new ArrayList<>();
@@ -130,7 +130,7 @@ public class WebController {
      * @date 2026年3月15日
      */
     @Mapping("/chat/sessions/delete")
-    public Result deleteSession(Context ctx, @Param("sessionId") String sessionId) throws Exception {
+    public Result deleteSession(@Param("sessionId") String sessionId) throws Exception {
         // Security: prevent path traversal
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure();
@@ -154,7 +154,7 @@ public class WebController {
      * @date 2026年3月15日
      */
     @Mapping("/chat/models")
-    public Result<Map> models(Context ctx, @Param(value = "sessionId", required = false) String sessionId) throws Exception {
+    public Result<Map> models(@Param(value = "sessionId", required = false) String sessionId) throws Exception {
         Map<String, Object> data = new LinkedHashMap<>();
         List<Map> list = new ArrayList<>();
 
@@ -178,7 +178,7 @@ public class WebController {
     }
 
     @Mapping("/chat/models/select")
-    public Result models_select(Context ctx, @Param("sessionId") String sessionId, @Param("modelName") String modelName) throws Exception {
+    public Result models_select(@Param("sessionId") String sessionId, @Param("modelName") String modelName) throws Exception {
         AgentSession session = agentRuntime.getSession(sessionId);
 
         session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, modelName);
@@ -193,7 +193,7 @@ public class WebController {
      * @date 2026年3月15日
      */
     @Mapping("/chat/messages")
-    public Result<List<Map>> messages(Context ctx, @Param("sessionId") String sessionId) throws Exception {
+    public Result<List<Map>> messages(@Param("sessionId") String sessionId) throws Exception {
         List<Map> data = new ArrayList<>();
         Path sessionsPath = Paths.get(agentProps.getWorkspace(), ".soloncode", "sessions", sessionId).toAbsolutePath().normalize();
         File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
@@ -223,7 +223,7 @@ public class WebController {
     }
 
     @Mapping("/chat/interrupt")
-    public Result interruptSession(Context ctx, @Param("sessionId") String sessionId) {
+    public Result interruptSession(@Param("sessionId") String sessionId) {
         // Security: prevent path traversal
         if (sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure();
