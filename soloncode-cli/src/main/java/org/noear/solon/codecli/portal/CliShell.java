@@ -227,11 +227,17 @@ public class CliShell implements Runnable {
                 terminal.flush();
             } else {
                 // 切换模型
-                session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, flag);
-                session.updateSnapshot();
+                if (agentProps.getModelOrNil(flag) == null) {
+                    terminal.writer().println(RED + "Model not found: " + RESET + BOLD + flag + RESET);
+                    terminal.writer().println(DIM + "Use '/model' to see available models." + RESET);
+                    terminal.flush();
+                } else {
+                    session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, flag);
+                    session.updateSnapshot();
 
-                terminal.writer().println(GREEN + "Model switched to: " + RESET + BOLD + flag + RESET);
-                terminal.flush();
+                    terminal.writer().println(GREEN + "Model switched to: " + RESET + BOLD + flag + RESET);
+                    terminal.flush();
+                }
             }
 
             return true;
