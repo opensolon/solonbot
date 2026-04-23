@@ -17,6 +17,7 @@ package org.noear.solon.codecli.portal;
 
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
+import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.intercept.HITL;
@@ -37,6 +38,7 @@ import org.noear.solon.core.handle.ModelAndView;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
+import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.core.util.MimeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -261,6 +263,24 @@ public class WebController {
         return Result.succeed();
     }
 
+    private static final Set<String> IMAGE_EXTENSIONS = Utils.asSet(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg");
+
+    private static boolean isImageExtension(String ext) {
+        return IMAGE_EXTENSIONS.contains(ext);
+    }
+
+    private static String extensionToMime(String ext) {
+        switch (ext) {
+            case ".jpg": case ".jpeg": return "image/jpeg";
+            case ".png": return "image/png";
+            case ".gif": return "image/gif";
+            case ".webp": return "image/webp";
+            case ".bmp": return "image/bmp";
+            case ".svg": return "image/svg+xml";
+            default: return "image/png";
+        }
+    }
+
     private void deleteDirectory(File dir) {
         File[] files = dir.listFiles();
         if (files != null) {
@@ -337,45 +357,28 @@ public class WebController {
             return;
         }
 
-        // Handle POST JSON body with imageBase64 (for image attachments)
+        // Handle file upload (multipart/form-data)
         String imageBase64 = null;
         String imageMime = null;
-        if ("POST".equals(ctx.method()) && ctx.contentType() != null
-                && ctx.contentType().contains("application/json")) {
-            String body = ctx.body();
-            if (Assert.isNotEmpty(body)) {
-                try {
-                    ONode node = ONode.ofJson(body);
-                    if (input == null || input.isEmpty()) {
-                        input = node.get("input").getString();
-                    }
-                    if (model == null || model.isEmpty()) {
-                        model = node.get("model").getString();
-                        if (Assert.isNotEmpty(model)) {
-                            session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, model);
-                        }
-                    }
-                    if (sessionId == null || sessionId.isEmpty()) {
-                        sessionId = node.get("sessionId").getString();
-                    }
-                    imageBase64 = node.get("imageBase64").getString();
-                    imageMime = node.get("imageMime").getString();
-                } catch (Exception ignored) {
-                    // If JSON parsing fails, treat as plain text
-                }
-            }
-        }
-
-        // Handle file upload (multipart/form-data for binary file attachments)
         String fileHint = null;
+
         if (attachment != null) {
             String fileName = attachment.getName();
             if (fileName != null && !fileName.contains("..") && !fileName.contains("/") && !fileName.contains("\\")) {
-                Path savePath = Paths.get(engine.getProps().getWorkspace(), fileName).toAbsolutePath().normalize();
-                // Security: ensure the save path is under workspace
-                if (savePath.startsWith(Paths.get(engine.getProps().getWorkspace()).toAbsolutePath().normalize())) {
-                    Files.copy(attachment.getContent(), savePath, StandardCopyOption.REPLACE_EXISTING);
-                    fileHint = "[附件: " + fileName + "]\n";
+                String ext = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf(".")).toLowerCase() : "";
+
+                if (isImageExtension(ext)) {
+                    // Image file: read content and convert to base64
+                    byte[] bytes = IoUtil.transferToBytes(attachment.getContent());
+                    imageBase64 = Base64.getEncoder().encodeToString(bytes);
+                    imageMime = extensionToMime(ext);
+                } else {
+                    // Non-image file: save to workspace
+                    Path savePath = Paths.get(engine.getProps().getWorkspace(), fileName).toAbsolutePath().normalize();
+                    if (savePath.startsWith(Paths.get(engine.getProps().getWorkspace()).toAbsolutePath().normalize())) {
+                        Files.copy(attachment.getContent(), savePath, StandardCopyOption.REPLACE_EXISTING);
+                        fileHint = "[附件: " + fileName + "]\n";
+                    }
                 }
             }
         }
