@@ -47,8 +47,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.*;
 
@@ -335,16 +337,74 @@ public class WebController {
             return;
         }
 
-        if (Assert.isNotEmpty(input)) {
+        // Handle POST JSON body with imageBase64 (for image attachments)
+        String imageBase64 = null;
+        String imageMime = null;
+        if ("POST".equals(ctx.method()) && ctx.contentType() != null
+                && ctx.contentType().contains("application/json")) {
+            String body = ctx.body();
+            if (Assert.isNotEmpty(body)) {
+                try {
+                    ONode node = ONode.ofJson(body);
+                    if (input == null || input.isEmpty()) {
+                        input = node.get("input").getString();
+                    }
+                    if (model == null || model.isEmpty()) {
+                        model = node.get("model").getString();
+                        if (Assert.isNotEmpty(model)) {
+                            session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, model);
+                        }
+                    }
+                    if (sessionId == null || sessionId.isEmpty()) {
+                        sessionId = node.get("sessionId").getString();
+                    }
+                    imageBase64 = node.get("imageBase64").getString();
+                    imageMime = node.get("imageMime").getString();
+                } catch (Exception ignored) {
+                    // If JSON parsing fails, treat as plain text
+                }
+            }
+        }
+
+        // Handle file upload (multipart/form-data for binary file attachments)
+        String fileHint = null;
+        if (attachment != null) {
+            String fileName = attachment.getName();
+            if (fileName != null && !fileName.contains("..") && !fileName.contains("/") && !fileName.contains("\\")) {
+                Path savePath = Paths.get(engine.getProps().getWorkspace(), fileName).toAbsolutePath().normalize();
+                // Security: ensure the save path is under workspace
+                if (savePath.startsWith(Paths.get(engine.getProps().getWorkspace()).toAbsolutePath().normalize())) {
+                    Files.copy(attachment.getContent(), savePath, StandardCopyOption.REPLACE_EXISTING);
+                    fileHint = "[附件: " + fileName + "]\n";
+                }
+            }
+        }
+
+        if (fileHint != null) {
+            input = fileHint + (input != null ? input : "请帮我处理这个附件");
+        }
+
+        if (Assert.isNotEmpty(input) || Assert.isNotEmpty(imageBase64)) {
+            if (input == null || input.isEmpty()) {
+                input = "请描述这张图片";
+            }
             ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
-            ctx.returnValue(buildStreamFlux(session, chatModel, sessionCwd, input));
+            ctx.returnValue(buildStreamFlux(session, chatModel, sessionCwd, input, imageBase64, imageMime));
         }
     }
 
     private Flux<String> buildStreamFlux(AgentSession session, ChatModel chatModel, String sessionCwd, String input) {
+        return buildStreamFlux(session, chatModel, sessionCwd, input, null, null);
+    }
+
+    private Flux<String> buildStreamFlux(AgentSession session, ChatModel chatModel, String sessionCwd, String input, String imageBase64, String imageMime) {
         final Prompt prompt;
         if("/resume".equals(input)){
             prompt = Prompt.of().attrPut("start_time", System.currentTimeMillis());
+        } else if (Assert.isNotEmpty(imageBase64)) {
+            // Multimodal: text + image
+            ChatMessage userMsg = ChatMessage.ofUser(input, org.noear.solon.ai.chat.content.ImageBlock.ofBase64(imageBase64, imageMime != null ? imageMime : "image/png"));
+            prompt = Prompt.of().addMessage(userMsg).attrPut("start_time", System.currentTimeMillis());
         } else {
             prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
         }
