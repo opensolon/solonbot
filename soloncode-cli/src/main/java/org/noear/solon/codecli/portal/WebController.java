@@ -35,6 +35,7 @@ import org.noear.solon.codecli.core.AgentFlags;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.ModelAndView;
 import org.noear.solon.core.handle.Result;
+import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.MimeType;
 import org.slf4j.Logger;
@@ -292,7 +293,7 @@ public class WebController {
     }
 
     @Mapping("/chat/input")
-    public void chat_input(Context ctx, String input, String model, String sessionId) throws Throwable {
+    public void chat_input(Context ctx, String input, UploadedFile attachment, String model, String sessionId) throws Throwable {
         if (sessionId == null || sessionId.isEmpty()) {
             sessionId = ctx.headerOrDefault("X-Session-Id", "web");
         }
