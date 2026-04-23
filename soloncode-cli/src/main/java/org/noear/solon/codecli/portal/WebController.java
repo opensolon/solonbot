@@ -19,18 +19,12 @@ import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
 import org.noear.solon.Utils;
 import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.intercept.HITL;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
-import org.noear.solon.ai.agent.react.task.ActionEndChunk;
-import org.noear.solon.ai.agent.react.task.ReasonChunk;
-import org.noear.solon.ai.agent.react.task.ThoughtChunk;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.message.ChatMessage;
-import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
-import org.noear.solon.ai.harness.agent.TaskSkill;
 import org.noear.solon.annotation.*;
 import org.noear.solon.codecli.core.AgentFlags;
 import org.noear.solon.core.handle.Context;
@@ -38,12 +32,10 @@ import org.noear.solon.core.handle.ModelAndView;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
-import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.core.util.MimeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -53,7 +45,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.Duration;
 import java.util.*;
 
 /**
@@ -65,9 +56,11 @@ public class WebController {
     private static final Logger LOG = LoggerFactory.getLogger(WebController.class);
 
     private final HarnessEngine engine;
+    private final WebStreamBuilder streamBuilder;
 
     public WebController(HarnessEngine engine) {
         this.engine = engine;
+        this.streamBuilder = new WebStreamBuilder(engine);
     }
 
     /**
@@ -264,19 +257,28 @@ public class WebController {
     }
 
     private static final Set<String> IMAGE_EXTENSIONS = Utils.asSet(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg");
+
     private static boolean isImageExtension(String ext) {
         return IMAGE_EXTENSIONS.contains(ext);
     }
 
     private static String extensionToMime(String ext) {
         switch (ext) {
-            case ".jpg": case ".jpeg": return "image/jpeg";
-            case ".png": return "image/png";
-            case ".gif": return "image/gif";
-            case ".webp": return "image/webp";
-            case ".bmp": return "image/bmp";
-            case ".svg": return "image/svg+xml";
-            default: return "image/png";
+            case ".jpg":
+            case ".jpeg":
+                return "image/jpeg";
+            case ".png":
+                return "image/png";
+            case ".gif":
+                return "image/gif";
+            case ".webp":
+                return "image/webp";
+            case ".bmp":
+                return "image/bmp";
+            case ".svg":
+                return "image/svg+xml";
+            default:
+                return "image/png";
         }
     }
 
@@ -352,7 +354,7 @@ public class WebController {
             }
             // Resume streaming after HITL decision
             ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
-            ctx.returnValue(buildStreamFlux(session, chatModel, sessionCwd, null));
+            ctx.returnValue(streamBuilder.buildStreamFlux(session, chatModel, sessionCwd, null));
             return;
         }
 
@@ -388,176 +390,7 @@ public class WebController {
                 input = "请描述这张图片";
             }
             ctx.contentType(MimeType.TEXT_EVENT_STREAM_UTF8_VALUE);
-            ctx.returnValue(buildStreamFlux(session, chatModel, sessionCwd, input, imageBase64, imageMime));
+            ctx.returnValue(streamBuilder.buildStreamFlux(session, chatModel, sessionCwd, input, imageBase64, imageMime));
         }
-    }
-
-    private Flux<String> buildStreamFlux(AgentSession session, ChatModel chatModel, String sessionCwd, String input) {
-        return buildStreamFlux(session, chatModel, sessionCwd, input, null, null);
-    }
-
-    private Flux<String> buildStreamFlux(AgentSession session, ChatModel chatModel, String sessionCwd, String input, String imageBase64, String imageMime) {
-        final Prompt prompt;
-        if("/resume".equals(input)){
-            prompt = Prompt.of().attrPut("start_time", System.currentTimeMillis());
-        } else if (Assert.isNotEmpty(imageBase64)) {
-            // Multimodal: text + image
-            ChatMessage userMsg = ChatMessage.ofUser(input, org.noear.solon.ai.chat.content.ImageBlock.ofBase64(imageBase64, imageMime != null ? imageMime : "image/png"));
-            prompt = Prompt.of().addMessage(userMsg).attrPut("start_time", System.currentTimeMillis());
-        } else {
-            prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
-        }
-
-
-        return engine.prompt(prompt)
-                .session(session)
-                .options(o -> {
-                    o.chatModel(chatModel);
-
-                    if (Assert.isNotEmpty(sessionCwd)) {
-                        o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
-                    }
-                })
-                .stream()
-                .map(chunk -> {
-                    if (chunk instanceof ReasonChunk) {
-                        return onReasonChunk((ReasonChunk) chunk);
-                    } else if (chunk instanceof ThoughtChunk) {
-                        return onThoughtChunk((ThoughtChunk) chunk);
-                    } else if (chunk instanceof ActionEndChunk) {
-                        return onActionEndChunk((ActionEndChunk) chunk);
-                    } else if (chunk instanceof ReActChunk) {
-                        return onFinalChunk((ReActChunk) chunk);
-                    }
-
-                    return "";
-                })
-                .filter(Assert::isNotEmpty)
-                .doOnSubscribe(subscription -> {
-                    // 将 Subscription 包装为 Disposable
-                    Disposable disposable = subscription::cancel;
-
-                    // 在订阅开始时，将 disposable 存入 session
-                    session.attrs().put("disposable", disposable);
-                })
-                .onErrorResume(e -> {
-                    LOG.error("Task fail: {}", e.getMessage(), e);
-
-                    String message = new ONode().set("type", "error")
-                            .set("text", e.getMessage())
-                            .toJson();
-
-                    return Flux.just(message);
-                })
-                .concatWith(Flux.defer(() -> {
-                    // Check HITL state after stream completes
-                    if (HITL.isHitl(session)) {
-                        HITLTask task = HITL.getPendingTask(session);
-                        if (task != null) {
-                            String command = "bash".equals(task.getToolName())
-                                    ? String.valueOf(task.getArgs().get("command"))
-                                    : null;
-                            String hitlMsg = new ONode().set("type", "hitl")
-                                    .set("toolName", task.getToolName())
-                                    .set("command", command)
-                                    .toJson();
-                            return Flux.just(hitlMsg, "[DONE]");
-                        }
-                    }
-                    return Flux.just("[DONE]");
-                }))
-                .doFinally(signal -> {
-                    // 流结束或被取消后，清理掉引用，避免内存泄漏
-                    session.attrs().remove("disposable");
-                });
-    }
-
-    private String onReasonChunk(ReasonChunk reason) {
-        if (!reason.isToolCalls() && reason.hasContent()) {
-            if (reason.getMessage().isThinking()) {
-                return new ONode().set("type", "reason")
-                        .set("text", reason.getContent())
-                        .toJson();
-            } else {
-                return new ONode().set("type", "text")
-                        .set("text", reason.getContent())
-                        .toJson();
-            }
-        }
-
-        return "";
-    }
-
-    private String onThoughtChunk(ThoughtChunk thought) {
-        if (thought.hasMeta(TaskSkill.TOOL_MULTITASK)) {
-            // 仅在多任务并行且有内容时输出
-            String content = thought.getAssistantMessage().getResultContent();
-            if (Assert.isNotEmpty(content)) {
-                return new ONode().set("type", "text")
-                        .set("text", content)
-                        .toJson();
-            }
-        }
-
-        return "";
-    }
-
-    private String onActionEndChunk(ActionEndChunk action) {
-        if (Assert.isNotEmpty(action.getToolName())) {
-            if (TaskSkill.TOOL_MULTITASK.equals(action.getToolName()) ||
-                    TaskSkill.TOOL_TASK.equals(action.getToolName())) {
-                return "";
-            }
-
-            ONode oNode = new ONode().set("type", "action")
-                    .set("text", action.getContent());
-
-            if (Assert.isNotEmpty(action.getToolName())) {
-                if (engine.getName().equals(action.getAgentName())) {
-                    oNode.set("toolName", action.getToolName());
-                } else {
-                    oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
-                }
-                oNode.set("args", action.getArgs());
-            }
-
-            return oNode.toJson();
-        }
-
-        return "";
-    }
-
-    private String onFinalChunk(ReActChunk react) {
-        StringBuilder buf = new StringBuilder();
-
-        Long start_time = react.getTrace().getOriginalPrompt().attrAs("start_time");
-
-
-        buf.append(" (");
-
-        buf.append(react.getTrace().getOptions().getChatModel().getNameOrModel());
-
-        if (react.getTrace().getMetrics() != null) {
-            if (buf.length() > 2) {
-                buf.append(", ");
-            }
-
-            buf.append(react.getTrace().getMetrics().getTotalTokens()).append(" tokens");
-        }
-
-        if (start_time != null) {
-            if (buf.length() > 2) {
-                buf.append(", ");
-            }
-
-            long seconds = Duration.ofMillis(System.currentTimeMillis() - start_time).getSeconds();
-            buf.append(seconds).append(" seconds");
-        }
-
-        buf.append(")");
-
-        return new ONode().set("type", "text")
-                .set("text", buf.toString())
-                .toJson();
     }
 }
