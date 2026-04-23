@@ -391,6 +391,7 @@
 
         /* ===== Global State ===== */
         var SESSION_ID = 'web-' + Date.now().toString(36);
+        setActiveSession(SESSION_ID);
         var isStreaming = false;
         var inChatMode = false;
         var chatHistory = [];
