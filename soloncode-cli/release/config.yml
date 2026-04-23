@@ -28,7 +28,9 @@ soloncode:
 
   modelRetries: 3
   models: # llm 配置（参考 solon ai chatmodel 配置）
-    - apiUrl: "https://ai.gitee.com/v1/chat/completions"
+    - name: "gitee-gml5"
+      description: ""
+      apiUrl: "https://ai.gitee.com/v1/chat/completions"
       apiKey: "******"
       model: "glm-5.0"
       timeout: "300s"
@@ -55,7 +57,10 @@ soloncode:
 #    memory:
 #      command: "npx"
 #      args: [ "-y", "@modelcontextprotocol/server-memory" ]
-
-# 1. chatModel 按需配置，不熟的看下 solon ai 官网资料
-# 2. SolonCodeCLI 兼容 Claude Code Agent Skills
-# 3. Portal UI 主题自定义说明见 soloncode-cli/docs/portal-ui-theme-customization.md
+#    lspServers:
+#      java:
+#        command: [ "jdtls", "-data", ".solon/lsp/java-workspace" ]
+#        extensions: [ ".java" ]
+#      python:
+#        command: [ "pylsp" ]
+#        extensions: [ ".py" ]
