@@ -517,11 +517,12 @@
         }
         function switchToWelcomeMode() {
             inChatMode = false;
-            deactivateSession();
+            SESSION_ID = 'web-' + Date.now().toString(36);
+            setActiveSession(SESSION_ID);
             welcomeView.style.display = '';
             chatView.classList.remove('active');
             welcomeInput.focus();
-            // Reset model UI to default
+            // Reset model UI to new session
             if (modelsLoaded) renderModelUI();
         }
 
@@ -572,7 +573,6 @@
 
         /* ===== New Chat ===== */
         newChatBtn.addEventListener('click', function() {
-            SESSION_ID = 'web-' + Date.now().toString(36);
             currentChatIndex = -1;
             switchToWelcomeMode();
             updateHistoryUI();
@@ -724,7 +724,6 @@
 
                     if (idx === currentChatIndex) {
                         currentChatIndex = -1;
-                        SESSION_ID = 'web-' + Date.now().toString(36);
                         switchToWelcomeMode();
                     } else if (idx < currentChatIndex) {
                         currentChatIndex--;
@@ -1248,7 +1247,6 @@
             var imageMime = pendingImageMime;
 
             if (currentChatIndex === -1) {
-                SESSION_ID = 'web-' + Date.now().toString(36);
                 saveChatToHistory(text);
             }
 
