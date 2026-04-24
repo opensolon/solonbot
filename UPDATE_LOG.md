@@ -1,5 +1,10 @@
 
 
+### v2026.4.27
+
+* 添加 soloncode userAgent 缺省配置（不需要每个 llm 都配置了）
+* 优化 soloncode deepseek-v4 适配
+
 ### v2026.4.26
 
 * 新增 soloncode web 附件上传功能
