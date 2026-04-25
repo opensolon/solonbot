@@ -170,6 +170,14 @@ public class WebStreamBuilder {
                     oNode.set("toolName", action.getAgentName() + "/" + action.getToolName());
                 }
                 oNode.set("args", action.getArgs());
+
+                if ("todowrite".equals(action.getToolName())) {
+                    String todos = (String) action.getArgs().get("todos");
+
+                    if (Assert.isNotEmpty(todos)) {
+                        oNode.set("text", todos);
+                    }
+                }
             }
 
             return oNode.toJson();
