@@ -383,7 +383,7 @@ public class WebController {
                             byte[] bytes = Files.readAllBytes(savePath);
                             String base64 = Base64.getEncoder().encodeToString(bytes);
                             String mime = extensionToMime(ext);
-                            imageBlocks.add(ImageBlock.ofBase64(mime, base64));
+                            imageBlocks.add(ImageBlock.ofBase64(base64, mime));
                         } else {
                             // Other: collect file names for prefix
                             fileAttachments.add(fileName);

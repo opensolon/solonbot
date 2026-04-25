@@ -3,6 +3,7 @@
 
 * 优化 soloncode web tool-call 打印
 * 优化 soloncode cli 安全引导词
+* 修复 soloncode 多模态格式拼接错误问题
 
 ### v2026.4.27
 
