@@ -140,14 +140,15 @@
 
         /* Tool Card */
         .tool-card { margin: 10px 0; border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
-        .tool-card-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+        .tool-card-header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; transition: background 0.15s; font-size: 13px; overflow: hidden; }
         .tool-card-header:hover { background: var(--bg-hover); }
         .tool-status-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; transition: all 0.3s; }
         .tool-status-icon.loading { border: 2px solid var(--border-color); border-top-color: var(--accent); animation: blob-spin 0.8s linear infinite; }
         .tool-status-icon.done { background: #22c55e; color: #fff; border: none; animation: none; }
-        .tool-name { font-weight: 600; color: var(--text-primary); }
+        .tool-name { font-weight: 600; color: var(--text-primary); white-space: nowrap; flex-shrink: 0; }
+        .tool-args { color: #999; font-size: 12px; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
         .tool-label { color: var(--text-secondary); font-size: 12px; }
-        .tool-toggle { margin-left: auto; color: var(--text-secondary); font-size: 14px; transition: transform 0.2s; }
+        .tool-toggle { margin-left: auto; color: var(--text-secondary); font-size: 14px; transition: transform 0.2s; flex-shrink: 0; }
         .tool-card.expanded .tool-toggle { transform: rotate(90deg); }
         .tool-card-body { display: none; padding: 0 14px 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; border-top: 1px solid var(--border-color); }
         .tool-card.expanded .tool-card-body { display: block; }
@@ -1306,22 +1307,50 @@
             if (sess.pendingToolCard) {
                 var icon = sess.pendingToolCard.querySelector('.tool-status-icon');
                 if (icon) { icon.className = 'tool-status-icon done'; icon.innerHTML = '<i class="layui-icon layui-icon-ok" style="font-size:12px"></i>'; }
-                var label = sess.pendingToolCard.querySelector('.tool-label');
-                if (label) label.textContent = '已完成';
+
                 sess.pendingToolCard = null;
             }
         }
 
-        function appendActionEndChunk(sess, toolName, text) {
+        function appendActionEndChunk(sess, toolName, text, args) {
             finishPendingTool(sess);
             ensureAssistantBubble(sess);
+
+            // 参考 CliShell 简化打印方式，将 args 拼接为短字符串
+            function formatArgValue(v) {
+                if (v === null) return 'null';
+                if (v === undefined) return 'undefined';
+                if (typeof v === 'string') return v.replace(/\n/g, ' ');
+                if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+                if (Array.isArray(v)) return '[' + v.length + '项]';
+                if (typeof v === 'object') {
+                    var keys = Object.keys(v);
+                    if (keys.length === 0) return '{}';
+                    if (keys.length > 3) return '{' + keys.slice(0, 2).join(',') + ',...}';
+                    var inner = [];
+                    keys.forEach(function(k) { inner.push(k + ':' + formatArgValue(v[k])); });
+                    var s = '{' + inner.join(',') + '}';
+                    return s.length > 30 ? '{' + keys.join(',') + '}' : s;
+                }
+                return String(v);
+            }
+            var argsHtml = '';
+            if (args && typeof args === 'object') {
+                var parts = [];
+                Object.keys(args).forEach(function(k) {
+                    parts.push(k + '=' + formatArgValue(args[k]));
+                });
+                var argsStr = parts.join(' ');
+                if (argsStr.length > 80) argsStr = argsStr.substring(0, 77) + '...';
+                if (argsStr) argsHtml = '<span class="tool-args">' + escapeHtml(argsStr) + '</span>';
+            }
 
             var card = document.createElement('div');
             card.className = 'tool-card';
             card.innerHTML = '<div class="tool-card-header">'
                 + '<span class="tool-status-icon loading"></span>'
                 + '<span class="tool-name">' + escapeHtml(toolName || 'tool') + '</span>'
-                + '<span class="tool-label">执行中...</span>'
+                + argsHtml
                 + '<i class="layui-icon layui-icon-right tool-toggle"></i>'
                 + '</div>'
                 + '<div class="tool-card-body"></div>';
@@ -1578,7 +1607,7 @@
                 switch (chunk.type) {
                     case 'reason': finishPendingTool(sess); appendReasonChunk(sess, chunk.text); break;
                     case 'text':   finishThinkingBlock(sess); finishPendingTool(sess); appendContentChunk(sess, chunk.text, true); break;
-                    case 'action': finishThinkingBlock(sess); appendActionEndChunk(sess, chunk.toolName, chunk.text); break;
+                    case 'action': finishThinkingBlock(sess); appendActionEndChunk(sess, chunk.toolName, chunk.text, chunk.args); break;
                     case 'agent':  finishThinkingBlock(sess); finishPendingTool(sess); appendContentChunk(sess, chunk.text, false); break;
                     case 'error':  finishThinkingBlock(sess); appendErrorChunk(sess, chunk.text); break;
                     case 'hitl':   finishThinkingBlock(sess); finishPendingTool(sess); appendHitlCard(sess, chunk.toolName, chunk.command); break;

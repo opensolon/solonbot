@@ -1,4 +1,8 @@
 
+### v2026.4.28
+
+* 优化 soloncode web tool-call 打印
+* 优化 soloncode cli 安全引导词
 
 ### v2026.4.27
 
