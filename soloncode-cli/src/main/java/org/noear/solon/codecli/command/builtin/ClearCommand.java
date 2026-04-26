@@ -34,7 +34,7 @@ public class ClearCommand implements Command {
 
     @Override
     public String description() {
-        return "Clear session history";
+        return "清空会话记录";
     }
 
     @Override

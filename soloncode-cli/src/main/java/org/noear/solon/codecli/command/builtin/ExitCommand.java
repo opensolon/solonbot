@@ -38,7 +38,7 @@ public class ExitCommand implements Command {
 
     @Override
     public String description() {
-        return "Exit the CLI";
+        return "退出进程";
     }
 
     @Override

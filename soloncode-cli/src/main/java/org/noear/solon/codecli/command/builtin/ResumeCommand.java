@@ -33,7 +33,7 @@ public class ResumeCommand implements Command {
 
     @Override
     public String description() {
-        return "Resume last agent task";
+        return "恢复最后一个未完成的任务";
     }
 
     @Override

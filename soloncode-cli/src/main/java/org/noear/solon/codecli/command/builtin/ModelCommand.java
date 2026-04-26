@@ -41,7 +41,7 @@ public class ModelCommand implements Command {
 
     @Override
     public String description() {
-        return "Model management (ls, help, <name>)";
+        return "模型管理 (ls, help, <name>)";
     }
 
     @Override
