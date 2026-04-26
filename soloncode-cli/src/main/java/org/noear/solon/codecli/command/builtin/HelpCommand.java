@@ -60,12 +60,12 @@ public class HelpCommand implements Command {
 
     @Override
     public boolean execute(CommandContext ctx) {
-        ctx.println(BOLD + "Available Commands:" + RESET);
+        ctx.println(ctx.color(BOLD + "Available Commands:" + RESET));
         for (Command cmd : registry.all()) {
             String suffix = cmd.cliOnly() ? DIM + " (cli-only)" + RESET : "";
-            ctx.println("  " + CYAN + "/" + cmd.name() + RESET + " - " + cmd.description() + suffix);
+            ctx.println(ctx.color("  " + CYAN + "/" + cmd.name() + RESET + " - " + cmd.description() + suffix));
         }
-        ctx.println(DIM + "\nType /<command> to execute" + RESET);
+        ctx.println(ctx.color(DIM + "\nType /<command> to execute" + RESET));
         return true;
     }
 }

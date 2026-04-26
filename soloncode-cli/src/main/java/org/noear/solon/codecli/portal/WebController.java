@@ -390,9 +390,9 @@ public class WebController {
                         ONode chunk = new ONode();
                         chunk.set("type", "command");
                         chunk.set("text", line);
-                        sink.next("data: " + chunk.toJson() + "\n\n");
+                        sink.next(chunk.toJson());
                     }
-                    sink.next("data: [DONE]\n\n");
+                    sink.next("[DONE]");
                     sink.complete();
                 } catch (Exception e) {
                     sink.error(e);

@@ -285,9 +285,6 @@
         .cmd-complete::-webkit-scrollbar { width: 4px; }
         .cmd-complete::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 
-        /* Command Output */
-        .cmd-output { margin: 8px 0; padding: 12px 16px; background: var(--bg-code-block); border-radius: 10px; font-family: var(--font-mono); font-size: 13px; color: var(--text-code); white-space: pre-wrap; word-break: break-all; line-height: 1.7; border-left: 3px solid var(--accent); }
-
         @media (max-width: 768px) { .sidebar { display: none; } }
     </style>
 </head>
@@ -1591,12 +1588,11 @@
 
         /* ===== Command Output ===== */
         function appendCommandOutput(sess, text) {
-            // Ensure an assistant bubble exists for the command output
-            var bubble = ensureAssistantBubble(sess);
-            var cmdEl = document.createElement('div');
-            cmdEl.className = 'cmd-output';
-            cmdEl.textContent = text;
-            insertBeforeActions(sess, cmdEl);
+            ensureAssistantBubble(sess);
+            var mdEl = document.createElement('div');
+            mdEl.className = 'md-content';
+            mdEl.innerHTML = renderMd(text);
+            insertBeforeActions(sess, mdEl);
             if (sess.sessionId === activeSessionId) scrollToBottom();
         }
 

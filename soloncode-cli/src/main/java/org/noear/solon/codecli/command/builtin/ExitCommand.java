@@ -53,7 +53,7 @@ public class ExitCommand implements Command {
 
     @Override
     public boolean execute(CommandContext ctx) {
-        ctx.println(DIM + "Exiting..." + RESET);
+        ctx.println(ctx.color(DIM + "Exiting..." + RESET));
         System.exit(0);
         return true;
     }

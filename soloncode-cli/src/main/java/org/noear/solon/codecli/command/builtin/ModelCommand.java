@@ -50,6 +50,11 @@ public class ModelCommand implements Command {
     }
 
     @Override
+    public boolean cliOnly() {
+        return true;
+    }
+
+    @Override
     public boolean execute(CommandContext ctx) throws Exception {
         String flag = ctx.argAt(0);
 
@@ -57,28 +62,28 @@ public class ModelCommand implements Command {
             String currentModel = ctx.getSession().getContext().getAs(AgentFlags.VAR_MODEL_SELECTED);
             currentModel = ctx.getAgentRuntime().getModelOrMain(currentModel).getNameOrModel();
 
-            ctx.println(BOLD + "Models:" + RESET);
+            ctx.println(ctx.color(BOLD + "Models:" + RESET));
             for (ChatConfig m : ctx.getAgentProps().getModels()) {
                 String model = m.getNameOrModel();
                 String desc = m.getDescriptionOrModel();
                 String suffix = model.equals(currentModel) ? " " + GREEN + "(active)" + RESET : "";
                 String label = model.equals(desc) ? model : model + DIM + " - " + desc + RESET;
-                ctx.println("  " + label + suffix);
+                ctx.println(ctx.color("  " + label + suffix));
             }
-            ctx.println(DIM + "\nUsage: /model <name>" + RESET);
+            ctx.println(ctx.color(DIM + "\nUsage: /model <name>" + RESET));
         } else if ("help".equals(flag)) {
-            ctx.println(BOLD + "/model" + RESET + " - Model management");
-            ctx.println(DIM + "  /model" + RESET + "          List all available models");
-            ctx.println(DIM + "  /model ls" + RESET + "       List all available models");
-            ctx.println(DIM + "  /model <name>" + RESET + "   Switch to the specified model");
+            ctx.println(ctx.color(BOLD + "/model" + RESET + " - Model management"));
+            ctx.println(ctx.color(DIM + "  /model" + RESET + "          List all available models"));
+            ctx.println(ctx.color(DIM + "  /model ls" + RESET + "       List all available models"));
+            ctx.println(ctx.color(DIM + "  /model <name>" + RESET + "   Switch to the specified model"));
         } else {
             if (ctx.getAgentProps().getModelOrNil(flag) == null) {
-                ctx.println(RED + "Model not found: " + RESET + BOLD + flag + RESET);
-                ctx.println(DIM + "Use '/model' to see available models." + RESET);
+                ctx.println(ctx.color(RED + "Model not found: " + RESET + BOLD + flag + RESET));
+                ctx.println(ctx.color(DIM + "Use '/model' to see available models." + RESET));
             } else {
                 ctx.getSession().getContext().put(AgentFlags.VAR_MODEL_SELECTED, flag);
                 ctx.getSession().updateSnapshot();
-                ctx.println(GREEN + "Model switched to: " + RESET + BOLD + flag + RESET);
+                ctx.println(ctx.color(GREEN + "Model switched to: " + RESET + BOLD + flag + RESET));
             }
         }
 
