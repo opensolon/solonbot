@@ -19,7 +19,6 @@ import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.completer.FileNameCompleter;
 import org.jline.terminal.Attributes;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -32,16 +31,25 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.ActionEndChunk;
 import org.noear.solon.ai.agent.react.task.ReasonChunk;
 import org.noear.solon.ai.agent.react.task.ThoughtChunk;
-import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.TaskSkill;
+import org.noear.solon.codecli.command.CliCommand;
+import org.noear.solon.codecli.command.CliCommandCompleter;
+import org.noear.solon.codecli.command.CliCommandContext;
+import org.noear.solon.codecli.command.CliCommandRegistry;
+import org.noear.solon.codecli.command.CliCommandSource;
+import org.noear.solon.codecli.command.CustomCommandLoader;
+import org.noear.solon.codecli.command.builtin.ClearCommand;
+import org.noear.solon.codecli.command.builtin.ExitCommand;
+import org.noear.solon.codecli.command.builtin.HelpCommand;
+import org.noear.solon.codecli.command.builtin.ModelCommand;
+import org.noear.solon.codecli.command.builtin.ResumeCommand;
 import org.noear.solon.codecli.core.AgentFlags;
 import org.noear.solon.codecli.core.AgentProperties;
 import org.noear.solon.core.util.Assert;
-import org.noear.solon.core.util.MultiMap;
 import org.noear.solon.lang.Preview;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +58,10 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -67,6 +78,7 @@ public class CliShell implements Runnable {
     private LineReader reader;
     private final HarnessEngine agentRuntime;
     private final AgentProperties agentProps;
+    private final CliCommandRegistry commandRegistry = new CliCommandRegistry();
 
     // ANSI 颜色常量
     private final static String
@@ -88,9 +100,15 @@ public class CliShell implements Runnable {
                     .encoding(StandardCharsets.UTF_8)
                     .build();
 
+            // 注册内置命令
+            registerBuiltinCommands();
+
+            // 加载自定义命令
+            loadCustomCommands();
+
             this.reader = LineReaderBuilder.builder()
                     .terminal(terminal)
-                    .completer(new FileNameCompleter())
+                    .completer(new CliCommandCompleter(commandRegistry))
                     .build();
         } catch (Throwable e) {
             LOG.error("JLine initialization failed", e);
@@ -182,69 +200,81 @@ public class CliShell implements Runnable {
     }
 
 
+    /**
+     * 注册内置命令
+     */
+    private void registerBuiltinCommands() {
+        commandRegistry.register(new ExitCommand());
+        commandRegistry.register(new ClearCommand());
+        commandRegistry.register(new ResumeCommand());
+        commandRegistry.register(new ModelCommand());
+        commandRegistry.register(new HelpCommand(commandRegistry));
+    }
+
+    /**
+     * 加载自定义命令（用户级 + 项目级）
+     */
+    private void loadCustomCommands() {
+        // 1. 用户级命令：~/.soloncode/commands/
+        CustomCommandLoader.loadFromDirectory(
+                Paths.get(AgentProperties.getUserHome(), ".soloncode", "commands").toString(),
+                commandRegistry, CliCommandSource.USER);
+
+        // 2. 项目级命令：.soloncode/commands/
+        CustomCommandLoader.loadFromDirectory(
+                Paths.get(agentProps.getWorkspace(), ".soloncode", "commands").toString(),
+                commandRegistry, CliCommandSource.PROJECT);
+    }
+
     private boolean isSystemCommand(AgentSession session, String input) throws Exception {
-        String cmd = input.trim().toLowerCase();
-        if ("/exit".equals(cmd)) {
-            terminal.writer().println(DIM + "Exiting..." + RESET);
-            System.exit(0);
+        if (!input.startsWith("/")) {
+            return false;
+        }
+
+        // 解析命令名和参数
+        String[] parts = input.trim().substring(1).split("\\s+");
+        String cmdName = parts[0].toLowerCase();
+        List<String> args = parts.length > 1
+                ? Arrays.asList(Arrays.copyOfRange(parts, 1, parts.length))
+                : Collections.emptyList();
+
+        // 查找命令
+        CliCommand command = commandRegistry.find(cmdName);
+        if (command == null) {
+            terminal.writer().println(RED + "Unknown command: /" + cmdName + RESET);
+            terminal.writer().println(DIM + "Type /help for available commands." + RESET);
+            terminal.flush();
             return true;
         }
 
-        if ("/resume".equals(cmd)) {
-            performAgentTask(session, null);
-            return true;
+        // 构建 context（注入 agentTaskRunner 回调）
+        CliCommandContext ctx = new CliCommandContext(session, terminal, reader,
+                agentRuntime, agentProps, input, cmdName, args,
+                prompt -> {
+                    try {
+                        // 将命令的 allowedTools 传入 session 上下文
+                        List<String> allowedTools = command.allowedTools();
+                        if (allowedTools != null && !allowedTools.isEmpty()) {
+                            session.getContext().put(AgentFlags.VAR_ALLOWED_TOOLS, allowedTools);
+                        }
+                        performAgentTask(session, prompt);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        // 清除 allowedTools 限制，避免影响后续交互
+                        session.getContext().remove(AgentFlags.VAR_ALLOWED_TOOLS);
+                    }
+                });
+
+        // 执行命令
+        boolean handled = command.execute(ctx);
+
+        // clear 命令后重新打印 welcome
+        if ("clear".equals(cmdName)) {
+            printWelcome(session);
         }
 
-        if ("/clear".equals(cmd)) {
-            session.clear();
-            printWelcome(session); // 推荐加上，让用户清屏后不至于面对一个完全的黑洞
-            return true;
-        }
-
-        if (cmd.startsWith("/model")) {
-            MultiMap<String> args = MultiMap.from(cmd.split(" "));
-            String flag = args.flagAt(1);
-
-            if ("ls".equals(flag) || Assert.isEmpty(flag)) {
-                String currentModel = session.getContext().getAs(AgentFlags.VAR_MODEL_SELECTED);
-                currentModel = agentRuntime.getModelOrMain(currentModel).getNameOrModel();
-
-                // 列出所有可用模型，当前模型高亮标记
-                terminal.writer().println(BOLD + "Models:" + RESET);
-                for (ChatConfig m : agentProps.getModels()) {
-                    String model = m.getNameOrModel();
-                    String desc = m.getDescriptionOrModel();
-                    String suffix = model.equals(currentModel) ? " " + GREEN + "(active)" + RESET : "";
-                    String label = model.equals(desc) ? model : model + DIM + " - " + desc + RESET;
-                    terminal.writer().println("  " + label + suffix);
-                }
-                terminal.writer().println(DIM + "\nUsage: /model <name>" + RESET);
-                terminal.flush();
-            } else if ("help".equals(flag)) {
-                terminal.writer().println(BOLD + "/model" + RESET + " - Model management");
-                terminal.writer().println(DIM + "  /model" + RESET + "          List all available models");
-                terminal.writer().println(DIM + "  /model ls" + RESET + "       List all available models");
-                terminal.writer().println(DIM + "  /model <name>" + RESET + "   Switch to the specified model");
-                terminal.flush();
-            } else {
-                // 切换模型
-                if (agentProps.getModelOrNil(flag) == null) {
-                    terminal.writer().println(RED + "Model not found: " + RESET + BOLD + flag + RESET);
-                    terminal.writer().println(DIM + "Use '/model' to see available models." + RESET);
-                    terminal.flush();
-                } else {
-                    session.getContext().put(AgentFlags.VAR_MODEL_SELECTED, flag);
-                    session.updateSnapshot();
-
-                    terminal.writer().println(GREEN + "Model switched to: " + RESET + BOLD + flag + RESET);
-                    terminal.flush();
-                }
-            }
-
-            return true;
-        }
-
-        return false;
+        return handled;
     }
 
     private void performAgentTask(AgentSession session, String input) throws Exception {
@@ -596,6 +626,7 @@ public class CliShell implements Runnable {
         terminal.writer().println(BOLD + "SolonCode" + RESET + DIM + " " + AgentFlags.getVersion() + " PID-" + Utils.pid() + " Model:" + chatModel.getNameOrModel() + RESET);
         terminal.writer().println(DIM + path + RESET);
         terminal.writer().println(DIM + "Tips: " + RESET + "(esc)" + DIM + " interrupt | " +
+                RESET + "'/help'" + DIM + " | " +
                 RESET + "'/exit'" + DIM + " | " +
                 RESET + "'/resume'" + DIM + " | " +
                 RESET + "'/clear'" + DIM + " | " +
