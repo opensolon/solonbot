@@ -198,10 +198,7 @@ public class CliShell implements Runnable {
         // 查找命令
         Command command = agentRuntime.getCommandRegistry().find(cmdName);
         if (command == null) {
-            terminal.writer().println(RED + "Unknown command: /" + cmdName + RESET);
-            terminal.writer().println(DIM + "Type /help for available commands." + RESET);
-            terminal.flush();
-            return true;
+            return false;
         }
 
         // 构建 context（注入 agentTaskRunner 回调）
