@@ -71,6 +71,14 @@ function SessionState(sessionId) {
     this.streamSegments = [];
     this.currentStreamSegment = null;
     this.streamSegmentSeq = 0;
+    // 运行中 follow-up 消息排队（FIFO）；会话目录 queue-tasks.json 可恢复文本项（冷恢复不自动发）
+    this.messageQueue = [];
+    this._queueDraining = false;
+    this._queueLoaded = false;   // 是否已从服务端 hydrate
+    this._queueLoading = false;
+    this._queuePersistTimer = null;
+    // 本轮是否因 Stop 结束；finishStream 读取后复位，避免停止后误 drain
+    this._stoppedTurn = false;
 }
 
 var sessionMap = {};
@@ -84,6 +92,7 @@ var chatHistory = [];
 var currentChatIndex = -1;
 var pendingFiles = [];
 var MAX_ATTACHMENTS = 10;
+var MAX_QUEUED_MESSAGES = 10;
 var userScrolledUp = false;
 
 var onFinishStream = null;
@@ -114,7 +123,18 @@ function setActiveSession(sessionId) {
     else setBtnSendMode();
     if (typeof modelsLoaded !== 'undefined' && modelsLoaded) refreshSessionModel(sessionId);
     if (typeof resetContextIndicator === 'function') resetContextIndicator();
-}
+    if (typeof renderQueueDock === 'function') renderQueueDock();
+    if (typeof updateStreamingPlaceholder === 'function') updateStreamingPlaceholder();
+    // 切回空闲且内存中已有排队：仅提示，不自动 drain。
+    // 冷恢复（loadMessageQueue）与同页切换统一：用户 Enter（可空发）再续发，避免刷新后误发。
+    if (!sess.isStreaming && !sess.stopRequested && !sess._stoppedTurn
+        && sess.messageQueue && sess.messageQueue.length) {
+        var qn = sess.messageQueue.length;
+        if (typeof showToast === 'function') {
+            showToast('有 ' + qn + ' 条任务排队，Enter 发送下一条', 'info', 2200);
+        }
+    }
+            }
 
 function deactivateSession() {
     if (activeSessionId && sessionMap[activeSessionId]) {
@@ -141,6 +161,8 @@ var SCROLL_ASYNC_STICK_MS = 600;
 var SCROLL_PROGRAMMATIC_MS = 160;
 
 function _markUserScrolledUp() {
+    // 程序化贴底窗口内忽略：覆盖 force 后的布局回流，以及发送前上滑的惯性 wheel
+    if (Date.now() < _programmaticScrollUntil) return;
     userScrolledUp = true;
     _scrollStickUntil = 0;
     if (scrollFollowTimer) {
@@ -151,6 +173,7 @@ function _markUserScrolledUp() {
 
 function _syncUserScrollFromGap() {
     if (!messagesWrap) return;
+    if (Date.now() < _programmaticScrollUntil) return;
     var gap = messagesWrap.scrollHeight - messagesWrap.scrollTop - messagesWrap.clientHeight;
     if (gap > 80) {
         _markUserScrolledUp();
@@ -159,8 +182,9 @@ function _syncUserScrollFromGap() {
     }
 }
 
-// 滚轮 / 触控：立即识别用户意图（优先于程序化贴底）
+// 滚轮 / 触控：立即识别用户意图（程序化贴底窗口内不抢状态）
 $(messagesWrap).on('wheel', function(e) {
+    if (Date.now() < _programmaticScrollUntil) return;
     var dy = (e.originalEvent && e.originalEvent.deltaY) || 0;
     if (dy < 0) {
         _markUserScrolledUp();
@@ -218,7 +242,7 @@ if (messagesWrap) observeMessagesHeight(messagesWrap);
  
  /**
  * 贴底滚动（流式粘底）。
- * - force：强制贴底并清除 userScrolledUp
+ * - force：强制贴底并清除 userScrolledUp（用户新发消息后应走 force，作废旧上滑状态）
  * - 同一帧多次调用合并为一次 RAF
  * - 粘底窗口内会在高度继续变化时再补滚（多 tool-call / 思考收起 / 节流 MD 增高）
  */
@@ -226,6 +250,12 @@ function scrollToBottom(force) {
     if (!force && userScrolledUp) return;
     if (force) {
         userScrolledUp = false;
+        // force：同步立即贴底，避免 RAF 前被残留惯性 wheel / 回流 scroll 重新标成上滑
+        // 同时拉长程序化窗口，吞掉发送前上滑的 momentum
+        _programmaticScrollUntil = Date.now() + Math.max(SCROLL_PROGRAMMATIC_MS, 420);
+        if (messagesWrap) {
+            messagesWrap.scrollTop = messagesWrap.scrollHeight;
+        }
         // force 时给更长粘底窗口，覆盖首条切页、图片解码、finishThinking + 多 tool 连续插入
         _scrollStickUntil = Math.max(_scrollStickUntil, Date.now() + SCROLL_FORCE_STICK_MS);
     } else if (!userScrolledUp) {

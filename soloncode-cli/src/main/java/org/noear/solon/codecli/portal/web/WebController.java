@@ -15,6 +15,7 @@
  */
 package org.noear.solon.codecli.portal.web;
 
+import org.noear.snack4.Feature;
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
@@ -805,6 +806,14 @@ public class WebController {
         return withGitWorkspace(workspace, () -> gitService.unstage(path));
     }
 
+    @Post
+    @Mapping("/web/chat/git/discard")
+    public Result<Map> gitDiscard(@Body String body,
+                                  @Param(value = "workspace", required = false) String workspace) throws Exception {
+        String path = parseJsonPath(body);
+        return withGitWorkspace(workspace, () -> gitService.discard(path));
+    }
+
     @Get
     @Mapping("/web/chat/git/file-content")
     public Result<Map> gitFileContent(@Param(value = "workspace", required = false) String workspace,
@@ -1458,6 +1467,287 @@ public class WebController {
             LOG.error("Failed to read TODO for session {}: {}", sessionId, e.getMessage());
             return Result.failure(500, e.getMessage());
         }
+    }
+
+    /**
+     * 获取指定会话的消息排队（任务排队）。
+     * <p>从会话目录下 {@code queue-tasks.json} 读取（兼容旧名 {@code queue.json}）。
+     * 仅作为前端队列的落盘缓存，不由服务端调度发送。
+     * V1 仅持久化文本与模型元数据，不保存浏览器附件二进制。</p>
+     *
+     * @param sessionId 会话 ID
+     * @return 包含 exists、items、updatedAt 的结果对象
+     */
+    @Get
+    @Mapping("/web/chat/queue")
+    public Result<Map> getQueue(@Param("sessionId") String sessionId) {
+        if (!isValidSessionId(sessionId)) {
+            return Result.failure(400, "Invalid sessionId");
+        }
+        
+        Path queuePath = resolveSessionQueuePath(sessionId);
+        if (queuePath == null) {
+            return Result.failure(400, "Invalid session path");
+        }
+        
+        Map<String, Object> data = new LinkedHashMap<>();
+        Path legacyPath = queuePath.getParent() != null
+                ? queuePath.getParent().resolve("queue.json") : null;
+        Path readPath = Files.exists(queuePath) ? queuePath
+                : (legacyPath != null && Files.exists(legacyPath) ? legacyPath : null);
+        
+        if (readPath == null) {
+            data.put("exists", false);
+            data.put("items", new ArrayList<>());
+            data.put("updatedAt", 0L);
+            return Result.succeed(data);
+        }
+
+        try {
+            String raw = new String(Files.readAllBytes(readPath), "UTF-8");
+            ONode root = ONode.ofJson(raw);
+            List<Map> items = new ArrayList<>();
+            long updatedAt = 0L;
+                    
+            if (root != null && root.isObject()) {
+                ONode updatedNode = root.get("updatedAt");
+                if (updatedNode != null && !updatedNode.isNull()) {
+                    try {
+                        updatedAt = updatedNode.getLong();
+                    } catch (Exception ignored) {
+                    }
+                }
+                ONode itemsNode = root.get("items");
+                if (itemsNode != null && itemsNode.isArray()) {
+                    int limit = 10;
+                    int count = 0;
+                    for (ONode itemNode : itemsNode.getArray()) {
+                        if (count >= limit) break;
+                        Map<String, Object> item = sanitizeQueueItem(itemNode);
+                        if (item != null) {
+                            items.add(item);
+                            count++;
+                        }
+                    }
+                }
+            }
+            
+            data.put("exists", true);
+            data.put("items", items);
+            data.put("updatedAt", updatedAt);
+            return Result.succeed(data);
+        } catch (Exception e) {
+            LOG.error("Failed to read queue-tasks for session {}: {}", sessionId, e.getMessage());
+            return Result.failure(500, e.getMessage());
+        }
+    }
+     
+    /**
+     * 整表覆盖保存会话消息排队到 {@code queue-tasks.json}。
+     * <p>请求体：{@code {"sessionId":"web-xxx","items":[{id,text,displayText,model,reasoningEffort,createdAt}]}}。
+     * items 为空数组时删除 queue-tasks.json（及旧名 queue.json）。</p>
+     *
+     * @param body JSON 请求体
+     * @return 操作结果
+     */
+    @Post
+    @Mapping("/web/chat/queue")
+    public Result<Map> saveQueue(@Body String body) {
+        if (body == null || body.trim().isEmpty()) {
+            return Result.failure(400, "Body is required");
+        }
+
+        try {
+            ONode root = ONode.ofJson(body);
+            if (root == null || !root.isObject()) {
+                return Result.failure(400, "Invalid JSON body");
+            }
+            
+            String sessionId = root.get("sessionId").getString();
+            if (!isValidSessionId(sessionId)) {
+                return Result.failure(400, "Invalid sessionId");
+            }
+            
+            Path queuePath = resolveSessionQueuePath(sessionId);
+            if (queuePath == null) {
+                return Result.failure(400, "Invalid session path");
+            }
+            Path legacyPath = queuePath.getParent() != null
+                    ? queuePath.getParent().resolve("queue.json") : null;
+                    
+            List<Map<String, Object>> items = new ArrayList<>();
+            ONode itemsNode = root.get("items");
+            if (itemsNode != null && itemsNode.isArray()) {
+                int limit = 10;
+                int count = 0;
+                for (ONode itemNode : itemsNode.getArray()) {
+                    if (count >= limit) break;
+                    Map<String, Object> item = sanitizeQueueItem(itemNode);
+                    if (item != null) {
+                        items.add(item);
+                        count++;
+                    }
+                }
+            }
+                
+            long updatedAt = System.currentTimeMillis();
+            ONode clientUpdated = root.get("updatedAt");
+            if (clientUpdated != null && !clientUpdated.isNull()) {
+                try {
+                    long ts = clientUpdated.getLong();
+                    if (ts > 0) updatedAt = ts;
+                } catch (Exception ignored) {
+                }
+            }
+                
+            // 空队列：删除新/旧文件，避免会话目录堆积空文件
+            if (items.isEmpty()) {
+                if (Files.exists(queuePath)) {
+                    Files.delete(queuePath);
+                }
+                if (legacyPath != null && Files.exists(legacyPath)) {
+                    Files.delete(legacyPath);
+                }
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("exists", false);
+                data.put("items", new ArrayList<>());
+                data.put("updatedAt", 0L);
+                return Result.succeed(data);
+            }
+
+            // 会话目录可能尚未创建（首次发消息前）；若不存在则创建
+            Path sessionDir = queuePath.getParent();
+            if (sessionDir != null && !Files.exists(sessionDir)) {
+                Files.createDirectories(sessionDir);
+            }
+            
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("version", 1);
+            payload.put("updatedAt", updatedAt);
+            payload.put("items", items);
+            
+            String json = ONode.ofBean(payload, Feature.Write_PrettyFormat).toJson();
+            Files.write(queuePath, json.getBytes("UTF-8"));
+            // 迁移后清理旧文件名，避免双份
+            if (legacyPath != null && Files.exists(legacyPath)) {
+                try {
+                    Files.delete(legacyPath);
+                } catch (Exception ignored) {
+                }
+            }
+        
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("exists", true);
+            data.put("items", items);
+            data.put("updatedAt", updatedAt);
+            return Result.succeed(data);
+        } catch (Exception e) {
+            LOG.error("Failed to save queue-tasks: {}", e.getMessage());
+            return Result.failure(500, e.getMessage());
+        }
+    }
+    
+    /**
+     * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
+     */
+    private Path resolveSessionQueuePath(String sessionId) {
+        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionPath.startsWith(sessionsRoot)) {
+            return null;
+        }
+        return sessionPath.resolve("queue-tasks.json");
+    }
+
+    /**
+     * 清洗单条队列项：只保留可安全序列化的字段，截断过长文本，忽略附件二进制。
+     */
+    private Map<String, Object> sanitizeQueueItem(ONode itemNode) {
+        if (itemNode == null || !itemNode.isObject()) {
+            return null;
+        }
+
+        String text = safeQueueString(itemNode.get("text"), 20000);
+        String displayText = safeQueueString(itemNode.get("displayText"), 500);
+        if ((text == null || text.isEmpty()) && (displayText == null || displayText.isEmpty())) {
+            // V1 不持久化附件；无文本的纯附件项不落盘
+            return null;
+        }
+
+        String id = safeQueueString(itemNode.get("id"), 80);
+        if (id == null || id.isEmpty()) {
+            id = "q_" + Long.toHexString(System.currentTimeMillis()) + "_" + Integer.toHexString((int) (Math.random() * 0xffff));
+        }
+
+        String model = safeQueueString(itemNode.get("model"), 200);
+        String reasoningEffort = safeQueueString(itemNode.get("reasoningEffort"), 50);
+
+        long createdAt = System.currentTimeMillis();
+        ONode createdNode = itemNode.get("createdAt");
+        if (createdNode != null && !createdNode.isNull()) {
+            try {
+                long ts = createdNode.getLong();
+                if (ts > 0) createdAt = ts;
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (displayText == null || displayText.isEmpty()) {
+            displayText = text != null ? text : "";
+            if (displayText.length() > 60) {
+                displayText = displayText.substring(0, 60) + "…";
+            }
+        }
+
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", id);
+        item.put("text", text != null ? text : "");
+        item.put("displayText", displayText);
+        if (model != null && !model.isEmpty()) {
+            item.put("model", model);
+        }
+        if (reasoningEffort != null && !reasoningEffort.isEmpty()) {
+            item.put("reasoningEffort", reasoningEffort);
+        }
+        item.put("createdAt", createdAt);
+        // 附件不持久化；保留 hasFiles 标记，便于前端提示
+        boolean hasFiles = false;
+        ONode hasFilesNode = itemNode.get("hasFiles");
+        if (hasFilesNode != null && !hasFilesNode.isNull()) {
+            try {
+                hasFiles = hasFilesNode.getBoolean();
+            } catch (Exception ignored) {
+            }
+        }
+        if (!hasFiles) {
+            ONode filesNode = itemNode.get("files");
+            if (filesNode != null && filesNode.isArray() && filesNode.getArray().size() > 0) {
+                hasFiles = true;
+            }
+        }
+        if (hasFiles) {
+            item.put("hasFiles", true);
+        }
+        return item;
+    }
+
+    private String safeQueueString(ONode node, int maxLen) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        String s;
+        try {
+            s = node.getString();
+        } catch (Exception e) {
+            return null;
+        }
+        if (s == null) {
+            return null;
+        }
+        if (s.length() > maxLen) {
+            return s.substring(0, maxLen);
+        }
+        return s;
     }
 
     // ==================== 文件浏览（委派给 FileService） ====================

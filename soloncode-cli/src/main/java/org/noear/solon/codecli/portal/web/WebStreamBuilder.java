@@ -219,7 +219,7 @@ public class WebStreamBuilder {
                                 twc.getRealChunk() instanceof ObservationChunk ||
                                 twc.getRealChunk() instanceof ReasonChunk ||
                                 twc.getRealChunk() instanceof ReActChunk) {
-                            // RunStartChunk
+                            // 解包子代理包装：透传父 run / task 元信息
                             runId = twc.getParentRunId();
                             taskId = twc.getTaskId();
                             taskAgentName = twc.getTaskAgentName();
@@ -623,20 +623,6 @@ public class WebStreamBuilder {
                     replyToBoundChannel(sessionId, resultContent, false);
                 }
             }
-
-
-//            if (isMultitask) {
-//                // 仅在多任务并行且有内容时输出
-//                WebChunk wc = WebChunk.ofText("\n" + resultContent);
-//                wc.setReasonId(chunk.getReasonId());
-//
-//                // 子代理标记
-//                if (taskAgentName != null) {
-//                    wc.setAgentName(taskAgentName);
-//                }
-//
-//                return wc;
-//            }
         }
 
         // ★ 捕获真实 token 消耗，供 LoopScheduler 预算控制使用

@@ -318,8 +318,11 @@
         $overlay.on('click', function(e) {
             if (e.target === this) $overlay.remove();
         });
-        $overlay.on('keypress', 'input', function(e) {
-            if (e.which === 13) doAdd();
+        $overlay.on('keydown', 'input', function(e) {
+            if (e.key === 'Enter' && !isInputComposing(e)) {
+                e.preventDefault();
+                doAdd();
+            }
         });
         setTimeout(function() {
             $overlay.find('#manualModelName').focus();
@@ -632,6 +635,14 @@
                     if (res.code === 200) {
                         layui.layer.msg('供应商已删除', { icon: 1 });
                         showList();
+                        // 刷新 LLM 模型列表（供应商删除时关联模型也会删除）
+                        if (window._settingsLlm) {
+                            window._settingsLlm.load();
+                        }
+                        // 通知聊天组件刷新模型下拉列表
+                        if (typeof window.reloadModels === 'function') {
+                            window.reloadModels();
+                        }
                     } else {
                         layui.layer.msg(res.msg || '删除失败', { icon: 2 });
                     }

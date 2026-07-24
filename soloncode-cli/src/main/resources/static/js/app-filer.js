@@ -131,16 +131,40 @@
         }
     }
 
+    /** 设置折叠按钮箭头文字，保留内部角标等子节点 */
+    function setToggleBtnArrow(collapsed) {
+        if (!$toggleBtn.length) return;
+        var arrow = collapsed ? '\u2039' : '\u203A';
+        // 只更新文本节点，避免 .html() 清掉 .filer-queue-badge
+        var el = $toggleBtn[0];
+        var textNode = null;
+        for (var i = 0; i < el.childNodes.length; i++) {
+            if (el.childNodes[i].nodeType === 3) {
+                textNode = el.childNodes[i];
+                break;
+            }
+        }
+        if (textNode) {
+            textNode.nodeValue = arrow;
+        } else {
+            el.insertBefore(document.createTextNode(arrow), el.firstChild);
+        }
+        $toggleBtn.attr('title', collapsed ? '\u5C55\u5F00\u6587\u4EF6\u6811' : '\u6536\u7F29\u6587\u4EF6\u6811');
+    }
+    
     if ($toggleBtn.length) {
         $toggleBtn.on('click', function() {
             $panel.toggleClass('collapsed');
             var collapsed = $panel.hasClass('collapsed');
             $toggleBtn.toggleClass('collapsed', collapsed);
-            $toggleBtn.html(collapsed ? '\u2039' : '\u203A');
-            $toggleBtn.attr('title', collapsed ? '\u5C55\u5F00\u6587\u4EF6\u6811' : '\u6536\u7F29\u6587\u4EF6\u6811');
+            setToggleBtnArrow(collapsed);
             localStorage.setItem('filer-collapsed', collapsed ? '1' : '0');
             syncHeaderPadding(collapsed);
             syncToggleBtnPosition();
+            // 折叠后重新同步排队角标（CSS 仅在 collapsed 时显示）
+            if (typeof window.renderQueueDock === 'function') {
+                window.renderQueueDock();
+            }
         });
     }
 
@@ -150,10 +174,10 @@
     if (shouldExpand) {
         $panel.removeClass('collapsed');
         $toggleBtn.removeClass('collapsed');
-        $toggleBtn.html('\u203A');
-        $toggleBtn.attr('title', '\u6536\u7F29\u6587\u4EF6\u6811');
+        setToggleBtnArrow(false);
         syncHeaderPadding(false);
     } else {
+        setToggleBtnArrow(true);
         syncHeaderPadding(true);
     }
     syncToggleBtnPosition();
@@ -881,9 +905,44 @@
         setTimeout(function() { $dot.removeClass('active'); }, 2000);
     }
 
+    /** 展开右栏（若当前折叠）；返回是否执行了展开 */
+    function expandFilerPanel() {
+        if (!$panel.length || !$panel.hasClass('collapsed')) return false;
+        // 移动端右栏整体隐藏，展开无意义
+        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) return false;
+        $panel.removeClass('collapsed');
+        if ($toggleBtn.length) {
+            $toggleBtn.removeClass('collapsed');
+            setToggleBtnArrow(false);
+        }
+        localStorage.setItem('filer-collapsed', '0');
+        syncHeaderPadding(false);
+        syncToggleBtnPosition();
+        return true;
+    }
+    
+    /** 折叠态下在 toggle 按钮显示排队条数；展开或无排队时隐藏 */
+    function updateFilerQueueBadge(count) {
+        if (!$toggleBtn.length) return;
+        var n = count | 0;
+        var $badge = $toggleBtn.find('.filer-queue-badge');
+        if (n <= 0) {
+            if ($badge.length) $badge.remove();
+            return;
+        }
+        var label = n > 99 ? '99+' : String(n);
+        if (!$badge.length) {
+            $badge = $('<span>').addClass('filer-queue-badge');
+            $toggleBtn.append($badge);
+        }
+        $badge.text(label);
+    }
+    
     // ---- 暴露全局函数 ----
     window.loadTree = loadTree;
     window.onFilerChange = onFilerChange;
+    window.expandFilerPanel = expandFilerPanel;
+    window.updateFilerQueueBadge = updateFilerQueueBadge;
 
     // ---- 搜索（后端全量搜索） ----
     var $searchInput = $('#filerSearchInput');

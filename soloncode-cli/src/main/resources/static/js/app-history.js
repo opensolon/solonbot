@@ -185,7 +185,7 @@ function startRename(idx) {
 
     $input.on('blur', finishRename);
     $input.on('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); $input[0].blur(); }
+        if (e.key === 'Enter' && !isInputComposing(e)) { e.preventDefault(); $input[0].blur(); }
         if (e.key === 'Escape') { $input.val(currentLabel); $input[0].blur(); }
     });
 }
@@ -301,10 +301,12 @@ function selectSession(idx) {
 }
 
 function loadMessages(sess) {
+    // 历史加载期间：流式 chunk 先缓存，加载完再回放，避免被 DOM 重建冲掉
+    sess._loadingHistory = true;
     $.get('/web/chat/messages?sessionId=' + encodeURIComponent(sess.sessionId), function(resp) {
+        var realContainer = sess.container;
         try {
             var msgs = resp.data;
-            var realContainer = sess.container;
             // 用临时容器批量构建 DOM，避免逐条 append 触发多次 layout
             var tempDiv = document.createElement('div');
             sess.container = tempDiv;
@@ -351,6 +353,17 @@ function loadMessages(sess) {
         } catch (e) {
             // 异常时确保容器恢复
             if (realContainer) sess.container = realContainer;
+        } finally {
+            sess._loadingHistory = false;
+            // 回放加载期间缓存的流式 chunk（刷新后后端仍在推的内容）
+            if (typeof flushPendingStreamChunks === 'function') {
+                flushPendingStreamChunks(sess);
+            }
+        }
+    }).fail(function() {
+        sess._loadingHistory = false;
+        if (typeof flushPendingStreamChunks === 'function') {
+            flushPendingStreamChunks(sess);
         }
     });
 }
@@ -657,10 +670,8 @@ $(welcomeInput).on('input', handleInputForCommands);
 $(chatInput).on('input', handleInputForCommands);
 
 // composition 状态追踪（使用自定义标志解决 macOS 输入法选词 Enter 时序问题）
-$(welcomeInput).on('compositionstart', function() { composing = true; });
-$(welcomeInput).on('compositionend', function() { composing = false; });
-$(chatInput).on('compositionstart', function() { composing = true; });
-$(chatInput).on('compositionend', function() { composing = false; });
+$(document).on('compositionstart', function() { composing = true; });
+$(document).on('compositionend', function() { composing = false; });
 
 // Keyboard navigation for command completion
 $(welcomeInput).on('keydown', function(e) {
@@ -673,6 +684,16 @@ $(welcomeInput).on('keydown', function(e) {
 $(chatInput).on('keydown', function(e) {
     // 输入法正在组合中（如拼音选词），不触发发送
     if (isInputComposing(e)) return;
+    // ESC：输入为空时取消队尾并回填
+    if (e.key === 'Escape') {
+        var escSess = activeSessionId && sessionMap[activeSessionId];
+        if (escSess && escSess.messageQueue && escSess.messageQueue.length
+            && !chatInput.value.trim() && pendingFiles.length === 0) {
+            e.preventDefault();
+            if (typeof cancelLastQueuedToInput === 'function') cancelLastQueuedToInput(escSess);
+            return;
+        }
+    }
     // 优先级1：命令补全导航
     var handled = navigateCmdComplete(e, chatInput, $chatCmdComplete[0]);
     if (handled) return;
@@ -965,7 +986,7 @@ function getCurrentModelMeta() {
     }
     return '';
     }
-        
+
     function parseModelItem(raw) {
     return {
         name: raw.name || raw.model,
@@ -977,18 +998,18 @@ function getCurrentModelMeta() {
         defaultReasoningEffort: raw.defaultReasoningEffort || ''
     };
         }
-        
+
         // Load model list (once) + selected model for given session
         function loadModels(sessionId, callback) {
     var url = '/web/chat/models';
     if (sessionId) url += '?sessionId=' + encodeURIComponent(sessionId);
-        
+
     $.get(url, function(resp) {
         try {
             var data = resp.data || {};
             var selected = data.selected || '';
             var effort = data.reasoningEffort || '';
-    
+
             // Store selected model / effort per session only (no global sticky)
             if (sessionId) {
                 sessionModelMap[sessionId] = selected;
@@ -997,7 +1018,7 @@ function getCurrentModelMeta() {
                 sessionModelMap['_default'] = selected;
                 sessionReasoningMap['_default'] = effort;
             }
-            
+
             // Only parse list once (it's the same for all sessions)
             if (!modelsLoaded) {
                 modelList = [];
@@ -1007,7 +1028,7 @@ function getCurrentModelMeta() {
                 }
                 modelsLoaded = true;
             }
-            
+
             renderModelUI();
             if (callback) callback();
         } catch (e) {
@@ -1015,12 +1036,12 @@ function getCurrentModelMeta() {
         }
     });
                     }
-                
+
                 function reloadModels(callback) {
     modelsLoaded = false;
     loadModels(activeSessionId || null, callback);
             }
-            
+
         // Refresh model UI for a specific session using local cache (no network request)
             function refreshSessionModel(sessionId) {
     if (!sessionId) return;
@@ -1040,7 +1061,7 @@ function getCurrentModelMeta() {
         renderModelUI();
     }
                 }
-                
+
 function buildTriggerLabel(modelName, effort, showDepth) {
     var parts = [];
     var displayName = modelName
@@ -1067,19 +1088,19 @@ function buildTriggerTitle(modelName, effort, showDepth) {
     }
     return bits.join(' · ');
 }
-    
+
 function renderModelUI() {
     var $chatName = $('#chatModelName');
     var $welcomeName = $('#welcomeModelName');
     var $chatDropdown = $('#chatModelDropdown');
     var $welcomeDropdown = $('#welcomeModelDropdown');
-    
+
     var currentModel = getSelectedModel();
     var userEffort = getSelectedReasoning(); // session user only ('' = auto)
     var meta = getCurrentModelMeta();
     // 与后端 ReasoningEffortSupport.resolveForUi 对齐：user > auto
     var displayEffort = '';
-        
+
     if (meta && meta.supportsReasoning) {
         if (userEffort) {
             displayEffort = clampEffortForModel(userEffort, meta);
@@ -1089,7 +1110,7 @@ function renderModelUI() {
     } else {
         displayEffort = '';
     }
-    
+
     var showDepth = !!(meta && meta.supportsReasoning);
     var label = buildTriggerLabel(currentModel, displayEffort, showDepth);
     var title = buildTriggerTitle(currentModel, displayEffort, showDepth);
@@ -1097,13 +1118,13 @@ function renderModelUI() {
     $welcomeName.text(label);
     $('#chatModelCurrent').attr('title', title);
     $('#welcomeModelCurrent').attr('title', title);
-    
+
     var html = '';
     for (var i = 0; i < modelList.length; i++) {
         var m = modelList[i];
         var cls = m.name === currentModel ? ' active' : '';
         var ctxLen = m.contextLength ? (m.contextLength >= 1000000 && m.contextLength % 1000000 === 0 ? (m.contextLength / 1000000) + 'm' : (m.contextLength >= 1000 ? (m.contextLength / 1000) + 'k' : m.contextLength)) : '';
-        html += '<div class="model-dropdown-item' + cls + '" data-model="' + escapeHtml(m.name) + '">' 
+        html += '<div class="model-dropdown-item' + cls + '" data-model="' + escapeHtml(m.name) + '">'
             + '<span class="model-item-name">' + escapeHtml(m.name) + (ctxLen ? '<span class="model-item-ctx">' + ctxLen + '</span>' : '') + '</span>'
             + (m.desc ? '<span class="model-item-desc">' + escapeHtml(m.desc) + '</span>' : '')
             + '</div>';
@@ -1115,11 +1136,11 @@ function renderModelUI() {
     $welcomeDropdown.find('.model-search-input').val('');
     $chatDropdown.find('.model-dropdown-items').children().show();
     $welcomeDropdown.find('.model-dropdown-items').children().show();
-    
+
     renderModelOptionRows($chatDropdown, meta, userEffort);
     renderModelOptionRows($welcomeDropdown, meta, userEffort);
     }
-    
+
 function renderModelOptionRows($dropdown, meta, userEffort) {
     var $reasonRow = $dropdown.find('.model-reasoning-row');
     if (meta && meta.supportsReasoning) {
@@ -1150,7 +1171,7 @@ function postModelSelect(payload) {
         console.error('Failed to select model options on server:', err);
     });
     }
-        
+
         function selectModel(modelName) {
     var sid = getSessionKey();
     // 与 model selected 一致：effort 只跟当前会话，不跨会话/全局 sticky
@@ -1193,14 +1214,14 @@ function selectReasoning(effort) {
         reasoningEffort: clamped || ''
     });
 }
-    
+
         // Toggle dropdown open/close
         function initModelSelector(selectorId, currentId, dropdownId) {
     var $selector = $('#' + selectorId);
     var $current = $('#' + currentId);
     var $dropdown = $('#' + dropdownId);
     if (!$selector.length || !$current.length || !$dropdown.length) return;
-    
+
     $current.on('click', function(e) {
         e.stopPropagation();
         // Close all other selectors
@@ -1227,7 +1248,7 @@ function selectReasoning(effort) {
             if (effort) selectReasoning(effort);
             return;
         }
-    
+
         var $item = $(e.target).closest('.model-dropdown-item');
         if (!$item.length) return;
         e.stopPropagation();
@@ -1238,20 +1259,20 @@ function selectReasoning(effort) {
         $selector.removeClass('open');
     });
     }
-    
+
     // Close all dropdowns on outside click
     $(document).on('click', function(e) {
     // Don't close if clicking inside model search area or option footer
     if ($(e.target).closest('.model-search-input, .model-search-wrap, .model-dropdown-footer').length) return;
     $('.model-selector.open').removeClass('open');
         });
-        
+
     // Model search filtering
 function initModelSearch(dropdownId) {
     var $dropdown = $('#' + dropdownId);
     var $searchInput = $dropdown.find('.model-search-input');
     if (!$searchInput.length) return;
-    
+
     $searchInput.on('input', function() {
         var query = $(this).val().toLowerCase().trim();
         var $items = $dropdown.find('.model-dropdown-items').children();
@@ -1265,15 +1286,15 @@ function initModelSearch(dropdownId) {
         });
     });
 }
-    
+
         initModelSelector('chatModelSelector', 'chatModelCurrent', 'chatModelDropdown');
         initModelSelector('welcomeModelSelector', 'welcomeModelCurrent', 'welcomeModelDropdown');
             initModelSearch('chatModelDropdown');
             initModelSearch('welcomeModelDropdown');
-            
+
             window.reloadModels = reloadModels;
             window.loadModels = loadModels;
             window.getSelectedReasoning = getSelectedReasoning;
-            
+
         // Initial load (no specific session, get default selected)
 loadModels(null);

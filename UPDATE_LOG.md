@@ -1,3 +1,29 @@
+### v2026.7.22
+
+* 添加 soloncode web 刷新配置的功能（方便多实例同步）
+* 添加 soloncode web 最后条用户消息 rerun 按钮支持
+* 添加 soloncode web 在任务运行时，可以添加消息队列
+* 添加 soloncode web git 审查面板回滚按钮
+* 修复 soloncode web 日志级别设置后，重启失效的问题
+* 细节优化
+
+### v2026.7.21
+
+* 修复 soloncode 上下文压缩没有使用会话模型的问题
+* 调整 soloncode 日志文件默认级别改为 INFO（减少磁盘写频率）
+* 细节优化
+
+### v2026.7.20
+
+* 添加 soloncode web 未跟踪文件按整文件新增生成 Diff 与 stat；
+* 优化 soloncode llm 缓存处理
+* 细节优化
+
+### v2026.7.19
+
+* 修复 soloncode web 历史消息加载期间缓冲并回放流式chunk，避免DOM重建冲掉内容；
+* 修复 soloncode web 浏览器刷新后流状态恢复与迟到包丢弃逻辑
+
 ### v2026.7.17
 
 * 添加 soloncode web 皮肤功能（自带生成的 skill），可开启花花世界

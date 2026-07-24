@@ -496,7 +496,7 @@
         var val = $(this).val().trim();
         $skillsSearchClear.toggle(val.length > 0);
     }).on('keydown', function (e) {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !isInputComposing(e)) {
             e.preventDefault();
             var val = $(this).val().trim();
             loadSkillsList(val || null);
