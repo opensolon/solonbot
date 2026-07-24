@@ -266,186 +266,186 @@
 </div>
 
 <!-- File Tree Panel (Right Side) -->
-    <button class="filer-panel-toggle-btn collapsed" id="filerToggleBtn" title="展开文件树">‹</button>
-    <div class="filer-resize-handle" id="filerResizeHandle"></div>
-    <div class="filer-panel collapsed" id="filerPanel">
-        <div class="filer-tabs">
-            <button class="filer-tab" data-tab="tasks">
-                任务
-                <span class="todo-badge" id="todoBadge" style="display:none">0</span>
-            </button>
-            <button class="filer-tab active" data-tab="files">文件</button>
-            <button class="filer-tab" data-tab="gitdiff">
-                审查
-                <span class="git-badge" id="gitBadge" style="display:none">0</span>
+<button class="filer-panel-toggle-btn collapsed" id="filerToggleBtn" title="展开文件树">‹</button>
+<div class="filer-resize-handle" id="filerResizeHandle"></div>
+<div class="filer-panel collapsed" id="filerPanel">
+    <div class="filer-tabs">
+        <button class="filer-tab" data-tab="tasks">
+            任务
+            <span class="todo-badge" id="todoBadge" style="display:none">0</span>
+        </button>
+        <button class="filer-tab active" data-tab="files">文件</button>
+        <button class="filer-tab" data-tab="gitdiff">
+            审查
+            <span class="git-badge" id="gitBadge" style="display:none">0</span>
+        </button>
+    </div>
+
+
+    <!-- Tab Content: 任务 -->
+    <div class="filer-tab-content" id="tabContentTasks">
+        <div class="todo-panel">
+            <div class="todo-header">
+                <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
+                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+            </div>
+            <div class="todo-list" id="todoList"></div>
+            <div class="todo-empty" id="todoEmpty" style="display:none">
+                当前会话暂无任务清单
+            </div>
+        </div>
+        <!-- 任务面板底部：任务排队 -->
+        <div class="queue-strip collapsed" id="chatQueueDock" style="display:none" aria-live="polite">
+            <div class="queue-strip-header" id="chatQueueHeader">
+                <div class="queue-strip-title-row">
+                    <div class="queue-strip-title">
+                        任务排队
+                        <span class="queue-strip-count" id="chatQueueTitle">0</span>
+                        <button type="button" class="queue-strip-clear" id="chatQueueClear" title="清空排队" aria-label="清空排队">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="queue-strip-actions">
+                        <button type="button" class="queue-strip-toggle" id="chatQueueToggle" title="展开" aria-label="展开">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="queue-strip-preview" id="chatQueuePreview"></div>
+                <div class="queue-strip-hint">当前任务结束后自动发送</div>
+            </div>
+            <div class="queue-strip-list" id="chatQueueList"></div>
+        </div>
+    </div>
+
+    <!-- Tab Content: 文件树 -->
+    <div class="filer-tab-content active" id="tabContentFiles">
+        <div class="filer-search-bar">
+            <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
+            <button class="filer-search-clear" id="filerSearchClear" title="清除" style="display:none">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
+        <div class="filer-panel-tree" id="filerTree"></div>
+        <div class="filer-mount-hint" id="filerMountHint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <span>添加文件类型挂载</span>
+        </div>
+    </div>
 
+    <!-- Tab Content: Git Diff -->
+    <div class="filer-tab-content" id="tabContentGitdiff">
+        <!-- 审查工作区选择器（自定义下拉） -->
+        <div class="git-workspace-bar" id="gitWorkspaceBar">
+            <div class="git-workspace-selector" id="gitWorkspaceSelector">
+                <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区">
+                    <span class="git-workspace-name" id="gitWorkspaceName">加载中...</span>
+                    <i class="layui-icon layui-icon-down git-workspace-arrow"></i>
+                </div>
+                <div class="git-workspace-dropdown" id="gitWorkspaceDropdown">
+                    <div class="git-workspace-dropdown-items" id="gitWorkspaceDropdownItems"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 状态1：Git 不可用 -->
+        <div class="git-unavailable" id="gitUnavailable" style="display:none">
+            <div class="git-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="git-empty-title">Git 不可用</div>
+            <div class="git-empty-desc">系统未安装 Git 或 Git 不在 PATH 中</div>
+        </div>
 
-        <!-- Tab Content: 任务 -->
-        <div class="filer-tab-content" id="tabContentTasks">
-            <div class="todo-panel">
-                <div class="todo-header">
-                    <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
-                    <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新">
+        <!-- 状态2：未初始化仓库 -->
+        <div class="git-uninitialized" id="gitUninitialized" style="display:none">
+            <div class="git-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M15 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M11 8a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M12 15v-6" />
+                    <path d="M15 11l-2 -2" />
+                    <path d="M11 7l-1.9 -1.9" />
+                    <path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0" />
+                </svg>
+            </div>
+            <div class="git-empty-title">当前工作区不是 Git 仓库</div>
+            <div class="git-init-benefits">
+                <div>初始化后可以：</div>
+                <ul>
+                    <li>跟踪文件变更历史</li>
+                    <li>查看 diff 代码对比</li>
+                    <li>配合 AI 进行代码审查</li>
+                </ul>
+            </div>
+            <div class="git-init-options">
+                <label class="git-init-checkbox">
+                    <input type="checkbox" id="gitInitCommit" checked/>
+                    <span>自动提交当前所有文件</span>
+                </label>
+            </div>
+            <button class="git-init-btn" id="gitInitBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                初始化 Git 仓库
+            </button>
+            <div class="git-init-note">将在工作区执行 git init</div>
+        </div>
+
+        <!-- 状态3：正常仓库 -->
+        <div class="git-diff-panel" id="gitDiffPanel" style="display:none">
+            <div class="git-diff-header">
+                <div class="git-header-left">
+                    <label class="git-select-all-label" title="全选/取消全选">
+                        <input type="checkbox" id="gitSelectAll" checked/>
+                    </label>
+                </div>
+                <div class="git-header-center">
+                    <span class="git-branch" id="gitBranch">--</span>
+                </div>
+                <div class="git-header-right">
+                    <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                     </button>
                 </div>
-                <div class="todo-list" id="todoList"></div>
-                <div class="todo-empty" id="todoEmpty" style="display:none">
-                    当前会话暂无任务清单
+            </div>
+            <div class="git-diff-file-list" id="gitDiffFileList"></div>
+            <div class="git-commit-bar" id="gitCommitBar">
+                <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." rows="1"></textarea>
+                <div class="git-commit-actions">
+                    <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg>
+                        生成摘要
+                    </button>
+                    <button class="git-commit-btn" id="gitCommitBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        提交
+                    </button>
                 </div>
             </div>
-            <!-- 任务面板底部：任务排队 -->
-            <div class="queue-strip collapsed" id="chatQueueDock" style="display:none" aria-live="polite">
-                <div class="queue-strip-header" id="chatQueueHeader">
-                    <div class="queue-strip-title-row">
-                        <div class="queue-strip-title">
-                            任务排队
-                            <span class="queue-strip-count" id="chatQueueTitle">0</span>
-                            <button type="button" class="queue-strip-clear" id="chatQueueClear" title="清空排队" aria-label="清空排队">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                    <line x1="10" y1="11" x2="10" y2="17"/>
-                                    <line x1="14" y1="11" x2="14" y2="17"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="queue-strip-actions">
-                            <button type="button" class="queue-strip-toggle" id="chatQueueToggle" title="展开" aria-label="展开">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="queue-strip-preview" id="chatQueuePreview"></div>
-                    <div class="queue-strip-hint">当前任务结束后自动发送</div>
-                </div>
-                <div class="queue-strip-list" id="chatQueueList"></div>
+            <div class="git-diff-empty" id="gitDiffEmpty" style="display:none">
+                <div class="git-empty-desc">没有未提交的变更</div>
             </div>
         </div>
-
-        <!-- Tab Content: 文件树 -->
-        <div class="filer-tab-content active" id="tabContentFiles">
-            <div class="filer-search-bar">
-                <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
-                <button class="filer-search-clear" id="filerSearchClear" title="清除" style="display:none">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-            </div>
-            <div class="filer-panel-tree" id="filerTree"></div>
-            <div class="filer-mount-hint" id="filerMountHint">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <span>添加文件类型挂载</span>
-            </div>
-        </div>
-
-        <!-- Tab Content: Git Diff -->
-        <div class="filer-tab-content" id="tabContentGitdiff">
-            <!-- 审查工作区选择器（自定义下拉） -->
-            <div class="git-workspace-bar" id="gitWorkspaceBar">
-                <div class="git-workspace-selector" id="gitWorkspaceSelector">
-                    <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区">
-                        <span class="git-workspace-name" id="gitWorkspaceName">加载中...</span>
-                        <i class="layui-icon layui-icon-down git-workspace-arrow"></i>
-                    </div>
-                    <div class="git-workspace-dropdown" id="gitWorkspaceDropdown">
-                        <div class="git-workspace-dropdown-items" id="gitWorkspaceDropdownItems"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- 状态1：Git 不可用 -->
-            <div class="git-unavailable" id="gitUnavailable" style="display:none">
-                <div class="git-empty-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                        <line x1="12" y1="9" x2="12" y2="13"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                </div>
-                <div class="git-empty-title">Git 不可用</div>
-                <div class="git-empty-desc">系统未安装 Git 或 Git 不在 PATH 中</div>
-            </div>
-
-            <!-- 状态2：未初始化仓库 -->
-            <div class="git-uninitialized" id="gitUninitialized" style="display:none">
-                <div class="git-empty-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M15 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M11 8a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M12 15v-6" />
-                        <path d="M15 11l-2 -2" />
-                        <path d="M11 7l-1.9 -1.9" />
-                        <path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0" />
-                    </svg>
-                </div>
-                <div class="git-empty-title">当前工作区不是 Git 仓库</div>
-                <div class="git-init-benefits">
-                    <div>初始化后可以：</div>
-                    <ul>
-                        <li>跟踪文件变更历史</li>
-                        <li>查看 diff 代码对比</li>
-                        <li>配合 AI 进行代码审查</li>
-                    </ul>
-                </div>
-                <div class="git-init-options">
-                    <label class="git-init-checkbox">
-                        <input type="checkbox" id="gitInitCommit" checked/>
-                        <span>自动提交当前所有文件</span>
-                    </label>
-                </div>
-                <button class="git-init-btn" id="gitInitBtn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    初始化 Git 仓库
-                </button>
-                <div class="git-init-note">将在工作区执行 git init</div>
-            </div>
-
-            <!-- 状态3：正常仓库 -->
-            <div class="git-diff-panel" id="gitDiffPanel" style="display:none">
-                <div class="git-diff-header">
-                    <div class="git-header-left">
-                        <label class="git-select-all-label" title="全选/取消全选">
-                            <input type="checkbox" id="gitSelectAll" checked/>
-                        </label>
-                    </div>
-                    <div class="git-header-center">
-                        <span class="git-branch" id="gitBranch">--</span>
-                    </div>
-                    <div class="git-header-right">
-                        <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="git-diff-file-list" id="gitDiffFileList"></div>
-                <div class="git-commit-bar" id="gitCommitBar">
-                    <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." rows="1"></textarea>
-                    <div class="git-commit-actions">
-                        <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg>
-                            生成摘要
-                        </button>
-                        <button class="git-commit-btn" id="gitCommitBtn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            提交
-                        </button>
-                    </div>
-                </div>
-                <div class="git-diff-empty" id="gitDiffEmpty" style="display:none">
-                    <div class="git-empty-desc">没有未提交的变更</div>
-                </div>
-            </div>
-        </div>
-
-
     </div>
+
+
+</div>
 
 <!-- Settings Overlay (放在 body 最外层，确保 position:fixed 覆盖全屏) -->
 <div class="settings-overlay" id="settingsOverlay" style="display:none">
@@ -496,7 +496,7 @@
                             <!-- 上下文压缩策略 -->
                             <div class="general-card">
                                 <div class="general-card-header">
-                                        <div class="general-card-text">
+                                    <div class="general-card-text">
                                         <div class="general-card-title">对话策略</div>
                                     </div>
                                 </div>
@@ -528,7 +528,7 @@
                             <!-- 沙盒模式 -->
                             <div class="general-card">
                                 <div class="general-card-header">
-                                        <div class="general-card-text">
+                                    <div class="general-card-text">
                                         <div class="general-card-title">沙盒模式</div>
                                     </div>
                                 </div>
@@ -836,12 +836,13 @@
                                     <div class="general-toggle-desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
                                     <div class="permission-container">
                                         <div class="permission-tools-list" id="permissionToolsList"></div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="form-actions form-actions-end settings-actions-spacious">
-                            <button class="btn-primary" id="generalSaveBtn">保存</button>
+                            <div class="form-actions form-actions-end settings-actions-spacious">
+                                <button class="btn-primary" id="generalSaveBtn">保存</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -984,7 +985,7 @@
                                 <div class="form-group">
                                     <label>API 密钥</label>
                                     <div class="password-input-group">
-<input type="password" id="llmApiKey" autocomplete="new-password"/>
+                                        <input type="password" id="llmApiKey" autocomplete="new-password"/>
                                         <button class="password-toggle" id="llmApiKeyToggle" title="显示/隐藏">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         </button>
@@ -1001,12 +1002,12 @@
                                     </div>
                                     <div class="form-group">
                                         <label>上下文长度（可选）</label>
-<input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
+                                        <input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
                                         <datalist id="contextLengthList">
                                             <option value="128k">
                                             <option value="256k">
                                             <option value="512k">
-<option value="1m">
+                                            <option value="1m">
                                         </datalist>
                                     </div>
                                 </div>
@@ -1617,33 +1618,33 @@
 
 <!-- ===== 任务完成通知工具函数（需在 app-*.js 之前定义） ===== -->
 <script>
-(function() {
-    window._notifyPerm = Notification.permission;
-    function _requestNotifyPerm() {
-        if (window._notifyPerm === 'granted') return true;
-        if (window._notifyPerm === 'denied') return false;
-        Notification.requestPermission().then(function(p) {
-            window._notifyPerm = p;
-        });
-        return false;
-    }
-    // 通知函数（仅桌面通知，不播放声音）
-    window._notifyTaskComplete = function() {
-        if (document.hasFocus && document.hasFocus()) return;
-        if (window._notifyPerm === 'granted') {
-            try {
-                var n = new Notification('SolonCode', {
-                    body: 'AI 任务已完成',
-                    icon: '/img/favicon.png',
-                    tag: 'soloncode-task-done',
-                    requireInteraction: false
-                });
-                n.onclick = function() { window.focus(); this.close(); };
-                setTimeout(function() { n.close(); }, 5000);
-            } catch(e) {}
+    (function() {
+        window._notifyPerm = Notification.permission;
+        function _requestNotifyPerm() {
+            if (window._notifyPerm === 'granted') return true;
+            if (window._notifyPerm === 'denied') return false;
+            Notification.requestPermission().then(function(p) {
+                window._notifyPerm = p;
+            });
+            return false;
         }
-    };
-})();
+        // 通知函数（仅桌面通知，不播放声音）
+        window._notifyTaskComplete = function() {
+            if (document.hasFocus && document.hasFocus()) return;
+            if (window._notifyPerm === 'granted') {
+                try {
+                    var n = new Notification('SolonCode', {
+                        body: 'AI 任务已完成',
+                        icon: '/img/favicon.png',
+                        tag: 'soloncode-task-done',
+                        requireInteraction: false
+                    });
+                    n.onclick = function() { window.focus(); this.close(); };
+                    setTimeout(function() { n.close(); }, 5000);
+                } catch(e) {}
+            }
+        };
+    })();
 </script>
 
 <!-- 核心路径：立即加载 -->
@@ -1661,119 +1662,119 @@
 
 <!-- 设置模块：首次打开设置时再加载，降低首屏解析成本 -->
 <script>
-(function () {
-    // 核心必须先于子模块；子模块彼此无依赖，可并行
-    var SETTINGS_CORE = '/js/app-settings.js';
-    var SETTINGS_MODULES = [
-        '/js/app-settings-general.js',
-        '/js/app-settings-permission.js',
-        '/js/app-settings-agents.js',
-        '/js/app-settings-llm.js',
-        '/js/app-settings-mounts.js',
-        '/js/app-settings-mcp.js',
-        '/js/app-settings-openapi.js',
-        '/js/app-settings-lsp.js',
-        '/js/app-settings-providers.js',
-        '/js/app-settings-skill.js',
-        '/js/app-settings-skin.js'
-    ];
-    var settingsLoading = null;
-    var realOpenSettingsTab = null;
+    (function () {
+        // 核心必须先于子模块；子模块彼此无依赖，可并行
+        var SETTINGS_CORE = '/js/app-settings.js';
+        var SETTINGS_MODULES = [
+            '/js/app-settings-general.js',
+            '/js/app-settings-permission.js',
+            '/js/app-settings-agents.js',
+            '/js/app-settings-llm.js',
+            '/js/app-settings-mounts.js',
+            '/js/app-settings-mcp.js',
+            '/js/app-settings-openapi.js',
+            '/js/app-settings-lsp.js',
+            '/js/app-settings-providers.js',
+            '/js/app-settings-skill.js',
+            '/js/app-settings-skin.js'
+        ];
+        var settingsLoading = null;
+        var realOpenSettingsTab = null;
 
-    function loadOneScript(src) {
-        return new Promise(function (resolve, reject) {
-            if (typeof loadScriptOnce === 'function') {
-                loadScriptOnce(src, function (err) {
-                    if (err) reject(err);
-                    else resolve();
-                });
-                return;
-            }
-            var s = document.createElement('script');
-            s.src = src;
-            s.async = true;
-            s.onload = function () { resolve(); };
-            s.onerror = function () { reject(new Error('Failed to load ' + src)); };
-            document.head.appendChild(s);
-        });
-    }
-
-    function loadSettingsModules() {
-        if (window.__settingsModulesReady) return Promise.resolve();
-        if (settingsLoading) return settingsLoading;
-        settingsLoading = loadOneScript(SETTINGS_CORE)
-            .then(function () {
-                return Promise.all(SETTINGS_MODULES.map(loadOneScript));
-            })
-            .then(function () {
-                window.__settingsModulesReady = true;
-                settingsLoading = null;
-            })
-            .catch(function (err) {
-                // 允许下次点击重试
-                settingsLoading = null;
-                window.__settingsModulesReady = false;
-                console.warn('[settings] load failed', err);
-                throw err;
-            });
-        return settingsLoading;
-    }
-    window.loadSettingsModules = loadSettingsModules;
-
-    function toastSettingsError() {
-        if (window.layer && typeof layer.msg === 'function') {
-            layer.msg('设置模块加载失败，请重试', { icon: 2, time: 2500 });
-        } else {
-            console.error('[settings] modules failed to load');
-        }
-    }
-
-    function openSettingsAfterReady(tab) {
-        loadSettingsModules().then(function () {
-            if (typeof realOpenSettingsTab === 'function') {
-                realOpenSettingsTab(tab || 'general');
-                return;
-            }
-            var overlay = document.getElementById('settingsOverlay');
-            if (overlay) overlay.style.display = 'flex';
-            if (tab) {
-                var tabBtn = document.querySelector('.settings-tab[data-tab="' + tab + '"]');
-                if (tabBtn) tabBtn.click();
-            }
-        }).catch(function () {
-            toastSettingsError();
-        });
-    }
-
-    // 捕获阶段拦截设置按钮：首次点击先加载模块
-    document.addEventListener('click', function (e) {
-        var btn = e.target && e.target.closest ? e.target.closest('#settingsBtn') : null;
-        if (!btn) return;
-        if (window.__settingsModulesReady) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openSettingsAfterReady(null);
-    }, true);
-
-    // 兼容 filer 等调用 window.openSettingsTab(tab)
-    Object.defineProperty(window, 'openSettingsTab', {
-        configurable: true,
-        enumerable: true,
-        get: function () {
-            return function (tab) {
-                if (!window.__settingsModulesReady) {
-                    openSettingsAfterReady(tab);
+        function loadOneScript(src) {
+            return new Promise(function (resolve, reject) {
+                if (typeof loadScriptOnce === 'function') {
+                    loadScriptOnce(src, function (err) {
+                        if (err) reject(err);
+                        else resolve();
+                    });
                     return;
                 }
-                if (typeof realOpenSettingsTab === 'function') realOpenSettingsTab(tab);
-            };
-        },
-        set: function (fn) {
-            // app-settings.js 赋值时保存真实实现
-            realOpenSettingsTab = fn;
+                var s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = function () { resolve(); };
+                s.onerror = function () { reject(new Error('Failed to load ' + src)); };
+                document.head.appendChild(s);
+            });
         }
-    });
-})();
+
+        function loadSettingsModules() {
+            if (window.__settingsModulesReady) return Promise.resolve();
+            if (settingsLoading) return settingsLoading;
+            settingsLoading = loadOneScript(SETTINGS_CORE)
+                .then(function () {
+                    return Promise.all(SETTINGS_MODULES.map(loadOneScript));
+                })
+                .then(function () {
+                    window.__settingsModulesReady = true;
+                    settingsLoading = null;
+                })
+                .catch(function (err) {
+                    // 允许下次点击重试
+                    settingsLoading = null;
+                    window.__settingsModulesReady = false;
+                    console.warn('[settings] load failed', err);
+                    throw err;
+                });
+            return settingsLoading;
+        }
+        window.loadSettingsModules = loadSettingsModules;
+
+        function toastSettingsError() {
+            if (window.layer && typeof layer.msg === 'function') {
+                layer.msg('设置模块加载失败，请重试', { icon: 2, time: 2500 });
+            } else {
+                console.error('[settings] modules failed to load');
+            }
+        }
+
+        function openSettingsAfterReady(tab) {
+            loadSettingsModules().then(function () {
+                if (typeof realOpenSettingsTab === 'function') {
+                    realOpenSettingsTab(tab || 'general');
+                    return;
+                }
+                var overlay = document.getElementById('settingsOverlay');
+                if (overlay) overlay.style.display = 'flex';
+                if (tab) {
+                    var tabBtn = document.querySelector('.settings-tab[data-tab="' + tab + '"]');
+                    if (tabBtn) tabBtn.click();
+                }
+            }).catch(function () {
+                toastSettingsError();
+            });
+        }
+
+        // 捕获阶段拦截设置按钮：首次点击先加载模块
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('#settingsBtn') : null;
+            if (!btn) return;
+            if (window.__settingsModulesReady) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsAfterReady(null);
+        }, true);
+
+        // 兼容 filer 等调用 window.openSettingsTab(tab)
+        Object.defineProperty(window, 'openSettingsTab', {
+            configurable: true,
+            enumerable: true,
+            get: function () {
+                return function (tab) {
+                    if (!window.__settingsModulesReady) {
+                        openSettingsAfterReady(tab);
+                        return;
+                    }
+                    if (typeof realOpenSettingsTab === 'function') realOpenSettingsTab(tab);
+                };
+            },
+            set: function (fn) {
+                // app-settings.js 赋值时保存真实实现
+                realOpenSettingsTab = fn;
+            }
+        });
+    })();
 </script>
 
 </body>
