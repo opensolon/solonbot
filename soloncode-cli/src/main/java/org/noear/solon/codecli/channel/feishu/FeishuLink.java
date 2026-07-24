@@ -502,17 +502,28 @@ public class FeishuLink implements Channel, Runnable {
         FeishuBinding binding = bindings.get(sessionId);
         if (binding == null) return;
 
-        // 防重复处理
+        // 防重复处理（仅限同连接生命周期内）
         if (msgId != null && msgId.equals(binding.lastMessageId)) {
             return;
         }
-        binding.lastMessageId = msgId;
 
         final String finalSessionId = sessionId;
         final String finalText = text;
+        final FeishuBinding finalBinding = binding;
+        final String finalMsgId = msgId;
         RunUtil.async(() -> {
             try {
-                webGate.safeChatInput(finalSessionId, finalText, "Feishu");
+                boolean accepted = webGate.safeChatInput(finalSessionId, finalText, "Feishu");
+                if (accepted) {
+                    // 消息被接受进入处理流程后才记录 lastMessageId，
+                    // 避免 WS 断连重试时因 lastMessageId 已设置而跳过未处理的消息
+                    if (finalMsgId != null) {
+                        finalBinding.lastMessageId = finalMsgId;
+                    }
+                } else {
+                    // 会话繁忙，向用户发送提示而不是静默丢弃
+                    sendBusyNotification(finalBinding);
+                }
             } catch (Exception e) {
                 LOG.error("[Feishu] Message processing error: {}", e.getMessage(), e);
             }
@@ -521,43 +532,108 @@ public class FeishuLink implements Channel, Runnable {
 
     // ==================== 消息发送 ====================
 
+    private static final int MAX_SEND_RETRIES = 3;
+
     private void sendReplyDo(FeishuBinding binding, String reply) {
-        try {
-            // 获取 tenant_access_token（使用绑定自己的凭据）
-            String token = FeishuClient.getTenantAccessToken(binding.appId, binding.appSecret);
-            if (token == null) {
-                LOG.error("[Feishu] Cannot send reply: failed to get access token");
-                return;
-            }
-
-            final String fToken = token;
-            final String fOpenId = binding.openId;
-
-            // ★ 不再 cleanMarkdown：直接以 Markdown 格式发送（飞书 post + md tag）
-            ChunkedSender.SendResult result = ChunkedSender.sendChunked(reply,
-                    ChunkedSender.Config.feishu(),
-                    (chunk, part) -> {
-                        String title = part > 1 ? "(" + part + ")" : "";
-                        String msgId = FeishuClient.sendMdPostMessage(fToken, "open_id", fOpenId, title, chunk);
-                        return msgId != null;
-                    });
-
-            // 如果全部失败，降级为纯文本发送
-            if (result.getFailedParts() == result.getTotalParts() && result.getTotalParts() > 0) {
-                LOG.warn("[Feishu] MD post failed, degrading to plain text for {} part(s)", result.getTotalParts());
-                String cleanReply = cleanMarkdown(reply);
-                if (cleanReply.isEmpty()) {
-                    cleanReply = reply;
+        // 外层重试：应对 token 获取失败或偶发网络抖动
+        for (int attempt = 0; attempt < MAX_SEND_RETRIES; attempt++) {
+            try {
+                // 获取 tenant_access_token（使用绑定自己的凭据）
+                String token = FeishuClient.getTenantAccessToken(binding.appId, binding.appSecret);
+                if (token == null) {
+                    if (attempt < MAX_SEND_RETRIES - 1) {
+                        long delay = 1000L * (1L << attempt); // 1s, 2s
+                        LOG.warn("[Feishu] Token fetch failed, retry in {}ms (attempt {}/{})",
+                                delay, attempt + 1, MAX_SEND_RETRIES);
+                        Thread.sleep(delay);
+                        continue;
+                    }
+                    LOG.error("[Feishu] Cannot send reply: failed to get access token after {} attempts", MAX_SEND_RETRIES);
+                    return;
                 }
-                ChunkedSender.sendChunked(cleanReply,
+
+                final String fToken = token;
+                final String fOpenId = binding.openId;
+
+                // ★ 不再 cleanMarkdown：直接以 Markdown 格式发送（飞书 post + md tag）
+                ChunkedSender.SendResult result = ChunkedSender.sendChunked(reply,
                         ChunkedSender.Config.feishu(),
                         (chunk, part) -> {
-                            String msgId = FeishuClient.sendMessage(fToken, "open_id", fOpenId, chunk);
+                            String title = part > 1 ? "(" + part + ")" : "";
+                            String msgId = FeishuClient.sendMdPostMessage(fToken, "open_id", fOpenId, title, chunk);
                             return msgId != null;
                         });
+
+                // 部分发送失败告警（非全部失败，不需要降级，但需记录）
+                if (result.getFailedParts() > 0 && result.getFailedParts() < result.getTotalParts()) {
+                    LOG.warn("[Feishu] Partial send failure: {}/{} parts failed", result.getFailedParts(), result.getTotalParts());
+                }
+
+                // 如果全部失败，降级为纯文本发送
+                if (result.getFailedParts() == result.getTotalParts() && result.getTotalParts() > 0) {
+                    LOG.warn("[Feishu] MD post failed, degrading to plain text for {} part(s)", result.getTotalParts());
+                    String cleanReply = cleanMarkdown(reply);
+                    if (cleanReply.isEmpty()) {
+                        cleanReply = reply;
+                    }
+                    ChunkedSender.SendResult textResult = ChunkedSender.sendChunked(cleanReply,
+                            ChunkedSender.Config.feishu(),
+                            (chunk, part) -> {
+                                String msgId = FeishuClient.sendMessage(fToken, "open_id", fOpenId, chunk);
+                                return msgId != null;
+                            });
+
+                    // 降级也失败，走外层重试
+                    if (textResult.getFailedParts() == textResult.getTotalParts() && textResult.getTotalParts() > 0) {
+                        if (attempt < MAX_SEND_RETRIES - 1) {
+                            long delay = 1000L * (1L << attempt); // 1s, 2s
+                            LOG.warn("[Feishu] Plain text fallback also failed, retry in {}ms (attempt {}/{})",
+                                    delay, attempt + 1, MAX_SEND_RETRIES);
+                            Thread.sleep(delay);
+                            continue;
+                        }
+                        LOG.error("[Feishu] All send attempts failed for {} part(s)", result.getTotalParts());
+                    } else if (textResult.getFailedParts() > 0) {
+                        // 降级后部分失败告警
+                        LOG.warn("[Feishu] Partial plain text failure: {}/{} parts failed",
+                                textResult.getFailedParts(), textResult.getTotalParts());
+                    }
+                }
+
+                // 发送成功（MD 成功或降级成功），退出重试
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("[Feishu] sendReplyDo interrupted");
+                return;
+            } catch (Exception e) {
+                LOG.error("[Feishu] sendReplyDo error (attempt {}/{}): {}",
+                        attempt + 1, MAX_SEND_RETRIES, e.getMessage());
+                if (attempt < MAX_SEND_RETRIES - 1) {
+                    try {
+                        long delay = 1000L * (1L << attempt);
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 发送简洁的繁忙提示消息（轻量，不经过 ChunkedSender）
+     */
+    private void sendBusyNotification(FeishuBinding binding) {
+        try {
+            String token = FeishuClient.getTenantAccessToken(binding.appId, binding.appSecret);
+            if (token != null) {
+                FeishuClient.sendMessage(token, "open_id", binding.openId,
+                        "⏳ 正在处理上一条消息，请稍候再试");
             }
         } catch (Exception e) {
-            LOG.error("[Feishu] sendReplyDo error: {}", e.getMessage(), e);
+            LOG.warn("[Feishu] Busy notification error: {}", e.getMessage());
         }
     }
 
@@ -610,7 +686,6 @@ public class FeishuLink implements Channel, Runnable {
         volatile String connId;
 
         volatile ScheduledFuture<?> heartbeatFuture;
-        volatile ScheduledExecutorService heartbeatScheduler;
 
         StreamConnection(String appId, String appSecret) {
             this.appId = appId;
@@ -735,6 +810,14 @@ public class FeishuLink implements Channel, Runnable {
                 LOG.info("[Feishu] WebSocket connected successfully, appId={}",
                         appId.substring(0, Math.min(8, appId.length())) + "...");
 
+                // 重连成功后清除此 appId 相关的去重缓存，
+                // 确保 Feishu 在断连期间缓存的事件重推后能被正常处理
+                for (FeishuBinding b : FeishuLink.this.bindings.values()) {
+                    if (appId.equals(b.appId)) {
+                        b.lastMessageId = "";
+                    }
+                }
+
                 // 保持线程存活（便于 stop() 通过 interrupt 终止）
                 while (!Thread.currentThread().isInterrupted() && running.get()) {
                     try {
@@ -757,7 +840,7 @@ public class FeishuLink implements Channel, Runnable {
             stopHeartbeat();
             if (pingIntervalMs > 0) {
                 final int sid = serviceId;
-                heartbeatFuture = heartbeatScheduler.scheduleAtFixedRate(() -> {
+                heartbeatFuture = RunUtil.timer().scheduleAtFixedRate(() -> {
                     try {
                         if (wsClient != null && wsClient.isOpen()) {
                             byte[] pingBytes = FeishuPbCodec.buildPing(sid);
@@ -775,10 +858,6 @@ public class FeishuLink implements Channel, Runnable {
             if (heartbeatFuture != null) {
                 heartbeatFuture.cancel(false);
                 heartbeatFuture = null;
-            }
-            if (heartbeatScheduler != null) {
-                heartbeatScheduler.shutdownNow();
-                heartbeatScheduler = null;
             }
         }
 
@@ -822,7 +901,7 @@ public class FeishuLink implements Channel, Runnable {
 
     public static class FeishuBinding {
         public String openId;         // 飞书用户 open_id（唯一标识）
-        public String lastMessageId;  // 最后处理的消息 ID（防重复）
+        public volatile String lastMessageId;  // 最后处理的消息 ID（防重复，volatile 保证多线程可见性）
         public String appId;          // 飞书应用 App ID（凭据，随绑定一起持久化）
         public String appSecret;      // 飞书应用 App Secret（凭据，随绑定一起持久化）
     }

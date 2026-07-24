@@ -674,13 +674,14 @@ public class WebGate extends SimpleWebSocketListener {
      * 安全聊天输入入口。
      *
      * <p>在调用 {@link #onChatInput} 之前先检查会话是否繁忙（有 AI 任务正在执行），
-     * 若繁忙则跳过本次输入并记录警告日志。用于微信回调等需要避免并发冲突的场景。</p>
+     * 若繁忙则跳过本次输入并记录警告日志。用于 IM 回调等需要避免并发冲突的场景。</p>
      *
      * @param sessionId 会话标识
      * @param input     用户输入文本
-     * @param source    调用来源标识（用于日志记录，如 "WeChat"），同时用于标记消息来源通道
+     * @param source    调用来源标识（用于日志记录，如 "Feishu"），同时用于标记消息来源通道
+     * @return true 表示输入已接受并进入处理流程；false 表示会话繁忙已跳过
      */
-    public void safeChatInput(String sessionId, String input, String source) {
+    public boolean safeChatInput(String sessionId, String input, String source) {
         try {
             AgentSession session = engine.getSession(sessionId);
             if (isSessionBusy(session)) {
@@ -691,22 +692,23 @@ public class WebGate extends SimpleWebSocketListener {
                     if ("interrupt".equals(cmdName) || "exit".equals(cmdName)) {
                         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
                         onChatInput(sessionId, null, input, null, null, null, null, source);
-                        return;
+                        return true;
                     }
                 }
 
                 LOG.warn("[WebGate] {} event skipped for session {}: task in progress", source, sessionId);
-                return;
+                return false;
             }
         } catch (Exception e) {
             LOG.warn("[WebGate] {} event check failed for session {}: {}", source, sessionId, e.getMessage());
-            return;
+            return false;
         }
 
         // 先推送用户消息到前端，确保对话记录中显示用户侧消息
         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
 
         onChatInput(sessionId, null, input, null, null, null, null, source);
+        return true;
     }
 
 

@@ -467,11 +467,10 @@ public class DingTalkLink implements Channel, Runnable {
         DingTalkBinding binding = bindings.get(sessionId);
         if (binding == null) return;
 
-        // 防重复处理
+        // 防重复处理（仅限同连接生命周期内）
         if (msgId != null && msgId.equals(binding.lastMessageId)) {
             return;
         }
-        binding.lastMessageId = msgId;
 
         if (text == null || text.isEmpty()) {
             return;
@@ -479,10 +478,21 @@ public class DingTalkLink implements Channel, Runnable {
 
         final String finalSessionId = sessionId;
         final String finalText = text;
+        final DingTalkBinding finalBinding = binding;
+        final String finalMsgId = msgId;
 
         RunUtil.async(() -> {
             try {
-                webGate.safeChatInput(finalSessionId, finalText, "DingTalk");
+                boolean accepted = webGate.safeChatInput(finalSessionId, finalText, "DingTalk");
+                if (accepted) {
+                    // 消息被接受后才记录 lastMessageId，避免重连重推时被去重丢弃
+                    if (finalMsgId != null) {
+                        finalBinding.lastMessageId = finalMsgId;
+                    }
+                } else {
+                    // 会话繁忙，向用户发送提示而不是静默丢弃
+                    sendBusyNotification(finalBinding);
+                }
             } catch (Exception e) {
                 LOG.error("[DingTalk] Message processing error: {}", e.getMessage(), e);
             }
@@ -494,37 +504,90 @@ public class DingTalkLink implements Channel, Runnable {
     /**
      * 降级方案：通过 API 发送回复（当 WebSocket Stream 不可用时）
      */
+    private static final int MAX_SEND_RETRIES = 3;
+
+    /**
+     * 降级方案：通过 API 发送回复（当 WebSocket Stream 不可用时）
+     */
     private void sendReplyViaApi(DingTalkBinding binding, String reply) {
-        String token = DingTalkClient.getAccessToken(binding.appKey, binding.appSecret);
-        if (token == null) {
-            LOG.error("[DingTalk] Cannot send reply: no access token");
-            return;
-        }
-
-        final String fToken = token;
-        final String fRobotCode = binding.robotCode != null && !binding.robotCode.isEmpty()
-                ? binding.robotCode : binding.appKey;
-        final String fUserId = binding.userId;
-
-        LOG.info("[DingTalk] sendReplyViaApi: robotCode={}, userId={}, replyLen={}",
-                fRobotCode, fUserId, reply.length());
-
-        // 使用 Markdown 格式分段发送（含限速 + 重试）
-        ChunkedSender.sendChunked(reply,
-                ChunkedSender.Config.dingtalk(),
-                (chunk, part) -> {
-                    // 通知标题：part 1 取内容第一行，多段时加序号
-                    String title;
-                    if (part > 1) {
-                        title = "(" + part + ") " + DingTalkClient.extractTitle(chunk);
-                    } else {
-                        title = DingTalkClient.extractTitle(chunk);
+        // 外层重试：应对 token 获取失败或偶发网络抖动
+        for (int attempt = 0; attempt < MAX_SEND_RETRIES; attempt++) {
+            try {
+                String token = DingTalkClient.getAccessToken(binding.appKey, binding.appSecret);
+                if (token == null) {
+                    if (attempt < MAX_SEND_RETRIES - 1) {
+                        long delay = 1000L * (1L << attempt);
+                        LOG.warn("[DingTalk] Token fetch failed, retry in {}ms (attempt {}/{})",
+                                delay, attempt + 1, MAX_SEND_RETRIES);
+                        Thread.sleep(delay);
+                        continue;
                     }
-                    boolean ok = DingTalkClient.sendSingleMarkdownMessage(fToken, fRobotCode, fUserId, title, chunk);
-                    LOG.info("[DingTalk] sendSingleMarkdownMessage part={} ok={}, robotCode={}, userId={}",
-                            part, ok, fRobotCode, fUserId);
-                    return ok;
-                });
+                    LOG.error("[DingTalk] Cannot send reply: no access token after {} attempts", MAX_SEND_RETRIES);
+                    return;
+                }
+
+                final String fToken = token;
+                final String fRobotCode = binding.robotCode != null && !binding.robotCode.isEmpty()
+                        ? binding.robotCode : binding.appKey;
+                final String fUserId = binding.userId;
+
+                LOG.info("[DingTalk] sendReplyViaApi: robotCode={}, userId={}, replyLen={}, attempt={}",
+                        fRobotCode, fUserId, reply.length(), attempt + 1);
+
+                // 使用 Markdown 格式分段发送（含限速 + 重试）
+                ChunkedSender.SendResult result = ChunkedSender.sendChunked(reply,
+                        ChunkedSender.Config.dingtalk(),
+                        (chunk, part) -> {
+                            String title;
+                            if (part > 1) {
+                                title = "(" + part + ") " + DingTalkClient.extractTitle(chunk);
+                            } else {
+                                title = DingTalkClient.extractTitle(chunk);
+                            }
+                            boolean ok = DingTalkClient.sendSingleMarkdownMessage(fToken, fRobotCode, fUserId, title, chunk);
+                            LOG.info("[DingTalk] sendSingleMarkdownMessage part={} ok={}, robotCode={}, userId={}",
+                                    part, ok, fRobotCode, fUserId);
+                            return ok;
+                        });
+
+                // 部分失败告警
+                if (result.getFailedParts() > 0 && result.getFailedParts() < result.getTotalParts()) {
+                    LOG.warn("[DingTalk] Partial send failure: {}/{} parts failed",
+                            result.getFailedParts(), result.getTotalParts());
+                }
+
+                // 全部失败，走外层重试
+                if (result.getFailedParts() == result.getTotalParts() && result.getTotalParts() > 0) {
+                    if (attempt < MAX_SEND_RETRIES - 1) {
+                        long delay = 1000L * (1L << attempt);
+                        LOG.warn("[DingTalk] All parts failed, retry in {}ms (attempt {}/{})",
+                                delay, attempt + 1, MAX_SEND_RETRIES);
+                        Thread.sleep(delay);
+                        continue;
+                    }
+                    LOG.error("[DingTalk] All send attempts failed for {} part(s)", result.getTotalParts());
+                }
+
+                // 发送成功，退出重试
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("[DingTalk] sendReplyViaApi interrupted");
+                return;
+            } catch (Exception e) {
+                LOG.error("[DingTalk] sendReplyViaApi error (attempt {}/{}): {}",
+                        attempt + 1, MAX_SEND_RETRIES, e.getMessage());
+                if (attempt < MAX_SEND_RETRIES - 1) {
+                    try {
+                        long delay = 1000L * (1L << attempt);
+                        Thread.sleep(delay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -534,6 +597,23 @@ public class DingTalkLink implements Channel, Runnable {
     private void sendReplyViaQrPending(String sessionId, String reply) {
         LOG.warn("[DingTalk] Cannot send reply to session {}: QR binding pending, " +
                 "user needs to send a DingTalk message first", sessionId);
+    }
+
+    /**
+     * 发送简洁的繁忙提示消息（轻量，不经过 ChunkedSender）
+     */
+    private void sendBusyNotification(DingTalkBinding binding) {
+        try {
+            String token = DingTalkClient.getAccessToken(binding.appKey, binding.appSecret);
+            if (token != null) {
+                String robotCode = binding.robotCode != null && !binding.robotCode.isEmpty()
+                        ? binding.robotCode : binding.appKey;
+                DingTalkClient.sendSingleMarkdownMessage(token, robotCode, binding.userId,
+                        "提示", "⏳ 正在处理上一条消息，请稍候再试");
+            }
+        } catch (Exception e) {
+            LOG.warn("[DingTalk] Busy notification error: {}", e.getMessage());
+        }
     }
 
     // ==================== WebSocket 回复通道 ====================
@@ -706,6 +786,14 @@ public class DingTalkLink implements Channel, Runnable {
                 LOG.info("[DingTalk] Stream WebSocket connected successfully, appKey={}",
                         appKey.substring(0, Math.min(8, appKey.length())) + "...");
 
+                // 重连成功后清除此 appKey 相关的去重缓存，
+                // 确保钉钉在断连期间缓存的事件重推后能被正常处理
+                for (DingTalkBinding b : DingTalkLink.this.bindings.values()) {
+                    if (appKey.equals(b.appKey)) {
+                        b.lastMessageId = null;
+                    }
+                }
+
                 // 保持线程存活（便于 stop() 通过 interrupt 终止）
                 while (!Thread.currentThread().isInterrupted()) {
                     try {
@@ -762,7 +850,7 @@ public class DingTalkLink implements Channel, Runnable {
     public static class DingTalkBinding {
         public String userId;          // 钉钉用户 staffId / userId
         public String robotCode;       // 机器人编码（发送消息用）
-        public String lastMessageId;   // 最后处理的消息 ID（防重复）
+        public volatile String lastMessageId;   // 最后处理的消息 ID（防重复，volatile 保证多线程可见性）
         public String appKey;          // 保存的 AppKey（用于重启后恢复 Stream 连接）
         public String appSecret;       // 保存的 AppSecret
     }
