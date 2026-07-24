@@ -158,9 +158,8 @@
             $('#settingsTabGeneral').addClass('active');
             if (mod('_settingsGeneral')) mod('_settingsGeneral').load();
             if (mod('_settingsSkin')) mod('_settingsSkin').load();
-        } else if (targetTab === 'permission') {
-            $('#settingsTabPermission').addClass('active');
             if (mod('_settingsPermission')) mod('_settingsPermission').load();
+
         } else if (targetTab === 'agents') {
             $('#settingsTabAgents').addClass('active');
             if (mod('_settingsAgents')) mod('_settingsAgents').load();
@@ -195,8 +194,8 @@
         if (targetTab === 'general') {
             if (mod('_settingsGeneral')) mod('_settingsGeneral').load();
             if (mod('_settingsSkin')) mod('_settingsSkin').load();
+            if (mod('_settingsPermission')) mod('_settingsPermission').load();
         }
-        else if (targetTab === 'permission') { if (mod('_settingsPermission')) mod('_settingsPermission').load(); }
         else if (targetTab === 'agents') { if (mod('_settingsAgents')) mod('_settingsAgents').load(); }
         else if (targetTab === 'llm') { if (mod('_settingsLlm')) mod('_settingsLlm').load(); }
         else if (targetTab === 'skills') { if (window._skillModule) window._skillModule.resetAndLoad(); }
