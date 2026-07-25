@@ -646,7 +646,7 @@ body {
 .model-selector.open .model-dropdown { display: flex; flex-direction: column; }
 
 /* Agent selector and overflow tools */
-.toolbar-selector-group { display: flex; align-items: center; gap: 2px; min-height: 30px; border-radius: 8px; transition: all 0.2s; }
+.toolbar-selector-group { display: flex; align-items: center; gap: 2px; min-height: 30px; border-radius: 8px; transition: all 0.2s; padding-left: 8px; }
 .toolbar-selector-group:hover, .toolbar-selector-group:focus-within { color: var(--text-primary); background: var(--bg-hover); }
 .toolbar-setting-icon { width: 16px; height: 16px; flex: 0 0 16px; color: var(--text-secondary); }
 .toolbar-selector-group:hover .toolbar-setting-icon, .toolbar-selector-group:focus-within .toolbar-setting-icon { color: var(--text-primary); }
