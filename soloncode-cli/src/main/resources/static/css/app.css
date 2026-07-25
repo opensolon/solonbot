@@ -685,6 +685,16 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+.more-menu-hint-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-top: -2px;
+  margin-left: 3px;
+  margin-right: 3px;
+  opacity: 0.7;
+  color: var(--text-secondary);
+}
 @keyframes drop-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .model-dropdown-item { padding: 10px 14px; cursor: pointer; font-size: 13px; color: var(--text-primary); display: flex; flex-direction: column; gap: 2px; transition: background 0.15s; }
 .model-dropdown-item:hover { background: var(--bg-hover); }
