@@ -509,11 +509,15 @@
 .agent-status-badge.muted { background: var(--bg-hover); color: var(--text-secondary); }
 .agent-status-badge.invalid { background: rgba(239,68,68,0.1); color: #ef4444; }
 .agents-prompt-editor { min-height: 0; resize: vertical; font-family: inherit !important; font-size: 13px !important; line-height: 1.6; }
-.agent-tools-trigger { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-box); color: var(--text-primary); cursor: pointer; text-align: left; }
+.agent-tools-trigger { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-box); color: var(--text-primary); cursor: pointer; text-align: left; transition: border-radius 0.15s, border-color 0.15s; }
 .agent-tools-trigger:hover:not(:disabled) { border-color: var(--accent); }
 .agent-tools-trigger:disabled { cursor: default; opacity: 0.75; }
+.agent-tools-trigger svg { transition: transform 0.2s; flex-shrink: 0; }
+.agent-tools-trigger.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.agent-tools-trigger.is-open svg { transform: rotate(180deg); }
 .agent-tools-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.agent-tools-selector { margin-top: 6px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); overflow: hidden; }
+.agent-tools-selector { margin-top: 6px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); overflow: hidden; transition: margin-top 0.15s, border-radius 0.15s; }
+.agent-tools-selector.is-open { margin-top: 0; border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; }
 .agent-tools-selector .permission-tools-grid { grid-template-columns: repeat(3, 1fr); }
 .agent-tools-selector .permission-tool-item { padding: 8px 10px; }
 .agent-tools-selector .agent-tool-option { display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: normal; }

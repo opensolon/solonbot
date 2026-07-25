@@ -132,10 +132,11 @@
     }
 
     function updateToolsSummary() {
+        var total = allToolIds().length;
         var text;
         if (!selectedTools.length) text = '未授予工具权限';
-        else if (selectedTools.length === allToolIds().length) text = '已选择全部工具';
-        else text = '已选择 ' + selectedTools.length + ' 个工具：' + selectedTools.join(', ');
+        else if (selectedTools.length === total) text = '已授权全部 ' + total + ' 个工具';
+        else text = '已授权 ' + selectedTools.length + ' / ' + total + ' 个工具';
         $('#agentsToolsSummary').text(text);
     }
 
@@ -149,7 +150,8 @@
         $('#agentsDescription').val('').prop('readOnly', false).removeClass('readonly-gray');
         $('#agentsSystemPrompt').val('').prop('readOnly', false).removeClass('readonly-gray');
         $('#agentsToolsBtn').prop('disabled', false);
-        $('#agentsToolsSelector').hide();
+        $('#agentsToolsBtn').removeClass('is-open');
+        $('#agentsToolsSelector').hide().removeClass('is-open');
         setSelectedTools([]);
         setScopeValue('agentsScope', 'user');
         setScopeReadonly('agentsScope', false);
@@ -175,7 +177,8 @@
             $('#agentsDescription').val(data.description || '').prop('readOnly', false).removeClass('readonly-gray');
             $('#agentsSystemPrompt').val(data.systemPrompt || '').prop('readOnly', false).removeClass('readonly-gray');
             $('#agentsToolsBtn').prop('disabled', false);
-            $('#agentsToolsSelector').hide();
+            $('#agentsToolsBtn').removeClass('is-open');
+            $('#agentsToolsSelector').hide().removeClass('is-open');
             setSelectedTools(data.tools || []);
             if (data.valid === false) showToast('配置解析失败，请用当前表单重新保存修复：' + (data.parseError || ''), 'error');
             setScopeValue('agentsScope', scope);
@@ -195,6 +198,8 @@
         $('#agentsName').prop('readOnly', false).removeClass('readonly-gray').focus().select();
         $('#agentsDescription, #agentsSystemPrompt').prop('readOnly', false).removeClass('readonly-gray');
         $('#agentsToolsBtn').prop('disabled', false);
+        $('#agentsToolsBtn').removeClass('is-open');
+        $('#agentsToolsSelector').hide().removeClass('is-open');
         setScopeReadonly('agentsScope', false);
         $saveBtn.show().text('保存副本');
     }
@@ -238,7 +243,11 @@
 
     $('#agentsToolsBtn').on('click', function () {
         if ($(this).prop('disabled')) return;
-        $('#agentsToolsSelector').stop(true, true).slideToggle(140);
+        var $selector = $('#agentsToolsSelector');
+        var opening = !$selector.is(':visible');
+        $(this).toggleClass('is-open', opening);
+        $selector.toggleClass('is-open', opening);
+        $selector.stop(true, true).slideToggle(140);
     });
     $('#agentsToolsList').on('change', '.agent-tool-toggle', function () {
         var tool = $(this).attr('data-tool');
