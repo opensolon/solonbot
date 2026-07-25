@@ -97,7 +97,7 @@ public class Configurator {
                 .autoRethink(settings.getGeneral().isAutoRethink())
                 .sessionWindowSize(settings.getGeneral().getSessionWindowSize())
                 .sessionProvider(sessionManager)
-                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowRatio())
+                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D)
                 .memoryEnabled(settings.getGeneral().isMemoryEnabled())
                 .memoryProvider(new MemoryProvider(agentSettings))
                 .sandboxEnabled(settings.getGeneral().isSandboxMode())

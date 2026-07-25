@@ -260,7 +260,7 @@ public class AgentSettings implements Serializable {
         }
         target.setSessionWindowSize(source.getSessionWindowSize());
         target.setSummaryWindowSize(source.getSummaryWindowSize());
-        target.setSummaryWindowRatio(source.getSummaryWindowRatio());
+        target.setCompressionThresholdPercent(source.getCompressionThresholdPercent());
         target.setSandboxMode(source.isSandboxMode());
         target.setSandboxAllowUserHome(source.isSandboxAllowUserHome());
         target.setSandboxSystemRestrict(source.isSandboxSystemRestrict());

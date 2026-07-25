@@ -2,6 +2,7 @@
 
 * 添加 soloncode  `/goal` 命令作为 `/loop goal` 的简化模式
 * 添加 soloncode web 输入面板，输入左键可显示循环任务面板
+* 调整 soloncode 压缩阀值由数值改为比例（默认 0.75D）
 * 细节优化
 
 ### v2026.7.25

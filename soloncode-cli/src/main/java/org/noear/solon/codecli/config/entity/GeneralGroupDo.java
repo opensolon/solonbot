@@ -17,8 +17,8 @@ public class GeneralGroupDo implements Serializable {
     private int sessionWindowSize = 8;
     //上下文压缩触发消息数（达到这个数，就开始触发）
     private int summaryWindowSize = 100;
-    //上下文压缩触发词元数（达到这个数，就开始触发）
-    private double summaryWindowRatio = 0.75D;
+    //上下文压缩触发上下文比例（百分比，达到这个比例，就开始触发）
+    private int compressionThresholdPercent = 75;
 
     //启用沙盒模式
     private boolean sandboxMode = true;
