@@ -78,6 +78,7 @@ function serializeQueueForPersist(queue) {
         };
         if (item.model) row.model = item.model;
         if (item.reasoningEffort) row.reasoningEffort = item.reasoningEffort;
+        if (item.selectedAgent) row.selectedAgent = item.selectedAgent;
         if (hasFiles) row.hasFiles = true;
         out.push(row);
     }
@@ -189,6 +190,7 @@ function loadMessageQueue(sess) {
                     hasFiles: !!it.hasFiles,
                     model: it.model || null,
                     reasoningEffort: it.reasoningEffort || null,
+                    selectedAgent: it.selectedAgent || '',
                     createdAt: it.createdAt || Date.now()
                 });
             }
@@ -295,6 +297,7 @@ function buildDisplayText(text, filesToSend) {
         hasFiles: filesSnap.length > 0,
         model: typeof getSelectedModel === 'function' ? getSelectedModel() : null,
         reasoningEffort: typeof getSelectedReasoning === 'function' ? getSelectedReasoning() : null,
+        selectedAgent: typeof getSelectedAgent === 'function' ? getSelectedAgent() : '',
         createdAt: Date.now()
     });
     clearInput();
@@ -356,7 +359,8 @@ function buildDisplayText(text, filesToSend) {
     sendMessageCore(sess, item.text || '', item.files || [], {
         displayText: item.displayText,
         model: item.model,
-        reasoningEffort: item.reasoningEffort
+        reasoningEffort: item.reasoningEffort,
+        selectedAgent: item.selectedAgent
     });
         }
 
@@ -697,6 +701,11 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
         ? options.reasoningEffort
         : (typeof getSelectedReasoning === 'function' ? getSelectedReasoning() : '');
     if (effort) formData.append('reasoningEffort', effort);
+    var selectedAgent = options.selectedAgent;
+    if (selectedAgent === undefined && typeof getSelectedAgent === 'function') {
+        selectedAgent = getSelectedAgent();
+    }
+    if (selectedAgent) formData.append('selectedAgent', selectedAgent);
     for (var i = 0; i < filesToSend.length; i++) {
         formData.append('attachments', filesToSend[i].file, filesToSend[i].name);
         formData.append('attachmentTypes', filesToSend[i].attachmentsType || 'file');

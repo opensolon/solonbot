@@ -263,7 +263,7 @@ public class WebGate extends SimpleWebSocketListener {
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source) {
         onChatInput(sessionId, sessionCwd, input, selectedModel, attachments, attachmentTypes,
-                hitlAction, source, null);
+                hitlAction, source, null, null);
     }
 
     /**
@@ -287,13 +287,14 @@ public class WebGate extends SimpleWebSocketListener {
      * @param hitlAction      HITL 操作类型，取值 "approve" 或 "reject"（可为 null）
      * @param source          消息来源通道标识
      * @param reasoningEffort 请求级推理水平（可选，写入会话后由 StreamBuilder 注入）
+     * @param selectedAgent   选择器指定的子代理（可选；空值时使用主 Agent）
      */
     public void onChatInput(String sessionId,
                             String sessionCwd,
                             String input, String selectedModel,
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source,
-                            String reasoningEffort) {
+                            String reasoningEffort, String selectedAgent) {
         AgentSession session = null;
         try {
             session = engine.getSession(sessionId);
@@ -311,12 +312,18 @@ public class WebGate extends SimpleWebSocketListener {
             if (currentInput != null && currentInput.startsWith("@")) {
                 int agentNameIdx = currentInput.indexOf(" ");
                 if (agentNameIdx > 0) {
-                    agentName = currentInput.substring(1, agentNameIdx);
-
-                    if (engine.getAgentManager().hasAgent(agentName)) {
+                    String explicitAgent = currentInput.substring(1, agentNameIdx);
+                    if (engine.getAgentManager().hasAgent(explicitAgent)) {
+                        agentName = explicitAgent;
                         currentInput = currentInput.substring(agentNameIdx + 1);
                     }
                 }
+            }
+
+            // 输入开头的有效 @子代理 优先；否则使用选择器传入的有效子代理；都没有时使用主 Agent。
+            if (agentName == null && Assert.isNotEmpty(selectedAgent)
+                    && engine.getAgentManager().hasAgent(selectedAgent)) {
+                agentName = selectedAgent;
             }
 
 

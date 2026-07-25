@@ -413,6 +413,7 @@ function loadCommands() {
         try {
             commandList = resp.data || [];
             commandsLoaded = true;
+            if (typeof renderAgentUI === 'function') renderAgentUI();
         } catch (e) {}
     });
 }
@@ -446,7 +447,11 @@ function closeAllToolbarPanels() {
     // 循环任务面板
     $('#chatLoopPanel, #welcomeLoopPanel').hide();
     // 模型下拉
-    $('#chatModelDropdown, #welcomeModelDropdown').removeClass('show');
+    $('#chatModelSelector, #welcomeModelSelector').removeClass('open');
+    // 子代理下拉
+    $('#chatAgentSelector, #welcomeAgentSelector').removeClass('open');
+    // 更多菜单
+    $('#chatMoreMenu, #welcomeMoreMenu').removeClass('open');
 }
 window.closeAllToolbarPanels = closeAllToolbarPanels;
 
@@ -653,7 +658,7 @@ function handleInputForCommands(e) {
     }
 }
 
-// History button handler (toolbar)
+// History button handler (toolbar / more menu)
 $('#chatHistoryBtn').on('click', function(e) {
     e.stopPropagation();
     if ($chatHistoryPanel.hasClass('show')) {
@@ -680,23 +685,17 @@ function triggerCmdComplete(inputEl, completeEl, prefix) {
     inputEl.focus();
     showCmdComplete(inputEl, completeEl, prefix);
 }
-$('#welcomeCmdBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '/');
+$('#welcomeCmdBtn, #chatCmdBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '/');
 });
-$('#chatCmdBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '/');
+$('#welcomeAgentBtn, #chatAgentBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '@');
 });
-$('#welcomeAgentBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '@');
-});
-$('#chatAgentBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '@');
-});
-$('#welcomeSkillBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '$');
-});
-$('#chatSkillBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '$');
+$('#welcomeSkillBtn, #chatSkillBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '$');
 });
 
 $(welcomeInput).on('input', handleInputForCommands);
@@ -776,7 +775,7 @@ $chatCmdComplete.on('click', function(e) {
 // Hide on outside click
 $(document).on('click', function(e) {
     var $target = $(e.target);
-    if (!$target.closest('.cmd-complete').length && !$target.closest('.history-panel').length && !$target.closest('textarea').length && !$target.closest('#welcomeCmdBtn').length && !$target.closest('#welcomeAgentBtn').length && !$target.closest('#chatCmdBtn').length && !$target.closest('#chatAgentBtn').length && !$target.closest('#welcomeSkillBtn').length && !$target.closest('#chatSkillBtn').length && !$target.closest('#chatHistoryBtn').length) {
+    if (!$target.closest('.cmd-complete, .history-panel, textarea, .more-menu, .more-menu-btn').length) {
         hideCmdComplete();
         hideHistoryPanel();
     }
@@ -1035,7 +1034,8 @@ function getCurrentModelMeta() {
 
     function parseModelItem(raw) {
     return {
-        name: raw.name || raw.model,
+        name: raw.name,
+        model: raw.model,
         desc: raw.description,
         contextLength: raw.contextLength || 0,
         standard: raw.standard || '',
@@ -1355,3 +1355,81 @@ function initModelSearch(dropdownId) {
 
         // Initial load (no specific session, get default selected)
 loadModels(null);
+
+/* ===== Agent Selector ===== */
+var sessionAgentMap = {}; // { sessionId: selectedAgentName }, 空值表示 main
+
+function getSelectedAgent() {
+    var sid = getSessionKey();
+    if (sessionAgentMap[sid] !== undefined) return sessionAgentMap[sid] || '';
+    return sessionAgentMap['_default'] || '';
+}
+window.getSelectedAgent = getSelectedAgent;
+
+function renderAgentUI() {
+    var selected = getSelectedAgent();
+    var label = selected || 'main';
+    $('#chatAgentName, #welcomeAgentName').text(label);
+    $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? ('子代理: ' + selected) : '使用主代理 main');
+    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">使用主代理</span></button>';
+    for (var i = 0; i < commandList.length; i++) {
+        var item = commandList[i];
+        if (item.type !== 'subagent') continue;
+        html += '<button type="button" class="agent-dropdown-item' + (item.name === selected ? ' active' : '') + '" data-agent="' + escapeHtml(item.name) + '"><span class="agent-item-name">' + escapeHtml(item.name) + '</span><span class="agent-item-desc">' + escapeHtml(item.description || '') + '</span></button>';
+    }
+    $('#chatAgentDropdown, #welcomeAgentDropdown').html(html);
+}
+
+function selectAgent(agentName) {
+    sessionAgentMap[getSessionKey()] = agentName || '';
+    renderAgentUI();
+}
+
+function initAgentSelector(selectorId, currentId, dropdownId) {
+    var $selector = $('#' + selectorId);
+    var $current = $('#' + currentId);
+    var $dropdown = $('#' + dropdownId);
+    $current.on('click', function(e) {
+        e.stopPropagation();
+        var opening = !$selector.hasClass('open');
+        closeAllToolbarPanels();
+        $selector.toggleClass('open', opening);
+        $current.attr('aria-expanded', opening ? 'true' : 'false');
+    });
+    $dropdown.on('click', '.agent-dropdown-item', function(e) {
+        e.stopPropagation();
+        selectAgent($(this).attr('data-agent') || '');
+        $selector.removeClass('open');
+        $current.attr('aria-expanded', 'false');
+    });
+}
+initAgentSelector('chatAgentSelector', 'chatAgentCurrent', 'chatAgentDropdown');
+initAgentSelector('welcomeAgentSelector', 'welcomeAgentCurrent', 'welcomeAgentDropdown');
+
+/* ===== More Menu ===== */
+function initMoreMenu(menuId, buttonId) {
+    var $menu = $('#' + menuId);
+    var $button = $('#' + buttonId);
+    $button.on('click', function(e) {
+        e.stopPropagation();
+        var opening = !$menu.hasClass('open');
+        closeAllToolbarPanels();
+        $menu.toggleClass('open', opening);
+        $button.attr('aria-expanded', opening ? 'true' : 'false');
+    });
+    $menu.find('.more-menu-dropdown').on('click', 'button', function() {
+        $menu.removeClass('open');
+        $button.attr('aria-expanded', 'false');
+    });
+}
+initMoreMenu('chatMoreMenu', 'chatMoreBtn');
+initMoreMenu('welcomeMoreMenu', 'welcomeMoreBtn');
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape') closeAllToolbarPanels();
+});
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('.agent-selector, .more-menu').length) {
+        $('#chatAgentSelector, #welcomeAgentSelector, #chatMoreMenu, #welcomeMoreMenu').removeClass('open');
+        $('#chatAgentCurrent, #welcomeAgentCurrent, #chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
+    }
+});
