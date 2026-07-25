@@ -660,7 +660,7 @@ body {
 .more-menu-btn:hover, .more-menu.open .more-menu-btn { color: var(--text-primary); background: var(--bg-hover); }
 .more-menu-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .agent-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 480px; max-width: 90vw; display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
-.more-menu-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 240px; max-width: min(320px, 90vw); display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
+.more-menu-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 300px; max-width: 90vw; display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
 .agent-selector.open .agent-dropdown, .more-menu.open .more-menu-dropdown { display: flex; flex-direction: column; }
 .agent-dropdown-item, .more-menu-dropdown button { width: 100%; border: 0; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; font: inherit; font-size: 13px; padding: 10px 14px; display: flex; align-items: center; gap: 9px; }
 .agent-dropdown-item { flex-direction: column; align-items: flex-start; gap: 2px; }
