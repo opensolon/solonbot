@@ -1303,12 +1303,10 @@ function selectReasoning(effort) {
 
     $current.on('click', function(e) {
         e.stopPropagation();
-        // Close all other selectors
-        $('.model-selector.open').each(function() {
-            if (this.id !== selectorId) $(this).removeClass('open');
-        });
-        $selector.toggleClass('open');
-        if ($selector.hasClass('open')) {
+        var opening = !$selector.hasClass('open');
+        closeAllToolbarPanels();
+        $selector.toggleClass('open', opening);
+        if (opening) {
             requestAnimationFrame(function() {
                 var activeItem = $dropdown.find('.model-dropdown-items .model-dropdown-item.active').get(0);
                 if (activeItem) {
