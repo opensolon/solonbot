@@ -510,7 +510,7 @@
 .agent-status-badge.invalid { background: rgba(239,68,68,0.1); color: #ef4444; }
 .agents-prompt-editor { min-height: 0; resize: vertical; font-family: inherit !important; font-size: 13px !important; line-height: 1.6; }
 .agent-tools-trigger { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-box); color: var(--text-primary); cursor: pointer; text-align: left; transition: border-radius 0.15s, border-color 0.15s; }
-.agent-tools-trigger:hover:not(:disabled) { border-color: var(--accent); }
+.agent-tools-trigger:hover:not(:disabled):not(.is-open) { border-color: var(--accent); }
 .agent-tools-trigger:disabled { cursor: default; opacity: 0.75; }
 .agent-tools-trigger svg { transition: transform 0.2s; flex-shrink: 0; }
 .agent-tools-trigger.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
