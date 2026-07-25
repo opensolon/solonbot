@@ -1,3 +1,7 @@
+### v2026.7.26
+
+* 添加 soloncode  `/goal` 命令作为 `/loop goal` 的简化模式
+
 ### v2026.7.25
 
 * 调整 soloncode web 输入面板布局，突出子代理的权限
