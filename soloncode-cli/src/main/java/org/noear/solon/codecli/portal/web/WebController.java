@@ -429,6 +429,19 @@ public class WebController {
             
         data.put("selected", selected);
         data.put("reasoningEffort", reasoningEffort == null ? "" : reasoningEffort);
+
+        // 读取该会话已选中的子代理
+        String selectedAgent = "";
+        if (Assert.isNotEmpty(sessionId)) {
+            try {
+                AgentSession session = engine.getSession(sessionId);
+                String agentVal = session.getContext().getAs(HarnessEngine.CTX_AGENT_SELECTED);
+                selectedAgent = (agentVal != null) ? agentVal : "";
+            } catch (Exception ignored) {
+                // 会话不存在或已过期
+            }
+        }
+        data.put("selectedAgent", selectedAgent);
         
         return Result.succeed(data);
     }
@@ -460,6 +473,24 @@ public class WebController {
         
         session.updateSnapshot();
         
+        return Result.succeed();
+    }
+
+    /**
+     * 切换指定会话的子代理选择器状态。
+     * <p>将选择写入会话上下文并更新快照，后续请求将使用新配置。</p>
+     *
+     * @param sessionId 会话 ID
+     * @param agentName 目标子代理名称（空值或无效值表示使用主 Agent）
+     * @return 操作结果
+     */
+    @Post
+    @Mapping("/web/chat/agents/select")
+    public Result agents_select(@Param("sessionId") String sessionId,
+                                @Param(value = "agentName", required = false) String agentName) throws Exception {
+        AgentSession session = engine.getSession(sessionId);
+        session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED, agentName != null ? agentName : "");
+        session.updateSnapshot();
         return Result.succeed();
     }
 

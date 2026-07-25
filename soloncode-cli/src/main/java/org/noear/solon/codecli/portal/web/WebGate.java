@@ -303,6 +303,9 @@ public class WebGate extends SimpleWebSocketListener {
             if (Assert.isNotEmpty(selectedModel)) {
                 session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, selectedModel);
             }
+            // 写入会话级子代理选择（与模型一样的持久化逻辑）
+            session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED,
+                selectedAgent != null ? selectedAgent : "");
             boolean effortProvided = reasoningEffort != null;
             ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
 

@@ -1065,6 +1065,14 @@ function getCurrentModelMeta() {
                 sessionReasoningMap['_default'] = effort;
             }
 
+            // 加载子代理选择状态（与模型相同的会话绑定机制）
+            var selectedAgent = data.selectedAgent || '';
+            if (sessionId) {
+                sessionAgentMap[sessionId] = selectedAgent;
+            } else {
+                sessionAgentMap['_default'] = selectedAgent;
+            }
+
             // Only parse list once (it's the same for all sessions)
             if (!modelsLoaded) {
                 modelList = [];
@@ -1076,6 +1084,7 @@ function getCurrentModelMeta() {
             }
 
             renderModelUI();
+            renderAgentUI();
             if (callback) callback();
         } catch (e) {
             console.error('Failed to parse models:', e);
@@ -1088,23 +1097,32 @@ function getCurrentModelMeta() {
     loadModels(activeSessionId || null, callback);
             }
 
-        // Refresh model UI for a specific session using local cache (no network request)
+        // Refresh model & agent UI for a specific session using local cache (no network request)
             function refreshSessionModel(sessionId) {
     if (!sessionId) return;
-    // If we haven't seen this session's model yet, fetch it from backend
-    if (!sessionModelMap[sessionId]) {
+    // model 用 falsy 判断（默认模型始终非空）；agent 用 !== undefined 判断（空串表示 main，是有效缓存值）
+    var modelCached = !!sessionModelMap[sessionId];
+    var agentCached = sessionAgentMap[sessionId] !== undefined;
+    if (!modelCached || !agentCached) {
         var url = '/web/chat/models?sessionId=' + encodeURIComponent(sessionId);
         $.get(url, function(resp) {
             try {
                 var data = resp.data || {};
-                sessionModelMap[sessionId] = data.selected || '';
-                sessionReasoningMap[sessionId] = data.reasoningEffort || '';
+                if (!modelCached) {
+                    sessionModelMap[sessionId] = data.selected || '';
+                    sessionReasoningMap[sessionId] = data.reasoningEffort || '';
+                }
+                if (!agentCached) {
+                    sessionAgentMap[sessionId] = data.selectedAgent || '';
+                }
                 renderModelUI();
+                renderAgentUI();
             } catch (e) {}
         });
     } else {
         // Already cached — just re-render UI
         renderModelUI();
+        renderAgentUI();
     }
                 }
 
@@ -1228,6 +1246,12 @@ function postModelSelect(payload) {
         console.error('Failed to select model options on server:', err);
     });
     }
+
+function postAgentSelect(payload) {
+    return $.post('/web/chat/agents/select', payload).fail(function(err) {
+        console.error('Failed to select agent on server:', err);
+    });
+}
 
         function selectModel(modelName) {
     var sid = getSessionKey();
@@ -1381,8 +1405,11 @@ function renderAgentUI() {
 }
 
 function selectAgent(agentName) {
-    sessionAgentMap[getSessionKey()] = agentName || '';
+    var sid = getSessionKey();
+    sessionAgentMap[sid] = agentName || '';
     renderAgentUI();
+    // 选择时调后端记住（与模型选择器保持一致）
+    postAgentSelect({ sessionId: sid, agentName: agentName || '' });
 }
 
 function initAgentSelector(selectorId, currentId, dropdownId) {
