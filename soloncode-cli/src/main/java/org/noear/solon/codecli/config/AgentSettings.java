@@ -2,7 +2,9 @@ package org.noear.solon.codecli.config;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.noear.solon.Solon;
 import org.noear.solon.codecli.config.entity.*;
+import org.noear.solon.core.Props;
 import org.noear.solon.core.util.Assert;
 import org.noear.snack4.Feature;
 import org.noear.snack4.ONode;
@@ -58,108 +60,12 @@ public class AgentSettings implements Serializable {
      * <p>如果 settings 有数据，以 settings 为准同步到 props；
      * 如果 settings 为空，则从 props 补充到 settings。</p>
      */
-    public void mergeFrom(AgentProperties props) {
-        if (general.getSessionWindowSize() == null) {
-            general.setSessionWindowSize(props.getSessionWindowSize());
-        }
-
-        if (general.getSummaryWindowSize() == null) {
-            general.setSummaryWindowSize(props.getSummaryWindowSize());
-        }
-
-        if (general.getSummaryWindowToken() == null) {
-            general.setSummaryWindowToken(props.getSummaryWindowToken());
-        }
-
-        if (general.getSandboxMode() == null) {
-            general.setSandboxMode(props.isSandboxMode());
-        }
-
-        if (general.getSandboxAllowUserHome() == null) {
-            general.setSandboxAllowUserHome(props.isSandboxAllowUserHome());
-        }
-
-        if (general.getSandboxSystemRestrict() == null) {
-            general.setSandboxSystemRestrict(props.isSandboxSystemRestrict());
-        }
-
-        if (general.getApiRetries() == null) {
-            general.setApiRetries(props.getApiRetries());
-        }
-
-        if (general.getMcpRetries() == null) {
-            general.setMcpRetries(props.getMcpRetries());
-        }
-
-        if (general.getModelRetries() == null) {
-            general.setModelRetries(props.getModelRetries());
-        }
-
-        if (general.getBashAsyncEnabled() == null) {
-            general.setBashAsyncEnabled(props.isBashAsyncEnabled());
-        }
-
-        if (general.getMemoryEnabled() == null) {
-            general.setMemoryEnabled(props.isMemoryEnabled());
-        }
-
-        if (general.getMemoryIsolation() == null) {
-            general.setMemoryIsolation(props.isMemoryIsolation());
-        }
-
-        if (general.getMcpEnabled() == null) {
-            general.setMcpEnabled(props.isMcpEnabled());
-        }
-
-        if (general.getOpenApiEnabled() == null) {
-            general.setOpenApiEnabled(props.isOpenApiEnabled());
-        }
-
-        if (general.getLspEnabled() == null) {
-            general.setLspEnabled(props.isLspEnabled());
-        }
-
-        if(general.getUserAgent() == null){
-            general.setUserAgent(props.getUserAgent());
-        }
-
-        if(general.getMaxTurns() == null) {
-            general.setMaxTurns(props.getMaxTurns());
-
-            if (general.getMaxTurns() == null) {
-                general.setMaxTurns(20);
-            }
-        }
-
-        if(general.getAutoRethink() == null){
-            general.setAutoRethink(props.isAutoRethink());
-        }
-
-        if(general.getHitlEnabled() == null){
-            general.setHitlEnabled(props.isHitlEnabled());
-        }
-
-        if(general.getSubagentEnabled() == null){
-            general.setSubagentEnabled(props.isSubagentEnabled());
-        }
-
-        if(general.getCliPrintSimplified() == null){
-            general.setCliPrintSimplified(props.isCliPrintSimplified());
-        }
-
-        if(general.getGoalsEnabled() == null){
-            general.setGoalsEnabled(props.isGoalsEnabled());
-        }
-
-        if(general.getCliThinkPrinted() == null){
-            general.setCliThinkPrinted(props.isThinkPrinted());
-        }
-
+    public void mergeFrom() {
         //-----------------------------------------------------
+        Props cfg = Solon.cfg();
 
         // loop: 从 app.yml 的 soloncode.loop.* 回填（仅当 settings.json 未配置时）
         try {
-            org.noear.solon.core.Props cfg = org.noear.solon.Solon.cfg();
             if (loop.getBudgetWarningPercent() == null)
                 loop.setBudgetWarningPercent(cfg.getInt("soloncode.loop.budgetWarningPercent", 70));
             if (loop.getBudgetCriticalPercent() == null)
@@ -182,7 +88,6 @@ public class AgentSettings implements Serializable {
 
         // logging: 从 app.yml 的 solon.logging.appender.file.* 回填默认值
         try {
-            org.noear.solon.core.Props cfg = org.noear.solon.Solon.cfg();
             if (general.getLogLevel() == null) {
                 general.setLogLevel(cfg.get("solon.logging.appender.file.level", "INFO"));
             }
@@ -198,51 +103,16 @@ public class AgentSettings implements Serializable {
 
         //-----------------------------------------------------
 
-        if(permission.getTools().size() == 0) {
-            permission.getTools().addAll(props.getTools());
-
-            if (permission.getTools().size() == 0) {
-                permission.getTools().add("**");
-            }
-        }
-
-        if(permission.getDisallowedTools().size() == 0){
-            permission.getDisallowedTools().addAll(props.getDisallowedTools());
+        if (permission.getTools().size() == 0) {
+            permission.getTools().add("**");
         }
 
         //-----------------------------------------------------
 
-        if (Assert.isEmpty(this.defaultModel)) {
-            this.defaultModel = props.getDefaultModel();
-        }
-
-        if (this.models.size() == 0) {
-            for (ModelDo modelDo : props.getModels()) {
-                this.models.put(modelDo.getNameOrModel(), modelDo);
-            }
-        }
 
         // 合并完成后统一兜底：如果 defaultModel 未指定，取第一个模型
         if (Assert.isEmpty(this.defaultModel) && this.models.size() > 0) {
             this.defaultModel = this.models.values().iterator().next().getNameOrModel();
-        }
-
-        if (this.mcpServers.size() == 0) {
-            this.mcpServers.putAll(props.getMcpServers());
-        }
-
-        if (this.apiServers.size() == 0) {
-            this.apiServers.putAll(props.getApiServers());
-        }
-
-        if (this.mountPools.size() == 0) {
-            for (Map.Entry<String, String> entry : props.getSkillPools().entrySet()) {
-                this.mountPools.put(entry.getKey(), new MountDo(AgentFlags.SCOPE_USER, "", MountType.SKILLS, entry.getValue(), false, true, false));
-            }
-        }
-
-        if (this.lspServers.size() == 0) {
-            this.lspServers.putAll(props.getLspServers());
         }
     }
 
@@ -322,11 +192,11 @@ public class AgentSettings implements Serializable {
     
     /**
      * 将 general/loop 中仍为 null 的字段回落到运行时默认值（不覆盖已有非 null）。
-     * <p>优先走 {@link #mergeFrom(AgentProperties)}，与启动时 Configurator 行为一致；
+     * <p>优先走 {@link #mergeFrom()}，与启动时 Configurator 行为一致；
      * 非 Solon 环境（如单测）时再补一层硬编码默认，避免 loop/log 永久为 null。</p>
      */
     public synchronized void fillRuntimeDefaults() {
-        mergeFrom(new AgentProperties());
+        mergeFrom();
         // mergeFrom 内 loop/log 依赖 Solon.cfg()；非 Solon 环境时补硬编码默认
         if (loop.getBudgetWarningPercent() == null) {
             loop.setBudgetWarningPercent(70);
@@ -373,7 +243,7 @@ public class AgentSettings implements Serializable {
         copyGeneral(this.general, other.general);
         copyPermission(this.permission, other.permission);
         copyLoop(this.loop, other.loop);
-        
+
         this.defaultModel = other.defaultModel;
         
         replaceMap(this.models, other.models);
@@ -390,27 +260,27 @@ public class AgentSettings implements Serializable {
         }
         target.setSessionWindowSize(source.getSessionWindowSize());
         target.setSummaryWindowSize(source.getSummaryWindowSize());
-        target.setSummaryWindowToken(source.getSummaryWindowToken());
-        target.setSandboxMode(source.getSandboxMode());
-        target.setSandboxAllowUserHome(source.getSandboxAllowUserHome());
-        target.setSandboxSystemRestrict(source.getSandboxSystemRestrict());
+        target.setSummaryWindowRatio(source.getSummaryWindowRatio());
+        target.setSandboxMode(source.isSandboxMode());
+        target.setSandboxAllowUserHome(source.isSandboxAllowUserHome());
+        target.setSandboxSystemRestrict(source.isSandboxSystemRestrict());
         target.setApiRetries(source.getApiRetries());
         target.setMcpRetries(source.getMcpRetries());
         target.setModelRetries(source.getModelRetries());
-        target.setBashAsyncEnabled(source.getBashAsyncEnabled());
-        target.setMemoryEnabled(source.getMemoryEnabled());
-        target.setMemoryIsolation(source.getMemoryIsolation());
-        target.setMcpEnabled(source.getMcpEnabled());
-        target.setOpenApiEnabled(source.getOpenApiEnabled());
-        target.setLspEnabled(source.getLspEnabled());
+        target.setBashAsyncEnabled(source.isBashAsyncEnabled());
+        target.setMemoryEnabled(source.isMemoryEnabled());
+        target.setMemoryIsolation(source.isMemoryIsolation());
+        target.setMcpEnabled(source.isMcpEnabled());
+        target.setOpenApiEnabled(source.isOpenApiEnabled());
+        target.setLspEnabled(source.isLspEnabled());
         target.setUserAgent(source.getUserAgent());
         target.setMaxTurns(source.getMaxTurns());
-        target.setAutoRethink(source.getAutoRethink());
-        target.setHitlEnabled(source.getHitlEnabled());
-        target.setSubagentEnabled(source.getSubagentEnabled());
-        target.setCliThinkPrinted(source.getCliThinkPrinted());
-        target.setCliPrintSimplified(source.getCliPrintSimplified());
-        target.setGoalsEnabled(source.getGoalsEnabled());
+        target.setAutoRethink(source.isAutoRethink());
+        target.setHitlEnabled(source.isHitlEnabled());
+        target.setSubagentEnabled(source.isSubagentEnabled());
+        target.setCliThinkPrinted(source.isCliThinkPrinted());
+        target.setCliPrintSimplified(source.isCliPrintSimplified());
+        target.setGoalsEnabled(source.isGoalsEnabled());
         target.setActiveSkin(source.getActiveSkin());
         target.setWebAuthUser(source.getWebAuthUser());
         target.setWebAuthPass(source.getWebAuthPass());

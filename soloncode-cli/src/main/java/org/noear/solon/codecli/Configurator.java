@@ -94,18 +94,18 @@ public class Configurator {
                 .userAgent(settings.getGeneral().getUserAgent())
                 .systemPrompt(stealthIdentity + AgentFlags.getAgentsMd())
                 .maxTurns(settings.getGeneral().getMaxTurns())
-                .autoRethink(settings.getGeneral().getAutoRethink())
+                .autoRethink(settings.getGeneral().isAutoRethink())
                 .sessionWindowSize(settings.getGeneral().getSessionWindowSize())
                 .sessionProvider(sessionManager)
-                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowToken())
-                .memoryEnabled(settings.getGeneral().getMemoryEnabled())
+                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowRatio())
+                .memoryEnabled(settings.getGeneral().isMemoryEnabled())
                 .memoryProvider(new MemoryProvider(agentSettings))
-                .sandboxEnabled(settings.getGeneral().getSandboxMode())
-                .sandboxAllowUserHome(settings.getGeneral().getSandboxAllowUserHome())
-                .sandboxSystemRestrict(settings.getGeneral().getSandboxSystemRestrict())
-                .bashAsyncEnabled(settings.getGeneral().getBashAsyncEnabled())
-                .subagentEnabled(settings.getGeneral().getSubagentEnabled())
-                .hitlEnabled(settings.getGeneral().getHitlEnabled())
+                .sandboxEnabled(settings.getGeneral().isSandboxMode())
+                .sandboxAllowUserHome(settings.getGeneral().isSandboxAllowUserHome())
+                .sandboxSystemRestrict(settings.getGeneral().isSandboxSystemRestrict())
+                .bashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled())
+                .subagentEnabled(settings.getGeneral().isSubagentEnabled())
+                .hitlEnabled(settings.getGeneral().isHitlEnabled())
                 .apiRetries(settings.getGeneral().getApiRetries())
                 .modelRetries(settings.getGeneral().getModelRetries())
                 .mcpRetries(settings.getGeneral().getModelRetries())
@@ -151,7 +151,7 @@ public class Configurator {
         engine.getCommandRegistry().register(new RewindCommand());
         engine.getCommandRegistry().register(new ModelCommand());
 
-        engine.getLspTalent().setEnabled(settings.getGeneral().getLspEnabled());
+        engine.getLspTalent().setEnabled(settings.getGeneral().isLspEnabled());
 
         RunUtil.async(() -> addServers(engine));
 
@@ -162,8 +162,7 @@ public class Configurator {
         ValidatorFactory.initDefaults(workspace);
 
         // ★ Goal 模式（受 feature flag 控制）
-        boolean goalsEnabled = settings.getGeneral().getGoalsEnabled() != null
-                ? settings.getGeneral().getGoalsEnabled() : true;
+        boolean goalsEnabled = settings.getGeneral().isGoalsEnabled();
         GoalExtension goalExtension = new GoalExtension(loopScheduler);
         goalExtension.getGoalTalent().setEnabled(goalsEnabled);
         engine.addExtension(goalExtension);

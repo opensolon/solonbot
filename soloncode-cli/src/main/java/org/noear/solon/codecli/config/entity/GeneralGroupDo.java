@@ -14,61 +14,62 @@ import java.io.Serializable;
 @Setter
 public class GeneralGroupDo implements Serializable {
     //会话历史窗口大小（即，新指令时使用几条历史消息）
-    private Integer sessionWindowSize;
+    private int sessionWindowSize = 8;
     //上下文压缩触发消息数（达到这个数，就开始触发）
-    private Integer summaryWindowSize;
+    private int summaryWindowSize = 100;
     //上下文压缩触发词元数（达到这个数，就开始触发）
-    private Integer summaryWindowToken;
+    private double summaryWindowRatio = 0.75D;
 
     //启用沙盒模式
-    private Boolean sandboxMode;
+    private boolean sandboxMode = true;
     //沙盒允许访问用户主目录
-    private Boolean sandboxAllowUserHome;
+    private boolean sandboxAllowUserHome = true;
     //沙盒使用系统接口限制
-    private Boolean sandboxSystemRestrict;
+    private boolean sandboxSystemRestrict = false;
 
     //api 重试次数
-    private Integer apiRetries;
+    private int apiRetries = 3;
     //Mcp 重试次数
-    private Integer mcpRetries;
+    private int mcpRetries = 3;
     //模型重试次数
-    private Integer modelRetries;
+    private int modelRetries = 3;
+
     //启用异步终端（增加上下文消耗，非编码用户建议关闭）
-    private Boolean bashAsyncEnabled;
+    private boolean bashAsyncEnabled = false;
     //启用心智记忆（跨会话长期记忆）
-    private Boolean memoryEnabled;
+    private boolean memoryEnabled = true;
     //启用心智记忆隔离（按工作区隔离长期记忆）
-    private Boolean memoryIsolation;
+    private boolean memoryIsolation = true;
 
     //是否接入 MCP 服务
-    private Boolean mcpEnabled;
+    private boolean mcpEnabled = true;
     //是否接入 OpenAPI 服务
-    private Boolean openApiEnabled;
+    private boolean openApiEnabled = true;
     //启用LSP代码智能（增加上下文消耗，非编码用户建议关闭）
-    private Boolean lspEnabled;
+    private boolean lspEnabled = true;
 
     //------------
 
     //http 用户代理
-    private String userAgent; // "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; SolonCode/1.0 like claude-code; +https://solon.noear.org/)";
+    private String userAgent = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; SolonCode/1.0 like claude-code; +https://solon.noear.org/)";
 
     //最大回合
-    private Integer maxTurns; // 20
+    private int maxTurns = 20; // 20
     //自我反思
-    private Boolean autoRethink; //true
+    private boolean autoRethink = true; //true
 
     //是否启用人工审核危险操作
-    private Boolean hitlEnabled; //false
+    private boolean hitlEnabled = false; //false
     //是否启用子代理模式
-    private Boolean subagentEnabled; // true
+    private boolean subagentEnabled = true; // true
 
     //内心思考，是否打印
-    private Boolean cliThinkPrinted; //true
+    private boolean cliThinkPrinted = false; //true
     //控制台打印是否简化
-    private Boolean cliPrintSimplified; //true
+    private boolean cliPrintSimplified = true; //true
 
     //是否启用 Goal 模式（Codex CLI 对齐的长任务目标模式）
-    private Boolean goalsEnabled; // true
+    private boolean goalsEnabled = true; // true
 
     //当前激活的皮肤（default / 预置名 / 本地安装名；空或 default 表示默认）
     private String activeSkin;

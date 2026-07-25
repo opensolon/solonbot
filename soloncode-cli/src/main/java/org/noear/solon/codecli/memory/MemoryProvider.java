@@ -20,7 +20,7 @@ public class MemoryProvider implements MemorySolutionProvider {
 
     @Override
     public MemorySolution get(String __cwd) {
-        if (agentSettings.getGeneral().getMemoryIsolation() == false) { //
+        if (agentSettings.getGeneral().isMemoryIsolation() == false) { //
             __cwd = AgentFlags.getUserHome();
         }
 

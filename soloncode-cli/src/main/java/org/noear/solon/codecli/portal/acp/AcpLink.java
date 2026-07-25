@@ -121,7 +121,7 @@ public class AcpLink implements Runnable {
                                 else if (chunk instanceof ReasonChunk) {
                                     ReasonChunk reasonChunk = (ReasonChunk) chunk;
                                     if (chunk.hasContent() && !reasonChunk.isToolCalls()) {
-                                        if (agentSettings.getGeneral().getCliThinkPrinted()) {
+                                        if (agentSettings.getGeneral().isCliThinkPrinted()) {
                                             return acpContext.sendThought(chunk.getContent())
                                                     .thenReturn(chunk);
                                         }
@@ -202,7 +202,7 @@ public class AcpLink implements Runnable {
 
         String argsStr = buildArgsStr(args);
 
-        if (agentSettings.getGeneral().getCliPrintSimplified()) {
+        if (agentSettings.getGeneral().isCliPrintSimplified()) {
             // 简化模式：只显示工具名 + 结果摘要
             String summary;
             if (Assert.isEmpty(content)) {

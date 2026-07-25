@@ -16,6 +16,8 @@
 package org.noear.solon.codecli.portal.web;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.ai.harness.HarnessExtension;
+import org.noear.solon.codecli.command.builtin.GoalExtension;
 import org.noear.solon.codecli.portal.web.settings.BaseSettingsController;
 import org.noear.solon.core.handle.UploadedFile;
 
@@ -278,37 +280,36 @@ public class WebSettingsController extends BaseSettingsController {
      */
     private void applyGeneralToEngine(GeneralGroupDo g, List<String> applied, List<String> warnings) {
         try {
-            engine.setCompressionThreshold(g.getSummaryWindowSize(), g.getSummaryWindowToken());
+            engine.setCompressionThreshold(g.getSummaryWindowSize(), g.getSummaryWindowRatio());
             engine.setSessionWindowSize(g.getSessionWindowSize());
             engine.setModelRetries(g.getModelRetries());
             engine.setMcpRetries(g.getMcpRetries());
             engine.setApiRetries(g.getApiRetries());
-            engine.setSandboxEnabled(g.getSandboxMode());
-            engine.setSandboxAllowUserHome(g.getSandboxAllowUserHome());
-            engine.setSandboxSystemRestrict(g.getSandboxSystemRestrict());
-            engine.setBashAsyncEnabled(g.getBashAsyncEnabled());
-            engine.setMemoryEnabled(g.getMemoryEnabled());
-            engine.setSubagentEnabled(g.getSubagentEnabled());
+            engine.setSandboxEnabled(g.isSandboxMode());
+            engine.setSandboxAllowUserHome(g.isSandboxAllowUserHome());
+            engine.setSandboxSystemRestrict(g.isSandboxSystemRestrict());
+            engine.setBashAsyncEnabled(g.isBashAsyncEnabled());
+            engine.setMemoryEnabled(g.isMemoryEnabled());
+            engine.setSubagentEnabled(g.isSubagentEnabled());
             engine.setMaxTurns(g.getMaxTurns());
-            engine.setHitlEnabled(g.getHitlEnabled());
+            engine.setHitlEnabled(g.isHitlEnabled());
 
             if (engine.getMcpGatewayTalent() != null) {
-                engine.getMcpGatewayTalent().setEnabled(g.getMcpEnabled());
+                engine.getMcpGatewayTalent().setEnabled(g.isMcpEnabled());
             }
             if (engine.getOpenApiGatewayTalent() != null) {
-                engine.getOpenApiGatewayTalent().setEnabled(g.getOpenApiEnabled());
+                engine.getOpenApiGatewayTalent().setEnabled(g.isOpenApiEnabled());
             }
             if (engine.getLspTalent() != null) {
-                engine.getLspTalent().setEnabled(g.getLspEnabled());
+                engine.getLspTalent().setEnabled(g.isLspEnabled());
             }
 
             // goalsEnabled：热更新 GoalTalent
             try {
-                boolean goalsEnabled = g.getGoalsEnabled() != null ? g.getGoalsEnabled() : true;
-                for (org.noear.solon.ai.harness.HarnessExtension ext : engine.getExtensions()) {
-                    if (ext instanceof org.noear.solon.codecli.command.builtin.GoalExtension) {
-                        ((org.noear.solon.codecli.command.builtin.GoalExtension) ext)
-                                .getGoalTalent().setEnabled(goalsEnabled);
+                boolean goalsEnabled = g.isGoalsEnabled();
+                for (HarnessExtension ext : engine.getExtensions()) {
+                    if (ext instanceof GoalExtension) {
+                        ((GoalExtension) ext).getGoalTalent().setEnabled(goalsEnabled);
                         break;
                     }
                 }
@@ -328,9 +329,8 @@ public class WebSettingsController extends BaseSettingsController {
             applied.add("general");
 
             // 无公开热更新 API 的字段：仅提示一次
-            if (g.getAutoRethink() != null || g.getMemoryIsolation() != null
-                    || g.getLogFileMaxSize() != null || g.getLogMaxHistory() != null) {
-                warnings.add("autoRethink / memoryIsolation / log rotation: memory updated; restart recommended for full runtime effect");
+            if (g.getLogFileMaxSize() != null || g.getLogMaxHistory() != null) {
+                warnings.add("log rotation: memory updated; restart recommended for full runtime effect");
             }
         } catch (Exception e) {
             warnings.add("general apply failed: " + e.getMessage());
@@ -544,25 +544,25 @@ public class WebSettingsController extends BaseSettingsController {
                 settings.getGeneral().setWebAuthPass(null);
             }
 
-            engine.setCompressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowToken());
+            engine.setCompressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowRatio());
             engine.setSessionWindowSize(settings.getGeneral().getSessionWindowSize());
 
             engine.setModelRetries(settings.getGeneral().getModelRetries());
             engine.setMcpRetries(settings.getGeneral().getMcpRetries());
             engine.setApiRetries(settings.getGeneral().getApiRetries());
 
-            engine.setSandboxEnabled(settings.getGeneral().getSandboxMode());
-            engine.setSandboxAllowUserHome(settings.getGeneral().getSandboxAllowUserHome());
-            engine.setSandboxSystemRestrict(settings.getGeneral().getSandboxSystemRestrict());
+            engine.setSandboxEnabled(settings.getGeneral().isSandboxMode());
+            engine.setSandboxAllowUserHome(settings.getGeneral().isSandboxAllowUserHome());
+            engine.setSandboxSystemRestrict(settings.getGeneral().isSandboxSystemRestrict());
 
-            engine.setBashAsyncEnabled(settings.getGeneral().getBashAsyncEnabled());
-            engine.setMemoryEnabled(settings.getGeneral().getMemoryEnabled());
-            engine.setSubagentEnabled(settings.getGeneral().getSubagentEnabled());
+            engine.setBashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled());
+            engine.setMemoryEnabled(settings.getGeneral().isMemoryEnabled());
+            engine.setSubagentEnabled(settings.getGeneral().isSubagentEnabled());
 
 
-            engine.getMcpGatewayTalent().setEnabled(settings.getGeneral().getMcpEnabled());
-            engine.getOpenApiGatewayTalent().setEnabled(settings.getGeneral().getOpenApiEnabled());
-            engine.getLspTalent().setEnabled(settings.getGeneral().getLspEnabled());
+            engine.getMcpGatewayTalent().setEnabled(settings.getGeneral().isMcpEnabled());
+            engine.getOpenApiGatewayTalent().setEnabled(settings.getGeneral().isOpenApiEnabled());
+            engine.getLspTalent().setEnabled(settings.getGeneral().isLspEnabled());
 
             // 动态应用日志级别
             if (tmp.hasKey("logLevel") && !tmp.get("logLevel").isNull()) {
