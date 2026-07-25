@@ -1128,9 +1128,7 @@ function getCurrentModelMeta() {
 
 function buildTriggerLabel(modelName, effort, showDepth) {
     var parts = [];
-    var displayName = modelName
-        ? (modelName.length > 18 ? modelName.substring(0, 18) + '...' : modelName)
-        : '默认模型';
+    var displayName = modelName ? modelName : '默认模型';
     parts.push(displayName);
     // 支持推理强度调节时始终展示档位，auto 显示英文词以便发现
     if (showDepth) {
@@ -1395,7 +1393,7 @@ function renderAgentUI() {
     var label = selected || 'main';
     $('#chatAgentName, #welcomeAgentName').text(label);
     $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? ('子代理: ' + selected) : '使用主代理 main');
-    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">使用主代理</span></button>';
+    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">主代理（工具权限最多，可以调度子代理）</span></button>';
     for (var i = 0; i < commandList.length; i++) {
         var item = commandList[i];
         if (item.type !== 'subagent') continue;
