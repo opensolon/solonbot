@@ -720,6 +720,12 @@ $(welcomeInput).on('keydown', function(e) {
     if (isInputComposing(e)) return;
     var handled = navigateCmdComplete(e, welcomeInput, $welcomeCmdComplete[0]);
     if (handled) return;
+    // 输入框为空 + 左/右键 → 切换循环任务面板
+    if (!welcomeInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (typeof window.toggleLoopPanel === 'function') window.toggleLoopPanel();
+        return;
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); return; }
     // Alt+Enter (macOS: Option+Enter) 换行
     if (e.key === 'Enter' && e.altKey) { e.preventDefault(); insertAtCursor(welcomeInput, '\n'); }
@@ -747,6 +753,12 @@ $(chatInput).on('keydown', function(e) {
     if (!chatInput.value.trim() && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         showHistoryPanel();
+        return;
+    }
+    // 输入框为空 + 左/右键 → 切换循环任务面板
+    if (!chatInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (typeof window.toggleLoopPanel === 'function') window.toggleLoopPanel();
         return;
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); return; }
