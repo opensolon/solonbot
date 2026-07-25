@@ -115,6 +115,7 @@ body {
     width: 15px;
     height: 15px;
     flex-shrink: 0;
+    color: var(--text-secondary);
 }
 .sidebar-item-menu .sidebar-item-del { color: var(--color-danger); }
 .sidebar-rename-input {
@@ -642,7 +643,7 @@ body {
 .model-selector-current .model-name { overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
 .model-selector-current .model-arrow { font-size: 12px; transition: transform 0.2s; opacity: 0.5; }
 .model-selector.open .model-arrow { transform: rotate(180deg); }
-.model-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 380px; max-width: 90vw; width: max-content; max-height: 380px; display: none; z-index: 100; animation: drop-up 0.15s ease-out; overflow: hidden; }
+.model-dropdown { position: absolute; bottom: 100%; left: -26px; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 380px; max-width: 90vw; width: max-content; max-height: 380px; display: none; z-index: 100; animation: drop-up 0.15s ease-out; overflow: hidden; }
 .model-selector.open .model-dropdown { display: flex; flex-direction: column; }
 
 /* Agent selector and overflow tools */
@@ -659,7 +660,7 @@ body {
 .more-menu-btn { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .more-menu-btn:hover, .more-menu.open .more-menu-btn { color: var(--text-primary); background: var(--bg-hover); }
 .more-menu-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.agent-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 480px; max-width: 90vw; display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
+.agent-dropdown { position: absolute; bottom: 100%; left: -26px; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 480px; max-width: 90vw; display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
 .more-menu-dropdown { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); min-width: 300px; max-width: 90vw; display: none; z-index: 101; overflow: hidden; animation: drop-up 0.15s ease-out; }
 .agent-selector.open .agent-dropdown, .more-menu.open .more-menu-dropdown { display: flex; flex-direction: column; }
 .agent-dropdown-item, .more-menu-dropdown button { width: 100%; border: 0; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; font: inherit; font-size: 13px; padding: 10px 14px; display: flex; align-items: center; gap: 9px; }
