@@ -1,3 +1,8 @@
+### v2026.7.25
+
+* 调整 soloncode web 输入面板布局，突出子代理的权限
+* 细节优化
+
 ### v2026.7.24
 
 * 添加 soloncode web 输入面板 Alt + Enter 换行支持
