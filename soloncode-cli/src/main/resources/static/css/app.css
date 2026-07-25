@@ -654,6 +654,7 @@ body {
 .agent-selector-current { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 8px 5px 2px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: color 0.2s; white-space: nowrap; max-width: 180px; box-sizing: border-box; }
 .agent-selector-current:hover { color: var(--text-primary); background: transparent; }
 .agent-selector-current .agent-name { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.agent-selector-current .model-arrow { font-size: 12px; transition: transform 0.2s; opacity: 0.5; }
 .agent-selector.open .model-arrow { transform: rotate(180deg); }
 .more-menu-btn { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .more-menu-btn:hover, .more-menu.open .more-menu-btn { color: var(--text-primary); background: var(--bg-hover); }
