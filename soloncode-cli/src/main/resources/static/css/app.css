@@ -543,6 +543,11 @@ body {
 .reason-group-think-dots span:nth-child(2) { animation-delay: 0.2s; }
 .reason-group-think-dots span:nth-child(3) { animation-delay: 0.4s; }
 
+/* 思考块流式旋转图标 */
+@keyframes think-spin { to { transform: rotate(360deg); } }
+.reason-group-think-spinner { width: 14px; height: 14px; color: var(--accent); display: none; vertical-align: middle; flex-shrink: 0; }
+.reason-group-think.streaming .reason-group-think-spinner { display: inline-block; animation: think-spin 1s linear infinite; }
+
 /* Thinking Group: background and spacing define the group; inner records do not repeat borders. */
 .reason-group { border: none; border-radius: 10px; overflow: hidden; background: var(--reason-group-think-bg); }
 .reason-group .reason-group-think { margin: 0; border: none; border-radius: 0; }
