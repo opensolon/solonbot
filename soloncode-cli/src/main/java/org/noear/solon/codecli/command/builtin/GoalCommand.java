@@ -22,7 +22,7 @@ import org.noear.solon.ai.harness.command.CommandContext;
  * /goal 命令，是 /loop goal 的快捷别名。
  *
  * @author noear
- * @since 2026.7.26
+ * @since 2026.7.27
  */
 public class GoalCommand implements Command {
     private final LoopCommand loopCommand;

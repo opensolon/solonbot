@@ -1,3 +1,9 @@
+### v2026.7.27
+
+* 添加 soloncode web 长期记忆管理
+* 修复 soloncode grep 使用虚拟路径时返回失真的问题
+* 细节优化
+
 ### v2026.7.26
 
 * 添加 soloncode  `/goal` 命令作为 `/loop goal` 的简化模式
