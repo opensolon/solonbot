@@ -20,9 +20,20 @@
 
 <!-- Sidebar -->
 <div class="sidebar">
-    <div class="sidebar-header">
-        <button class="new-chat-btn" id="newChatBtn">
-            <i class="layui-icon layui-icon-addition"></i> 新对话
+    <div class="sidebar-nav">
+        <button class="sidebar-nav-item" id="newChatBtn" title="新对话">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span class="sidebar-nav-label">新对话</span>
+        </button>
+        <button class="sidebar-nav-item" id="memoryNavBtn" title="长期记忆">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/>
+            </svg>
+            <span class="sidebar-nav-label">长期记忆</span>
+            <span class="sidebar-nav-badge" id="memoryBadge" style="display:none">0</span>
         </button>
     </div>
     <div class="sidebar-title">最近对话</div>
@@ -1662,6 +1673,7 @@
 <script src="/js/app-streaming.js"></script>
 <script src="/js/app-filer.js"></script>
 <script src="/js/app-gitdiff.js"></script>
+<script src="/js/app-memory.js"></script>
 <script src="/js/app-todos.js"></script>
 <script src="/js/app-context.js"></script>
 <script src="/js/app-loop.js"></script>

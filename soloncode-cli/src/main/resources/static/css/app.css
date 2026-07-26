@@ -34,9 +34,15 @@ body {
     height: 100vh;
     transition: background-color 0.3s;
 }
-.sidebar-header { padding: 20px 16px 16px; }
-.new-chat-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 0; border: 1px dashed var(--border-color); border-radius: 10px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px; transition: all 0.2s; }
-.new-chat-btn:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.sidebar-nav { padding: 20px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.sidebar-nav-item { width: 100%; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px dashed var(--border-color); border-radius: 10px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.sidebar-nav-item:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+.sidebar-nav-item.active { background: var(--accent-light); border-style: solid; border-color: var(--accent); color: var(--accent); }
+.sidebar-nav-item:active { transform: scale(0.98); }
+.sidebar-nav-item svg { flex-shrink: 0; transition: transform 0.2s; }
+.sidebar-nav-item:hover svg { transform: scale(1.1); }
+.sidebar-nav-label { flex: 1; text-align: left; }
+.sidebar-nav-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
 .sidebar-title { padding: 16px 16px 8px; font-size: 11px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .sidebar-list { flex: 1; overflow-y: auto; padding: 4px 10px; }
 .sidebar-item { position: relative; padding: 10px 12px; border-radius: 10px; cursor: pointer; color: var(--text-sidebar); font-size: 13px; display: flex; align-items: center; min-height: 46px; transition: all 0.15s; margin-bottom: 2px; }
@@ -2027,6 +2033,19 @@ body {
     background: none;
 }
 
+/* 中间主区全屏视图（长期记忆 / 审查详情 / 文件详情共用）：
+   占据中间主区的整个区域（参与 flex 布局，非浮层），打开时隐藏主区顶部条，
+   gitDiffViewer 靠自身 flex:1 撑满主区，右侧任务面板保持常驻，
+   边栏/面板收起时随 flex 重排响应式变宽，无需 JS 计算 */
+body.memory-active .main-header { display: none; }
+.git-diff-viewer.mem-overlay {
+    animation: mem-overlay-in 0.18s ease-out;
+}
+@keyframes mem-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 /* Diff Viewer 操作栏 */
 .git-viewer-actions {
     display: flex;
@@ -2265,7 +2284,6 @@ body {
 /* ===== Button Active States ===== */
 .send-btn:active:not(:disabled) { transform: scale(0.95); }
 .theme-toggle:active { transform: scale(0.96); }
-.new-chat-btn:active { transform: scale(0.98); }
 .welcome-send-btn:active { transform: scale(0.95); }
 
 /* ===== View Transition ===== */
@@ -2922,3 +2940,39 @@ pre:hover .code-copy-btn { opacity: 1; }
 }
 
 
+
+/* ===== 长期记忆管理面板 ===== */
+.git-viewer-content .mem-panel { white-space: normal; display: flex; flex-direction: column; height: 100%; font-size: 14px; }
+.mem-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border-color); }
+.mem-search { flex: 1; height: 32px; padding: 0 12px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 13px; }
+.mem-search:focus { outline: none; border-color: var(--accent); }
+.mem-btn { height: 32px; padding: 0 14px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.mem-btn:hover { background: var(--accent-light); }
+.mem-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mem-btn-primary:hover { opacity: 0.9; background: var(--accent); }
+.mem-btn-danger { color: var(--color-danger); border-color: var(--color-danger); }
+.mem-btn-danger:hover { background: rgba(220,53,69,0.1); }
+    .mem-list { flex: 1; overflow-y: auto; padding: 8px 16px 24px; }
+    .mem-list-empty { padding: 32px 16px; color: var(--text-secondary); font-size: 13px; text-align: center; }
+    /* 手风琴行 */
+    .mem-row { border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: transparent; transition: border-color 0.15s; }
+    .mem-row-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; transition: background 0.15s; }
+    .mem-row-head:hover { background: var(--accent-light); }
+    .mem-caret { color: var(--text-secondary); font-size: 12px; width: 12px; flex-shrink: 0; }
+    .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; }
+    .mem-row-key { flex: 1; font-weight: 600; color: var(--text-primary); word-break: break-all; }
+    .mem-row-time { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+    /* 展开体 */
+    .mem-row-body { padding: 4px 14px 14px; border-top: 1px solid var(--border-color); }
+    .mem-form { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+    .mem-form-row { display: flex; gap: 12px; }
+    .mem-field { display: flex; flex-direction: column; gap: 6px; }
+    .mem-field-key { flex: 1; }
+    .mem-field-imp { width: 120px; flex-shrink: 0; }
+    .mem-field > span { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+    .mem-field input { height: 34px; padding: 0 12px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 14px; }
+    .mem-field input:focus, .mem-field textarea:focus { outline: none; border-color: var(--border-color); }
+     .mem-field input[readonly] { background: var(--bg-hover, #f5f5f5); color: var(--text-secondary); cursor: default; opacity: 0.85; }
+    .mem-content { width: 100%; min-height: 140px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 14px; line-height: 1.6; resize: vertical; font-family: inherit; box-sizing: border-box; }
+    .mem-actions { display: flex; align-items: center; gap: 10px; }
+    .mem-msg { font-size: 12px; margin-left: 6px; }

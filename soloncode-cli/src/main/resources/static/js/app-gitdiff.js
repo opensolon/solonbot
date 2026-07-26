@@ -337,7 +337,9 @@
         if (welcomeView) welcomeView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
-        // 显示 viewer
+        // 显示 viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
+        document.body.classList.add('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
         gitDiffViewer.style.display = 'flex';
         diffViewerActive = true;
 
@@ -698,7 +700,9 @@
         if (welcomeView) welcomeView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
-        // 显示 diff viewer
+        // 显示 diff viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
+        document.body.classList.add('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
         gitDiffViewer.style.display = 'flex';
         diffViewerActive = true;
 
@@ -993,6 +997,10 @@
 
         gitDiffViewer.style.display = 'none';
         diffViewerActive = false;
+
+        // 恢复主区顶部条（审查/文件详情/记忆面板均在打开时将其隐藏）
+        document.body.classList.remove('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
 
         // 清理操作栏
         var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');

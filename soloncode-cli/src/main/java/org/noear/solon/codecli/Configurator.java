@@ -33,6 +33,7 @@ import org.noear.solon.codecli.portal.desktop.WsController;
 import org.noear.solon.codecli.portal.desktop.WsGate;
 import org.noear.solon.codecli.portal.web.WebChannel;
 import org.noear.solon.codecli.portal.web.WebController;
+import org.noear.solon.codecli.portal.web.MemoryController;
 import org.noear.solon.codecli.portal.web.WebSettingsController;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.settings.*;
@@ -313,6 +314,8 @@ public class Configurator {
         addWebBean(new McpSettingsController(agentRuntime, settings, fileWatchService, webGate));
         addWebBean(new OpenapiSettingsController(agentRuntime, settings, fileWatchService, webGate));
         addWebBean(new LspSettingsController(agentRuntime, settings, fileWatchService, webGate));
+
+        addWebBean(new MemoryController(agentRuntime));
 
         BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(agentRuntime, webGate));
         Solon.app().router().add(webChannel);
