@@ -412,6 +412,10 @@
         var _fullscreenReset = document.getElementById('gitViewerFullscreen');
         if (_fullscreenReset) _fullscreenReset.style.display = '';
 
+        // 隐藏记忆面板专用的「新建」按钮
+        var _memNewReset = document.getElementById('gitViewerMemNew');
+        if (_memNewReset) _memNewReset.style.display = 'none';
+
         var lang = guessLang(filePath || fileName);
         var lines = (content || '').split('\n');
         var totalLines = lines.length;
@@ -710,9 +714,11 @@
         var _mdToggle = document.getElementById('gitViewerMdToggle');
         var _copyBtn = document.getElementById('gitViewerCopyBtn');
         var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
+        var _memNewBtn = document.getElementById('gitViewerMemNew');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
+        if (_memNewBtn) _memNewBtn.style.display = 'none';
 
         if (gitViewerLabel) gitViewerLabel.textContent = '变更详情';
         // 如果是挂载工作区，显示路径时带上 @xxx/ 前缀

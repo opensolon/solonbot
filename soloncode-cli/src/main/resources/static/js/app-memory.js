@@ -42,14 +42,16 @@
         if (gitViewerLabel) gitViewerLabel.textContent = '长期记忆';
         if (gitViewerFile) gitViewerFile.textContent = '';
 
-        // 记忆面板只保留「全屏」和「关闭」：显式复位 header 按钮，
+        // 记忆面板 header 保留「新建」「全屏」「关闭」：显式复位 header 按钮，
         // 避免看过审查/文件详情后 MD 切换、复制按钮的显隐状态残留过来
         var _mdToggle = document.getElementById('gitViewerMdToggle');
         var _copyBtn = document.getElementById('gitViewerCopyBtn');
         var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
+        var _memNewBtn = document.getElementById('gitViewerMemNew');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
+        if (_memNewBtn) _memNewBtn.style.display = '';
 
         // 清理 git 模块可能残留的操作栏
         var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
@@ -76,18 +78,8 @@
         if (!gitViewerContent) return;
         gitViewerContent.innerHTML =
             '<div class="mem-panel">' +
-            '  <div class="mem-toolbar">' +
-            '    <button class="mem-btn mem-btn-primary" id="memNewBtn">+ 新建</button>' +
-            '    <input type="text" class="mem-search" id="memSearch" placeholder="搜索记忆..." />' +
-            '  </div>' +
             '  <div class="mem-list" id="memList"></div>' +
             '</div>';
-
-        var newBtn = document.getElementById('memNewBtn');
-        if (newBtn) newBtn.addEventListener('click', function () { startCreate(); });
-
-        var search = document.getElementById('memSearch');
-        if (search) search.addEventListener('input', function () { renderList(this.value.trim()); });
     }
 
     // ---- 加载列表 ----
@@ -202,7 +194,7 @@
             '    <div class="mem-actions">' +
             '      <button class="mem-btn mem-btn-primary mem-save">保存</button>' +
             (isNew ? '      <button class="mem-btn mem-cancel">取消</button>' : '      <button class="mem-btn mem-btn-danger mem-del">删除</button>') +
-            '      <span class="mem-msg"></span>' +
+            '' +
             '    </div>' +
             '  </div>' +
             '</div>';
@@ -278,15 +270,15 @@
     }
 
     function currentFilter() {
-        var s = document.getElementById('memSearch');
-        return s ? s.value.trim() : '';
+        return '';
     }
 
-    function setMsg(row, text, isError) {
-        var msg = row.querySelector('.mem-msg');
-        if (!msg) return;
-        msg.textContent = text || '';
-        msg.style.color = isError ? 'var(--color-danger)' : 'var(--accent)';
+    function memToast(msg, isError) {
+        if (typeof layer !== 'undefined' && layer.msg) {
+            layer.msg(msg, { icon: isError ? 2 : 1, time: 2500, offset: '120px' });
+        } else {
+            alert(msg);
+        }
     }
 
     // ---- 保存 ----
@@ -295,16 +287,15 @@
         var content = (row.querySelector('.mem-content').value || '').trim();
         var imp = parseInt(row.querySelector('.mem-imp').value, 10);
 
-        if (!key) { setMsg(row, 'Key 不能为空', true); return; }
-        if (!content) { setMsg(row, '内容不能为空', true); return; }
-        if (isNaN(imp) || imp < 1 || imp > 10) { setMsg(row, '重要度需在 1-10 之间', true); return; }
+        if (!key) { memToast('Key 不能为空', true); return; }
+        if (!content) { memToast('内容不能为空', true); return; }
+        if (isNaN(imp) || imp < 1 || imp > 10) { memToast('重要度需在 1-10 之间', true); return; }
 
         var form = new URLSearchParams();
         form.append('key', key);
         form.append('content', content);
         form.append('importance', imp);
 
-        setMsg(row, '保存中...', false);
         fetch('/web/chat/memory/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -316,11 +307,12 @@
                     detailCache[key] = { content: content, importance: imp };
                     expandedKey = key;
                     loadMemoryList();
+                    memToast('保存成功', false);
                 } else {
-                    setMsg(row, (res && res.description) || '保存失败', true);
+                    memToast((res && res.description) || '保存失败', true);
                 }
             })
-            .catch(function (e) { setMsg(row, '保存失败: ' + e.message, true); });
+            .catch(function (e) { memToast('保存失败: ' + e.message, true); });
     }
 
     // ---- 删除 ----
@@ -366,6 +358,12 @@
     var gitViewerClose = document.getElementById('gitViewerClose');
     if (gitViewerClose) {
         gitViewerClose.addEventListener('click', closeOverlay);
+    }
+
+    // header 「新建」按钮（与 git 模块共享容器，仅记忆面板时显示）
+    var gitViewerMemNew = document.getElementById('gitViewerMemNew');
+    if (gitViewerMemNew) {
+        gitViewerMemNew.addEventListener('click', function () { startCreate(); });
     }
     // Esc 关闭时一并清理
     document.addEventListener('keydown', function (e) {
