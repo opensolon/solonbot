@@ -42,6 +42,15 @@
         if (gitViewerLabel) gitViewerLabel.textContent = '长期记忆';
         if (gitViewerFile) gitViewerFile.textContent = '';
 
+        // 记忆面板只保留「全屏」和「关闭」：显式复位 header 按钮，
+        // 避免看过审查/文件详情后 MD 切换、复制按钮的显隐状态残留过来
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
+        if (_mdToggle) _mdToggle.style.display = 'none';
+        if (_copyBtn) _copyBtn.style.display = 'none';
+        if (_fullscreenBtn) _fullscreenBtn.style.display = '';
+
         // 清理 git 模块可能残留的操作栏
         var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
@@ -151,7 +160,7 @@
     function rowHtml(it, isOpen, isNew) {
         var imp = Math.round(it.importance || 0);
         var keyText = isNew ? '新建记忆' : escapeHtml(it.key);
-        var caret = isOpen ? '▾' : '▸';
+        var caret = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"></polyline></svg>';
         var openCls = isOpen ? ' open' : '';
         var dataKey = isNew ? NEW_KEY : escapeHtml(it.key);
 
@@ -317,25 +326,35 @@
     // ---- 删除 ----
     function removeMemory(key) {
         if (!key || key === NEW_KEY) return;
-        if (!window.confirm('确定删除记忆「' + key + '」？')) return;
 
-        var form = new URLSearchParams();
-        form.append('key', key);
+        var doRemove = function () {
+            var form = new URLSearchParams();
+            form.append('key', key);
 
-        fetch('/web/chat/memory/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: form.toString()
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (res && res.code === 200) {
-                    delete detailCache[key];
-                    expandedKey = null;
-                    loadMemoryList();
-                }
+            fetch('/web/chat/memory/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: form.toString()
             })
-            .catch(function () {});
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.code === 200) {
+                        delete detailCache[key];
+                        expandedKey = null;
+                        loadMemoryList();
+                    }
+                })
+                .catch(function () {});
+        };
+
+        if (typeof layer !== 'undefined' && layer.confirm) {
+            layer.confirm('确定删除记忆「' + key + '」？', { title: '确认删除', btn: ['删除', '取消'], icon: 3, offset: '120px' }, function (index) {
+                layer.close(index);
+                doRemove();
+            });
+        } else if (window.confirm('确定删除记忆「' + key + '」？')) {
+            doRemove();
+        }
     }
 
     // ---- 绑定导航按钮 ----

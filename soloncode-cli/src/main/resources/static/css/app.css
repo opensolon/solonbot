@@ -42,7 +42,7 @@ body {
 .sidebar-nav-item svg { flex-shrink: 0; transition: transform 0.2s; }
 .sidebar-nav-item:hover svg { transform: scale(1.1); }
 .sidebar-nav-label { flex: 1; text-align: left; }
-.sidebar-nav-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.sidebar-nav-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px; background: transparent; color: var(--text-secondary); font-size: 11px; line-height: 18px; text-align: center; }
 .sidebar-title { padding: 16px 16px 8px; font-size: 11px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .sidebar-list { flex: 1; overflow-y: auto; padding: 4px 10px; }
 .sidebar-item { position: relative; padding: 10px 12px; border-radius: 10px; cursor: pointer; color: var(--text-sidebar); font-size: 13px; display: flex; align-items: center; min-height: 46px; transition: all 0.15s; margin-bottom: 2px; }
@@ -2958,7 +2958,9 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-row { border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: transparent; transition: border-color 0.15s; }
     .mem-row-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; transition: background 0.15s; }
     .mem-row-head:hover { background: var(--accent-light); }
-    .mem-caret { color: var(--text-secondary); font-size: 12px; width: 12px; flex-shrink: 0; }
+    .mem-caret { color: var(--text-secondary); width: 12px; height: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+    .mem-caret svg { display: block; transition: transform 0.15s ease; }
+    .mem-row.open .mem-caret svg { transform: rotate(90deg); }
     .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; }
     .mem-row-key { flex: 1; font-weight: 600; color: var(--text-primary); word-break: break-all; }
     .mem-row-time { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
