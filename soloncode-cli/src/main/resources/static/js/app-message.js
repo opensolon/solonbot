@@ -1308,6 +1308,9 @@ function appendContentChunk(sess, segment, text, append, reasonId) {
     if (!clean) return;
     var group = ensureReasonGroup(sess, segment, reasonId);
     if (!group) return;
+    // 正文开始即视为该 reasonId 的思考流结束：收起思考块并移除 streaming（spinner 停转），
+    // 与 appendActionStartChunk 一致，避免思考→正文切换时转圈图标残留。
+    if (group.thinkingBlockEl) finishThinkingBlock(sess, streamReasonKey(segment, reasonId));
     // 仅连续 text chunk 复用同一节点；工具/思考出现后必建新 text run，保持真实时序。
     var run = group.activeTextRun;
     if (group.activeKind !== 'text' || !run) {
