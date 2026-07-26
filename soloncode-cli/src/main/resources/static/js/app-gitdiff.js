@@ -3,8 +3,8 @@
 
 (function() {
     // ---- DOM 元素 ----
-    var tabs = document.querySelectorAll('.filer-tab');
-    var tabContents = document.querySelectorAll('.filer-tab-content');
+    var tabs = document.querySelectorAll('.workspace-tab');
+    var tabContents = document.querySelectorAll('.workspace-tab-content');
     var gitUnavailable = document.getElementById('gitUnavailable');
     var gitUninitialized = document.getElementById('gitUninitialized');
     var gitDiffPanel = document.getElementById('gitDiffPanel');
@@ -111,7 +111,7 @@
     var savedTab = localStorage.getItem('filer-active-tab');
     if (savedTab && savedTab !== 'files') {
         var savedContentId = 'tabContent' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1);
-        var savedTabEl = document.querySelector('.filer-tab[data-tab="' + savedTab + '"]');
+        var savedTabEl = document.querySelector('.workspace-tab[data-tab="' + savedTab + '"]');
         var savedContentEl = document.getElementById(savedContentId);
         if (savedTabEl && savedContentEl) {
             tabs.forEach(function(t) { t.classList.remove('active'); });
@@ -796,7 +796,7 @@
                 .then(function(res) {
                     if (res && res.code === 200) {
                         loadGitStatus();
-                        closeDiffViewer();
+                        closeCenterViewer();
                     } else {
                         alert('操作失败：' + gitActionError(res));
                         addBtn.disabled = false;
@@ -830,7 +830,7 @@
                 .then(function(res) {
                     if (res && res.code === 200) {
                         loadGitStatus();
-                        closeDiffViewer();
+                        closeCenterViewer();
                     } else {
                         alert('操作失败：' + gitActionError(res));
                         unstageBtn.disabled = false;
@@ -878,7 +878,7 @@
                                 showToast('已回滚：' + path, 'success', 2200);
                             }
                             loadGitStatus();
-                            closeDiffViewer();
+                            closeCenterViewer();
                         } else {
                             if (typeof layer !== 'undefined' && layer.msg) {
                                 layer.msg('回滚失败：' + gitActionError(res), { icon: 2, time: 3000, offset: '120px' });
@@ -993,7 +993,7 @@
     }
 
     // ---- Diff Viewer：关闭，恢复原始视图 ----
-    function closeDiffViewer() {
+    function closeCenterViewer() {
         if (!gitDiffViewer) return;
 
         // 如果当前在全屏状态，退出全屏
@@ -1027,7 +1027,7 @@
     }
 
     if (gitViewerClose) {
-        gitViewerClose.addEventListener('click', closeDiffViewer);
+        gitViewerClose.addEventListener('click', closeCenterViewer);
     }
 
     // ---- 全屏功能 ----
@@ -1064,7 +1064,7 @@
     // ESC 关闭 diff viewer
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && diffViewerActive) {
-            closeDiffViewer();
+            closeCenterViewer();
         }
     });
 
@@ -1249,7 +1249,7 @@
         if (origOnFilerChange) origOnFilerChange(chunk);
 
         // 如果当前在 Git tab 上且面板可见，debounce 后刷新
-        var gitTab = document.querySelector('.filer-tab[data-tab="gitdiff"]');
+        var gitTab = document.querySelector('.workspace-tab[data-tab="gitdiff"]');
         if (gitTab && gitTab.classList.contains('active') && gitDiffPanel && gitDiffPanel.style.display !== 'none') {
             clearTimeout(window._gitDiffRefreshTimer);
             window._gitDiffRefreshTimer = setTimeout(loadGitStatus, 1500);
@@ -1312,6 +1312,6 @@
     window.loadGitStatus = loadGitStatus;
     window.loadGitWorkspaces = loadGitWorkspaces;
     window.openFileViewer = openFileViewer;
-    window.closeDiffViewer = closeDiffViewer;
+    window.closeCenterViewer = closeCenterViewer;
     window.guessLang = guessLang;
 })();

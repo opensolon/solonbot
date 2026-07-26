@@ -1,4 +1,4 @@
-:root { --sidebar-width: 280px; --filer-panel-width: 280px; }
+:root { --sidebar-width: 280px; --workspace-panel-width: 280px; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
@@ -226,7 +226,7 @@ body {
 
 /* Header */
 .main-header { padding: 18px 28px 14px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; transition: padding-right 0.25s ease; }
-.main-header.filer-collapsed { padding-right: 52px; }
+.main-header.workspace-collapsed { padding-right: 52px; }
 .theme-toggle { background: none; border: 1px solid var(--border-color); border-radius: 10px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); font-size: 16px; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
 .theme-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
 .wechat-btn-header { background: none; border: 1px solid var(--border-color); border-radius: 10px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); font-size: 16px; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
@@ -1013,7 +1013,7 @@ body {
 @media (max-width: 768px) { .sidebar { display: none; } }
 
 /* ===== File Tree Panel (Right Side) ===== */
-.filer-resize-handle {
+.workspace-resize-handle {
     width: 5px;
     cursor: col-resize;
     background: var(--bg-main);
@@ -1022,13 +1022,13 @@ body {
     z-index: 99;
     transition: background 0.15s;
 }
-.filer-resize-handle:hover,
-.filer-resize-handle.dragging {
+.workspace-resize-handle:hover,
+.workspace-resize-handle.dragging {
     /*background: #fff;*/
     /*opacity: 0.5;*/
 }
-.filer-panel {
-    width: var(--filer-panel-width);
+.workspace-panel {
+    width: var(--workspace-panel-width);
     background-color: var(--bg-filer-surface);
     background-image:
         linear-gradient(var(--bg-filer-overlay), var(--bg-filer-overlay)),
@@ -1044,7 +1044,7 @@ body {
     contain: layout paint;
     transition: background-color 0.3s;
 }
-.filer-panel.collapsed {
+.workspace-panel.collapsed {
     width: 0 !important;
     min-width: 0 !important;
     flex: 0 1 0 !important;
@@ -1053,14 +1053,14 @@ body {
     padding: 0 !important;
 }
 
-.filer-panel-header {
+.workspace-panel-header {
     padding: 16px 16px 12px;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
     display: flex;
     align-items: center;
 }
-.filer-panel-title {
+.workspace-panel-title {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
@@ -1323,7 +1323,7 @@ body {
     flex-shrink: 0;
 }
 
-.filer-panel-toggle-btn {
+.workspace-panel-toggle-btn {
     position: fixed;
     top: 20px;
     right: 266px;
@@ -1343,10 +1343,10 @@ body {
     box-shadow: 0 1px 4px rgba(0,0,0,0.12);
     line-height: 1;
 }
-.filer-panel-toggle-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.filer-panel-toggle-btn.collapsed { right: 4px !important; }
+.workspace-panel-toggle-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.workspace-panel-toggle-btn.collapsed { right: 4px !important; }
 /* 折叠态任务排队条数角标（不展开也能感知） */
-.filer-queue-badge {
+.workspace-queue-badge {
     position: absolute;
     top: -4px;
     right: -4px;
@@ -1364,7 +1364,7 @@ body {
     pointer-events: none;
     box-shadow: 0 0 0 1px var(--bg-sidebar);
 }
-.filer-panel-toggle-btn:not(.collapsed) .filer-queue-badge {
+.workspace-panel-toggle-btn:not(.collapsed) .workspace-queue-badge {
     display: none !important;
 }
 
@@ -1441,19 +1441,19 @@ body {
 .filer-node-children.open { display: block; }
 
 @media (max-width: 768px) {
-    .filer-panel-toggle-btn { display: none !important; }
-    .filer-panel { display: none !important; }
+    .workspace-panel-toggle-btn { display: none !important; }
+    .workspace-panel { display: none !important; }
 }
 
 /* ===== Git Diff Panel (in Filer Panel) ===== */
 
 /* Filer Tab 栏 */
-.filer-tabs {
+.workspace-tabs {
     display: flex;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
-.filer-tab {
+.workspace-tab {
     flex: 1;
     padding: 10px 0;
     text-align: center;
@@ -1466,15 +1466,15 @@ body {
     border-bottom: 2px solid transparent;
     transition: color 0.2s, border-color 0.2s;
 }
-.filer-tab.active {
+.workspace-tab.active {
     color: var(--accent);
     border-bottom-color: var(--accent);
 }
-.filer-tab:hover { color: var(--text-primary); }
+.workspace-tab:hover { color: var(--text-primary); }
 
 /* Tab 内容（min-height:0 让底部 queue-strip 有空间，避免被内容顶出视口） */
-.filer-tab-content { display: none; flex: 1; min-height: 0; overflow-y: auto; }
-.filer-tab-content.active { display: flex; flex-direction: column; }
+.workspace-tab-content { display: none; flex: 1; min-height: 0; overflow-y: auto; }
+.workspace-tab-content.active { display: flex; flex-direction: column; }
 
 /* Badge */
 .git-badge {

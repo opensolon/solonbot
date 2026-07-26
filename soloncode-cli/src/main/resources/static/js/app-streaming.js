@@ -49,7 +49,7 @@ $('.input-box').on('click', function(e) {
 
 /* ===== New Chat ===== */
 $(newChatBtn).on('click', function() {
-    if (typeof closeDiffViewer === 'function') closeDiffViewer();
+    if (typeof closeCenterViewer === 'function') closeCenterViewer();
     currentChatIndex = -1;
     switchToWelcomeMode();
     updateHistoryUI();
@@ -444,7 +444,7 @@ function cancelLastQueuedToInput(sess) {
             dock.style.display = 'none';
             return;
         }
-        // 右栏底部 strip：用 flex 布局，避免 display:block 破坏 filer-panel 列排布
+        // 右栏底部 strip：用 flex 布局，避免 display:block 破坏 workspace-panel 列排布
         dock.style.display = 'flex';
         if (_queueDockExpanded) $(dock).removeClass('collapsed');
         else $(dock).addClass('collapsed');

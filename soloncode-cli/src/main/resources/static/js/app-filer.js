@@ -2,11 +2,11 @@
 /* 工作区文件树面板（右侧） */
 
 (function() {
-    var $panel = $('#filerPanel');
-    var $toggleBtn = $('#filerToggleBtn');
+    var $panel = $('#workspacePanel');
+    var $toggleBtn = $('#workspaceToggleBtn');
     var $treeEl = $('#filerTree');
     var $worknameEl = $('#filerWorkname');
-    var $resizeHandle = $('#filerResizeHandle');
+    var $resizeHandle = $('#workspaceResizeHandle');
 
     var FILER_MIN_WIDTH = 180;
     var FILER_MAX_WIDTH = 600;
@@ -125,9 +125,9 @@
     function syncHeaderPadding(collapsed) {
         if (!$mainHeader.length) return;
         if (collapsed) {
-            $mainHeader.addClass('filer-collapsed');
+            $mainHeader.addClass('workspace-collapsed');
         } else {
-            $mainHeader.removeClass('filer-collapsed');
+            $mainHeader.removeClass('workspace-collapsed');
         }
     }
 
@@ -135,7 +135,7 @@
     function setToggleBtnArrow(collapsed) {
         if (!$toggleBtn.length) return;
         var arrow = collapsed ? '\u2039' : '\u203A';
-        // 只更新文本节点，避免 .html() 清掉 .filer-queue-badge
+        // 只更新文本节点，避免 .html() 清掉 .workspace-queue-badge
         var el = $toggleBtn[0];
         var textNode = null;
         for (var i = 0; i < el.childNodes.length; i++) {
@@ -894,7 +894,7 @@
     }
 
     function showFilerChangeIndicator() {
-        var $filesTab = $panel.length ? $panel.find('.filer-tab[data-tab="files"]') : $();
+        var $filesTab = $panel.length ? $panel.find('.workspace-tab[data-tab="files"]') : $();
         if (!$filesTab.length) return;
         var $dot = $filesTab.find('.filer-change-dot');
         if (!$dot.length) {
@@ -925,14 +925,14 @@
     function updateFilerQueueBadge(count) {
         if (!$toggleBtn.length) return;
         var n = count | 0;
-        var $badge = $toggleBtn.find('.filer-queue-badge');
+        var $badge = $toggleBtn.find('.workspace-queue-badge');
         if (n <= 0) {
             if ($badge.length) $badge.remove();
             return;
         }
         var label = n > 99 ? '99+' : String(n);
         if (!$badge.length) {
-            $badge = $('<span>').addClass('filer-queue-badge');
+            $badge = $('<span>').addClass('workspace-queue-badge');
             $toggleBtn.append($badge);
         }
         $badge.text(label);

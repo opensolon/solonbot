@@ -293,16 +293,16 @@
 </div>
 
 <!-- File Tree Panel (Right Side) -->
-<button class="filer-panel-toggle-btn collapsed" id="filerToggleBtn" title="展开文件树">‹</button>
-<div class="filer-resize-handle" id="filerResizeHandle"></div>
-<div class="filer-panel collapsed" id="filerPanel">
-    <div class="filer-tabs">
-        <button class="filer-tab" data-tab="tasks">
+<button class="workspace-panel-toggle-btn collapsed" id="workspaceToggleBtn" title="展开文件树">‹</button>
+<div class="workspace-resize-handle" id="workspaceResizeHandle"></div>
+<div class="workspace-panel collapsed" id="workspacePanel">
+    <div class="workspace-tabs">
+        <button class="workspace-tab" data-tab="tasks">
             任务
             <span class="todo-badge" id="todoBadge" style="display:none">0</span>
         </button>
-        <button class="filer-tab active" data-tab="files">文件</button>
-        <button class="filer-tab" data-tab="gitdiff">
+        <button class="workspace-tab active" data-tab="files">文件</button>
+        <button class="workspace-tab" data-tab="gitdiff">
             审查
             <span class="git-badge" id="gitBadge" style="display:none">0</span>
         </button>
@@ -310,7 +310,7 @@
 
 
     <!-- Tab Content: 任务 -->
-    <div class="filer-tab-content" id="tabContentTasks">
+    <div class="workspace-tab-content" id="tabContentTasks">
         <div class="todo-panel">
             <div class="todo-header">
                 <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
@@ -353,7 +353,7 @@
     </div>
 
     <!-- Tab Content: 文件树 -->
-    <div class="filer-tab-content active" id="tabContentFiles">
+    <div class="workspace-tab-content active" id="tabContentFiles">
         <div class="filer-search-bar">
             <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
@@ -369,7 +369,7 @@
     </div>
 
     <!-- Tab Content: Git Diff -->
-    <div class="filer-tab-content" id="tabContentGitdiff">
+    <div class="workspace-tab-content" id="tabContentGitdiff">
         <!-- 审查工作区选择器（自定义下拉） -->
         <div class="git-workspace-bar" id="gitWorkspaceBar">
             <div class="git-workspace-selector" id="gitWorkspaceSelector">
