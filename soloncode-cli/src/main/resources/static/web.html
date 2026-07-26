@@ -1004,11 +1004,7 @@
                                         <input type="text" id="llmModel" placeholder="deepseek-v4-flash" />
                                     </div>
                                     <div class="form-group">
-                                        <label>超时时间（可选）</label>
-                                        <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）"/>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>上下文长度（可选）</label>
+                                        <label>上下文长度</label>
                                         <input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
                                         <datalist id="contextLengthList">
                                             <option value="128k">
@@ -1016,6 +1012,10 @@
                                             <option value="512k">
                                             <option value="1m">
                                         </datalist>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>超时时间（可选）</label>
+                                        <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）"/>
                                     </div>
                                 </div>
                                 <div class="form-group">
