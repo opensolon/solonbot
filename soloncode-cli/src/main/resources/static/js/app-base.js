@@ -256,6 +256,10 @@ $(messagesWrap).on('scroll', function() {
 
 function _applyScrollBottom() {
     if (!messagesWrap || userScrolledUp) return;
+    // 已经贴底时赋值不会产生 scroll 事件，无需刷新程序化窗口；
+    // 否则密集流式下 followTick(48ms) 会让窗口永不关闭，wheel 上滑被一直吞掉（滚轮锁死）。
+    var gap = messagesWrap.scrollHeight - messagesWrap.scrollTop - messagesWrap.clientHeight;
+    if (gap < 1) return;
     _programmaticScrollUntil = Date.now() + SCROLL_PROGRAMMATIC_MS;
     messagesWrap.scrollTop = messagesWrap.scrollHeight;
 }
