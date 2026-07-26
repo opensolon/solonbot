@@ -135,16 +135,24 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
             var rows = $(sess.container).find('.msg-row');
             var idx = rows.index(row);
             if (idx < 0) { layer.close(index); return; }
+            layer.close(index);
             // 后端只删有 ndjson 记录的消息（排除命令消息），避免多删
             var serverCount = calcServerCount(sess.container, row);
+            // 后端删除成功后，前端才删除；失败则保留界面并提示
             $.post('/web/chat/rewind', {
                 sessionId: sess.sessionId,
                 count: serverCount
+            }, function(resp) {
+                if (resp && resp.code === 200) {
+                    // 前端删所有可视行（含命令消息的无记录行），保持界面干净
+                    handleRewind(sess, rows.length - idx);
+                    updateUserRerunButtons(sess.container);
+                } else {
+                    showToast('删除失败：' + ((resp && (resp.description || resp.message)) || '后端未成功'), 'error');
+                }
+            }).fail(function() {
+                showToast('删除失败：网络错误', 'error');
             });
-            // 前端删所有可视行（含命令消息的无记录行），保持界面干净
-            handleRewind(sess, rows.length - idx);
-            updateUserRerunButtons(sess.container);
-            layer.close(index);
         });
     });
 
@@ -287,15 +295,23 @@ function ensureAssistantBubble(sess) {
                 var rows = $(sess.container).find('.msg-row');
                 var idx = rows.index(row);
                 if (idx < 0) { layer.close(index); return; }
+                layer.close(index);
                 // 后端只删有 ndjson 记录的消息（排除命令消息），避免多删
                 var serverCount = calcServerCount(sess.container, row);
+                // 后端删除成功后，前端才删除；失败则保留界面并提示
                 $.post('/web/chat/rewind', {
                     sessionId: sess.sessionId,
                     count: serverCount
+                }, function(resp) {
+                    if (resp && resp.code === 200) {
+                        // 前端删所有可视行（含命令消息的无记录行），保持界面干净
+                        handleRewind(sess, rows.length - idx);
+                    } else {
+                        showToast('删除失败：' + ((resp && (resp.description || resp.message)) || '后端未成功'), 'error');
+                    }
+                }).fail(function() {
+                    showToast('删除失败：网络错误', 'error');
                 });
-                // 前端删所有可视行（含命令消息的无记录行），保持界面干净
-                handleRewind(sess, rows.length - idx);
-                layer.close(index);
             });
         });
         // 流式输出过程中隐藏复制按钮，待 finishStream 收尾后再显示；

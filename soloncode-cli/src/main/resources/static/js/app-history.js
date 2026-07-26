@@ -311,6 +311,10 @@ function deleteSession(idx) {
 }
 
 function selectSession(idx) {
+    // 先关闭中间区域可能存在的覆盖层（记忆面板 / git diff / 详情），
+    // 必须放在早退守卫之前：否则点击"当前会话"时会因 idx===currentChatIndex 提前 return，
+    // 覆盖层无法关闭，视图卡在记忆/详情面板上。
+    if (typeof closeDiffViewer === 'function') closeDiffViewer();
     if (idx === currentChatIndex && inChatMode) return;
     var entry = chatHistory[idx];
     if (!entry) return;
@@ -318,7 +322,6 @@ function selectSession(idx) {
     currentChatIndex = idx;
     SESSION_ID = entry.sessionId;
     rememberActiveSession(entry.sessionId);
-    if (typeof closeDiffViewer === 'function') closeDiffViewer();
     if (!inChatMode) switchToChatMode();
     setActiveSession(entry.sessionId);
     updateHistoryUI();
