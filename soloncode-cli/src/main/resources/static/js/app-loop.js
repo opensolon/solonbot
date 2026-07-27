@@ -207,6 +207,28 @@
         toggleLoopPanel();
     });
 
+    // 整理记忆：点击后向当前输入框填入“整理记忆”，并关闭“更多”菜单
+    function closeMoreMenus() {
+        $('#chatMoreMenu, #welcomeMoreMenu').removeClass('open');
+        $('#chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
+    }
+    function fillMemoryText() {
+        closeMoreMenus();
+        var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        if (!input) return;
+        input.value = '整理记忆';
+        if (typeof autoResize === 'function') autoResize(input);
+        input.focus();
+    }
+    $('#welcomeMemoryBtn').on('click', function(e) {
+        e.stopPropagation();
+        fillMemoryText();
+    });
+    $('#chatMemoryBtn').on('click', function(e) {
+        e.stopPropagation();
+        fillMemoryText();
+    });
+
     $welcomeLoopPanel.add($chatLoopPanel).on('click', function(e) {
         e.stopPropagation();
     });
