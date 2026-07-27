@@ -7,7 +7,7 @@ import { saveMessage, updateMessage, getMessagesByConversation } from '../db';
 import { ChatHeader, type ChatReviewFile } from './ChatHeader';
 import { ChatTaskList, type ChatTask } from './ChatTaskList';
 import { ChatMessages } from './ChatMessages';
-import { ChatInput, type ChatAgentOption, type SendOptions, type ChatMode, type ReasoningEffort } from './ChatInput';
+import { ChatInput, type ChatAgentOption, type SendOptions, type ReasoningEffort } from './ChatInput';
 import { Icon } from './common/Icon';
 import type { Session } from './sidebar/SessionsPanel';
 import {
@@ -16,8 +16,15 @@ import {
   type GeneratedAutomationPlan,
 } from '../utils/automationPlan';
 import { isTodoToolName } from '../utils/todoTools';
+import { buildUserMessageContents } from '../utils/messageContent';
+import {
+  EMPTY_RESPONSE_ERROR,
+  RESPONSE_PROTOCOL_ERROR,
+  RESPONSE_TIMEOUT_ERROR,
+  formatResponseErrorText,
+} from '../utils/responseErrors';
 import { withRetry } from '../utils/retry';
-import '../views/ChatPage.css';
+import './ChatView.css';
 
 export type PromptCreationType = 'skill' | 'agent' | 'automation';
 
@@ -162,6 +169,7 @@ interface ChatViewProps {
   onSelectSession?: (sessionId: string) => void;
   providers?: ModelProvider[];
   agents?: ChatAgentOption[];
+  agentRefreshKey?: number;
   activeProviderId?: string;
   onActiveProviderChange?: (providerId: string) => void;
   activeFileName?: string;
@@ -375,6 +383,7 @@ class WebSocketManager {
       }
 
       const messageType = msg.type.toLowerCase();
+      msg.type = messageType;
       if (messageType === 'done' || messageType === 'error') {
         this.finishSession(msgSessionId, ws, msg);
         return;
@@ -382,10 +391,16 @@ class WebSocketManager {
       this.dispatchMessage(msg);
     } catch (error) {
       console.warn('[WS] Failed to parse message:', error);
+      this.finishSession(sessionId, ws, {
+        type: 'error',
+        sessionId,
+        text: RESPONSE_PROTOCOL_ERROR,
+      });
     }
   }
 
   private finishSession(sessionId: string, ws: WebSocket, message: Record<string, any>) {
+    if (this.terminalSessions.has(sessionId)) return;
     this.terminalSessions.add(sessionId);
     this.clearReconnectTimer(sessionId);
     const messageType = String(message.type || '').toLowerCase();
@@ -524,7 +539,7 @@ function filterEmptyTags(text: string): string {
 function estimateMessageTokens(messages: Message[]) {
   const text = messages
     .flatMap(message => message.contents)
-    .map(item => item.text || '')
+    .map(item => item.type === 'IMAGE' ? '' : (item.text || ''))
     .join('\n');
   return Math.ceil(text.length / 4);
 }
@@ -762,10 +777,9 @@ function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[
   );
 }
 
-export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved }: ChatViewProps) {
+export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], agentRefreshKey, activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [chatMode, setChatMode] = useState<ChatMode>('default');
   const [reviewInfoSignal, setReviewInfoSignal] = useState(0);
   const [thinkingElapsedSeconds, setThinkingElapsedSeconds] = useState(0);
   const [sessionTodoTasks, setSessionTodoTasks] = useState<Record<string, ChatTask[]>>({});
@@ -1066,6 +1080,42 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const pendingPersistBySessionRef = useRef(new Map<string, PendingPersist>());
   const assistantDraftsBySessionRef = useRef(new Map<string, AssistantDraftPersistence>());
 
+  const appendResponseError = useCallback(async (sessionId: string, reason?: unknown) => {
+    const errorText = formatResponseErrorText(reason);
+    const errorMsg: Message = {
+      id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
+      role: 'ERROR',
+      timestamp: new Date().toLocaleTimeString(),
+      contents: [{ type: 'ERROR', text: errorText }],
+    };
+    const isCurrentSession = sessionId === conversationIdRef.current.toString()
+      || sessionId === sessionIdRef.current;
+
+    if (isCurrentSession) {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'ERROR' && last.contents[0]?.text === errorText) return prev;
+        return [...prev, errorMsg];
+      });
+      requestAnimationFrame(() => chatMessagesRef.current?.scrollToBottom());
+    }
+
+    try {
+      await withRetry(() => saveMessage({
+        conversationId: sessionId,
+        role: 'ERROR',
+        timestamp: errorMsg.timestamp,
+        contents: JSON.stringify(errorMsg.contents),
+        workspacePath: workspacePathRef.current,
+      }));
+      onSessionMessageSavedRef.current?.(sessionId, 1);
+    } catch (error) {
+      console.error('[ChatView] 保存错误消息失败:', error);
+    }
+
+    return errorMsg;
+  }, []);
+
   // 当前 assistant 消息 ID
   const assistantMsgIdRef = useRef<number>(0);
 
@@ -1078,17 +1128,24 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       console.log('[ChatView] Loading timeout (120s), auto-stopping');
       const timedOutSessionId = streamingSessionIdRef.current;
       if (timedOutSessionId) {
+        WebSocketManager.getInstance().cancelSession(timedOutSessionId);
         clearStreamQueue(timedOutSessionId);
+        pendingPersistBySessionRef.current.delete(timedOutSessionId);
+        if (pendingPersistRef.current?.sessionId === timedOutSessionId) {
+          pendingPersistRef.current = null;
+        }
+        void flushAssistantPersistence(timedOutSessionId)
+          .then(() => appendResponseError(timedOutSessionId, RESPONSE_TIMEOUT_ERROR));
         clearLiveSession(timedOutSessionId);
       }
       setIsLoading(false);
       isStreamingRef.current = false;
       streamingSessionIdRef.current = null;
       if (timedOutSessionId) {
-        onSessionRunStateChangeRef.current?.(timedOutSessionId, 'error', '等待响应超时');
+        onSessionRunStateChangeRef.current?.(timedOutSessionId, 'error', RESPONSE_TIMEOUT_ERROR);
       }
     }, 120000);
-  }, []);
+  }, [appendResponseError]);
 
   const clearLoadingTimer = useCallback(() => {
     if (loadingTimerRef.current) {
@@ -1262,6 +1319,11 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             totalTokens: data.totalTokens,
             elapsedMs: data.elapsedMs,
           } : undefined);
+          if (contentItems.length === 0) {
+            const errorSessionId = pending?.sessionId || msgSessionId;
+            await appendResponseError(errorSessionId, EMPTY_RESPONSE_ERROR);
+            onSessionRunStateChangeRef.current?.(errorSessionId, 'error', EMPTY_RESPONSE_ERROR);
+          }
           if (pending?.wasNew && onUpdateSessionTitleRef.current) {
             onUpdateSessionTitleRef.current(pending.sessionId, pending.title);
           }
@@ -1302,6 +1364,9 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           await flushAssistantPersistence(msgSessionId, finalMsg.metadata);
         } else {
           await flushAssistantPersistence(msgSessionId);
+          const errorSessionId = pending?.sessionId || msgSessionId;
+          await appendResponseError(errorSessionId, EMPTY_RESPONSE_ERROR);
+          onSessionRunStateChangeRef.current?.(errorSessionId, 'error', EMPTY_RESPONSE_ERROR);
         }
 
         // 所有消息保存后，触发会话持久化（reassignMessages 会把 temp ID 转为 real ID�?
@@ -1380,14 +1445,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
         if (!isCurrentSession) {
           const pending = await flushPendingUserMessage(msgSessionId);
           await flushAssistantPersistence(msgSessionId);
-          await withRetry(() => saveMessage({
-            conversationId: pending?.sessionId || msgSessionId,
-            role: 'ERROR',
-            timestamp: new Date().toLocaleTimeString(),
-            contents: JSON.stringify([{ type: 'ERROR', text: data.text || '未知错误' }]),
-            workspacePath: workspacePathRef.current,
-          }));
-          onSessionMessageSavedRef.current?.(pending?.sessionId || msgSessionId, 1);
+          await appendResponseError(pending?.sessionId || msgSessionId, data.text);
           if (pending?.wasNew && onUpdateSessionTitleRef.current) {
             onUpdateSessionTitleRef.current(pending.sessionId, pending.title);
           }
@@ -1406,23 +1464,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
         const pending = await flushPendingUserMessage(msgSessionId);
         await flushAssistantPersistence(msgSessionId);
 
-        const errorText = data.text || '未知错误';
-        const errorMsg: Message = {
-          id: Date.now(),
-          role: 'ERROR',
-          timestamp: new Date().toLocaleTimeString(),
-          contents: [{ type: 'ERROR', text: errorText }]
-        };
-        setMessages(prev => [...prev, errorMsg]);
-
-        await withRetry(() => saveMessage({
-          conversationId: pending?.sessionId || msgSessionId,
-          role: 'ERROR',
-          timestamp: errorMsg.timestamp,
-          contents: JSON.stringify(errorMsg.contents),
-          workspacePath: workspacePathRef.current,
-        }));
-        onSessionMessageSavedRef.current?.(pending?.sessionId || msgSessionId, 1);
+        await appendResponseError(pending?.sessionId || msgSessionId, data.text);
 
         // 所有消息保存后，触发会话持久化
         if (pending?.wasNew && onUpdateSessionTitleRef.current) {
@@ -1618,7 +1660,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       id: Date.now(),
       role: 'USER',
       timestamp: new Date().toLocaleTimeString(),
-      contents: [{ type: 'TEXT', text: messageText }]
+      contents: buildUserMessageContents(messageText, options.attachments),
     };
 
     setMessages(prev => {
@@ -1705,7 +1747,6 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
         model: modelName,
         agent: options.agent,
         cwd: workspacePath || undefined,
-        mode: chatMode,
         maxSteps,
         reasoningEffort: options.reasoningEffort,
       };
@@ -1736,6 +1777,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
 
     } catch (error) {
       console.error('Failed to send message:', error);
+      const sendErrorText = `请求失败：${error instanceof Error ? error.message : '未知错误'}`;
 
       // WS 连接失败时不会有 done/error 回调，直接在此持久化
       const pending = pendingPersistBySessionRef.current.get(sessionId!) || pendingPersistRef.current;
@@ -1753,28 +1795,14 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           onSessionMessageSaved?.(pending.sessionId, 1);
         }
         await flushAssistantPersistence(pending.sessionId);
-
-        const errorMessage: Message = {
-          id: Date.now() + 1,
-          role: 'ERROR',
-          timestamp: new Date().toLocaleTimeString(),
-          contents: [{ type: 'ERROR', text: `请求失败: ${error instanceof Error ? error.message : '未知错误'}` }]
-        };
-        setMessages(prev => [...prev, errorMessage]);
-
-        await withRetry(() => saveMessage({
-          conversationId: pending.sessionId,
-          role: 'ERROR',
-          timestamp: errorMessage.timestamp,
-          contents: JSON.stringify(errorMessage.contents),
-          workspacePath,
-        }));
-        onSessionMessageSaved?.(pending.sessionId, 1);
+        await appendResponseError(pending.sessionId, sendErrorText);
 
         // 触发会话持久化（reassignMessages 会处�?temp→real�?
         if (pending.sessionId.startsWith('temp-') && onUpdateSessionTitle) {
           onUpdateSessionTitle(pending.sessionId, pending.messageText.trim().slice(0, 20) + (pending.messageText.trim().length > 20 ? '...' : ''));
         }
+      } else {
+        await appendResponseError(sessionId!, sendErrorText);
       }
 
       clearLiveSession(sessionId!);
@@ -1798,10 +1826,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       onSessionRunStateChangeRef.current?.(
         sessionId!,
         'error',
-        error instanceof Error ? error.message : '命令发送失败',
+        sendErrorText,
       );
     }
-  }, [currentConversation, onAiCreateComplete, onNewSession, onUpdateSessionTitle, workspacePath, providers, activeFilePath, maxSteps]);
+  }, [appendResponseError, currentConversation, onAiCreateComplete, onNewSession, onUpdateSessionTitle, workspacePath, providers, activeFilePath, maxSteps]);
 
   // 自动化：在绑定项目的新会话中，使用创建时保存的模型与推理等级发送提示词。
   useEffect(() => {
@@ -2087,7 +2115,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'new'} tasks={currentTodoTasks} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} mode={chatMode} onModeChange={setChatMode} baseContextTokens={baseContextTokens} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
         </div>
       ) : (
         <>
@@ -2095,7 +2123,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'current'} tasks={currentTodoTasks} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} mode={chatMode} onModeChange={setChatMode} baseContextTokens={baseContextTokens} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
         </>
       )}
       {/* 搴曢儴鎻愮ず */}

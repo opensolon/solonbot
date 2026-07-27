@@ -9,6 +9,7 @@ import { ActionBlock } from './ActionBlock';
 import { ActionGroupBlock } from './ActionGroupBlock';
 import type { Message, Theme, ContentItem } from '../types';
 import { isTodoToolName } from '../utils/todoTools';
+import { isSafeImageDataUrl } from '../utils/messageContent';
 import './ChatMessages.css';
 
 interface ChatMessagesProps {
@@ -55,7 +56,10 @@ const LazyCodeBlock = lazy(async () => {
     yaml,
   ] = await Promise.all([
     import('react-syntax-highlighter/dist/esm/prism-light'),
-    import('react-syntax-highlighter/dist/esm/styles/prism'),
+    Promise.all([
+      import('react-syntax-highlighter/dist/esm/styles/prism/one-dark'),
+      import('react-syntax-highlighter/dist/esm/styles/prism/one-light'),
+    ]),
     import('react-syntax-highlighter/dist/esm/languages/prism/bash'),
     import('react-syntax-highlighter/dist/esm/languages/prism/css'),
     import('react-syntax-highlighter/dist/esm/languages/prism/diff'),
@@ -74,7 +78,9 @@ const LazyCodeBlock = lazy(async () => {
     import('react-syntax-highlighter/dist/esm/languages/prism/yaml'),
   ]);
   const SyntaxHighlighter = highlighterModule.default;
-  const { oneDark, oneLight } = styleModule;
+  const [oneDarkModule, oneLightModule] = styleModule;
+  const oneDark = oneDarkModule.default;
+  const oneLight = oneLightModule.default;
 
   SyntaxHighlighter.registerLanguage('bash', bash.default);
   SyntaxHighlighter.registerLanguage('shell', bash.default);
@@ -327,6 +333,21 @@ function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
 
 // 内容项渲染组件 — memo 化，避免消息不变时重渲染
 const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean }) {
+  if (item.type === 'IMAGE') {
+    if (!isSafeImageDataUrl(item.text)) return null;
+    return (
+      <div className="content-item image-item">
+        <img
+          className="message-image"
+          src={item.text}
+          alt={item.name || '图片附件'}
+          decoding="async"
+        />
+        {item.name && <div className="message-image-name">{item.name}</div>}
+      </div>
+    );
+  }
+
   if (item.type === 'THINK') {
     return <ThinkBlock content={item.text} theme={theme} />;
   }
@@ -362,6 +383,7 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
   if (item.type === 'ERROR') {
     return (
       <div className="content-item error-item">
+        <Icon name="error" size={15} className="error-icon" />
         <span className="error-text">{item.text}</span>
       </div>
     );
@@ -412,8 +434,8 @@ const MessageMetadata = memo(function MessageMetadata({ metadata }: { metadata: 
 // 单条消息组件 — memo 化
 const ThinkingRow = memo(function ThinkingRow({ elapsedSeconds }: { elapsedSeconds: number }) {
   return (
-    <div className="message thinking-row">
-      <div className="thinking-text">正在思考 {elapsedSeconds}s</div>
+    <div className="message thinking-row" role="status" aria-live="polite" aria-label={`正在思考，已处理 ${elapsedSeconds} 秒`}>
+      <div className="thinking-text">正在思考</div>
     </div>
   );
 });
@@ -422,6 +444,7 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAc
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = message.contents
+      .filter(item => item.type !== 'IMAGE')
       .map(item => item.text)
       .filter(Boolean)
       .join('\n');
@@ -491,7 +514,7 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       }
     }));
 
-    const showThinkingRow = isLoading && visibleMessages[visibleMessages.length - 1]?.role !== 'ASSISTANT';
+    const showThinkingRow = isLoading;
 
     const itemContent = useCallback((index: number) => {
       if (showThinkingRow && index === visibleMessages.length) {
@@ -530,21 +553,6 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
           computeItemKey={(index) => showThinkingRow && index === visibleMessages.length ? 'thinking' : (visibleMessages[index]?.id ?? index)}
           style={{ height: '100%' }}
         />
-        {false && (
-          <div className="message assistant loading">
-            <div className="message-bubble">
-              <div className="message-header">
-                <Icon name="bot" size={12} />
-                <span className="message-role">助手</span>
-              </div>
-              <div className="loading-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

@@ -140,8 +140,7 @@
 
 /* 错误消息 */
 .message.error .message-bubble {
-  border-left: 2px solid #dc3545;
-  padding-left: 8px;
+  width: min(680px, 90%);
 }
 
 /* 消息头部 */
@@ -180,6 +179,37 @@
 
 .content-item:last-child {
   margin-bottom: 0;
+}
+
+/* 用户消息中的图片附件 */
+.image-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.message-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(360px, 60vw);
+  max-height: 280px;
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.message-image-name {
+  max-width: min(360px, 60vw);
+  overflow: hidden;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  opacity: 0.72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 通用可折叠块 */
@@ -444,26 +474,29 @@
 
 /* 错误内容项 */
 .error-item {
-  padding: 4px 0 4px 12px;
-  margin: 4px 0;
+  padding: 10px 12px;
+  margin: 6px 0;
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  color: var(--cb-text-secondary);
-  opacity: 0.7;
+  gap: 8px;
+  color: #ef4444;
   font-size: 13px;
   line-height: 1.5;
-  border-left: 2px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.09);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  border-left-width: 3px;
+  border-radius: 7px;
 }
 
 .error-item .error-icon {
-  font-size: 12px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .error-item .error-text {
   font-size: 13px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 /* HITL 审批卡片 */

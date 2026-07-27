@@ -12,6 +12,8 @@ export function useBackend() {
   const wsRef = useRef<WebSocket | null>(null);
   const startPromiseRef = useRef<Promise<void> | null>(null);
   const startPortRef = useRef<number | null>(null);
+  const startWorkspaceRef = useRef<string>('');
+  const lastWorkspaceRef = useRef<string>('');
   const lastConnectedAtRef = useRef<number>(0);
   const failedProbeCountRef = useRef<number>(0);
   const httpProbeInFlightRef = useRef(false);
@@ -107,19 +109,25 @@ export function useBackend() {
     };
   }, [markConnected, markProbeFailed]);
 
-  const startBackend = useCallback(async (cliPort: number, onSettingsUpdate?: (updater: (prev: any) => any) => void) => {
-    if (startPromiseRef.current && startPortRef.current === cliPort) {
-      await fileService.writeLog(`Backend start already in flight on port ${cliPort}, reusing pending request`);
+  const startBackend = useCallback(async (cliPort: number, onSettingsUpdate?: (updater: (prev: any) => any) => void, workspacePath?: string | null) => {
+    const workspace = workspacePath?.trim() || '';
+    if (startPromiseRef.current && startPortRef.current === cliPort && startWorkspaceRef.current === workspace) {
+      await fileService.writeLog(`Backend start already in flight on port ${cliPort} for workspace ${workspace || 'user-home'}, reusing pending request`);
       return startPromiseRef.current;
+    }
+    if (startPromiseRef.current) {
+      await fileService.writeLog(`Waiting for the pending backend start before switching to workspace ${workspace || 'user-home'}`);
+      await startPromiseRef.current;
     }
 
     setBackendStatus('connecting');
-    fileService.writeLog(`Starting backend flow on port ${cliPort}`);
+    fileService.writeLog(`Starting backend flow on port ${cliPort}, workspace=${workspace || 'user-home'}`);
 
     const startPromise = (async () => {
       try {
-        const port = await backendService.start('', cliPort);
+        const port = await backendService.start(workspace, cliPort);
         if (port) {
+          lastWorkspaceRef.current = workspace;
           markConnected(port);
 
           const cliConfig = await fileService.readGlobalChatModel();
@@ -135,24 +143,31 @@ export function useBackend() {
                 : prev;
 
               if (seeded.changed) {
-                settingsService.save(baseSettings);
+                void settingsService.save(baseSettings);
               }
-
-              settingsService.fetchModelsFromBackend(port, cliConfig.apiUrl, cliConfig.apiKey, baseSettings.providers, cliConfig.provider, cliConfig.model)
-                .then(result => {
-                  if (result) {
-                    onSettingsUpdate(p => {
-                      const updated = { ...p, providers: result.providers };
-                      if (result.activeProviderId) {
-                        updated.activeProviderId = result.activeProviderId;
-                      }
-                      settingsService.save(updated);
-                      return updated;
-                    });
-                  }
-                });
               return baseSettings;
             });
+
+            const availableModels = await settingsService.fetchModelsFromBackend(
+              port,
+              cliConfig.apiUrl,
+              cliConfig.apiKey,
+              cliConfig.provider,
+              cliConfig.model,
+            );
+            if (availableModels) {
+              onSettingsUpdate(prev => {
+                const merged = settingsService.mergeFetchedModelsIntoConfiguredProvider(prev.providers, cliConfig, availableModels);
+                if (!merged.changed) return prev;
+                const updated = {
+                  ...prev,
+                  providers: merged.providers,
+                  activeProviderId: prev.activeProviderId || merged.providerId,
+                };
+                void settingsService.save(updated);
+                return updated;
+              });
+            }
           }
         } else {
           markDisconnected();
@@ -163,12 +178,14 @@ export function useBackend() {
         if (startPromiseRef.current === startPromise) {
           startPromiseRef.current = null;
           startPortRef.current = null;
+          startWorkspaceRef.current = '';
         }
       }
     })();
 
     startPromiseRef.current = startPromise;
     startPortRef.current = cliPort;
+    startWorkspaceRef.current = workspace;
 
     return startPromise;
   }, [markConnected, markDisconnected]);
@@ -183,7 +200,7 @@ export function useBackend() {
     wsRef.current?.close();
     wsRef.current = null;
     const port = backendPortRef.current;
-    await startBackend(port, onSettingsUpdate);
+    await startBackend(port, onSettingsUpdate, lastWorkspaceRef.current);
   }, [startBackend]);
 
   return { backendPort, backendPortRef, backendStatus, startBackend, reconnectBackend, updateWorkspaceForChat };

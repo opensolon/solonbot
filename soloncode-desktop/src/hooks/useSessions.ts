@@ -3,10 +3,11 @@ import {
   getAllConversations, saveConversation, deleteConversation,
   updateConversation, saveLastSessionId, loadLastSessionId,
   migrateConversationsToProjects, reassignMessages,
-  getMessageCount,
+  getMessageCount, getMessageCountsByConversation,
   UNLINKED_PROJECT,
 } from '../db';
 import type { Conversation } from '../types';
+import { isUnlinkedEmptySession } from '../utils/sessionProject';
 
 export interface Session {
   id: string;
@@ -30,22 +31,27 @@ export function useSessions(
 
   // 初始化加载会话
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       await migrateConversationsToProjects();
-      const convs = await getAllConversations();
-      const loaded: Session[] = await Promise.all(convs.map(async c => {
+      const [convs, messageCounts] = await Promise.all([
+        getAllConversations(),
+        getMessageCountsByConversation(),
+      ]);
+      const loaded: Session[] = convs.map(c => {
         const id = c.id!.toString();
         return {
           id,
           title: c.title,
           timestamp: c.timestamp,
-          messageCount: await getMessageCount(id),
+          messageCount: messageCounts.get(id) || 0,
           isPermanent: c.isPermanent,
           workspacePath: c.workspacePath || UNLINKED_PROJECT,
         };
-      }));
-      setSessions(loaded);
+      });
+      if (!cancelled) setSessions(loaded);
     })();
+    return () => { cancelled = true; };
   }, []);
 
   // 恢复项目最后会话
@@ -164,6 +170,34 @@ export function useSessions(
     ));
   }, []);
 
+  const linkCurrentEmptySessionToProject = useCallback(async (projectPath: string): Promise<boolean> => {
+    if (!projectPath || projectPath === UNLINKED_PROJECT) return false;
+
+    if (!currentSessionId) {
+      return Boolean(handleNewSession(projectPath));
+    }
+
+    if (currentSessionId.startsWith('temp-')) {
+      const pending = pendingSession?.id === currentSessionId ? pendingSession : null;
+      if (!pending || !isUnlinkedEmptySession(pending)) return false;
+      setPendingSession(current => current?.id === currentSessionId
+        ? { ...current, workspacePath: projectPath }
+        : current
+      );
+      return true;
+    }
+
+    const session = sessions.find(item => item.id === currentSessionId);
+    if (!session || !isUnlinkedEmptySession(session)) return false;
+
+    await updateConversation(currentSessionId, { workspacePath: projectPath });
+    setSessions(current => current.map(item => item.id === currentSessionId
+      ? { ...item, workspacePath: projectPath }
+      : item
+    ));
+    return true;
+  }, [currentSessionId, handleNewSession, pendingSession, sessions]);
+
   const remapProjectPath = useCallback((oldPath: string, newPath: string) => {
     setSessions(prev => prev.map(session =>
       session.workspacePath === oldPath
@@ -198,6 +232,7 @@ export function useSessions(
     handleDeleteSession,
     handleUpdateSessionTitle,
     incrementSessionMessageCount,
+    linkCurrentEmptySessionToProject,
     remapProjectPath,
     restoreLastSession,
   };

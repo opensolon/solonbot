@@ -72,11 +72,6 @@
   background-color: var(--cb-vscode-list-hoverBackground);
 }
 
-.project-header.active,
-.project-header.expanded {
-  background-color: rgba(128, 128, 128, 0.14);
-}
-
 .project-name {
   flex: 1;
   font-size: 13px;

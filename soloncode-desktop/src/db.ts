@@ -259,6 +259,19 @@ export async function getMessageCount(conversationId: string | number): Promise<
     .count();
 }
 
+/**
+ * 一次索引扫描获取所有会话的消息数。
+ * 历史数据可能混用 number/string 会话 ID，统一为字符串后合并计数。
+ */
+export async function getMessageCountsByConversation(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  await db.messages.orderBy('conversationId').eachKey(key => {
+    const conversationId = String(key);
+    counts.set(conversationId, (counts.get(conversationId) || 0) + 1);
+  });
+  return counts;
+}
+
 export async function saveConversation(conversation: DbConversation): Promise<number> {
   if (conversation.id) {
     await db.conversations.update(conversation.id, conversation);

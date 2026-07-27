@@ -969,6 +969,7 @@ const LEGACY_SETTINGS_SCHEMA: &str = "https://solon.noear.org/soloncode/settings
 struct ManagedBackendProcess {
     child: Child,
     port: u16,
+    work_dir: PathBuf,
     started_at: Instant,
 }
 
@@ -1519,6 +1520,16 @@ try {{\n\
 
 #[tauri::command]
 fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
+    // 空路径时使用用户主目录；项目路径则作为 CLI 的工作目录，以加载项目级配置与 Agent。
+    let requested_work_dir = if workspace_path.is_empty() {
+        let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+        std::env::var(home_var).unwrap_or_else(|_| ".".to_string())
+    } else {
+        workspace_path.to_string()
+    };
+    let work_dir = fs::canonicalize(&requested_work_dir)
+        .unwrap_or_else(|_| PathBuf::from(&requested_work_dir));
+
     // 检查已有进程是否仍在运行
     {
         let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
@@ -1529,12 +1540,14 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
                         *proc = None;
                     }
                     Ok(None) => {
-                        if managed.port != port {
+                        if managed.port != port || managed.work_dir != work_dir {
                             app_log(&format!(
-                                "[soloncode] Managed backend PID {} is running on port {}, restarting for requested port {}",
+                                "[soloncode] Managed backend PID {} is running on port {} in {}, restarting for port {} in {}",
                                 managed.child.id(),
                                 managed.port,
-                                port
+                                managed.work_dir.to_string_lossy(),
+                                port,
+                                work_dir.to_string_lossy(),
                             ));
                             let _ = managed.child.kill();
                             let _ = managed.child.wait();
@@ -1595,21 +1608,13 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
         maybe_prepare_legacy_cli_settings();
     }
 
-    // 确定工作目录（空路径时使用用户主目录）
-    let work_dir = if workspace_path.is_empty() {
-        let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
-        std::env::var(home_var).unwrap_or_else(|_| ".".to_string())
-    } else {
-        workspace_path.to_string()
-    };
-
     // 日志文件（保存在应用根目录）
     let log_path = if let Ok(exe) = std::env::current_exe() {
         exe.parent()
             .map(|d| d.join("server.log"))
             .ok_or("无法获取应用目录")?
     } else {
-        Path::new(&work_dir).join(".soloncode").join("server.log")
+        work_dir.join(".soloncode").join("server.log")
     };
     let log_file = fs::File::create(&log_path)
         .map_err(|e| format!("创建日志文件失败: {}", e))?;
@@ -1691,6 +1696,7 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
     *proc = Some(ManagedBackendProcess {
         child,
         port,
+        work_dir,
         started_at: Instant::now(),
     });
 
@@ -1956,6 +1962,28 @@ pub struct AgentInfo {
     enabled: bool,
 }
 
+fn frontend_path(path: &Path) -> String {
+    let value = path.to_string_lossy();
+    if cfg!(windows) {
+        if let Some(stripped) = value.strip_prefix("\\\\?\\UNC\\") {
+            return format!("\\\\{}", stripped);
+        }
+        if let Some(stripped) = value.strip_prefix("\\\\?\\") {
+            return stripped.to_string();
+        }
+    }
+    value.into_owned()
+}
+
+const AGENT_ALLOWED_TOOL_IDS: &[&str] = &[
+    "read", "write", "edit", "bash", "codesearch", "websearch", "webfetch", "lsp", "mcp", "restapi",
+];
+
+fn parse_agent_frontmatter_scalar(value: &str) -> String {
+    serde_json::from_str::<String>(value.trim())
+        .unwrap_or_else(|_| value.trim().trim_matches('"').to_string())
+}
+
 #[tauri::command]
 fn list_agents() -> Result<Vec<AgentInfo>, String> {
     let home = if cfg!(windows) {
@@ -1994,13 +2022,11 @@ fn list_agents() -> Result<Vec<AgentInfo>, String> {
                     }
                     if in_frontmatter && fence_count < 2 {
                         if line.starts_with("name:") {
-                            name = line.trim_start_matches("name:").trim()
-                                .trim_matches('"').to_string();
+                            name = parse_agent_frontmatter_scalar(line.trim_start_matches("name:"));
                         } else if line.starts_with("description:") {
-                            description = line.trim_start_matches("description:").trim()
-                                .trim_matches('"').to_string();
-                            if description.len() > 120 {
-                                description = format!("{}...", &description[..120]);
+                            description = parse_agent_frontmatter_scalar(line.trim_start_matches("description:"));
+                            if description.chars().count() > 120 {
+                                description = format!("{}...", description.chars().take(120).collect::<String>());
                             }
                         }
                     }
@@ -2025,8 +2051,14 @@ fn list_agents() -> Result<Vec<AgentInfo>, String> {
 
 /// 切换 agent 启用/禁用状态
 #[tauri::command]
-fn toggle_agent(agent_path: &str, enabled: bool) -> Result<(), String> {
-    let disabled_marker = Path::new(agent_path).join(".disabled");
+fn toggle_agent(
+    agent_path: &str,
+    agent_scope: &str,
+    project_path: Option<&str>,
+    enabled: bool,
+) -> Result<(), String> {
+    let source = validate_agent_config_path(agent_path, agent_scope, project_path)?;
+    let disabled_marker = source.join(".disabled");
     if enabled {
         if disabled_marker.exists() {
             fs::remove_file(&disabled_marker).map_err(|e| format!("移除标记失败: {}", e))?;
@@ -2035,6 +2067,131 @@ fn toggle_agent(agent_path: &str, enabled: bool) -> Result<(), String> {
         fs::write(&disabled_marker, "").map_err(|e| format!("创建标记失败: {}", e))?;
     }
     Ok(())
+}
+
+fn validate_agent_config_path(
+    agent_path: &str,
+    agent_scope: &str,
+    project_path: Option<&str>,
+) -> Result<PathBuf, String> {
+    let (source, _) = validate_managed_resource_path(agent_path, "agent")?;
+    let agents_root = match agent_scope {
+        "system" => {
+            let home = if cfg!(windows) {
+                std::env::var("USERPROFILE").unwrap_or_default()
+            } else {
+                std::env::var("HOME").unwrap_or_default()
+            };
+            let agents_dir = Path::new(&home).join(".soloncode").join("agents");
+            fs::canonicalize(&agents_dir).map_err(|_| "系统 Agent 目录不存在".to_string())?
+        }
+        "project" => {
+            let project_path = project_path.ok_or_else(|| "缺少项目路径".to_string())?;
+            let project = Path::new(project_path);
+            if !project.is_absolute() {
+                return Err("项目路径必须是绝对路径".to_string());
+            }
+            let metadata = fs::symlink_metadata(project).map_err(|_| "项目目录不存在".to_string())?;
+            if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                return Err("项目目录无效".to_string());
+            }
+            let project_root = fs::canonicalize(project).map_err(|_| "无法解析项目目录".to_string())?;
+            let agents_dir = project_root.join(".soloncode").join("agents");
+            fs::canonicalize(&agents_dir).map_err(|_| "项目 Agent 目录不存在".to_string())?
+        }
+        _ => return Err("不支持的 Agent 范围".to_string()),
+    };
+
+    if source.parent() != Some(agents_root.as_path()) {
+        return Err("只能修改当前范围内已发现的 Agent".to_string());
+    }
+    Ok(source)
+}
+
+fn normalize_agent_tools(tools: Vec<String>) -> Result<Vec<String>, String> {
+    if tools.len() > AGENT_ALLOWED_TOOL_IDS.len() {
+        return Err("可用工具数量无效".to_string());
+    }
+
+    let mut normalized = Vec::new();
+    for tool in tools {
+        let tool = tool.trim().to_ascii_lowercase();
+        if !AGENT_ALLOWED_TOOL_IDS.contains(&tool.as_str()) {
+            return Err("包含不支持的工具".to_string());
+        }
+        if !normalized.contains(&tool) {
+            normalized.push(tool);
+        }
+    }
+    Ok(normalized)
+}
+
+/// 更新 Agent 的前置元数据、提示词与工具权限。
+/// 仅允许修改系统或当前项目 .soloncode/agents 下已发现的直接子目录。
+#[tauri::command]
+fn update_agent_config(
+    agent_path: String,
+    agent_scope: String,
+    project_path: Option<String>,
+    name: String,
+    description: String,
+    prompt: String,
+    tools: Vec<String>,
+) -> Result<AgentInfo, String> {
+    let source = validate_agent_config_path(&agent_path, &agent_scope, project_path.as_deref())?;
+    let name = validate_resource_name(&name)?;
+    let description = description.trim().split_whitespace().collect::<Vec<_>>().join(" ");
+    if description.is_empty() {
+        return Err("Agent 简介不能为空".to_string());
+    }
+    if description.chars().count() > 240 {
+        return Err("Agent 简介不能超过 240 个字符".to_string());
+    }
+    let prompt = prompt.trim();
+    if prompt.is_empty() {
+        return Err("提示词不能为空".to_string());
+    }
+    if prompt.chars().count() > 20_000 {
+        return Err("提示词不能超过 20,000 个字符".to_string());
+    }
+    let tools = normalize_agent_tools(tools)?;
+
+    let parent = source.parent().ok_or_else(|| "Agent 路径无效".to_string())?;
+    let target = parent.join(&name);
+    let renamed = target != source;
+    if renamed && target.exists() {
+        return Err("同名 Agent 已存在".to_string());
+    }
+
+    let escaped_name = serde_json::to_string(&name).map_err(|_| "无法处理 Agent 名称".to_string())?;
+    let escaped_description = serde_json::to_string(&description).map_err(|_| "无法处理 Agent 简介".to_string())?;
+    let allowed_tools = if tools.is_empty() {
+        "[]".to_string()
+    } else {
+        format!("[{}]", tools.join(", "))
+    };
+    let content = format!(
+        "---\nname: {}\ndescription: {}\nallowed-tools: {}\n---\n\n{}\n",
+        escaped_name, escaped_description, allowed_tools, prompt
+    );
+
+    if renamed {
+        fs::rename(&source, &target).map_err(|_| "无法重命名 Agent 目录".to_string())?;
+    }
+    if fs::write(target.join("AGENT.md"), content).is_err() {
+        if renamed {
+            let _ = fs::rename(&target, &source);
+        }
+        return Err("保存 Agent 配置失败".to_string());
+    }
+
+    let enabled = !target.join(".disabled").exists();
+    Ok(AgentInfo {
+        name,
+        description,
+        path: frontend_path(&target),
+        enabled,
+    })
 }
 
 fn validate_resource_name(name: &str) -> Result<String, String> {
@@ -2394,6 +2551,7 @@ pub fn run() {
             delete_managed_resource,
             list_agents,
             toggle_agent,
+            update_agent_config,
             create_agent
         ])
         .on_window_event(|_window, event| {

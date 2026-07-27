@@ -33,7 +33,7 @@ type SettingsMenuKey = 'general' | 'permission' | 'mounts' | 'model' | 'channels
 interface SettingsPanelProps {
   visible: boolean;
   settings: Settings;
-  onSettingsChange: (settings: Settings) => void;
+  onSettingsChange: (settings: Settings, baseSettings: Settings) => void;
   onClose: () => void;
   onSkillInstalled?: (skillName: string) => void;
   backendPort?: number | null;
@@ -59,24 +59,14 @@ const menuItems: { key: SettingsMenuKey; icon: IconName; label: string }[] = [
 export function SettingsPanel({ visible, settings, onSettingsChange, onClose, onSkillInstalled, backendPort, workspacePath, sessionId }: SettingsPanelProps) {
   const [activeMenu, setActiveMenu] = useState<SettingsMenuKey>('general');
   const [localSettings, setLocalSettings] = useState(settings);
+  const baseSettingsRef = useRef(settings);
 
   useEffect(() => {
     if (visible) {
+      baseSettingsRef.current = settings;
       setLocalSettings(settings);
       setActiveMenu('general');
     }
-  }, [visible, settings]);
-
-  useEffect(() => {
-    if (!visible) return;
-    let cancelled = false;
-    settingsService.load()
-      .then(freshSettings => {
-        if (cancelled) return;
-        setLocalSettings(freshSettings);
-      })
-      .catch(err => console.warn('[SettingsPanel] reload settings failed:', err));
-    return () => { cancelled = true; };
   }, [visible]);
 
   useEffect(() => {
@@ -93,7 +83,7 @@ export function SettingsPanel({ visible, settings, onSettingsChange, onClose, on
   }
 
   function handleSave() {
-    onSettingsChange(localSettings);
+    onSettingsChange(localSettings, baseSettingsRef.current);
     onClose();
   }
 
@@ -206,7 +196,7 @@ export function SettingsPanel({ visible, settings, onSettingsChange, onClose, on
             {activeMenu === 'mounts' && (
               <MountSettings
                 mounts={localSettings.mounts}
-                onAdd={() => addListItem('mounts', { alias: '', path: '', type: 'SKILLS', scope: 'user', writeable: false, description: '' })}
+                onAdd={() => addListItem('mounts', { alias: '', path: '', type: 'SKILLS', scope: 'user', enabled: true, writeable: false, description: '' })}
                 onRemove={index => removeListItem('mounts', index)}
                 onUpdate={(index, updates) => updateList('mounts', index, updates)}
               />
@@ -949,8 +939,8 @@ function MountSettings({ mounts, onAdd, onRemove, onUpdate }: {
         <div key={index} className="mcp-server-card">
           <div className="mcp-server-header">
             <label className="checkbox-label">
-              <input type="checkbox" checked={mount.writeable} onChange={e => onUpdate(index, { writeable: e.target.checked })} />
-              <span>写权限</span>
+              <input type="checkbox" checked={mount.enabled !== false} onChange={e => onUpdate(index, { enabled: e.target.checked })} />
+              <span>启用</span>
             </label>
             <button className="mcp-remove-btn" onClick={() => onRemove(index)}><Icon name="close" size={12} /></button>
           </div>
@@ -958,6 +948,7 @@ function MountSettings({ mounts, onAdd, onRemove, onUpdate }: {
             <div className="mcp-field"><label>名称</label><input className="setting-input" value={mount.alias} onChange={e => onUpdate(index, { alias: e.target.value })} placeholder="@skills" /></div>
             <div className="mcp-field"><label>路径</label><input className="setting-input" value={mount.path} onChange={e => onUpdate(index, { path: e.target.value })} placeholder="./skills/" /></div>
             <div className="mcp-field"><label>类型</label><select className="setting-select" value={mount.type} onChange={e => onUpdate(index, { type: e.target.value as MountConfig['type'] })}><option value="SKILLS">技能</option><option value="AGENTS">子代理</option><option value="FILES">文件</option></select></div>
+            <div className="mcp-field"><label>读写权限</label><select className="setting-select" value={mount.writeable ? 'read-write' : 'read-only'} onChange={e => onUpdate(index, { writeable: e.target.value === 'read-write' })}><option value="read-only">只读</option><option value="read-write">读写</option></select></div>
             <div className="mcp-field"><label>作用域</label><select className="setting-select" value={mount.scope} onChange={e => onUpdate(index, { scope: e.target.value as MountConfig['scope'] })}><option value="user">用户</option><option value="workspace">工作区</option></select></div>
             <div className="mcp-field"><label>描述</label><input className="setting-input" value={mount.description || ''} onChange={e => onUpdate(index, { description: e.target.value })} /></div>
           </div>

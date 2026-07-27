@@ -346,7 +346,7 @@ export function SessionsPanel({
       )}
 
       <div className="panel-header">
-        <span className="panel-title">项目</span>
+        <span className="panel-title">对话管理</span>
         <div className="panel-header-actions">
           <DropdownMenu
             align="right"
@@ -369,12 +369,11 @@ export function SessionsPanel({
         {projectEntries.length > 0 && projectEntries.map(entry => {
           const projectSessions = sessionsByProject.get(entry.id) || [];
           const isExpanded = expandedProjects.has(entry.id);
-          const isActive = currentProjectId === entry.id;
 
           return (
             <div key={entry.id} className="project-group">
               <div
-                className={`project-header${isActive ? ' active' : ''}${isExpanded ? ' expanded' : ''}`}
+                className={`project-header${isExpanded ? ' expanded' : ''}`}
                 onClick={() => toggleExpand(entry.id)}
                 onContextMenu={event => {
                   event.preventDefault();

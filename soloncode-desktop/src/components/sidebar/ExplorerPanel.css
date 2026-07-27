@@ -28,19 +28,20 @@
 
 /* 项目根节点 */
 .project-root {
-  border-bottom: 1px solid var(--cb-vscode-panel-border);
 }
 
 /* 项目头部 */
 .project-root-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 6px;
+  min-height: 32px;
+  margin: 1px 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.1s;
-  border-left: 2px solid transparent;
 }
 
 .project-root-header:hover {
@@ -48,14 +49,13 @@
 }
 
 .project-root-header.active {
-  border-left-color: var(--cb-accent);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(128, 128, 128, 0.16);
 }
 
 .project-root-name {
   flex: 1;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--cb-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -96,6 +96,7 @@
 /* 项目树内容区 */
 .project-tree-content {
   min-height: 0;
+  padding-left: 20px;
 }
 
 /* 项目加载中 */
@@ -120,7 +121,10 @@
 .file-node {
   display: flex;
   align-items: center;
-  padding: 4px 8px;
+  min-height: 30px;
+  margin: 0 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.1s;
   user-select: none;
@@ -147,12 +151,13 @@
 
 /* 文件名 */
 .file-name {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--cb-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  line-height: 1.25;
 }
 
 /* Git 状态 */

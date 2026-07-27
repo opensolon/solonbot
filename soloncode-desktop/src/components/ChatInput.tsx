@@ -1,8 +1,14 @@
-import { useState, FormEvent, KeyboardEvent, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, FormEvent, KeyboardEvent, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './common/Icon';
 import type { ModelProvider } from '../services/settingsService';
 import { PROVIDER_PRESETS } from '../services/settingsService';
 import { fileService, isImageFile } from '../services/fileService';
+import {
+  extractSubagentHints,
+  isValidSubagentName,
+  type SubagentHint,
+} from '../utils/subagents';
 import './ChatInput.css';
 
 /** 开始工作下拉面板 */
@@ -43,7 +49,7 @@ function StartWorkPanel({ onNewProject, onOpenFolder }: { onNewProject?: () => v
 }
 
 // 命令类型（从 Web 控制器 /web/chat/hints 加载）
-interface CommandItem {
+interface CommandItem extends SubagentHint {
   name: string;
   description: string;
   type: string; // SYSTEM | CONFIG | AGENT
@@ -59,7 +65,8 @@ const DEFAULT_COMMANDS: CommandItem[] = [
 
 function normalizeCommands(list: CommandItem[]) {
   const map = new Map<string, CommandItem>();
-  for (const command of [...DEFAULT_COMMANDS, ...list]) {
+  const backendCommands = list.filter(command => String(command.type || '').toLowerCase() === 'command');
+  for (const command of [...DEFAULT_COMMANDS, ...backendCommands]) {
     const name = String(command.name || '').replace(/^\//, '').trim();
     if (!name) continue;
     map.set(name, {
@@ -78,10 +85,73 @@ export interface ChatAgentOption {
   enabled: boolean;
 }
 
-function isValidAgentName(name: string) {
-  const trimmed = name.trim();
-  const length = Array.from(trimmed).length;
-  return length > 0 && length <= 64 && /^[\p{L}\p{N}_-]+$/u.test(trimmed);
+interface AgentMenuOption {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/** Shared visual menu for both the @ mention picker and the input-bar agent picker. */
+function AgentPickerMenu({
+  agents,
+  selectedAgent,
+  activeIndex,
+  includeDefault = false,
+  emptyText,
+  footer,
+  onSelect,
+}: {
+  agents: readonly AgentMenuOption[];
+  selectedAgent?: string;
+  activeIndex?: number;
+  includeDefault?: boolean;
+  emptyText: string;
+  footer?: ReactNode;
+  onSelect: (agentName: string) => void;
+}) {
+  return (
+    <>
+      <div className="agent-picker-header">选择智能体</div>
+      <div className="agent-picker-list">
+        {includeDefault && (
+          <button
+            type="button"
+            className={`agent-picker-item${selectedAgent ? '' : ' active'}`}
+            onClick={() => onSelect('')}
+          >
+            <Icon name="bot" size={15} />
+            <span className="agent-picker-item-content">
+              <span className="agent-picker-item-name">默认 Agent</span>
+              <span className="agent-picker-item-description">使用主代理处理任务</span>
+            </span>
+            {!selectedAgent && <span className="agent-picker-check">✓</span>}
+          </button>
+        )}
+        {agents.length === 0 ? (
+          <div className="agent-picker-empty">{emptyText}</div>
+        ) : agents.map((agent, index) => {
+          const isSelected = selectedAgent === agent.name;
+          const isActive = isSelected || activeIndex === index;
+          return (
+            <button
+              key={agent.id}
+              type="button"
+              className={`agent-picker-item${isActive ? ' active' : ''}`}
+              onClick={() => onSelect(agent.name)}
+            >
+              <Icon name="bot" size={15} />
+              <span className="agent-picker-item-content">
+                <span className="agent-picker-item-name">{agent.name}</span>
+                <span className="agent-picker-item-description">{agent.description || 'Subagent'}</span>
+              </span>
+              {includeDefault && isSelected && <span className="agent-picker-check">✓</span>}
+            </button>
+          );
+        })}
+      </div>
+      {footer && <div className="agent-picker-footer">{footer}</div>}
+    </>
+  );
 }
 
 function containsAgentMention(value: string, agentName: string) {
@@ -111,6 +181,7 @@ interface ChatInputProps {
   onStop?: () => void;
   availableFiles?: ContextRef[];
   agents?: ChatAgentOption[];
+  agentRefreshKey?: number;
   providers?: ModelProvider[];
   activeProviderId?: string;
   onModelChange?: (providerId: string) => void;
@@ -120,8 +191,6 @@ interface ChatInputProps {
   onNewProject?: () => void;
   onOpenFolder?: () => void;
   workspacePath?: string;
-  mode?: ChatMode;
-  onModeChange?: (mode: ChatMode) => void;
   baseContextTokens?: number;
   contextTokenLimit?: number;
 }
@@ -150,21 +219,20 @@ function getModelDisplayName(p: ModelProvider): string {
   return modelLabel || p.model;
 }
 
-export type ChatMode = 'default' | 'auto' | 'plan';
 export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max';
 
 const REASONING_OPTIONS: Array<{ key: ReasoningEffort; label: string; desc: string }> = [
-  { key: 'low', label: 'low', desc: '快速响应，基础推理' },
-  { key: 'medium', label: 'medium', desc: '平衡思考（默认）' },
-  { key: 'high', label: 'high', desc: '深度推理，适合复杂任务' },
-  { key: 'max', label: 'max', desc: '最大推理深度' },
+  { key: 'low', label: '低', desc: '快速响应，基础推理' },
+  { key: 'medium', label: '中', desc: '平衡思考（默认）' },
+  { key: 'high', label: '高', desc: '深度推理，适合复杂任务' },
+  { key: 'max', label: '极高', desc: '最大推理深度' },
 ];
 
 function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
 }
 
-export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, mode = 'default', onModeChange, baseContextTokens = 0, contextTokenLimit = 128000 }: ChatInputProps & { mode?: ChatMode; onModeChange?: (mode: ChatMode) => void }) {
+export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], agentRefreshKey = 0, providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, baseContextTokens = 0, contextTokenLimit = 128000 }: ChatInputProps) {
   // 从每个 provider 的 availableModels 展开为独立的可选模型
   const allModels = useMemo(() => {
     const result: ModelProvider[] = [];
@@ -190,11 +258,13 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     return result;
   }, [providers]);
 
+  const [backendSubagents, setBackendSubagents] = useState<ChatAgentOption[] | null>(null);
+
   const availableAgents = useMemo(() => {
     const uniqueAgents = new Map<string, ChatAgentOption & { id: string; icon: string }>();
-    for (const agent of agents) {
+    for (const agent of backendSubagents ?? agents) {
       const name = agent.name.trim();
-      if (!agent.enabled || !isValidAgentName(name) || uniqueAgents.has(name)) continue;
+      if (!agent.enabled || !isValidSubagentName(name) || uniqueAgents.has(name)) continue;
       uniqueAgents.set(name, {
         ...agent,
         id: name,
@@ -203,10 +273,10 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
       });
     }
     return Array.from(uniqueAgents.values());
-  }, [agents]);
+  }, [agents, backendSubagents]);
 
   const [userInput, setUserInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('soloncode-last-model') || '');
+  const [selectedModel, setSelectedModel] = useState('');
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(() => {
     const saved = localStorage.getItem('soloncode-reasoning-effort') as ReasoningEffort | null;
     return saved && REASONING_OPTIONS.some(item => item.key === saved) ? saved : 'medium';
@@ -220,15 +290,11 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   // 模型选择器弹出状态
   const [showModelPicker, setShowModelPicker] = useState(false);
   const modelPickerRef = useRef<HTMLDivElement>(null);
-
-  // 模式选择器弹出状态
-  const [showModePicker, setShowModePicker] = useState(false);
-  const modePickerRef = useRef<HTMLDivElement>(null);
-  const [modePickerPos, setModePickerPos] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
+  const modelPickerPanelRef = useRef<HTMLDivElement>(null);
 
   const [showReasoningPicker, setShowReasoningPicker] = useState(false);
   const reasoningPickerRef = useRef<HTMLDivElement>(null);
-  const [reasoningPickerPos, setReasoningPickerPos] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
+  const reasoningPickerPanelRef = useRef<HTMLDivElement>(null);
 
   // 语音输入状态
   const [voiceRecording, setVoiceRecording] = useState(false);
@@ -238,69 +304,47 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   const voiceFinalRef = useRef('');
   const voiceRafRef = useRef(false);
 
-  // 同步模型选择：优先 localStorage 记忆，其次 activeProviderId
+  // 以应用当前模型为唯一来源，避免旧的本地缓存和状态栏显示不一致。
   useEffect(() => {
-    const lastUsed = localStorage.getItem('soloncode-last-model');
-    if (lastUsed && allModels.some(m => m.id === lastUsed)) {
-      setSelectedModel(lastUsed);
-      return;
-    }
     if (activeProviderId && allModels.some(m => m.id === activeProviderId)) {
       setSelectedModel(activeProviderId);
-    } else if (allModels.length > 0) {
-      setSelectedModel(allModels[0].id);
+      return;
     }
-  }, [activeProviderId, allModels]);
 
-  // 点击外部关闭模型选择器
+    const separatorIndex = activeProviderId?.indexOf('__') ?? -1;
+    const providerId = separatorIndex >= 0
+      ? activeProviderId?.slice(0, separatorIndex)
+      : activeProviderId;
+    const provider = providers.find(item => item.id === providerId);
+    const matchingProviderModel = provider
+      ? allModels.find(item => item.id.startsWith(`${provider.id}__`) && item.model === provider.model)
+      : undefined;
+    const firstProviderModel = providerId
+      ? allModels.find(item => item.id === providerId || item.id.startsWith(`${providerId}__`))
+      : undefined;
+
+    setSelectedModel(matchingProviderModel?.id || firstProviderModel?.id || allModels[0]?.id || '');
+  }, [activeProviderId, allModels, providers]);
+
   useEffect(() => {
+    if (!showModelPicker) return;
     function handleClickOutside(event: MouseEvent) {
-      if (modelPickerRef.current && !modelPickerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!modelPickerRef.current?.contains(target) && !modelPickerPanelRef.current?.contains(target)) {
         setShowModelPicker(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // 模型选择器下拉定位
-  const [pickerPos, setPickerPos] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
-  useEffect(() => {
-    if (showModelPicker && modelPickerRef.current) {
-      const rect = modelPickerRef.current.getBoundingClientRect();
-      setPickerPos({ left: rect.left, bottom: window.innerHeight - rect.top + 4 });
-    }
   }, [showModelPicker]);
-
-  // 模式选择器下拉定位
-  useEffect(() => {
-    if (showModePicker && modePickerRef.current) {
-      const rect = modePickerRef.current.getBoundingClientRect();
-      setModePickerPos({ left: rect.left, bottom: window.innerHeight - rect.top + 4 });
-    }
-  }, [showModePicker]);
-
-  useEffect(() => {
-    if (showReasoningPicker && reasoningPickerRef.current) {
-      const rect = reasoningPickerRef.current.getBoundingClientRect();
-      setReasoningPickerPos({ left: rect.left, bottom: window.innerHeight - rect.top + 4 });
-    }
-  }, [showReasoningPicker]);
-
-  // 点击外部关闭模式选择器
-  useEffect(() => {
-    if (!showModePicker) return;
-    const handler = (e: MouseEvent) => {
-      if (modePickerRef.current && !modePickerRef.current.contains(e.target as Node)) setShowModePicker(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showModePicker]);
 
   useEffect(() => {
     if (!showReasoningPicker) return;
     const handler = (e: MouseEvent) => {
-      if (reasoningPickerRef.current && !reasoningPickerRef.current.contains(e.target as Node)) setShowReasoningPicker(false);
+      const target = e.target as Node;
+      if (!reasoningPickerRef.current?.contains(target) && !reasoningPickerPanelRef.current?.contains(target)) {
+        setShowReasoningPicker(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -384,9 +428,10 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   const [autocompletePosition, setAutocompletePosition] = useState({ start: 0, end: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // 命令列表（从后端加载，缓存）
+  // 命令与 Subagent 列表（与 Web 端共用 /web/chat/hints）
   const [commands, setCommands] = useState<CommandItem[]>(DEFAULT_COMMANDS);
-  const commandsLoadedRef = useRef(false);
+  const hintsLoadedRef = useRef(false);
+  const hintsLoadingRef = useRef(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -448,23 +493,56 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     setAttachments(prev => prev.filter(a => a.id !== id));
   }
 
-  // 从后端加载命令列表
-  const loadCommands = useCallback(async () => {
-    if (commandsLoadedRef.current) return;
+  // 从后端加载命令和已注册的 Subagent，避免直接展示尚未注册的本地 Agent 文件。
+  const loadHints = useCallback(async () => {
+    if (hintsLoadedRef.current || hintsLoadingRef.current) return;
+    hintsLoadingRef.current = true;
     const port = backendPort || 4808;
     try {
       const resp = await fetch(`http://localhost:${port}/web/chat/hints`);
-      if (resp.ok) {
-        const json = await resp.json();
-        const list: CommandItem[] = json.data || json;
-        setCommands(normalizeCommands(Array.isArray(list) ? list : []));
-        commandsLoadedRef.current = true;
-      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      const list: CommandItem[] = json.data || json;
+      const hints = Array.isArray(list) ? list : [];
+      setCommands(normalizeCommands(hints));
+      setBackendSubagents(extractSubagentHints(hints));
+      hintsLoadedRef.current = true;
     } catch {
       setCommands(DEFAULT_COMMANDS);
-      commandsLoadedRef.current = true;
+      setBackendSubagents(null);
+    } finally {
+      hintsLoadingRef.current = false;
     }
   }, [backendPort]);
+
+  useEffect(() => {
+    hintsLoadedRef.current = false;
+    hintsLoadingRef.current = false;
+    setBackendSubagents(null);
+    setCommands(DEFAULT_COMMANDS);
+    const timer = window.setTimeout(() => void loadHints(), 600);
+    return () => window.clearTimeout(timer);
+  }, [backendPort, loadHints]);
+
+  // 保存 Agent 后先显示刚保存的本地配置，再读取后端重新注册后的结果。
+  // 后端由文件监听刷新 Agent，延迟重试一次可覆盖文件系统通知稍晚到达的情况。
+  useEffect(() => {
+    if (agentRefreshKey === 0) return;
+    setBackendSubagents(null);
+    setCommands(DEFAULT_COMMANDS);
+
+    const refreshHints = () => {
+      if (hintsLoadingRef.current) return;
+      hintsLoadedRef.current = false;
+      void loadHints();
+    };
+    const immediateTimer = window.setTimeout(refreshHints, 250);
+    const settledTimer = window.setTimeout(refreshHints, 1200);
+    return () => {
+      window.clearTimeout(immediateTimer);
+      window.clearTimeout(settledTimer);
+    };
+  }, [agentRefreshKey, loadHints]);
 
   // 加载工作区文件列表（懒加载，首次输入 # 时触发）
   const loadWorkspaceFiles = useCallback(async () => {
@@ -548,7 +626,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         triggerType = 'command';
         triggerIndex = lastSlashIndex;
         // 异步加载命令（首次）
-        loadCommands();
+        loadHints();
       }
     }
 
@@ -559,6 +637,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
       if (lastAtIndex > lastHashIndex && lastAtIndex !== -1 && isAgentPosition && !/\s/.test(afterAt)) {
         triggerType = 'agent';
         triggerIndex = lastAtIndex;
+        loadHints();
       } else if (lastHashIndex !== -1) {
         triggerType = 'context';
         triggerIndex = lastHashIndex;
@@ -566,6 +645,8 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     }
 
     if (triggerType && triggerIndex !== -1) {
+      setShowModelPicker(false);
+      setShowReasoningPicker(false);
       setAutocompleteType(triggerType);
       setAutocompleteQuery(value.substring(triggerIndex + 1, cursorPos));
       setAutocompletePosition({ start: triggerIndex, end: cursorPos });
@@ -653,15 +734,6 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
 
   // 键盘导航
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    // Shift+Tab 切换模式
-    if (event.key === 'Tab' && event.shiftKey) {
-      event.preventDefault();
-      const modes: ChatMode[] = ['default', 'auto', 'plan'];
-      const idx = modes.indexOf(mode);
-      onModeChange?.(modes[(idx + 1) % modes.length]);
-      return;
-    }
-
     if (showAutocomplete) {
       const options = getFilteredOptions();
       if (options.length > 0) {
@@ -743,6 +815,9 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   }, []);
 
   const filteredOptions = getFilteredOptions();
+  const autocompleteAgentOptions = autocompleteType === 'agent'
+    ? filteredOptions as AgentMenuOption[]
+    : [];
 
   // 当前选中的 provider
   const currentProvider = allModels.find(p => p.id === selectedModel);
@@ -756,7 +831,6 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     return baseContextTokens + estimateTokens(userInput) + attachmentTokens;
   }, [attachments, baseContextTokens, userInput]);
   const contextPercent = Math.min(100, Math.round((contextTokens / effectiveContextTokenLimit) * 100));
-  const contextTitle = `上下文 ${contextPercent}% · ${(contextTokens / 1000).toFixed(1)}K / ${(effectiveContextTokenLimit / 1000).toFixed(0)}K tokens`;
 
   return (
     <div className="chat-input-wrapper">
@@ -781,8 +855,14 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         </div>
       )}
       {/* 上下文标签 */}
-      {contexts.length > 0 && (
+      {(activeFileName || contexts.length > 0) && (
         <div className="context-tags">
+          {activeFileName && (
+            <span className="context-tag input-active-file">
+              <Icon name="file" size={12} />
+              <span>{activeFileName}</span>
+            </span>
+          )}
           {contexts.map(context => (
             <span key={context.id} className="context-tag">
               <Icon name="file" size={12} />
@@ -821,120 +901,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
 
           {/* 底部操作栏 */}
           <div className="input-bottom-bar">
-            {/* 模式切换 */}
-            <div className="model-picker-wrapper" ref={modePickerRef}>
-              <button
-                type="button"
-                className={`model-picker-btn${showModePicker ? ' active' : ''}`}
-                onClick={() => setShowModePicker(!showModePicker)}
-              >
-                <Icon name={
-                  mode === 'plan' ? 'eye' : mode === 'auto' ? 'zap' : 'shield'
-                } size={12} />
-                <span className="model-picker-name">
-                  {mode === 'default' ? '默认' : mode === 'auto' ? '自动编辑' : '规划'}
-                </span>
-                <span className={`model-picker-arrow${showModePicker ? ' open' : ''}`}>▾</span>
-              </button>
-              {showModePicker && (
-                <div className="model-picker-dropdown" style={{ left: modePickerPos.left, bottom: modePickerPos.bottom }}>
-                  {([
-                    { key: 'default' as ChatMode, label: '默认', desc: '手动审批所有操作', icon: 'shield' as const },
-                    { key: 'auto' as ChatMode, label: '自动编辑', desc: '自动接受文件修改', icon: 'zap' as const },
-                    { key: 'plan' as ChatMode, label: '规划', desc: '只读分析不执行', icon: 'eye' as const },
-                  ]).map(m => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      className={`model-picker-item${mode === m.key ? ' active' : ''}`}
-                      onClick={() => { onModeChange?.(m.key); setShowModePicker(false); }}
-                    >
-                      <Icon name={m.icon} size={14} />
-                      <span className="model-picker-item-name">{m.label}</span>
-                      <span className="model-picker-item-source">{m.desc}</span>
-                      {mode === m.key && <span className="model-picker-check">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="model-picker-wrapper" ref={reasoningPickerRef}>
-              <button
-                type="button"
-                className={`model-picker-btn reasoning-picker-btn${showReasoningPicker ? ' active' : ''}`}
-                onClick={() => setShowReasoningPicker(!showReasoningPicker)}
-                title={`推理强度：${currentReasoning.label}`}
-              >
-                <span className="reasoning-dot" data-level={reasoningEffort} />
-                <span className="model-picker-name">推理 {currentReasoning.label}</span>
-                <span className={`model-picker-arrow${showReasoningPicker ? ' open' : ''}`}>▾</span>
-              </button>
-              {showReasoningPicker && (
-                <div className="model-picker-dropdown reasoning-picker-dropdown" style={{ left: reasoningPickerPos.left, bottom: reasoningPickerPos.bottom }}>
-                  {REASONING_OPTIONS.map(item => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={`model-picker-item${reasoningEffort === item.key ? ' active' : ''}`}
-                      onClick={() => {
-                        setReasoningEffort(item.key);
-                        localStorage.setItem('soloncode-reasoning-effort', item.key);
-                        setShowReasoningPicker(false);
-                      }}
-                    >
-                      <span className="reasoning-dot" data-level={item.key} />
-                      <span className="model-picker-item-name">{item.label}</span>
-                      <span className="model-picker-item-source">{item.desc}</span>
-                      {reasoningEffort === item.key && <span className="model-picker-check">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 模型选择器 */}
-            <div className="model-picker-wrapper" ref={modelPickerRef}>
-              <button
-                type="button"
-                className={`model-picker-btn${showModelPicker ? ' active' : ''}`}
-                onClick={() => setShowModelPicker(!showModelPicker)}
-              >
-                <span className="model-picker-name">
-                  {currentProvider ? getModelDisplayName(currentProvider) : '选择模型'}
-                </span>
-                <span className={`model-picker-arrow${showModelPicker ? ' open' : ''}`}>▾</span>
-              </button>
-              {showModelPicker && (
-                <div className="model-picker-dropdown" style={{ left: pickerPos.left, bottom: pickerPos.bottom }}>
-                  {allModels.length === 0 ? (
-                    <div className="model-picker-empty">暂无可用模型</div>
-                  ) : (
-                    allModels.map(p => {
-                      const label = getModelDisplayName(p);
-                      const isActive = p.id === selectedModel;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`model-picker-item${isActive ? ' active' : ''}`}
-                          onClick={() => {
-                            setSelectedModel(p.id);
-                            localStorage.setItem('soloncode-last-model', p.id);
-                            onModelChange?.(p.id);
-                            setShowModelPicker(false);
-                          }}
-                        >
-                          <span className="model-picker-item-name">{label}</span>
-                          <span className="model-picker-item-source">{p.name}</span>
-                          {isActive && <span className="model-picker-check">✓</span>}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
+            {/* 附件 */}
             <button
               type="button"
               className="toolbar-btn"
@@ -948,7 +915,6 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
                   const isImage = isImageFile(filePath);
                   try {
                     if (isImage) {
-                      const { invoke } = await import('@tauri-apps/api/core');
                       const base64 = await invoke<string>('read_file_binary', { path: filePath });
                       const ext = filePath.split('.').pop()?.toLowerCase() || 'png';
                       const mime = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
@@ -969,6 +935,52 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
             >
               <Icon name="attach" size={14} />
             </button>
+
+            {/* 模型 */}
+            <div className="model-picker-wrapper" ref={modelPickerRef}>
+              <button
+                type="button"
+                className={`model-picker-btn${showModelPicker ? ' active' : ''}`}
+                onClick={() => {
+                  setShowModelPicker(open => !open);
+                  setShowReasoningPicker(false);
+                  setShowAutocomplete(false);
+                }}
+                title={`选择模型：${currentProvider ? getModelDisplayName(currentProvider) : '未选择'}`}
+              >
+                <Icon name="model" size={14} className="model-picker-icon" />
+                <span className="model-picker-name">
+                  {currentProvider ? getModelDisplayName(currentProvider) : '选择模型'}
+                </span>
+                <span className={`model-picker-arrow${showModelPicker ? ' open' : ''}`}>▾</span>
+              </button>
+            </div>
+
+            {/* 推理程度 */}
+            <div className="model-picker-wrapper" ref={reasoningPickerRef}>
+              <button
+                type="button"
+                className={`model-picker-btn reasoning-picker-btn${showReasoningPicker ? ' active' : ''}`}
+                onClick={() => {
+                  setShowReasoningPicker(open => !open);
+                  setShowModelPicker(false);
+                  setShowAutocomplete(false);
+                }}
+                title={`推理强度：${currentReasoning.label}`}
+              >
+                <span className="model-picker-name">{currentReasoning.label}</span>
+                <span className={`model-picker-arrow${showReasoningPicker ? ' open' : ''}`}>▾</span>
+              </button>
+            </div>
+
+            <span
+              className="context-meter spacer"
+              title="上下文用量"
+              aria-label="上下文用量"
+              style={{ '--context-percent': `${contextPercent}%` } as React.CSSProperties}
+            >
+              <span className="context-meter-ring" />
+            </span>
             {(typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) && (
               <button
                 type="button"
@@ -984,19 +996,6 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
                 <Icon name="mic" size={14} />
               </button>
             )}
-            {activeFileName && (
-              <span className="input-active-file">
-                <Icon name="file" size={10} />
-                <span>{activeFileName}</span>
-              </span>
-            )}
-            <span
-              className="context-meter spacer"
-              title={contextTitle}
-              style={{ '--context-percent': `${contextPercent}%` } as React.CSSProperties}
-            >
-              <span className="context-meter-ring" />
-            </span>
             <button
               type={isLoading && onStop ? 'button' : 'submit'}
               className={`send-stop-button${isLoading ? ' stopping' : ''}`}
@@ -1009,8 +1008,75 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
           </div>
         </form>
 
+        {showModelPicker && (
+          <div className="input-picker-dropdown model-picker-dropdown" ref={modelPickerPanelRef}>
+            <div className="input-picker-header">选择模型</div>
+            <div className="input-picker-list">
+              {allModels.length === 0 ? (
+                <div className="model-picker-empty">暂无可用模型</div>
+              ) : (
+                allModels.map(p => {
+                  const label = getModelDisplayName(p);
+                  const isActive = p.id === selectedModel;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`model-picker-item${isActive ? ' active' : ''}`}
+                      onClick={() => {
+                        setSelectedModel(p.id);
+                        onModelChange?.(p.id);
+                        setShowModelPicker(false);
+                      }}
+                    >
+                      <span className="model-picker-item-name">{label}</span>
+                      <span className="model-picker-item-source">{p.name}</span>
+                      {isActive && <span className="model-picker-check">✓</span>}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {showReasoningPicker && (
+          <div className="input-picker-dropdown model-picker-dropdown" ref={reasoningPickerPanelRef}>
+            <div className="input-picker-header">选择推理强度</div>
+            <div className="input-picker-list">
+              {REASONING_OPTIONS.map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`model-picker-item${reasoningEffort === item.key ? ' active' : ''}`}
+                  onClick={() => {
+                    setReasoningEffort(item.key);
+                    localStorage.setItem('soloncode-reasoning-effort', item.key);
+                    setShowReasoningPicker(false);
+                  }}
+                >
+                  <span className="model-picker-item-name">{item.label}</span>
+                  <span className="model-picker-item-source">{item.desc}</span>
+                  {reasoningEffort === item.key && <span className="model-picker-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 自动完成下拉框 */}
-        {showAutocomplete && (
+        {showAutocomplete && autocompleteType === 'agent' && (
+          <div className="agent-picker-dropdown autocomplete-agent-picker" ref={autocompleteRef}>
+            <AgentPickerMenu
+              agents={autocompleteAgentOptions}
+              activeIndex={selectedIndex}
+              emptyText={!hintsLoadedRef.current ? '加载中...' : '没有匹配项'}
+              onSelect={(agentName) => selectAutocompleteItem({ id: agentName, name: agentName })}
+              footer={<><span>↑↓ 选择</span><span>Tab 确认</span><span>Esc 关闭</span></>}
+            />
+          </div>
+        )}
+        {showAutocomplete && autocompleteType !== 'agent' && (
           <div className="autocomplete-dropdown" ref={autocompleteRef}>
             <div className="autocomplete-header">
               {autocompleteType === 'command' ? '命令' : autocompleteType === 'agent' ? '选择智能体' : '引用文件'}
@@ -1018,7 +1084,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
             <div className="autocomplete-list">
               {filteredOptions.length === 0 ? (
                 <div className="autocomplete-empty">
-                  {autocompleteType === 'command' && !commandsLoadedRef.current ? '加载命令中...' : '没有匹配项'}
+                  {(autocompleteType === 'command' || autocompleteType === 'agent') && !hintsLoadedRef.current ? '加载中...' : '没有匹配项'}
                 </div>
               ) : filteredOptions.map((option, index) => (
                 <div

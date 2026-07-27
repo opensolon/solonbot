@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class WsGate extends SimpleWebSocketListener {
     private static final Logger LOG = LoggerFactory.getLogger(WsGate.class);
     private static final String SESSION_ID_DESKTOP = "desktop";
+    private static final String SESSION_ATTR_SELECTED_AGENT = "_agent_selected_tmp";
 
     private final HarnessEngine engine;
     private final AgentSettings agentSettings;
@@ -282,6 +283,8 @@ public class WsGate extends SimpleWebSocketListener {
             // default 模式：不做特殊处理，所有操作走正常 HITL 流程
 
             final ReActAgent agent = engine.getAgentOrMain(agentName);
+            // 与 WebStreamBuilder 保持一致：记录本轮真正的源 Agent，供 HITL 恢复继续使用。
+            session.attrs().put(SESSION_ATTR_SELECTED_AGENT, agent.name());
 
             // 命令处理：以 / 开头的输入走命令分发
             if (currentInput.startsWith("/")) {
@@ -338,7 +341,7 @@ public class WsGate extends SimpleWebSocketListener {
             String finalCwd = cwd;
             AtomicBoolean terminalSent = new AtomicBoolean(false);
             streamHub.begin(finalSessionId, socket);
-            Disposable disposable = engine.prompt(prompt)
+            Disposable disposable = agent.prompt(prompt)
                     .session(session)
                     .options(o -> {
                         o.chatModel(chatModel);
@@ -566,6 +569,8 @@ public class WsGate extends SimpleWebSocketListener {
             // 审批后恢复流执行
             String modelName = (String) session.getContext().get(HarnessEngine.CTX_MODEL_SELECTED);
             ChatModel chatModel = engine.getModelOrDefInstance(modelName);
+            String selectedAgentName = (String) session.attrs().get(SESSION_ATTR_SELECTED_AGENT);
+            ReActAgent selectedAgent = engine.getAgentOrMain(selectedAgentName);
             String cwd = session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, ".").toString();
             String reasoningEffort = ReasoningEffortSupport.getSessionEffort(session);
             
@@ -574,7 +579,7 @@ public class WsGate extends SimpleWebSocketListener {
             
             AtomicBoolean terminalSent = new AtomicBoolean(false);
             streamHub.subscribe(sessionId, socket);
-            Disposable disposable = engine.prompt(hitlPrompt)
+            Disposable disposable = selectedAgent.prompt(hitlPrompt)
                     .session(session)
                     .options(o -> {
                         o.chatModel(chatModel);
@@ -798,7 +803,7 @@ public class WsGate extends SimpleWebSocketListener {
             Command command = engine.getCommandRegistry().find(cmdName);
             if (command == null) {
                 // 不是有效命令，当作普通输入走流式处理
-                handleFallbackPrompt(socket, session, chatModel, sessionCwd, input, finalSessionId, reasoningEffort);
+                handleFallbackPrompt(socket, session, agent, chatModel, sessionCwd, input, finalSessionId, reasoningEffort);
                 return;
             }
 
@@ -806,7 +811,7 @@ public class WsGate extends SimpleWebSocketListener {
             WebCommandContext ctx = new WebCommandContext(session, engine, input, cmdName, args,
                     (prompt, model) -> {
                         ChatModel selectedModel = model != null ? engine.getModelOrDefInstance(model) : chatModel;
-                        handleFallbackPrompt(socket, session, selectedModel, sessionCwd, prompt, finalSessionId, reasoningEffort);
+                        handleFallbackPrompt(socket, session, agent, selectedModel, sessionCwd, prompt, finalSessionId, reasoningEffort);
                     });
 
             // 执行命令
@@ -853,13 +858,13 @@ public class WsGate extends SimpleWebSocketListener {
     /**
      * 将输入作为普通 prompt 走流式处理
      */
-    private void handleFallbackPrompt(WebSocket socket, AgentSession session, ChatModel chatModel,
+    private void handleFallbackPrompt(WebSocket socket, AgentSession session, ReActAgent agent, ChatModel chatModel,
                                       String sessionCwd, String input, String finalSessionId, String reasoningEffort) {
         Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
         applyReasoningEffort(prompt, reasoningEffort);
         AtomicBoolean terminalSent = new AtomicBoolean(false);
         streamHub.begin(finalSessionId, socket);
-        Disposable disposable = engine.prompt(prompt)
+        Disposable disposable = agent.prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.chatModel(chatModel);

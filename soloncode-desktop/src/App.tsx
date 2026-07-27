@@ -16,15 +16,22 @@ import {
 } from './components/sidebar/AutomationPanel';
 import { SkillsPanel } from './components/sidebar/SkillsPanel';
 import { AgentsPanel } from './components/sidebar/AgentsPanel';
-import { SettingsPanel, type Settings } from './components/sidebar/SettingsPanel';
+import { AgentDetail } from './components/sidebar/AgentDetail';
+import type { Settings } from './components/sidebar/SettingsPanel';
 import type { ChatReviewFile } from './components/ChatHeader';
-import { ChatView, type PromptCreationMode, type PromptCreationType } from './components/ChatView';
+import {
+  ChatView,
+  setBackendPort as setChatBackendPort,
+  setWorkspacePath as setChatWorkspacePath,
+  sendModelConfig,
+  type PromptCreationMode,
+  type PromptCreationType,
+} from './components/ChatView';
 import type { SendOptions } from './components/ChatInput';
 import { fileService } from './services/fileService';
 import { gitService } from './services/gitService';
-import { DEFAULT_PROMPTS, settingsService } from './services/settingsService';
+import { DEFAULT_PROMPTS, settingsService, type AgentConfig } from './services/settingsService';
 import { updateService } from './services/updateService';
-import { setBackendPort as setChatBackendPort, setWorkspacePath as setChatWorkspacePath, sendModelConfig } from './components/ChatView';
 import { useFileWatcher } from './hooks/useFileWatcher';
 import { startWindowDrag, startWindowResize } from './hooks/useWindowDrag';
 import { useBackend } from './hooks/useBackend';
@@ -47,6 +54,8 @@ import {
 } from './db';
 import { cronMatchesDate, getCronMinuteKey, getCronValidationError, getLatestCronRun } from './utils/cron';
 import type { GeneratedAutomationPlan } from './utils/automationPlan';
+import { resolveProjectName } from './utils/projectContext';
+import { mergeEditedProvidersWithLatest } from './utils/providerMerge';
 import { useWorkspace } from './hooks/useWorkspace';
 import type { Conversation, Plugin, Theme } from './types';
 import type { GitFileStatus } from './services/gitService';
@@ -54,6 +63,7 @@ import './App.css';
 
 const EditorPanel = lazy(() => import('./components/editor/EditorPanel').then(module => ({ default: module.EditorPanel })));
 const TerminalPanel = lazy(() => import('./components/terminal/TerminalPanel').then(module => ({ default: module.TerminalPanel })));
+const SettingsPanel = lazy(() => import('./components/sidebar/SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 
 // 模拟扩展
 const mockExtensions = [
@@ -165,8 +175,9 @@ function normalizeEditorTheme(editorTheme?: string) {
 
 function normalizeLoadedSettings(settings: Settings): Settings {
   const enabledProviders = settings.providers.filter(provider => provider.enabled);
-  const hasActiveProvider = settings.activeProviderId
-    ? settings.providers.some(provider => provider.id === settings.activeProviderId)
+  const activeProviderBaseId = settings.activeProviderId.split('__', 1)[0];
+  const hasActiveProvider = activeProviderBaseId
+    ? settings.providers.some(provider => provider.id === activeProviderBaseId)
     : false;
   return {
     ...settings,
@@ -265,12 +276,16 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [gitPanelVisible, setGitPanelVisible] = useState(false);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [activeAgent, setActiveAgent] = useState<string>('default');
+  const lastStartedCliPortRef = useRef(defaultSettings.cliPort);
+  const [projectAgents, setProjectAgents] = useState<AgentConfig[]>([]);
   const [promptCreation, setPromptCreation] = useState<PromptCreationMode | null>(null);
   const [aiCreateRefreshKey, setAiCreateRefreshKey] = useState(0);
+  const [agentRefreshKey, setAgentRefreshKey] = useState(0);
   const [automationRefreshKey, setAutomationRefreshKey] = useState(0);
   const [selectedAutomation, setSelectedAutomation] = useState<DbAutomation | null>(null);
+  const [selectedAgentConfig, setSelectedAgentConfig] = useState<AgentConfig | null>(null);
   const [runningAutomationId, setRunningAutomationId] = useState<number | null>(null);
   const runningAutomationIdRef = useRef<number | null>(null);
   const scheduledAutomationQueueRef = useRef<number[]>([]);
@@ -347,37 +362,56 @@ function App() {
   }, []);
 
   useEffect(() => {
-    settingsService.load().then(async s => {
-      const normalizedSettings = normalizeLoadedSettings(s);
-      setSettings(normalizedSettings);
-      if (normalizedSettings.theme) {
-        setCurrentTheme(normalizedSettings.theme);
-        applyAppTheme(normalizedSettings.theme);
-      }
-      applyAppFontSize(normalizedSettings.fontSize);
+    let cancelled = false;
+    settingsService.load()
+      .then(async s => {
+        if (cancelled) return;
+        const normalizedSettings = normalizeLoadedSettings(s);
+        setSettings(normalizedSettings);
+        setSettingsLoaded(true);
+        if (normalizedSettings.theme) {
+          setCurrentTheme(normalizedSettings.theme);
+          applyAppTheme(normalizedSettings.theme);
+        }
+        applyAppFontSize(normalizedSettings.fontSize);
 
-      try {
-        const discoveredAgents = await invoke<Array<{
-          name: string;
-          description: string;
-          path: string;
-          enabled: boolean;
-        }>>('list_agents');
-        setSettings(current => ({
-          ...current,
-          agents: discoveredAgents.map(agent => ({
-            ...agent,
-            source: 'discovered' as const,
-          })),
-        }));
-      } catch {
-        // Web 开发环境没有 Tauri 命令，继续使用已保存的 Agents。
-      }
-    });
+        try {
+          const discoveredAgents = await invoke<Array<{
+            name: string;
+            description: string;
+            path: string;
+            enabled: boolean;
+          }>>('list_agents');
+          if (cancelled) return;
+          setSettings(current => ({
+            ...current,
+            agents: discoveredAgents.map(agent => ({
+              ...agent,
+              source: 'discovered' as const,
+              scope: 'system' as const,
+            })),
+          }));
+        } catch {
+          // Web 开发环境没有 Tauri 命令，继续使用已保存的 Agents。
+        }
+      })
+      .catch(err => {
+        console.warn('[App] 加载设置失败，使用默认设置:', err);
+        if (!cancelled) setSettingsLoaded(true);
+      });
+    return () => { cancelled = true; };
   }, []);
 
-  const handleSettingsChange = useCallback((newSettings: Settings) => {
-    const normalizedSettings = normalizeLoadedSettings(newSettings);
+  const handleSettingsChange = useCallback((newSettings: Settings, baseSettings: Settings) => {
+    const providers = mergeEditedProvidersWithLatest(
+      baseSettings.providers,
+      newSettings.providers,
+      settings.providers,
+    );
+    const activeProviderId = newSettings.activeProviderId === baseSettings.activeProviderId
+      ? settings.activeProviderId
+      : newSettings.activeProviderId;
+    const normalizedSettings = normalizeLoadedSettings({ ...newSettings, providers, activeProviderId });
     const prevActive = settings.providers.find(p => p.id === settings.activeProviderId);
     const nextActive = normalizedSettings.providers.find(p => p.id === normalizedSettings.activeProviderId);
     if (normalizedSettings.theme) {
@@ -416,6 +450,7 @@ function App() {
 
   const handleFileSelect = useCallback(async (path: string) => {
     setSelectedAutomation(null);
+    setSelectedAgentConfig(null);
     await handleFileSelectInternal(path);
   }, [handleFileSelectInternal]);
 
@@ -423,6 +458,7 @@ function App() {
     sessions, currentSessionId, setCurrentSessionId, currentConversation,
     handleNewSession, handleDeleteSession, handleUpdateSessionTitle,
     incrementSessionMessageCount,
+    linkCurrentEmptySessionToProject,
     remapProjectPath,
     restoreLastSession,
   } = useSessions(null, {
@@ -480,10 +516,24 @@ function App() {
     },
   });
 
+  const handleSelectManagedProject = useCallback(async (projectPath: string) => {
+    await handleSetActiveProject(projectPath, false);
+    const linked = await linkCurrentEmptySessionToProject(projectPath);
+    if (linked) {
+      setNewSessionFromProject(true);
+      setChatWorkspacePath(projectPath);
+    }
+  }, [handleSetActiveProject, linkCurrentEmptySessionToProject]);
+
   const chatWorkspacePath = useMemo(() => {
     if (currentConversation.workspacePath === UNLINKED_PROJECT) return null;
     return currentConversation.workspacePath || null;
   }, [currentConversation.workspacePath]);
+
+  const chatProjectName = useMemo(
+    () => resolveProjectName(projects, chatWorkspacePath),
+    [projects, chatWorkspacePath],
+  );
 
   useEffect(() => {
     setChatWorkspacePath(chatWorkspacePath);
@@ -491,10 +541,27 @@ function App() {
 
   const { gitStatus, diffLines, refreshGitStatus, setGitStatus } = useGit(activeProjectPath, activeFilePath, gitPanelVisible);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeProjectPath) {
+      setProjectAgents([]);
+      return;
+    }
+    setProjectAgents([]);
+    void settingsService.scanAgentsDir(activeProjectPath).then(agents => {
+      if (!cancelled) setProjectAgents(agents);
+    });
+    return () => { cancelled = true; };
+  }, [activeProjectPath]);
+
   const [diffFiles, setDiffFiles] = useState<Record<string, string>>({});
 
   const statusBarModel = useMemo(
-    () => settings.providers.find(p => p.id === settings.activeProviderId)?.model,
+    () => {
+      const separatorIndex = settings.activeProviderId.indexOf('__');
+      if (separatorIndex >= 0) return settings.activeProviderId.slice(separatorIndex + 2);
+      return settings.providers.find(p => p.id === settings.activeProviderId)?.model;
+    },
     [settings.providers, settings.activeProviderId]
   );
 
@@ -537,13 +604,6 @@ function App() {
     return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', updatePanelWidths); };
   }, [sidebarCollapsed]);
 
-  // 文件监听（仅在项目管理面板可见时启用）
-  useFileWatcher({
-    workspacePath: activeProjectPath,
-    onChange: async () => { refreshFileTree(); },
-    enabled: !!activeProjectPath && activeActivity === 'explorer',
-  });
-
   // 配置文件监听
   useFileWatcher({
     workspacePath: activeProjectPath ? `${activeProjectPath}/.soloncode` : null,
@@ -558,9 +618,11 @@ function App() {
 
   // 启动后端
   useEffect(() => {
+    if (!settingsLoaded) return;
     let cancelled = false;
     const port = settings.cliPort || 4808;
-    startBackend(port, (updater) => setSettings(updater)).then(async () => {
+    lastStartedCliPortRef.current = port;
+    startBackend(port, (updater) => setSettings(updater), activeProjectPath).then(async () => {
       if (cancelled) return;
       const runtimeSettings = await settingsService.loadRuntimeSettings(
         port,
@@ -577,16 +639,16 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeProjectPath, settingsLoaded, startBackend]);
 
   // 拖拽调整大小
-  const lastStartedCliPortRef = useRef(defaultSettings.cliPort);
   useEffect(() => {
+    if (!settingsLoaded) return;
     const port = settings.cliPort || 4808;
     if (lastStartedCliPortRef.current === port) return;
     lastStartedCliPortRef.current = port;
     let cancelled = false;
-    startBackend(port, (updater) => setSettings(updater)).then(async () => {
+    startBackend(port, (updater) => setSettings(updater), activeProjectPath).then(async () => {
       if (cancelled) return;
       await settingsService.syncRuntimeSettings(port, settings);
       if (cancelled) return;
@@ -605,7 +667,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [settings.cliPort, startBackend]);
+  }, [activeProjectPath, settings.cliPort, settingsLoaded, startBackend]);
 
   const [isResizing, setIsResizing] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -691,6 +753,7 @@ function App() {
       });
       if (selectedPath && typeof selectedPath === 'string') {
         setSelectedAutomation(null);
+        setSelectedAgentConfig(null);
         const file = await fileService.openFile(selectedPath);
         setOpenFiles(prev => prev.some(f => f.path === selectedPath) ? prev : [...prev, file]);
         setActiveFilePath(selectedPath);
@@ -821,6 +884,35 @@ function App() {
     setToast(msg);
     toastTimer.current = setTimeout(() => setToast(null), 5000);
   }, []);
+
+  const handleOpenAgentSettings = useCallback((agent: AgentConfig) => {
+    setSelectedAutomation(null);
+    setSelectedAgentConfig(agent);
+    setPanelState(prev => ({ ...prev, editorVisible: true }));
+  }, []);
+
+  const handleAgentSettingsSaved = useCallback((updated: AgentConfig) => {
+    const previousAgent = selectedAgentConfig;
+    if (previousAgent?.scope === 'project') {
+      setProjectAgents(previous => previous.map(agent => agent.path === previousAgent.path ? updated : agent));
+    } else {
+      setSettings(previous => ({
+        ...previous,
+        agents: previous.agents.map(agent => agent.path === previousAgent?.path ? updated : agent),
+      }));
+    }
+    setSelectedAgentConfig(updated);
+    setAiCreateRefreshKey(current => current + 1);
+    setAgentRefreshKey(current => current + 1);
+    showToast(`Agent "${updated.name}" 已保存，已刷新对话列表`);
+  }, [selectedAgentConfig, showToast]);
+
+  const handleCloseAgentSettings = useCallback(() => {
+    setSelectedAgentConfig(null);
+    if (openFiles.length === 0) {
+      setPanelState(prev => ({ ...prev, editorVisible: false }));
+    }
+  }, [openFiles.length]);
 
   const handleSkillInstalled = useCallback((skillName: string) => {
     setAiCreateRefreshKey(current => current + 1);
@@ -971,7 +1063,8 @@ function App() {
         setSettings(prev => ({ ...prev, skills: skills.map(s => ({ ...s, source: 'discovered' as const, group: 'global' as const })) }));
       } else if (info.type === 'agent') {
         const agents = await invoke<Array<{ name: string; description: string; path: string; enabled: boolean }>>('list_agents');
-        setSettings(prev => ({ ...prev, agents: agents.map(a => ({ ...a, source: 'discovered' as const })) }));
+        setSettings(prev => ({ ...prev, agents: agents.map(a => ({ ...a, source: 'discovered' as const, scope: 'system' as const })) }));
+        setAgentRefreshKey(current => current + 1);
       }
       if (info.type !== 'automation') {
         showToast(`${info.type === 'skill' ? 'Skill' : 'Agent'} "${info.name}" 已创建`);
@@ -1056,6 +1149,7 @@ function App() {
   }, [handleNewSession, handleSetActiveProject, projects]);
 
   const handleSelectAutomation = useCallback((automation: DbAutomation) => {
+    setSelectedAgentConfig(null);
     setSelectedAutomation(automation);
     setPanelState(prev => ({ ...prev, editorVisible: true }));
   }, []);
@@ -1335,7 +1429,7 @@ function App() {
           <ExplorerPanel
             projects={projects} activeProjectPath={activeProjectPath} refreshKey={projectRefreshKey}
             onFileSelect={handleFileSelect} onOpenFolder={handleOpenFolder} onCreateProject={handleCreateProject}
-            onRemoveProject={handleRemoveProject} onRenameProject={handleRenameProject} onSetActiveProject={handleSetActiveProject}
+            onRemoveProject={handleRemoveProject} onRenameProject={handleRenameProject} onSetActiveProject={handleSelectManagedProject}
             onRefreshProject={refreshFileTree} onNewFile={handleNewFile} onNewFolder={handleNewFolder}
             onRename={handleRename} onDelete={handleDelete} onCopy={handleCopy} onMove={handleMove}
           />
@@ -1371,7 +1465,21 @@ function App() {
       case 'skills':
         return <SkillsPanel backendPort={backendPort} refreshKey={aiCreateRefreshKey} onFileSelect={(path) => { setPanelState(prev => ({ ...prev, editorVisible: true })); handleFileSelect(path); }} onCreateWithAI={() => handleStartPromptCreation('skill')} />;
       case 'agents':
-        return <AgentsPanel agents={settings.agents} refreshKey={aiCreateRefreshKey} onAgentsChange={(agents) => setSettings(prev => ({ ...prev, agents }))} activeAgent={activeAgent} onAgentChange={setActiveAgent} onFileSelect={(path) => { setPanelState(prev => ({ ...prev, editorVisible: true })); handleFileSelect(path); }} onCreateWithAI={() => handleStartPromptCreation('agent')} />;
+        return <AgentsPanel
+          agents={settings.agents}
+          projectAgents={projectAgents}
+          projectPath={activeProjectPath}
+          projectName={workspaceName}
+          refreshKey={aiCreateRefreshKey}
+          onAgentsChange={(agents) => setSettings(prev => ({ ...prev, agents }))}
+          onProjectAgentsChange={setProjectAgents}
+          onOpenSettings={handleOpenAgentSettings}
+          onRuntimeRefresh={() => setAgentRefreshKey(current => current + 1)}
+          onAgentDeleted={agent => {
+            if (selectedAgentConfig?.path === agent.path) setSelectedAgentConfig(null);
+          }}
+          onCreateWithAI={() => handleStartPromptCreation('agent')}
+        />;
       default:
         return null;
     }
@@ -1400,6 +1508,12 @@ function App() {
               onDelete={automation => { void handleDeleteAutomationFromDetail(automation); }}
               onClose={handleCloseAutomationDetail}
             />
+          ) : selectedAgentConfig ? (
+            <AgentDetail
+              agent={selectedAgentConfig}
+              onSaved={handleAgentSettingsSaved}
+              onClose={handleCloseAgentSettings}
+            />
           ) : (
             <Suspense fallback={<div className="panel-loading">Loading editor...</div>}>
               <EditorPanel files={openFiles} activeFilePath={activeFilePath} onFileSelect={setActiveFilePath} onFileClose={(path) => { handleFileClose(path); setDiffFiles(prev => { const next = { ...prev }; delete next[path]; return next; }); }} onContentChange={handleContentChange} onFileSave={handleFileSave} theme={currentTheme} editorTheme={settings.editorTheme} fontSize={settings.fontSize} tabSize={settings.tabSize} autoSave={settings.autoSave} formatOnSave={settings.formatOnSave} diffLines={diffLines} diffFiles={diffFiles} />
@@ -1415,14 +1529,14 @@ function App() {
       return (
         <div key="chat" className="panel-wrapper chat-wrapper" style={{ ...(bothVisible ? { flex: '1 1 auto' } : {}), '--input-max-width': `${inputWidth}%` } as React.CSSProperties}>
           <ChatView
-            currentConversation={currentConversation} plugins={plugins} workspacePath={chatWorkspacePath || undefined} projectName={workspaceName || undefined}
+            currentConversation={currentConversation} plugins={plugins} workspacePath={chatWorkspacePath || undefined} projectName={chatProjectName}
             theme={currentTheme} backendPort={backendPort} onUpdateSessionTitle={handleUpdateSessionTitle} onNewSession={(title) => {
               setNewSessionFromProject(false);
               setChatWorkspacePath(null);
               return handleNewSession(UNLINKED_PROJECT, title);
             }}
             sessions={sessions} sessionRunStates={sessionRunStates} maxSteps={settings.maxSteps} onSelectSession={handleSelectSession}
-            providers={settings.providers} agents={settings.agents} activeProviderId={settings.activeProviderId} onActiveProviderChange={(providerId: string) => { setSettings(prev => { const updated = { ...prev, activeProviderId: providerId }; settingsService.save(updated); return updated; }); }}
+            providers={settings.providers} agents={[...settings.agents.filter(agent => agent.scope !== 'project'), ...projectAgents]} agentRefreshKey={agentRefreshKey} activeProviderId={settings.activeProviderId} onActiveProviderChange={(providerId: string) => { setSettings(prev => { const updated = { ...prev, activeProviderId: providerId }; settingsService.save(updated); return updated; }); }}
             activeFileName={chatWorkspacePath ? activeFile?.name : undefined}
             activeFilePath={chatWorkspacePath ? (activeFilePath || undefined) : undefined}
             onFileSelect={handleChatFileSelect}
@@ -1616,7 +1730,11 @@ function App() {
         onReconnect={() => reconnectBackend((updater) => setSettings(updater))}
       />
       {toast && <div className="toast-message">{toast}</div>}
-      <SettingsPanel visible={settingsVisible} settings={settings} onSettingsChange={handleSettingsChange} onClose={() => setSettingsVisible(false)} onSkillInstalled={handleSkillInstalled} backendPort={backendPort} workspacePath={activeProjectPath} sessionId={currentSessionId} />
+      {settingsVisible && (
+        <Suspense fallback={null}>
+          <SettingsPanel visible settings={settings} onSettingsChange={handleSettingsChange} onClose={() => setSettingsVisible(false)} onSkillInstalled={handleSkillInstalled} backendPort={backendPort} workspacePath={activeProjectPath} sessionId={currentSessionId} />
+        </Suspense>
+      )}
     </div>
     </div>
   );

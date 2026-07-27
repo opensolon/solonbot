@@ -16,8 +16,6 @@ export default defineConfig(async () => ({
       'react',
       'react-dom',
       'react-markdown',
-      'react-syntax-highlighter',
-      'react-syntax-highlighter/dist/esm/styles/prism',
       'remark-breaks',
       '@monaco-editor/react',
       '@xterm/xterm',
