@@ -185,17 +185,6 @@
         var keyVal = isNew ? '' : dataKey;
         var keyReadonly = isNew ? '' : 'readonly';
 
-        // scope 显示：统一使用可编辑按钮组（新建默认为工作区）
-        var currentScope = isNew ? 'workspace' : (cached.scope || 'workspace');
-        var userActive = currentScope === 'user' ? ' active' : '';
-        var wsActive = currentScope !== 'user' ? ' active' : '';
-        var scopeField = '' +
-            '      <label class="mem-field mem-field-scope"><span>作用域</span>' +
-            '        <div class="mem-scope-toggle">' +
-            '          <button class="mem-scope-btn' + userActive + '" data-scope="user" type="button">全局</button>' +
-            '          <button class="mem-scope-btn' + wsActive + '" data-scope="workspace" type="button">工作区</button>' +
-            '        </div></label>';
-
         return '<div class="mem-row-body">' +
             '  <div class="mem-form">' +
             '    <div class="mem-form-row">' +
@@ -203,7 +192,6 @@
             '        <input type="text" class="mem-key" value="' + escapeHtml(keyVal) + '" ' + keyReadonly + ' placeholder="唯一标识，如 project-build" /></label>' +
             '      <label class="mem-field mem-field-imp"><span>权重 (1-10)</span>' +
             '        <input type="number" class="mem-imp" min="1" max="10" value="' + imp + '" /></label>' +
-            scopeField +
             '    </div>' +
             '    <label class="mem-field"><span>内容</span>' +
             '      <textarea class="mem-content" placeholder="记忆内容（支持 markdown，建议 200 字以内）">' + escapeHtml(content) + '</textarea></label>' +
@@ -226,15 +214,6 @@
         Array.prototype.forEach.call(listEl.querySelectorAll('.mem-row.open'), function (row) {
             var saveBtn = row.querySelector('.mem-save');
             if (saveBtn) saveBtn.addEventListener('click', function (e) { e.stopPropagation(); saveMemory(row); });
-            var scopeBtns = row.querySelectorAll('.mem-scope-btn');
-            Array.prototype.forEach.call(scopeBtns, function (btn) {
-                btn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    var parent = btn.parentElement;
-                    parent.querySelectorAll('.mem-scope-btn').forEach(function (b) { b.classList.remove('active'); });
-                    btn.classList.add('active');
-                });
-            });
             var cancelBtn = row.querySelector('.mem-cancel');
             if (cancelBtn) cancelBtn.addEventListener('click', function (e) { e.stopPropagation(); expandedKey = null; renderList(currentFilter()); });
             var delBtn = row.querySelector('.mem-del');
@@ -315,8 +294,7 @@
         var key = (row.querySelector('.mem-key').value || '').trim();
         var content = (row.querySelector('.mem-content').value || '').trim();
         var imp = parseInt(row.querySelector('.mem-imp').value, 10);
-        var scopeBtn = row.querySelector('.mem-scope-btn.active');
-        var scope = scopeBtn ? scopeBtn.getAttribute('data-scope') : null;
+        // 作用域由后端默认处理（编辑时不显示作用域切换）
 
         if (!key) { memToast('Key 不能为空', true); return; }
         if (!content) { memToast('内容不能为空', true); return; }
@@ -326,7 +304,6 @@
         form.append('key', key);
         form.append('content', content);
         form.append('importance', imp);
-        if (scope) form.append('scope', scope);
 
         fetch('/web/chat/memory/save', {
             method: 'POST',
@@ -336,7 +313,7 @@
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (res && res.code === 200) {
-                    detailCache[key] = { content: content, importance: imp, scope: scope || 'workspace' };
+                    detailCache[key] = { content: content, importance: imp };
                     expandedKey = key;
                     loadMemoryList();
                     memToast('保存成功', false);
