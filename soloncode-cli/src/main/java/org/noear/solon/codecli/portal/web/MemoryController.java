@@ -24,6 +24,7 @@ import org.noear.solon.ai.talents.memory.MemorySearcher;
 import org.noear.solon.ai.talents.memory.MemoryStorer;
 import org.noear.solon.annotation.Mapping;
 import org.noear.solon.annotation.Param;
+import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
@@ -52,8 +53,7 @@ import java.util.Map;
 public class MemoryController {
     private static final Logger LOG = LoggerFactory.getLogger(MemoryController.class);
 
-    /** 与 MemoryTalent.getUserId(sessionIsolation=false) 对齐 */
-    private static final String SHARED_USER = "shared";
+    /** userId 统一引用 MemorySolutionProvider.MemorySolutionProvider.SHARED_USER_ID_ID，消除隐式字符串约定 */
     /** 列表返回上限，与 MemoryTalent.LIST_ALL_LIMIT 一致 */
     private static final int LIST_ALL_LIMIT = 100;
 
@@ -87,7 +87,7 @@ public class MemoryController {
 
         List<Map<String, Object>> out = new ArrayList<>();
         try {
-            List<MemorySearchResult> results = ms.getSearcher().listAll(SHARED_USER, LIST_ALL_LIMIT);
+            List<MemorySearchResult> results = ms.getSearcher().listAll(MemorySolutionProvider.SHARED_USER_ID, LIST_ALL_LIMIT);
             for (MemorySearchResult r : results) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("key", r.getKey());
@@ -120,7 +120,7 @@ public class MemoryController {
         }
 
         try {
-            String val = ms.getStorer().get(SHARED_USER, key);
+            String val = ms.getStorer().get(MemorySolutionProvider.SHARED_USER_ID, key);
             if (Assert.isEmpty(val)) {
                 return Result.failure("未找到记忆条目：" + key);
             }
@@ -157,7 +157,7 @@ public class MemoryController {
             return Result.failure("importance 需在 1-10 之间");
         }
         if (Assert.isEmpty(scope)) {
-            scope = MemorySolutionProvider.SCOPE_WORKSPACE;
+            scope = AgentFlags.SCOPE_LOCAL;
         }
 
         MemorySolution ms = solution();
@@ -174,23 +174,16 @@ public class MemoryController {
             data.put("importance", importance);
             data.put("scope", scope);
 
-            // 动态 TTL：>=10 永久，>=5 保留 30 天，其余 7 天（与 MemoryTalent.extract 一致）
-            int ttl;
-            if (importance >= 10) {
-                ttl = -1;
-            } else if (importance >= 5) {
-                ttl = 2592000;
-            } else {
-                ttl = 604800;
-            }
+            // 动态 TTL：统一使用 ms.computeTtl 策略
+            int ttl = ms.computeTtl(importance);
 
             MemoryStorer storer = ms.getStorer();
-            storer.put(SHARED_USER, key, ONode.serialize(data), ttl, scope);
+            storer.put(MemorySolutionProvider.SHARED_USER_ID, key, ONode.serialize(data), ttl, scope);
 
             // 同步搜索索引
             MemorySearcher searcher = ms.getSearcher();
             if (searcher != null) {
-                searcher.updateIndex(SHARED_USER, key, content, importance, now, scope);
+                searcher.updateIndex(MemorySolutionProvider.SHARED_USER_ID, key, content, importance, now, scope);
             }
 
             return Result.succeed();
@@ -215,11 +208,11 @@ public class MemoryController {
         }
 
         try {
-            ms.getStorer().remove(SHARED_USER, key);
+            ms.getStorer().remove(MemorySolutionProvider.SHARED_USER_ID, key);
 
             MemorySearcher searcher = ms.getSearcher();
             if (searcher != null) {
-                searcher.removeIndex(SHARED_USER, key);
+                searcher.removeIndex(MemorySolutionProvider.SHARED_USER_ID, key);
             }
 
             return Result.succeed();
