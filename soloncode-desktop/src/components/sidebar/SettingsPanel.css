@@ -377,11 +377,18 @@
   z-index: 10;
   min-width: 140px;
   padding: 4px 0;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .provider-add-item {
   padding: 6px 14px;
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--cb-text-primary);
   cursor: pointer;
 }

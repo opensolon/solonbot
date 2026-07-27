@@ -55,6 +55,7 @@
 }
 
 .input-container {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -69,8 +70,8 @@
 }
 
 .input-container:focus-within {
-  border-color: var(--cb-accent);
-  box-shadow: 0 0 0 2px rgba(107, 124, 255, 0.15);
+  border-color: var(--chat-input-border, var(--cb-vscode-panel-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* 工具栏 - 内置在输入框顶部 */
@@ -92,7 +93,7 @@
   margin-left: auto;
 }
 
-/* 模型选择器 */
+/* 输入框内的选择菜单 */
 .model-picker-wrapper {
   position: relative;
 }
@@ -134,17 +135,45 @@
   transform: rotate(180deg);
 }
 
-.model-picker-dropdown {
-  position: fixed;
-  min-width: 240px;
-  max-width: 360px;
-  max-height: 400px;
-  overflow-y: auto;
+.input-picker-dropdown,
+.agent-picker-dropdown,
+.autocomplete-dropdown {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  bottom: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(380px, 62vh);
+  overflow: hidden;
   background-color: var(--cb-vscode-input-background);
   border: 1px solid var(--cb-vscode-panel-border);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  z-index: 9999;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.model-picker-icon {
+  display: none;
+  flex: 0 0 auto;
+}
+
+.input-picker-header,
+.agent-picker-header,
+.autocomplete-header {
+  flex-shrink: 0;
+  padding: 12px 16px 8px;
+  color: var(--cb-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+}
+
+.input-picker-list {
+  min-height: 0;
+  overflow-y: auto;
   padding: 4px;
 }
 
@@ -160,6 +189,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-height: 48px;
   padding: 8px 12px;
   background: transparent;
   border: none;
@@ -203,34 +233,36 @@
   max-width: 88px;
 }
 
-.reasoning-picker-dropdown {
-  min-width: 260px;
-}
+/* 输入框较窄时保留操作图标，避免模型名称挤压发送区。 */
+@container (max-width: 560px) {
+  .input-bottom-bar {
+    gap: 2px;
+  }
 
-.reasoning-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  display: inline-block;
-  flex-shrink: 0;
-  background: var(--cb-text-secondary);
-}
+  .model-picker-btn {
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+    padding: 0;
+  }
 
-.reasoning-dot[data-level="low"] {
-  background: #cbd5e1;
-}
+  .model-picker-btn .model-picker-name,
+  .model-picker-btn .model-picker-arrow {
+    display: none;
+  }
 
-.reasoning-dot[data-level="medium"] {
-  background: #e5e7eb;
-}
+  .model-picker-btn .model-picker-icon {
+    display: inline-flex;
+  }
 
-.reasoning-dot[data-level="high"] {
-  background: #93c5fd;
-}
+  .reasoning-picker-btn {
+    width: auto;
+    padding: 0 8px;
+  }
 
-.reasoning-dot[data-level="max"] {
-  background: #c084fc;
-  box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.18);
+  .reasoning-picker-btn .model-picker-name {
+    display: inline;
+  }
 }
 
 /* 智能体按钮 */
@@ -300,6 +332,10 @@
   padding: 8px 12px 4px;
 }
 
+.input-row .toolbar-btn {
+  flex-shrink: 0;
+}
+
 .message-input {
   flex: 1;
   background: transparent;
@@ -323,6 +359,7 @@
 .send-stop-button {
   width: 32px;
   height: 32px;
+  margin-left: auto;
   background-color: #8e8e93;
   color: #ffffff;
   border: none;
@@ -364,6 +401,33 @@
   gap: 4px;
 }
 
+.context-meter {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-meter.spacer {
+  margin-left: auto;
+}
+
+/* 上下文、语音和发送按钮作为一个整体贴齐右侧。 */
+.input-bottom-bar .send-stop-button {
+  margin-left: 0;
+}
+
+.context-meter-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--cb-vscode-input-background) 48%, transparent 50%),
+    conic-gradient(var(--cb-accent) var(--context-percent), var(--cb-vscode-panel-border) 0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
 /* 底部提示 */
 .input-footer {
   display: none;
@@ -387,60 +451,95 @@
   opacity: 0.6;
 }
 
-.context-meter {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
+.agent-picker-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.agent-picker-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  color: var(--cb-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  transition: background-color 0.1s;
 }
 
-.context-meter.spacer {
-  margin-left: auto;
+.agent-picker-item:hover,
+.agent-picker-item.active {
+  background-color: var(--cb-vscode-list-activeSelectionBackground);
 }
 
-.context-meter-ring {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, var(--cb-vscode-input-background) 48%, transparent 50%),
-    conic-gradient(var(--cb-accent) var(--context-percent), var(--cb-vscode-panel-border) 0);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-/* 自动完成下拉框 */
-.autocomplete-dropdown {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  min-width: 220px;
-  max-width: 340px;
-  background-color: var(--cb-vscode-editor-background);
-  border: 1px solid var(--cb-vscode-panel-border);
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  max-height: min(240px, 40vh);
-  overflow: hidden;
+.agent-picker-item-content {
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  gap: 2px;
+  min-width: 0;
 }
 
-.autocomplete-header {
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 500;
+.agent-picker-item-name {
+  overflow: hidden;
+  color: var(--cb-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-picker-item-description {
+  overflow: hidden;
   color: var(--cb-text-secondary);
-  opacity: 0.7;
-  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-picker-check {
+  color: var(--cb-accent);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.agent-picker-empty {
+  padding: 20px 12px;
+  color: var(--cb-text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.agent-picker-footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 12px;
+  color: var(--cb-text-secondary);
+  font-size: 10px;
+  border-top: 1px solid var(--cb-vscode-panel-border);
+}
+
+.agent-picker-footer span {
+  padding: 1px 5px;
+  background-color: var(--cb-vscode-editor-background);
+  border-radius: 3px;
 }
 
 .autocomplete-list {
-  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 180px;
-  padding: 2px;
+  padding: 4px;
 }
 
 .autocomplete-empty {
@@ -509,12 +608,12 @@
 
 .autocomplete-footer {
   display: flex;
+  flex-shrink: 0;
   justify-content: center;
   gap: 12px;
-  padding: 4px 10px;
+  padding: 6px 12px;
   font-size: 10px;
   color: var(--cb-text-secondary);
-  opacity: 0.5;
   border-top: 1px solid var(--cb-vscode-panel-border);
 }
 
@@ -523,7 +622,7 @@
   align-items: center;
   gap: 3px;
   padding: 1px 5px;
-  background-color: var(--cb-vscode-input-background);
+  background-color: var(--cb-vscode-editor-background);
   border-radius: 3px;
   font-size: 9px;
 }
@@ -593,4 +692,101 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 对话输入区固定使用白色表面，避免深色主题下弹层颜色不一致。 */
+.chat-input-wrapper {
+  --chat-input-surface: #ffffff;
+  --chat-input-text: #1f2937;
+  --chat-input-muted: #64748b;
+  --chat-input-border: #e2e8f0;
+  --chat-input-hover: #f3f4f6;
+  --chat-input-active: #eef2ff;
+  background-color: var(--chat-input-surface);
+}
+
+.chat-input-wrapper .context-tag,
+.chat-input-wrapper .input-container,
+.chat-input-wrapper .input-picker-dropdown,
+.chat-input-wrapper .agent-picker-dropdown,
+.chat-input-wrapper .autocomplete-dropdown,
+.chat-input-wrapper .attachment-file-icon {
+  background-color: var(--chat-input-surface);
+  border-color: var(--chat-input-border);
+}
+
+.chat-input-wrapper .context-tag,
+.chat-input-wrapper .model-picker-btn,
+.chat-input-wrapper .agent-btn,
+.chat-input-wrapper .message-input,
+.chat-input-wrapper .model-picker-item,
+.chat-input-wrapper .agent-picker-item,
+.chat-input-wrapper .model-picker-item-name,
+.chat-input-wrapper .agent-picker-item-name,
+.chat-input-wrapper .item-name {
+  color: var(--chat-input-text);
+}
+
+.chat-input-wrapper .context-tag-remove,
+.chat-input-wrapper .toolbar-btn,
+.chat-input-wrapper .input-picker-header,
+.chat-input-wrapper .agent-picker-header,
+.chat-input-wrapper .autocomplete-header,
+.chat-input-wrapper .model-picker-empty,
+.chat-input-wrapper .model-picker-item-source,
+.chat-input-wrapper .agent-picker-item-description,
+.chat-input-wrapper .agent-picker-empty,
+.chat-input-wrapper .agent-picker-footer,
+.chat-input-wrapper .autocomplete-empty,
+.chat-input-wrapper .autocomplete-footer,
+.chat-input-wrapper .autocomplete-item .item-icon,
+.chat-input-wrapper .item-desc,
+.chat-input-wrapper .item-path,
+.chat-input-wrapper .attachment-file-icon {
+  color: var(--chat-input-muted);
+}
+
+.chat-input-wrapper .message-input::placeholder {
+  color: #94a3b8;
+}
+
+.chat-input-wrapper .input-picker-header,
+.chat-input-wrapper .agent-picker-header,
+.chat-input-wrapper .autocomplete-header,
+.chat-input-wrapper .agent-picker-footer,
+.chat-input-wrapper .autocomplete-footer {
+  border-color: var(--chat-input-border);
+}
+
+.chat-input-wrapper .model-picker-btn:hover,
+.chat-input-wrapper .model-picker-btn.active,
+.chat-input-wrapper .agent-btn:hover,
+.chat-input-wrapper .toolbar-btn:hover,
+.chat-input-wrapper .model-picker-item:hover,
+.chat-input-wrapper .autocomplete-item:hover {
+  color: var(--chat-input-text);
+  background-color: var(--chat-input-hover);
+}
+
+.chat-input-wrapper .model-picker-item.active,
+.chat-input-wrapper .agent-picker-item:hover,
+.chat-input-wrapper .agent-picker-item.active,
+.chat-input-wrapper .autocomplete-item.selected {
+  background-color: var(--chat-input-active);
+}
+
+.chat-input-wrapper .agent-picker-footer span,
+.chat-input-wrapper .autocomplete-footer span,
+.chat-input-wrapper .autocomplete-item .item-icon {
+  background-color: #f8fafc;
+}
+
+.chat-input-wrapper .toolbar-divider {
+  background-color: var(--chat-input-border);
+}
+
+.chat-input-wrapper .context-meter-ring {
+  background:
+    radial-gradient(circle, var(--chat-input-surface) 48%, transparent 50%),
+    conic-gradient(var(--cb-accent) var(--context-percent), var(--chat-input-border) 0);
 }
