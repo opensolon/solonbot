@@ -38,8 +38,12 @@ public class GeneralGroupDo implements Serializable {
     private boolean bashAsyncEnabled = false;
     //启用心智记忆（跨会话长期记忆）
     private boolean memoryEnabled = true;
-    //启用心智记忆隔离（按工作区隔离长期记忆）
+    //启用心智记忆隔离（按工作区隔离长期记忆）【已废弃，请使用 memoryScope】
+    @Deprecated
     private boolean memoryIsolation = true;
+
+    //心智记忆作用域：workspace(工作区本地，默认) / user(用户全局)
+    private String memoryScope = "workspace";
 
     //是否接入 MCP 服务
     private boolean mcpEnabled = true;

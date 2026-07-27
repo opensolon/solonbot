@@ -156,11 +156,15 @@
         var openCls = isOpen ? ' open' : '';
         var dataKey = isNew ? NEW_KEY : escapeHtml(it.key);
 
+        var scopeLabel = it.scope === 'user' ? '全局' : '工作区';
+        var scopeCls = it.scope === 'user' ? 'mem-scope-user' : 'mem-scope-workspace';
+
         var head =
             '<div class="mem-row-head" data-key="' + dataKey + '">' +
             '  <span class="mem-caret">' + caret + '</span>' +
             '  <span class="mem-row-star">★' + imp + '</span>' +
             '  <span class="mem-row-key">' + keyText + '</span>' +
+            '  <span class="mem-scope-badge ' + scopeCls + '">' + scopeLabel + '</span>' +
             '  <span class="mem-row-time">' + escapeHtml(it.time || '') + '</span>' +
             '</div>';
 
@@ -181,6 +185,17 @@
         var keyVal = isNew ? '' : dataKey;
         var keyReadonly = isNew ? '' : 'readonly';
 
+        // scope 显示：统一使用可编辑按钮组（新建默认为工作区）
+        var currentScope = isNew ? 'workspace' : (cached.scope || 'workspace');
+        var userActive = currentScope === 'user' ? ' active' : '';
+        var wsActive = currentScope !== 'user' ? ' active' : '';
+        var scopeField = '' +
+            '      <label class="mem-field mem-field-scope"><span>作用域</span>' +
+            '        <div class="mem-scope-toggle">' +
+            '          <button class="mem-scope-btn' + userActive + '" data-scope="user" type="button">全局</button>' +
+            '          <button class="mem-scope-btn' + wsActive + '" data-scope="workspace" type="button">工作区</button>' +
+            '        </div></label>';
+
         return '<div class="mem-row-body">' +
             '  <div class="mem-form">' +
             '    <div class="mem-form-row">' +
@@ -188,9 +203,10 @@
             '        <input type="text" class="mem-key" value="' + escapeHtml(keyVal) + '" ' + keyReadonly + ' placeholder="唯一标识，如 project-build" /></label>' +
             '      <label class="mem-field mem-field-imp"><span>重要度 (1-10)</span>' +
             '        <input type="number" class="mem-imp" min="1" max="10" value="' + imp + '" /></label>' +
+            scopeField +
             '    </div>' +
             '    <label class="mem-field"><span>内容</span>' +
-            '      <textarea class="mem-content" placeholder="记忆内容（支持 markdown）">' + escapeHtml(content) + '</textarea></label>' +
+            '      <textarea class="mem-content" placeholder="记忆内容（支持 markdown，建议 200 字以内）">' + escapeHtml(content) + '</textarea></label>' +
             '    <div class="mem-actions">' +
             '      <button class="mem-btn mem-btn-primary mem-save">保存</button>' +
             (isNew ? '      <button class="mem-btn mem-cancel">取消</button>' : '      <button class="mem-btn mem-btn-danger mem-del">删除</button>') +
@@ -210,6 +226,15 @@
         Array.prototype.forEach.call(listEl.querySelectorAll('.mem-row.open'), function (row) {
             var saveBtn = row.querySelector('.mem-save');
             if (saveBtn) saveBtn.addEventListener('click', function (e) { e.stopPropagation(); saveMemory(row); });
+            var scopeBtns = row.querySelectorAll('.mem-scope-btn');
+            Array.prototype.forEach.call(scopeBtns, function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var parent = btn.parentElement;
+                    parent.querySelectorAll('.mem-scope-btn').forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                });
+            });
             var cancelBtn = row.querySelector('.mem-cancel');
             if (cancelBtn) cancelBtn.addEventListener('click', function (e) { e.stopPropagation(); expandedKey = null; renderList(currentFilter()); });
             var delBtn = row.querySelector('.mem-del');
@@ -245,7 +270,11 @@
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (res && res.code === 200 && res.data) {
-                    detailCache[key] = { content: res.data.content, importance: res.data.importance };
+                    detailCache[key] = {
+                        content: res.data.content,
+                        importance: res.data.importance,
+                        scope: res.data.scope || 'workspace'
+                    };
                     // 若仍处于展开态，回填内容
                     if (expandedKey === key) fillOpenRow(key);
                 }
@@ -286,6 +315,8 @@
         var key = (row.querySelector('.mem-key').value || '').trim();
         var content = (row.querySelector('.mem-content').value || '').trim();
         var imp = parseInt(row.querySelector('.mem-imp').value, 10);
+        var scopeBtn = row.querySelector('.mem-scope-btn.active');
+        var scope = scopeBtn ? scopeBtn.getAttribute('data-scope') : null;
 
         if (!key) { memToast('Key 不能为空', true); return; }
         if (!content) { memToast('内容不能为空', true); return; }
@@ -295,6 +326,7 @@
         form.append('key', key);
         form.append('content', content);
         form.append('importance', imp);
+        if (scope) form.append('scope', scope);
 
         fetch('/web/chat/memory/save', {
             method: 'POST',
@@ -304,7 +336,7 @@
             .then(function (r) { return r.json(); })
             .then(function (res) {
                 if (res && res.code === 200) {
-                    detailCache[key] = { content: content, importance: imp };
+                    detailCache[key] = { content: content, importance: imp, scope: scope || 'workspace' };
                     expandedKey = key;
                     loadMemoryList();
                     memToast('保存成功', false);

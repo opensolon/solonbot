@@ -270,6 +270,7 @@ public class AgentSettings implements Serializable {
         target.setBashAsyncEnabled(source.isBashAsyncEnabled());
         target.setMemoryEnabled(source.isMemoryEnabled());
         target.setMemoryIsolation(source.isMemoryIsolation());
+        target.setMemoryScope(source.getMemoryScope());
         target.setMcpEnabled(source.isMcpEnabled());
         target.setOpenApiEnabled(source.isOpenApiEnabled());
         target.setLspEnabled(source.isLspEnabled());

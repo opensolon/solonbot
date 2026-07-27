@@ -2954,9 +2954,9 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-list { flex: 1; overflow-y: auto; padding: 8px 16px 24px; }
     .mem-list-empty { padding: 32px 16px; color: var(--text-secondary); font-size: 13px; text-align: center; }
     /* 手风琴行 */
-    .mem-row { border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: transparent; transition: border-color 0.15s; }
-    .mem-row-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; transition: background 0.15s; }
-    .mem-row-head:hover { background: var(--accent-light); }
+    .mem-row { border-radius: 10px; margin-bottom: 8px; overflow: hidden; background: transparent; transition: border-color 0.15s; }
+    .mem-row-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; cursor: pointer; user-select: none; transition: background 0.15s; }
+    .mem-row-head:hover, .mem-row.open .mem-row-head { background: var(--accent-light); }
     .mem-caret { color: var(--text-secondary); width: 12px; height: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
     .mem-caret svg { display: block; transition: transform 0.15s ease; }
     .mem-row.open .mem-caret svg { transform: rotate(90deg); }
@@ -2977,3 +2977,20 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-content { width: 100%; min-height: 140px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 14px; line-height: 1.6; resize: vertical; font-family: inherit; box-sizing: border-box; }
     .mem-actions { display: flex; align-items: center; gap: 10px; }
     .mem-msg { font-size: 12px; margin-left: 6px; }
+    
+    /* ---- scope 徽标 ---- */
+    .mem-scope-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-left: 8px; vertical-align: middle; flex-shrink: 0; }
+    .mem-scope-badge.mem-scope-user { background: rgba(99,102,241,0.1); color: #6366f1; }
+    .mem-scope-badge.mem-scope-workspace { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .mem-scope-badge-static { font-size: 13px; padding: 2px 10px; border-radius: 4px; display: inline-block; }
+    .mem-scope-badge-static.mem-scope-user { background: rgba(99,102,241,0.1); color: #6366f1; }
+    .mem-scope-badge-static.mem-scope-workspace { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .mem-field-scope { width: 160px; flex-shrink: 0; }
+    .mem-field-scope select { height: 34px; padding: 0 12px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 14px; appearance: auto; }
+    
+    /* ---- scope 可编辑按钮组（参考 settings-scope-toggle，更紧凑） ---- */
+    .mem-scope-toggle { display: inline-flex; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; height: 28px; width: fit-content; }
+    .mem-scope-btn { padding: 0 10px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all 0.15s; font-family: inherit; line-height: 28px; }
+    .mem-scope-btn:not(:last-child) { border-right: 1px solid var(--border-color); }
+    .mem-scope-btn.active { background: var(--accent); color: #fff; }
+    .mem-scope-btn.active + .mem-scope-btn { border-left-color: transparent; }

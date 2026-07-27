@@ -956,7 +956,7 @@ function finishStream(sess) {
     }
     finishThinkingBlock(sess);
     finishPendingTool(sess);
-    sess.approvedToolCard = null;
+    sess.hitlApprovedCards = {};
 
     // 结算全部 task-group：非 error → done（绿勾）；error 保留红叉
     if (typeof finalizeTaskGroups === 'function') finalizeTaskGroups(sess);
@@ -1051,7 +1051,7 @@ function finishStream(sess) {
         sess.thinkingBodyWrapEl = null;
         sess.pendingToolCard = null;
         sess.pendingToolStarted = false;
-        sess.approvedToolCard = null;
+        sess.hitlApprovedCards = {};
         sess.userMsgCounter = 0;
         // 清空后不再展示上轮 Context / 总计时
         sess.roundStartedAt = null;

@@ -46,7 +46,7 @@ function SessionState(sessionId) {
     this.thinkingBuffer = '';
     this.pendingToolCard = null;
     this.pendingToolStarted = false;
-    this.approvedToolCard = null;
+    this.hitlApprovedCards = {};
     this.thinkingEl = null;
     this.inlineThinkingEl = null;
     this.silenceTimer = null;

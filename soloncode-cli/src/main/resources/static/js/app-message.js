@@ -1263,6 +1263,20 @@ function fillToolCardBody(card, toolName, text, args) {
 }
 
 function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reasonId, agentName, callId) {
+    // 复用同 callId 的既有卡片（典型场景：HITL 批准后转执行的卡）：只把它转 loading 并
+    // 刷新标题/参数，避免恢复流后 action_start 再新建一张、导致 HITL 卡沦为孤儿双卡。
+    // 正常工具首个 action_start 时 pendingToolCards 无此 callId，命中不了，走原新建逻辑，不受影响。
+    var reuse = callId ? findPendingToolCard(sess, callId, null) : { pending: null };
+    if (reuse.pending && reuse.pending.card) {
+        var reused = reuse.pending.card;
+        $(reused).removeClass('hitl-pending');
+        var reuseIcon = $(reused).find('.tool-status-icon')[0];
+        if (reuseIcon) { reuseIcon.className = 'tool-status-icon loading'; reuseIcon.innerHTML = ''; }
+        var reuseTitle = $(reused).find('.tool-name')[0];
+        if (reuseTitle) reuseTitle.textContent = toolTitle || toolName || 'unknown';
+        if (segment && segment.taskId) recordTaskGroupToolStart(segment, toolName, toolTitle, args);
+        return reused;
+    }
     var group = ensureReasonGroup(sess, segment, reasonId);
     if (group && group.thinkingBlockEl) finishThinkingBlock(sess, streamReasonKey(segment, reasonId));
     var card = createToolCard(toolName, args, toolTitle, agentName, 'loading');
@@ -1559,7 +1573,11 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
         if (icon) { icon.className = 'tool-status-icon loading'; icon.innerHTML = ''; }
         $(card).find('.hitl-card-actions').remove();
         $(card).removeClass('hitl-pending');
-        sess.approvedToolCard = card;
+        // 按 callId 暂存已批准卡，供流恢复后重新登记进 pendingToolCards，让同 callId 的 action_start 复用它。
+        if (callId) {
+            if (!sess.hitlApprovedCards) sess.hitlApprovedCards = {};
+            sess.hitlApprovedCards[callId] = card;
+        }
         handleHitlResponse(sess, 'approve', callId);
     });
 
@@ -1571,7 +1589,7 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
         $(card).find('.tool-name').text('\u5df2\u62d2\u7edd\uff1a' + (toolName || 'unknown'));
         $(card).find('.hitl-card-actions').remove();
         $(card).removeClass('hitl-pending expanded');
-        sess.approvedToolCard = null;
+        if (callId && sess.hitlApprovedCards) delete sess.hitlApprovedCards[callId];
         handleHitlResponse(sess, 'reject', callId);
     });
 
@@ -1588,6 +1606,15 @@ function handleHitlResponse(sess, action, callId) {
     if (isLast) {
         if (sess.eventSource) { sess.eventSource.close(); sess.eventSource = null; }
         resetStreamState(sess);
+
+        // resetStreamState 清空了 pendingToolCards；把本批已批准的 HITL 卡重新登记，
+        // 使恢复流后同 callId 的 action_start 能复用它们，而不是另建新卡。
+        if (sess.hitlApprovedCards) {
+            for (var _hcid in sess.hitlApprovedCards) {
+                registerPendingToolCard(sess, sess.hitlApprovedCards[_hcid], _hcid, null);
+            }
+            sess.hitlApprovedCards = {};
+        }
 
         sess.isStreaming = true;
         sess.stopRequested = false;
