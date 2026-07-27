@@ -1,9 +1,10 @@
-import type { ContentItem } from '../types';
+import type { ContentItem, Message } from '../types';
 
 interface UserAttachment {
   name: string;
   type: string;
   content: string;
+  size?: number;
 }
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
@@ -46,5 +47,24 @@ export function buildUserMessageContents(
       name: attachment.name,
     }));
 
-  return [...imageItems, { type: 'TEXT', text: messageText }];
+  const fileItems: ContentItem[] = attachments
+    .filter(attachment => attachment.type === 'file' || attachment.type === 'text')
+    .map(attachment => ({
+      type: 'FILE',
+      text: attachment.name,
+      name: attachment.name,
+      size: attachment.size,
+    }));
+
+  return [...imageItems, ...fileItems, { type: 'TEXT', text: messageText }];
+}
+
+/** Keep final response statistics when an older streaming frame arrives after done. */
+export function mergeStreamingMessage(previous: Message | undefined, snapshot: Message): Message {
+  if (!previous) return snapshot;
+  return {
+    ...snapshot,
+    timestamp: previous.timestamp || snapshot.timestamp,
+    metadata: snapshot.metadata ?? previous.metadata,
+  };
 }

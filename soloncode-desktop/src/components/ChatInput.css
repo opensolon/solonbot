@@ -118,6 +118,12 @@
   background-color: var(--cb-vscode-list-hoverBackground);
 }
 
+.toolbar-btn:disabled,
+.model-picker-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .model-picker-name {
   max-width: 180px;
   overflow: hidden;
@@ -307,6 +313,11 @@
   background-color: var(--cb-vscode-list-hoverBackground);
 }
 
+.toolbar-btn.active {
+  color: var(--cb-text-primary);
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
 .toolbar-btn.recording {
   color: #ef4444;
   animation: voice-pulse 1.2s ease-in-out infinite;
@@ -416,6 +427,84 @@
 /* 上下文、语音和发送按钮作为一个整体贴齐右侧。 */
 .input-bottom-bar .send-stop-button {
   margin-left: 0;
+}
+
+.attachment-menu-dropdown {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  bottom: 100%;
+  display: flex;
+  flex-direction: column;
+  width: min(230px, 90vw);
+  padding: 3px;
+  overflow: hidden;
+  background-color: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 10px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.attachment-file-input {
+  display: none;
+}
+
+.attachment-menu-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  color: var(--cb-text-primary);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.attachment-menu-dropdown button:hover {
+  background-color: var(--cb-vscode-list-hoverBackground);
+}
+
+.attachment-menu-dropdown button > .icon {
+  flex: 0 0 auto;
+  color: var(--cb-text-secondary);
+}
+
+.attachment-menu-dropdown button > span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-drop-overlay {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--cb-accent);
+  font-size: 13px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cb-vscode-input-background) 94%, transparent);
+  border: 2px dashed var(--cb-accent);
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+.chat-mode-picker {
+  width: auto;
+  min-width: 82px;
+  appearance: auto;
+  cursor: pointer;
 }
 
 .context-meter-ring {
@@ -643,6 +732,28 @@
   gap: 4px;
 }
 
+.attachment-type-tag {
+  position: absolute;
+  top: 62px;
+  left: 50%;
+  padding: 1px 5px;
+  color: #fff;
+  font-size: 9px;
+  line-height: 1.45;
+  white-space: nowrap;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.attachment-type-tag.image {
+  background: rgba(79, 110, 247, 0.9);
+}
+
+.attachment-type-tag.file {
+  background: rgba(34, 197, 94, 0.9);
+}
+
 .attachment-thumbnail {
   width: 80px;
   height: 80px;
@@ -694,6 +805,16 @@
   white-space: nowrap;
 }
 
+.attachment-notice {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  color: #b45309;
+  font-size: 11px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
 /* 对话输入区固定使用白色表面，避免深色主题下弹层颜色不一致。 */
 .chat-input-wrapper {
   --chat-input-surface: #ffffff;
@@ -710,6 +831,7 @@
 .chat-input-wrapper .input-picker-dropdown,
 .chat-input-wrapper .agent-picker-dropdown,
 .chat-input-wrapper .autocomplete-dropdown,
+.chat-input-wrapper .attachment-menu-dropdown,
 .chat-input-wrapper .attachment-file-icon {
   background-color: var(--chat-input-surface);
   border-color: var(--chat-input-border);
@@ -723,6 +845,7 @@
 .chat-input-wrapper .agent-picker-item,
 .chat-input-wrapper .model-picker-item-name,
 .chat-input-wrapper .agent-picker-item-name,
+.chat-input-wrapper .attachment-menu-dropdown button,
 .chat-input-wrapper .item-name {
   color: var(--chat-input-text);
 }
@@ -737,6 +860,7 @@
 .chat-input-wrapper .agent-picker-item-description,
 .chat-input-wrapper .agent-picker-empty,
 .chat-input-wrapper .agent-picker-footer,
+.chat-input-wrapper .attachment-menu-dropdown button > .icon,
 .chat-input-wrapper .autocomplete-empty,
 .chat-input-wrapper .autocomplete-footer,
 .chat-input-wrapper .autocomplete-item .item-icon,
@@ -762,6 +886,7 @@
 .chat-input-wrapper .model-picker-btn.active,
 .chat-input-wrapper .agent-btn:hover,
 .chat-input-wrapper .toolbar-btn:hover,
+.chat-input-wrapper .attachment-menu-dropdown button:hover,
 .chat-input-wrapper .model-picker-item:hover,
 .chat-input-wrapper .autocomplete-item:hover {
   color: var(--chat-input-text);

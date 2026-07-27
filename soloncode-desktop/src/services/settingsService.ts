@@ -4,6 +4,7 @@
 import { db, getSetting, setSetting } from '../db';
 import { fileService } from './fileService';
 import { mergeFetchedModelsIntoLatest } from '../utils/providerMerge';
+import { credentialService } from './credentialService';
 
 // ==================== 类型定义 ====================
 
@@ -139,6 +140,7 @@ export interface GeneralSettings {
   fontSize: number;
   language: string;
   autoCheckUpdates: boolean;
+  keepBackendAlive: boolean;
   lastUpdateCheckAt: string;
   tabSize: number;
   autoSave: boolean;
@@ -427,6 +429,7 @@ const defaultGeneral: GeneralSettings = {
   fontSize: 14,
   language: 'zh-CN',
   autoCheckUpdates: false,
+  keepBackendAlive: true,
   lastUpdateCheckAt: '',
   tabSize: 2,
   autoSave: true,
@@ -928,9 +931,11 @@ export const settingsService = {
     model: string = '',
   ): Promise<ModelProvider['availableModels'] | null> {
     try {
-      const resp = await fetch(
-        `http://localhost:${backendPort}/desktop/chat/models/fetch?apiUrl=${encodeURIComponent(apiUrl)}&apiKey=${encodeURIComponent(apiKey)}&provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(model)}`,
-      );
+      const resp = await fetch(`http://localhost:${backendPort}/desktop/chat/models/fetch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiUrl, apiKey, provider, model }),
+      });
       if (!resp.ok) return null;
 
       const result = await resp.json();
@@ -1021,19 +1026,28 @@ export const settingsService = {
 
     // 2. Providers
     const providerRows = await db.providers.orderBy('sortOrder').toArray();
-    const providers: ModelProvider[] = providerRows.map(r => ({
-      id: r.id,
-      type: normalizeProviderType(r.type),
-      name: r.name,
-      apiUrl: r.apiUrl,
-      apiKey: r.apiKey,
-      model: r.model,
-      enabled: !!r.enabled,
-      scope: ((r as any).scope === 'workspace' ? 'workspace' : 'user'),
-      timeout: (r as any).timeout || 'PT120S',
-      contextLength: Number((r as any).contextLength) || 128000,
-      defaultOptions: (r as any).defaultOptions || '',
-      availableModels: r.availableModels ? JSON.parse(r.availableModels) : undefined,
+    const providers: ModelProvider[] = await Promise.all(providerRows.map(async r => {
+      let apiKey = await credentialService.getProviderApiKey(r.id);
+      if (!apiKey && r.apiKey) {
+        // 从旧版 IndexedDB 明文字段一次性迁移到 Windows Credential Manager。
+        const migrated = await credentialService.setProviderApiKey(r.id, r.apiKey);
+        apiKey = r.apiKey;
+        if (migrated) await db.providers.update(r.id, { apiKey: '' });
+      }
+      return {
+        id: r.id,
+        type: normalizeProviderType(r.type),
+        name: r.name,
+        apiUrl: r.apiUrl,
+        apiKey: apiKey || '',
+        model: r.model,
+        enabled: !!r.enabled,
+        scope: ((r as any).scope === 'workspace' ? 'workspace' : 'user'),
+        timeout: (r as any).timeout || 'PT120S',
+        contextLength: Number((r as any).contextLength) || 128000,
+        defaultOptions: (r as any).defaultOptions || '',
+        availableModels: r.availableModels ? JSON.parse(r.availableModels) : undefined,
+      };
     }));
 
     // 3. MCP Servers
@@ -1090,12 +1104,23 @@ export const settingsService = {
   async save(settings: AppSettings): Promise<void> {
     const { providers, mcpServers, skills, agents, ...general } = settings;
     const generalValue = JSON.stringify(general);
+    const previousProviderIds = (await db.providers.toCollection().primaryKeys()).map(String);
+    const credentialResults = await Promise.all(providers.map(async provider => ({
+      id: provider.id,
+      stored: await credentialService.setProviderApiKey(provider.id, provider.apiKey),
+    })));
+    const credentialStored = new Map(credentialResults.map(item => [item.id, item.stored]));
+    const currentProviderIds = new Set(providers.map(provider => provider.id));
+    await Promise.all(previousProviderIds
+      .filter(id => !currentProviderIds.has(id))
+      .map(id => credentialService.setProviderApiKey(id, '')));
     const providerRows = providers.map((p, sortOrder) => ({
       id: p.id,
       type: normalizeProviderType(p.type),
       name: p.name,
       apiUrl: p.apiUrl,
-      apiKey: p.apiKey,
+      // 系统凭据库不可用时保留旧存储作为兼容降级，避免保存操作造成密钥丢失。
+      apiKey: credentialStored.get(p.id) ? '' : p.apiKey,
       model: p.model,
       enabled: p.enabled ? 1 : 0,
       sortOrder,

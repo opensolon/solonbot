@@ -4,6 +4,7 @@ import {
   updateConversation, saveLastSessionId, loadLastSessionId,
   migrateConversationsToProjects, reassignMessages,
   getMessageCount, getMessageCountsByConversation,
+  forkConversation,
   UNLINKED_PROJECT,
 } from '../db';
 import type { Conversation } from '../types';
@@ -93,15 +94,16 @@ export function useSessions(
       setPendingSession(current => current?.id === id ? null : current);
     } else {
       const targetSession = sessions.find(session => session.id === id);
-      const requestBody = new URLSearchParams({ sessionId: id });
-      if (targetSession?.workspacePath && targetSession.workspacePath !== UNLINKED_PROJECT) {
-        requestBody.set('workspace', targetSession.workspacePath);
-      }
       const port = options?.backendPort || 4808;
-      const response = await fetch(`http://localhost:${port}/web/chat/sessions/delete`, {
+      const response = await fetch(`http://localhost:${port}/desktop/chat/sessions/delete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: requestBody,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: id,
+          workspace: targetSession?.workspacePath && targetSession.workspacePath !== UNLINKED_PROJECT
+            ? targetSession.workspacePath
+            : undefined,
+        }),
       });
       if (!response.ok) throw new Error('后端删除失败');
       const result = await response.json().catch(() => null);
@@ -114,6 +116,42 @@ export function useSessions(
       return remaining;
     });
   }, [currentSessionId, options?.backendPort, sessions]);
+
+  const handleForkSession = useCallback(async (id: string): Promise<string> => {
+    if (!/^\d+$/.test(id)) throw new Error('临时会话不能分叉');
+    const source = sessions.find(session => session.id === id);
+    if (!source) throw new Error('源会话不存在');
+    const targetId = await forkConversation(id, `${source.title} · 分支`);
+    const target = targetId.toString();
+    try {
+      if (source.workspacePath && source.workspacePath !== UNLINKED_PROJECT) {
+        const response = await fetch(`http://localhost:${options?.backendPort || 4808}/desktop/chat/sessions/fork`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: id, targetId: target, workspace: source.workspacePath }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || (result?.code !== undefined && result.code !== 200)) {
+          throw new Error('后端历史复制失败');
+        }
+      }
+      const messageCount = await getMessageCount(target);
+      const forked: Session = {
+        ...source,
+        id: target,
+        title: `${source.title} · 分支`,
+        timestamp: new Date().toISOString(),
+        messageCount,
+        isPermanent: false,
+      };
+      setSessions(current => [forked, ...current]);
+      setCurrentSessionId(target);
+      return target;
+    } catch (error) {
+      await deleteConversation(target);
+      throw error;
+    }
+  }, [options?.backendPort, sessions]);
 
   const handleUpdateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<string> => {
     if (!sessionId.startsWith('temp-')) {
@@ -245,6 +283,7 @@ export function useSessions(
     currentConversation,
     handleNewSession,
     handleDeleteSession,
+    handleForkSession,
     handleUpdateSessionTitle,
     incrementSessionMessageCount,
     linkCurrentEmptySessionToProject,

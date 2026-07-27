@@ -1,9 +1,13 @@
+mod credentials;
+mod desktop_ops;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read as IoRead, Write as IoWrite};
 use base64::Engine;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::net::TcpStream;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -174,6 +178,21 @@ fn read_file(path: &str) -> Result<String, String> {
 #[tauri::command]
 fn read_file_binary(path: &str) -> Result<String, String> {
     let data = fs::read(path).map_err(|e| format!("读取文件失败: {}", e))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+}
+
+/// 读取聊天附件为 Base64，并在分配大块内存前限制文件大小。
+#[tauri::command]
+fn read_attachment_binary(path: &str) -> Result<String, String> {
+    const MAX_ATTACHMENT_BYTES: u64 = 20 * 1024 * 1024;
+    let metadata = fs::metadata(path).map_err(|e| format!("读取附件失败: {}", e))?;
+    if !metadata.is_file() {
+        return Err("只能上传文件".to_string());
+    }
+    if metadata.len() > MAX_ATTACHMENT_BYTES {
+        return Err("附件不能超过 20 MB".to_string());
+    }
+    let data = fs::read(path).map_err(|e| format!("读取附件失败: {}", e))?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&data))
 }
 
@@ -975,6 +994,16 @@ struct ManagedBackendProcess {
 
 /// 全局后端进程句柄
 static BACKEND_PROCESS: Mutex<Option<ManagedBackendProcess>> = Mutex::new(None);
+/// 由上一桌面进程留下并在本次启动中复用的后端（PID, port）。
+static REUSED_BACKEND_PROCESS: Mutex<Option<(u32, u16)>> = Mutex::new(None);
+/// 关闭桌面窗口时是否保留正在执行的后端。默认开启，前端设置加载后会同步覆盖。
+static BACKGROUND_MODE: AtomicBool = AtomicBool::new(true);
+
+#[tauri::command]
+fn set_background_mode(enabled: bool) {
+    BACKGROUND_MODE.store(enabled, Ordering::SeqCst);
+    app_log(&format!("[soloncode] Background execution mode: {}", enabled));
+}
 
 /// 启动方式：soloncode 命令 或 java -jar
 enum BackendLaunchMethod {
@@ -1161,12 +1190,19 @@ fn detect_launch_method() -> BackendLaunchMethod {
     }
 }
 
-/// Check whether an occupied port is already serving the soloncode backend.
-fn is_soloncode_desktop_backend(port: u16) -> bool {
+#[derive(Debug)]
+struct DesktopBackendInfo {
+    pid: u32,
+    workspace: Option<String>,
+    desktop_managed: bool,
+}
+
+/// Read the identity of a backend bound to the desktop-only endpoint.
+fn query_soloncode_desktop_backend(port: u16) -> Option<DesktopBackendInfo> {
     let addr = format!("127.0.0.1:{}", port);
     let mut stream = match TcpStream::connect(&addr) {
         Ok(stream) => stream,
-        Err(_) => return false,
+        Err(_) => return None,
     };
 
     let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
@@ -1177,7 +1213,7 @@ fn is_soloncode_desktop_backend(port: u16) -> bool {
         port
     );
     if stream.write_all(req.as_bytes()).is_err() {
-        return false;
+        return None;
     }
 
     let mut buf = Vec::with_capacity(4096);
@@ -1191,9 +1227,47 @@ fn is_soloncode_desktop_backend(port: u16) -> bool {
     }
 
     let resp = String::from_utf8_lossy(&buf);
-    resp.starts_with("HTTP/1.1 200")
-        && resp.contains("\"code\":200")
-        && resp.contains("\"version\"")
+    if !resp.starts_with("HTTP/1.1 200") {
+        return None;
+    }
+    let body = resp.split_once("\r\n\r\n")?.1;
+    let json: serde_json::Value = serde_json::from_str(body).ok()?;
+    if json.get("code").and_then(|value| value.as_i64()) != Some(200) {
+        return None;
+    }
+    let data = json.get("data")?;
+    data.get("version")?.as_str()?;
+    Some(DesktopBackendInfo {
+        pid: data.get("pid").and_then(|value| value.as_u64()).unwrap_or(0) as u32,
+        workspace: data.get("workspace").and_then(|value| value.as_str()).map(str::to_string),
+        desktop_managed: data.get("desktopManaged").and_then(|value| value.as_bool()).unwrap_or(false),
+    })
+}
+
+fn is_soloncode_desktop_backend(port: u16) -> bool {
+    query_soloncode_desktop_backend(port).is_some()
+}
+
+fn terminate_reused_backend(pid: u32, port: u16) {
+    if pid == 0 || pid == std::process::id() {
+        return;
+    }
+    let current = query_soloncode_desktop_backend(port);
+    if !matches!(current, Some(ref info) if info.desktop_managed && info.pid == pid) {
+        return;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut command = Command::new("taskkill");
+        command.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        command.creation_flags(0x08000000);
+        let _ = command.output();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).output();
+    }
 }
 
 fn wait_for_backend_ready(port: u16, attempts: u32, sleep_ms: u64) -> bool {
@@ -1590,15 +1664,35 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
     // 检查端口是否已被后端占用（可能是之前启动的 soloncode 服务）
     if TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
         // 通过桌面端专用版本接口确认这是可复用的 SolonCode 桌面后端。
-        let is_backend = is_soloncode_desktop_backend(port);
-
-        if is_backend {
-            app_log(&format!("[soloncode] Port {} is already occupied by soloncode backend, reusing", port));
-            return Ok(0);
+        if let Some(info) = query_soloncode_desktop_backend(port) {
+            let same_workspace = info.workspace.as_deref()
+                .and_then(|path| fs::canonicalize(path).ok())
+                .map(|path| path == work_dir)
+                .unwrap_or(false);
+            if same_workspace {
+                if info.desktop_managed && info.pid > 0 {
+                    if let Ok(mut reused) = REUSED_BACKEND_PROCESS.lock() {
+                        *reused = Some((info.pid, port));
+                    }
+                }
+                app_log(&format!("[soloncode] Port {} is already occupied by matching soloncode backend, reusing", port));
+                return Ok(0);
+            }
+            if info.desktop_managed && info.pid > 0 {
+                app_log(&format!("[soloncode] Replacing stale desktop backend PID {} for a different workspace", info.pid));
+                terminate_reused_backend(info.pid, port);
+                for _ in 0..20 {
+                    if TcpStream::connect(format!("127.0.0.1:{}", port)).is_err() { break; }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            } else {
+                return Err(format!("端口 {} 上的后端属于其他工作区，请先停止该服务", port));
+            }
+        } else {
+            let msg = format!("端口 {} 已被其他程序占用，请先关闭占用该端口的程序", port);
+            app_log(&format!("[soloncode] ERROR: {}", msg));
+            return Err(msg);
         }
-        let msg = format!("端口 {} 已被其他程序占用，请先关闭占用该端口的程序", port);
-        app_log(&format!("[soloncode] ERROR: {}", msg));
-        return Err(msg);
     }
 
     // 检测启动方式
@@ -1672,6 +1766,7 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
     };
 
     cmd.current_dir(&work_dir)
+        .env("SOLONCODE_DESKTOP_MANAGED", "1")
         .stdout(log_file)
         .stderr(log_file_clone);
 
@@ -1699,6 +1794,9 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
         work_dir,
         started_at: Instant::now(),
     });
+    if let Ok(mut reused) = REUSED_BACKEND_PROCESS.lock() {
+        *reused = None;
+    }
 
     drop(proc);
 
@@ -1720,6 +1818,13 @@ fn stop_backend() -> Result<(), String> {
         let _ = managed.child.kill();
         let _ = managed.child.wait();
         app_log("[soloncode] Backend process stopped");
+    }
+    drop(proc);
+    if let Ok(mut reused) = REUSED_BACKEND_PROCESS.lock() {
+        if let Some((pid, port)) = reused.take() {
+            terminate_reused_backend(pid, port);
+            app_log("[soloncode] Reused background backend process stopped");
+        }
     }
     Ok(())
 }
@@ -2501,6 +2606,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_file,
             read_file_binary,
+            read_attachment_binary,
             write_file,
             list_directory,
             list_directory_tree,
@@ -2553,19 +2659,38 @@ pub fn run() {
             toggle_agent,
             update_agent_config,
             create_agent
+            ,credentials::credential_set
+            ,credentials::credential_get
+            ,credentials::credential_delete
+            ,desktop_ops::workspace_checkpoint_create
+            ,desktop_ops::workspace_checkpoint_list
+            ,desktop_ops::workspace_checkpoint_restore
+            ,desktop_ops::workspace_checkpoint_delete
+            ,desktop_ops::run_workspace_check
+            ,set_background_mode
         ])
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // 应用退出时停止后端进程
-                if let Ok(mut proc) = BACKEND_PROCESS.lock() {
-                    if let Some(mut managed) = proc.take() {
-                        app_log(&format!(
-                            "[soloncode] Window close requested, killing managed backend PID {} on port {}",
-                            managed.child.id(),
-                            managed.port
-                        ));
-                        let _ = managed.child.kill();
-                        let _ = managed.child.wait();
+                if BACKGROUND_MODE.load(Ordering::SeqCst) {
+                    app_log("[soloncode] Window close requested; backend is kept alive for background execution");
+                } else {
+                    // 用户关闭后台续跑时，应用退出会停止由本窗口管理的后端进程。
+                    if let Ok(mut proc) = BACKEND_PROCESS.lock() {
+                        if let Some(mut managed) = proc.take() {
+                            app_log(&format!(
+                                "[soloncode] Window close requested, killing managed backend PID {} on port {}",
+                                managed.child.id(),
+                                managed.port
+                            ));
+                            let _ = managed.child.kill();
+                            let _ = managed.child.wait();
+                        }
+                    }
+                    if let Ok(mut reused) = REUSED_BACKEND_PROCESS.lock() {
+                        if let Some((pid, port)) = reused.take() {
+                            app_log(&format!("[soloncode] Window close requested, stopping reused backend PID {}", pid));
+                            terminate_reused_backend(pid, port);
+                        }
                     }
                 }
                 // 关闭终端

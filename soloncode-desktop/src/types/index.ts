@@ -1,5 +1,5 @@
 export type MessageType = 'USER' | 'ASSISTANT' | 'REASON' | 'ACTION' | 'ERROR';
-export type ContentType = 'REASON' | 'ACTION' | 'TEXT' | 'IMAGE' | 'ERROR' | 'THINK' | 'HITL';
+export type ContentType = 'REASON' | 'ACTION' | 'TEXT' | 'IMAGE' | 'FILE' | 'ERROR' | 'THINK' | 'HITL';
 
 export interface ContentItem {
   type: ContentType;
@@ -9,6 +9,7 @@ export interface ContentItem {
   command?: string;
   agentName?: string;
   name?: string;
+  size?: number;
 }
 
 export interface MessageMetadata {

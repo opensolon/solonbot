@@ -52,7 +52,7 @@ public class LoopTask {
 
     // ---- 核心调度字段 ----
     private final String id;
-    private final String prompt;
+    private volatile String prompt;
     private final int intervalMinutes;
     private final String cron;
     private final Instant createdAt;
@@ -287,6 +287,9 @@ public class LoopTask {
             goalState.setMaxTokens(maxTokens);
         }
     }
+
+    /** 更新 Goal 后续轮次使用的目标提示词。 */
+    public void setPrompt(String prompt) { this.prompt = prompt; }
 
     public void setMaxDurationMs(Long maxDurationMs) { this.maxDurationMs = maxDurationMs; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }

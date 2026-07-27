@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { Icon } from './common/Icon';
 import type { ModelProvider } from '../services/settingsService';
 import { PROVIDER_PRESETS } from '../services/settingsService';
-import { fileService, isImageFile } from '../services/fileService';
+import { fileService } from '../services/fileService';
+import { GoalModeBar } from './GoalModeBar';
 import {
   extractSubagentHints,
   isValidSubagentName,
@@ -200,6 +201,9 @@ interface ChatInputProps {
   workspacePath?: string;
   baseContextTokens?: number;
   contextTokenLimit?: number;
+  currentSessionId?: string;
+  goalDefaultMaxTokens?: number;
+  goalDefaultMaxDuration?: number;
 }
 
 export interface SendOptions {
@@ -209,14 +213,23 @@ export interface SendOptions {
   contexts: ContextRef[];
   attachments: Attachment[];
   reasoningEffort: ReasoningEffort;
+  mode: ChatMode;
+  goalMaxTokens?: number;
+  goalMaxDurationMinutes?: number;
+  goalMaxIterations?: number;
+  /** 对话气泡中显示的原始输入；用于保留 /goal 等斜杠指令。 */
+  displayText?: string;
 }
 
 export interface Attachment {
   id: string;
   name: string;
-  type: 'image' | 'text';
-  content: string; // image: base64 data url; text: file content
+  type: 'image' | 'file' | 'text';
+  content: string; // image: data URL; file: base64; text: UTF-8 text
   path?: string;
+  mimeType?: string;
+  size?: number;
+  previewUrl?: string;
 }
 
 /** 获取模型显示名称 */
@@ -227,6 +240,12 @@ function getModelDisplayName(p: ModelProvider): string {
 }
 
 export type ReasoningEffort = 'low' | 'medium' | 'high' | 'max';
+export type ChatMode = 'default' | 'auto' | 'plan' | 'goal';
+
+function extractGoalCommandObjective(input: string): string | null {
+  const match = input.trim().match(/^\/goal(?:\s+([\s\S]*))?$/i);
+  return match ? (match[1] || '').trim() : null;
+}
 
 const REASONING_OPTIONS: Array<{ key: ReasoningEffort; label: string; desc: string }> = [
   { key: 'low', label: '低', desc: '快速响应，基础推理' },
@@ -239,7 +258,43 @@ function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
 }
 
-export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], skills = [], agentRefreshKey = 0, providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, baseContextTokens = 0, contextTokenLimit = 128000 }: ChatInputProps) {
+const MAX_ATTACHMENTS = 10;
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+const MULTIMODAL_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+
+function getFileExtension(name: string) {
+  return name.split('.').pop()?.toLowerCase() || '';
+}
+
+function isMultimodalImage(name: string, mimeType = '') {
+  return mimeType.startsWith('image/') && MULTIMODAL_IMAGE_EXTENSIONS.has(getFileExtension(name));
+}
+
+function getAttachmentMimeType(name: string, declaredMimeType = '') {
+  if (declaredMimeType) return declaredMimeType;
+  const mimeTypes: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml',
+  };
+  return mimeTypes[getFileExtension(name)] || 'application/octet-stream';
+}
+
+function readBrowserFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('读取附件失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function base64FromDataUrl(dataUrl: string) {
+  const commaIndex = dataUrl.indexOf(',');
+  return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
+}
+
+export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], skills = [], agentRefreshKey = 0, providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, baseContextTokens = 0, contextTokenLimit = 128000, currentSessionId, goalDefaultMaxTokens = 0 }: ChatInputProps) {
   // 从每个 provider 的 availableModels 展开为独立的可选模型
   const allModels = useMemo(() => {
     const result: ModelProvider[] = [];
@@ -288,9 +343,29 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     const saved = localStorage.getItem('soloncode-reasoning-effort') as ReasoningEffort | null;
     return saved && REASONING_OPTIONS.some(item => item.key === saved) ? saved : 'medium';
   });
+  const [chatMode, setChatMode] = useState<ChatMode>(() => {
+    const saved = localStorage.getItem('soloncode-chat-mode');
+    return saved === 'auto' || saved === 'plan' ? saved : 'default';
+  });
+  const [goalMaxTokens, setGoalMaxTokens] = useState(Math.max(0, Math.floor(goalDefaultMaxTokens || 0)));
+  const [goalMaxIterations, setGoalMaxIterations] = useState(() => {
+    const saved = Number(localStorage.getItem('soloncode-goal-max-iterations'));
+    return Number.isFinite(saved) ? Math.min(10_000, Math.max(0, Math.floor(saved))) : 0;
+  });
+  const [hasActiveGoal, setHasActiveGoal] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [contexts, setContexts] = useState<ContextRef[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const attachmentsRef = useRef<Attachment[]>([]);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const [attachmentNotice, setAttachmentNotice] = useState('');
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const attachmentButtonRef = useRef<HTMLButtonElement>(null);
+  const attachmentFileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentImageInputRef = useRef<HTMLInputElement>(null);
+  const attachmentNoticeTimerRef = useRef<number | null>(null);
+  const dragCounterRef = useRef(0);
   const [workspaceFiles, setWorkspaceFiles] = useState<ContextRef[]>([]);
   const workspaceFilesLoadedRef = useRef(false);
 
@@ -443,61 +518,215 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  // 粘贴处理：支持图片和文件
-  function processClipboardItems(items: DataTransferItemList | FileList | null) {
-    if (!items) return;
-    for (const item of Array.from(items)) {
-      const file = item instanceof File ? item : (item as DataTransferItem).getAsFile?.();
-      const fileType = file?.type || '';
-      if (fileType.startsWith('image/') && file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setAttachments(prev => [...prev, {
-            id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            name: file.name || 'pasted-image.png',
-            type: 'image' as const,
-            content: reader.result as string,
-          }]);
-        };
-        reader.readAsDataURL(file);
-        return true;
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  useEffect(() => {
+    setGoalMaxTokens(Math.max(0, Math.floor(goalDefaultMaxTokens || 0)));
+  }, [goalDefaultMaxTokens]);
+
+  useEffect(() => {
+    localStorage.setItem('soloncode-goal-max-iterations', String(goalMaxIterations));
+  }, [goalMaxIterations]);
+
+  useEffect(() => {
+    if (!showAttachmentMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!attachmentMenuRef.current?.contains(target) && !attachmentButtonRef.current?.contains(target)) {
+        setShowAttachmentMenu(false);
       }
-      if (file && !fileType.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setAttachments(prev => [...prev, {
-            id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            name: file.name,
-            type: 'text' as const,
-            content: reader.result as string,
-          }]);
-        };
-        reader.readAsText(file);
-        return true;
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showAttachmentMenu]);
+
+  useEffect(() => () => {
+    if (attachmentNoticeTimerRef.current !== null) {
+      window.clearTimeout(attachmentNoticeTimerRef.current);
+    }
+  }, []);
+
+  const showAttachmentNotice = useCallback((message: string) => {
+    setAttachmentNotice(message);
+    if (attachmentNoticeTimerRef.current !== null) {
+      window.clearTimeout(attachmentNoticeTimerRef.current);
+    }
+    attachmentNoticeTimerRef.current = window.setTimeout(() => setAttachmentNotice(''), 3500);
+  }, []);
+
+  const appendAttachment = useCallback((attachment: Attachment) => {
+    const current = attachmentsRef.current;
+    if (current.length >= MAX_ATTACHMENTS) {
+      showAttachmentNotice(`附件数量已达上限（${MAX_ATTACHMENTS} 个）`);
+      return false;
+    }
+    if (attachment.size && attachment.size > MAX_ATTACHMENT_BYTES) {
+      showAttachmentNotice(`“${attachment.name}”超过 20 MB，未添加`);
+      return false;
+    }
+    const totalBytes = current.reduce((sum, item) => sum + (item.size || 0), 0) + (attachment.size || 0);
+    if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+      showAttachmentNotice('附件总大小不能超过 50 MB');
+      return false;
+    }
+    if (attachment.path && current.some(item => item.path === attachment.path && item.type === attachment.type)) {
+      return false;
+    }
+    const next = [...current, attachment];
+    attachmentsRef.current = next;
+    setAttachments(next);
+    return true;
+  }, [showAttachmentNotice]);
+
+  async function addBrowserFile(file: File, attachmentType: 'file' | 'image') {
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      showAttachmentNotice(`“${file.name}”超过 20 MB，未添加`);
+      return;
+    }
+
+    const name = file.name || 'pasted-image.png';
+    const mimeType = getAttachmentMimeType(name, file.type);
+    if (attachmentType === 'image' && !isMultimodalImage(name, mimeType)) {
+      showAttachmentNotice(`“${name}”不是支持的多模态图片`);
+      return;
+    }
+
+    try {
+      const dataUrl = await readBrowserFileAsDataUrl(file);
+      appendAttachment({
+        id: `${attachmentType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        type: attachmentType,
+        content: attachmentType === 'image' ? dataUrl : base64FromDataUrl(dataUrl),
+        mimeType,
+        size: file.size,
+        previewUrl: mimeType.startsWith('image/') ? dataUrl : undefined,
+      });
+    } catch {
+      showAttachmentNotice(`无法读取附件“${name}”`);
+    }
+  }
+
+  async function addBrowserFiles(files: FileList | File[], attachmentType: 'file' | 'image' | 'auto') {
+    for (const file of Array.from(files)) {
+      if (attachmentsRef.current.length >= MAX_ATTACHMENTS) {
+        showAttachmentNotice(`部分文件未添加，附件数量已达上限（${MAX_ATTACHMENTS} 个）`);
+        break;
+      }
+      const resolvedType = attachmentType === 'auto'
+        ? (isMultimodalImage(file.name, file.type) ? 'image' : 'file')
+        : attachmentType;
+      await addBrowserFile(file, resolvedType);
+    }
+  }
+
+  async function addLocalFiles(attachmentType: 'file' | 'image') {
+    setShowAttachmentMenu(false);
+    if (!fileService.isTauri()) {
+      const input = attachmentType === 'image' ? attachmentImageInputRef.current : attachmentFileInputRef.current;
+      input?.click();
+      return;
+    }
+    const result = await fileService.openFileDialog({
+      multiple: true,
+      filters: attachmentType === 'image'
+        ? [{ name: '多模态图片', extensions: Array.from(MULTIMODAL_IMAGE_EXTENSIONS) }]
+        : undefined,
+    });
+    if (!result) return;
+
+    const paths = Array.isArray(result) ? result : [result];
+    for (const filePath of paths) {
+      if (attachmentsRef.current.length >= MAX_ATTACHMENTS) {
+        showAttachmentNotice(`部分文件未添加，附件数量已达上限（${MAX_ATTACHMENTS} 个）`);
+        break;
+      }
+      const name = filePath.split(/[/\\]/).pop() || filePath;
+      const mimeType = getAttachmentMimeType(name);
+      if (attachmentType === 'image' && !isMultimodalImage(name, mimeType)) {
+        showAttachmentNotice(`“${name}”不是支持的多模态图片`);
+        continue;
+      }
+      try {
+        const base64 = await invoke<string>('read_attachment_binary', { path: filePath });
+        const size = Math.floor(base64.length * 3 / 4);
+        const dataUrl = mimeType.startsWith('image/') ? `data:${mimeType};base64,${base64}` : undefined;
+        appendAttachment({
+          id: `${attachmentType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name,
+          type: attachmentType,
+          content: attachmentType === 'image' ? dataUrl! : base64,
+          path: filePath,
+          mimeType,
+          size,
+          previewUrl: dataUrl,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || '');
+        showAttachmentNotice(message || `无法读取附件“${name}”`);
       }
     }
-    return false;
   }
 
   function handlePaste(e: React.ClipboardEvent) {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    for (const item of Array.from(items)) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault();
-        processClipboardItems(items);
-        return;
-      }
+    const image = Array.from(e.clipboardData?.items || [])
+      .find(item => item.type.startsWith('image/'))
+      ?.getAsFile();
+    if (!image) return;
+    if (chatMode === 'goal') {
+      showAttachmentNotice('Goal 模式暂不支持附件');
+      return;
     }
-    const files = e.clipboardData?.files;
-    if (files && files.length > 0 && files[0].type.startsWith('image/')) {
-      e.preventDefault();
-      processClipboardItems(files);
+    e.preventDefault();
+    void addBrowserFile(image, 'image');
+  }
+
+  function handleAttachmentDragEnter(event: React.DragEvent<HTMLFormElement>) {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    if (chatMode === 'goal') {
+      showAttachmentNotice('Goal 模式暂不支持附件');
+      return;
+    }
+    dragCounterRef.current += 1;
+    setIsDraggingAttachment(true);
+  }
+
+  function handleAttachmentDragOver(event: React.DragEvent<HTMLFormElement>) {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    if (chatMode === 'goal') return;
+    event.dataTransfer.dropEffect = 'copy';
+  }
+
+  function handleAttachmentDragLeave(event: React.DragEvent<HTMLFormElement>) {
+    event.preventDefault();
+    dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+    if (dragCounterRef.current === 0) setIsDraggingAttachment(false);
+  }
+
+  function handleAttachmentDrop(event: React.DragEvent<HTMLFormElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDraggingAttachment(false);
+    if (chatMode === 'goal') {
+      showAttachmentNotice('Goal 模式暂不支持附件');
+      return;
+    }
+    if (event.dataTransfer.files.length > 0) {
+      void addBrowserFiles(event.dataTransfer.files, 'auto');
     }
   }
 
   function removeAttachment(id: string) {
-    setAttachments(prev => prev.filter(a => a.id !== id));
+    setAttachments(prev => {
+      const next = prev.filter(a => a.id !== id);
+      attachmentsRef.current = next;
+      return next;
+    });
   }
 
   // 从后端加载命令和已注册的 Subagent，避免直接展示尚未注册的本地 Agent 文件。
@@ -793,22 +1022,40 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     }
   }
 
-  const canSend = Boolean(userInput.trim())
-    && (!selectedAgent || userInput.trim() !== `@${selectedAgent}`);
+  const trimmedInput = userInput.trim();
+  const hasOnlyAgentMention = Boolean(selectedAgent) && trimmedInput === `@${selectedAgent}`;
+  const goalCommandObjective = extractGoalCommandObjective(trimmedInput);
+  const sendingGoal = chatMode === 'goal' || goalCommandObjective !== null;
+  const canSend = !hasActiveGoal && (sendingGoal
+    ? Boolean(goalCommandObjective !== null ? goalCommandObjective : trimmedInput) && !hasOnlyAgentMention
+    : attachments.length > 0 || (Boolean(trimmedInput) && !hasOnlyAgentMention));
 
   function sendMessage() {
     if (!canSend) return;
     const provider = allModels.find(p => p.id === selectedModel);
-    onSend(userInput, {
+    const multimodalCount = attachments.filter(item => item.type === 'image').length;
+    const fallbackMessage = attachments.some(item => item.type !== 'image')
+      ? '请帮我处理这些附件'
+      : multimodalCount > 1 ? '请描述这些图片' : '请描述这张图片';
+    const message = goalCommandObjective !== null
+      ? goalCommandObjective
+      : (!trimmedInput || hasOnlyAgentMention ? fallbackMessage : userInput);
+    const effectiveMode: ChatMode = sendingGoal ? 'goal' : chatMode;
+    onSend(message, {
       model: selectedModel,
       modelName: provider?.model || selectedModel,
       agent: selectedAgent,
       contexts: [...contexts],
       attachments: [...attachments],
       reasoningEffort,
+      mode: effectiveMode,
+      goalMaxTokens: effectiveMode === 'goal' ? goalMaxTokens : undefined,
+      goalMaxIterations: effectiveMode === 'goal' ? goalMaxIterations : undefined,
+      displayText: trimmedInput.startsWith('/') ? trimmedInput : undefined,
     });
     setUserInput('');
     setContexts([]);
+    attachmentsRef.current = [];
     setAttachments([]);
     setSelectedAgent('');
     setShowAutocomplete(false);
@@ -851,6 +1098,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
   const contextTokens = useMemo(() => {
     const attachmentTokens = attachments.reduce((sum, item) => {
       if (item.type === 'image') return sum + 1100;
+      if (item.type === 'file') return sum + 100;
       return sum + estimateTokens(item.content);
     }, 0);
     return baseContextTokens + estimateTokens(userInput) + attachmentTokens;
@@ -864,14 +1112,17 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         <div className="attachment-preview">
           {attachments.map(att => (
             <div key={att.id} className="attachment-item">
-              {att.type === 'image' ? (
-                <img src={att.content} alt={att.name} className="attachment-thumbnail" />
+              {att.type === 'image' || att.previewUrl ? (
+                <img src={att.type === 'image' ? att.content : att.previewUrl} alt={att.name} className="attachment-thumbnail" />
               ) : (
                 <div className="attachment-file-icon">
                   <Icon name="file" size={16} />
                 </div>
               )}
-              <button className="attachment-remove" onClick={() => removeAttachment(att.id)}>
+              <span className={`attachment-type-tag ${att.type === 'image' ? 'image' : 'file'}`}>
+                {att.type === 'image' ? '多模态' : '文件'}
+              </span>
+              <button type="button" className="attachment-remove" onClick={() => removeAttachment(att.id)} title={`移除 ${att.name}`}>
                 <Icon name="close" size={10} />
               </button>
               <span className="attachment-name">{att.name}</span>
@@ -879,6 +1130,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
           ))}
         </div>
       )}
+      {attachmentNotice && <div className="attachment-notice" role="status">{attachmentNotice}</div>}
       {/* 上下文标签 */}
       {(activeFileName || contexts.length > 0) && (
         <div className="context-tags">
@@ -905,7 +1157,57 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
 
       {/* 输入区域 */}
       <div className="input-area">
-        <form onSubmit={handleSubmit} className="input-container">
+        <GoalModeBar
+          selected={chatMode === 'goal' || goalCommandObjective !== null}
+          draftObjective={goalCommandObjective || undefined}
+          streamActive={isLoading}
+          backendPort={backendPort}
+          sessionId={currentSessionId}
+          maxTokens={goalMaxTokens}
+          maxIterations={goalMaxIterations}
+          onMaxTokensChange={setGoalMaxTokens}
+          onMaxIterationsChange={setGoalMaxIterations}
+          onCloseDraft={() => {
+            setChatMode('default');
+            if (goalCommandObjective !== null) setUserInput('');
+          }}
+          onActiveGoalChange={setHasActiveGoal}
+        />
+        <form
+          onSubmit={handleSubmit}
+          className="input-container"
+          onDragEnter={handleAttachmentDragEnter}
+          onDragOver={handleAttachmentDragOver}
+          onDragLeave={handleAttachmentDragLeave}
+          onDrop={handleAttachmentDrop}
+        >
+          <input
+            ref={attachmentFileInputRef}
+            className="attachment-file-input"
+            type="file"
+            multiple
+            onChange={(event) => {
+              if (event.target.files) void addBrowserFiles(event.target.files, 'file');
+              event.target.value = '';
+            }}
+          />
+          <input
+            ref={attachmentImageInputRef}
+            className="attachment-file-input"
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/svg+xml"
+            onChange={(event) => {
+              if (event.target.files) void addBrowserFiles(event.target.files, 'image');
+              event.target.value = '';
+            }}
+          />
+          {isDraggingAttachment && (
+            <div className="attachment-drop-overlay">
+              <Icon name="push" size={28} />
+              <span>松开以添加附件</span>
+            </div>
+          )}
           {/* 工具栏 */}
           <div className="input-toolbar">
           </div>
@@ -918,9 +1220,14 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
               onChange={handleInput}
               onPaste={handlePaste}
               className="message-input"
-              placeholder={currentProvider ? `${getModelDisplayName(currentProvider)}` : '输入消息...'}
+              placeholder={hasActiveGoal
+                ? 'Goal 正在当前对话中持续执行...'
+                : chatMode === 'goal'
+                ? '描述需要持续推进直到完成的目标...'
+                : currentProvider ? `${getModelDisplayName(currentProvider)}` : '输入消息...'}
               rows={1}
               onKeyDown={handleKeyDown}
+              disabled={hasActiveGoal}
             />
           </div>
 
@@ -928,38 +1235,40 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
           <div className="input-bottom-bar">
             {/* 附件 */}
             <button
+              ref={attachmentButtonRef}
               type="button"
-              className="toolbar-btn"
-              title="添加附件"
-              onClick={async () => {
-                const result = await fileService.openFileDialog({ multiple: true });
-                if (!result) return;
-                const paths = Array.isArray(result) ? result : [result];
-                for (const filePath of paths) {
-                  const name = filePath.split(/[/\\]/).pop() || filePath;
-                  const isImage = isImageFile(filePath);
-                  try {
-                    if (isImage) {
-                      const base64 = await invoke<string>('read_file_binary', { path: filePath });
-                      const ext = filePath.split('.').pop()?.toLowerCase() || 'png';
-                      const mime = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-                      setAttachments(prev => {
-                        if (prev.find(a => a.path === filePath)) return prev;
-                        return [...prev, { id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name, type: 'image' as const, content: `data:${mime};base64,${base64}`, path: filePath }];
-                      });
-                    } else {
-                      const content = await fileService.readFile(filePath);
-                      setAttachments(prev => {
-                        if (prev.find(a => a.path === filePath)) return prev;
-                        return [...prev, { id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name, type: 'text' as const, content, path: filePath }];
-                      });
-                    }
-                  } catch { /* ignore */ }
-                }
+              className={`toolbar-btn${showAttachmentMenu ? ' active' : ''}`}
+              title="更多工具"
+              aria-label="更多工具"
+              aria-haspopup="menu"
+              aria-expanded={showAttachmentMenu}
+              disabled={hasActiveGoal}
+              onClick={() => {
+                setShowAttachmentMenu(open => !open);
+                setShowModelPicker(false);
+                setShowReasoningPicker(false);
+                setShowAutocomplete(false);
               }}
             >
-              <Icon name="attach" size={14} />
+              <Icon name="add" size={18} />
             </button>
+
+            {/* 模型 */}
+            <select
+              className="model-picker-btn chat-mode-picker"
+              value={chatMode}
+              title="Agent 执行模式"
+              disabled={hasActiveGoal}
+              onChange={event => {
+                const mode = event.target.value as ChatMode;
+                setChatMode(mode);
+                localStorage.setItem('soloncode-chat-mode', mode);
+              }}
+            >
+              <option value="default">审批执行</option>
+              <option value="auto">自动编辑</option>
+              <option value="plan">仅规划</option>
+            </select>
 
             {/* 模型 */}
             <div className="model-picker-wrapper" ref={modelPickerRef}>
@@ -1026,12 +1335,31 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
               className={`send-stop-button${isLoading ? ' stopping' : ''}`}
               disabled={!isLoading && !canSend}
               onClick={isLoading && onStop ? onStop : undefined}
-              title={isLoading && onStop ? '停止生成' : '发送'}
+              title={isLoading && onStop
+                ? '停止生成'
+                : hasActiveGoal && chatMode === 'goal'
+                  ? '当前会话已有 Goal 正在运行'
+                  : attachments.length > 0 && chatMode === 'goal'
+                    ? '请先移除附件'
+                    : chatMode === 'goal' ? '启动 Goal' : '发送'}
             >
               <Icon name={isLoading && onStop ? 'close' : 'push'} size={isLoading && onStop ? 13 : 17} />
             </button>
           </div>
         </form>
+
+        {showAttachmentMenu && (
+          <div className="attachment-menu-dropdown" ref={attachmentMenuRef} role="menu">
+            <button type="button" role="menuitem" onClick={() => void addLocalFiles('file')}>
+              <Icon name="attach" size={16} />
+              <span>上传可分析文件</span>
+            </button>
+            <button type="button" role="menuitem" onClick={() => void addLocalFiles('image')}>
+              <Icon name="file-img" size={16} />
+              <span>添加多模态素材</span>
+            </button>
+          </div>
+        )}
 
         {showModelPicker && (
           <div className="input-picker-dropdown model-picker-dropdown" ref={modelPickerPanelRef}>

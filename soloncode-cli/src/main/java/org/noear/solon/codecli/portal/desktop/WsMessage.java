@@ -17,9 +17,17 @@ public class WsMessage {
 
     String cwd;
 
-    String mode; // "default" | "auto" | "plan"
+    String mode; // "default" | "auto" | "plan" | "goal"
 
     String reasoningEffort; // "low" | "medium" | "high" | "max"
+
+    Long goalMaxTokens;
+
+    Long goalMaxDurationMinutes;
+
+    Integer goalMaxIterations;
+
+    String goalObjective;
 
     List<WsAttachment> attachments;
 
@@ -27,7 +35,8 @@ public class WsMessage {
     public static class WsAttachment {
         String type;     // "image" | "file"
         String name;
-        String data;     // base64 data (image) or text content (file)
+        String data;     // attachment payload
         String mimeType; // e.g. "image/png"
+        String encoding; // "base64" | "text" (legacy)
     }
 }

@@ -1,0 +1,21 @@
+.memory-panel { height: 100%; display: flex; flex-direction: column; color: var(--cb-text-primary); }
+.memory-search { margin: 9px; display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid var(--cb-vscode-panel-border); border-radius: 6px; background: var(--cb-vscode-input-background); }
+.memory-search input { min-width: 0; width: 100%; padding: 0; border: 0; background: transparent; }
+.memory-message { margin: 0 9px 7px; padding: 6px 8px; border-radius: 5px; color: var(--cb-success); background: color-mix(in srgb, var(--cb-success) 10%, transparent); }
+.memory-message.error { color: var(--cb-error); background: color-mix(in srgb, var(--cb-error) 10%, transparent); }
+.memory-list { flex: 1; min-height: 100px; overflow: auto; border-top: 1px solid var(--cb-vscode-panel-border); }
+.memory-empty { padding: 28px 14px; text-align: center; color: var(--cb-text-secondary); }
+.memory-item { width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--cb-vscode-panel-border); text-align: left; color: inherit; background: transparent; }
+.memory-item:hover, .memory-item.active { background: var(--cb-vscode-list-hoverBackground); }
+.memory-item.active { box-shadow: inset 2px 0 var(--cb-accent); }
+.memory-item-title { display: flex; align-items: center; gap: 7px; font-weight: 600; overflow-wrap: anywhere; }
+.memory-star { color: var(--cb-warning); font-size: 11px; white-space: nowrap; }
+.memory-item-preview { color: var(--cb-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.memory-item-time { color: var(--cb-text-secondary); font-size: 10px; }
+.memory-editor { flex: 0 0 auto; max-height: 48%; overflow: auto; padding: 10px; border-top: 1px solid var(--cb-vscode-panel-border); background: var(--cb-vscode-sideBar-background); }
+.memory-editor label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; color: var(--cb-text-secondary); font-size: 11px; }
+.memory-editor textarea { min-height: 105px; resize: vertical; }
+.memory-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.memory-editor-actions button { border: 0; border-radius: 4px; padding: 6px 12px; color: white; }
+.memory-primary { background: var(--cb-vscode-button-background); }
+.memory-danger { background: var(--cb-error); }

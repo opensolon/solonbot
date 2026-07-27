@@ -214,7 +214,8 @@
 }
 
 .delete-btn,
-.sync-btn {
+.sync-btn,
+.fork-btn {
   width: 20px;
   height: 20px;
   background: transparent;
@@ -229,12 +230,14 @@
 }
 
 .session-item:hover .delete-btn,
-.session-item:hover .sync-btn {
+.session-item:hover .sync-btn,
+.session-item:hover .fork-btn {
   opacity: 0.5;
 }
 
 .delete-btn:hover,
-.sync-btn:hover {
+.sync-btn:hover,
+.fork-btn:hover {
   opacity: 1 !important;
 }
 

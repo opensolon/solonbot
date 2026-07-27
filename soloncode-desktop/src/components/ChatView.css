@@ -344,3 +344,45 @@
 .start-work-dropdown-item:hover {
   background-color: var(--chat-input-hover, #f3f4f6);
 }
+.plan-approval-bar {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--cb-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cb-accent) 10%, var(--cb-vscode-editor-background));
+}
+
+.plan-approval-bar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-approval-bar span {
+  color: var(--cb-text-secondary);
+  font-size: 12px;
+}
+
+.plan-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-approval-actions button {
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+  padding: 5px 10px;
+  color: var(--cb-text-primary);
+  background: var(--cb-vscode-button-secondaryBackground, transparent);
+  cursor: pointer;
+}
+
+.plan-approval-actions button.primary {
+  color: #fff;
+  border-color: var(--cb-accent);
+  background: var(--cb-accent);
+}

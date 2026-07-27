@@ -40,9 +40,13 @@ import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.talents.memory.MemoryTalent;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.ai.agent.react.intercept.HITL;
+import org.noear.solon.ai.agent.react.intercept.HITLInterceptor;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.codecli.command.WebCommandContext;
+import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.GoalTalent;
+import org.noear.solon.codecli.command.builtin.LoopScheduler;
+import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.util.ReasoningEffortSupport;
@@ -59,8 +63,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Code CLI WebSocket 网关
@@ -74,14 +83,365 @@ public class WsGate extends SimpleWebSocketListener {
     private static final Logger LOG = LoggerFactory.getLogger(WsGate.class);
     private static final String SESSION_ID_DESKTOP = "desktop";
     private static final String SESSION_ATTR_SELECTED_AGENT = "_agent_selected_tmp";
+    private static final String SESSION_ATTR_RUN_MODE = "_desktop_run_mode";
+
+    /** 桌面请求级审批器：按当前模式决定文件修改和命令是否在执行前暂停。 */
+    private final HITLInterceptor desktopHitlInterceptor = new HITLInterceptor()
+            .onTool("write", (trace, args) -> desktopApprovalReason(trace, "write"))
+            .onTool("edit", (trace, args) -> desktopApprovalReason(trace, "edit"))
+            .onTool("bash", (trace, args) -> desktopApprovalReason(trace, "bash"));
 
     private final HarnessEngine engine;
     private final AgentSettings agentSettings;
+    private final LoopScheduler loopScheduler;
     private final DesktopStreamHub streamHub = new DesktopStreamHub();
+    private final Set<String> completedGoalStreams = ConcurrentHashMap.newKeySet();
 
-    public WsGate(HarnessEngine engine, AgentSettings agentSettings) {
+    public WsGate(HarnessEngine engine, AgentSettings agentSettings, LoopScheduler loopScheduler) {
         this.engine = engine;
         this.agentSettings = agentSettings;
+        this.loopScheduler = loopScheduler;
+        if (loopScheduler != null) {
+            loopScheduler.addGoalListener(this::onGoalChanged);
+        }
+    }
+
+    boolean isSessionBusy(String sessionId) {
+        if (Assert.isEmpty(sessionId)) {
+            return false;
+        }
+        try {
+            AgentSession session = engine.getSession(sessionId);
+            Object value = session.attrs().get("disposable");
+            return (value instanceof Disposable && !((Disposable) value).isDisposed()) || HITL.isHitl(session);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    void configureGoalSession(String sessionId, String modelName, String agentName,
+                              String workspace, String reasoningEffort) {
+        if (Assert.isEmpty(sessionId)) {
+            throw new IllegalArgumentException("sessionId is required");
+        }
+        AgentSession session = engine.getSession(sessionId);
+
+        if (Assert.isNotEmpty(modelName)) {
+            if (modelName.length() > 256 || engine.getModelOrNil(modelName) == null) {
+                throw new IllegalArgumentException("Goal model is unavailable");
+            }
+            session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, modelName);
+        }
+
+        if (Assert.isNotEmpty(agentName)) {
+            String normalizedAgent = agentName.trim();
+            if (!isValidAgentName(normalizedAgent) || !engine.getAgentManager().hasAgent(normalizedAgent)) {
+                throw new IllegalArgumentException("Goal Agent is unavailable");
+            }
+            session.attrs().put(SESSION_ATTR_SELECTED_AGENT, normalizedAgent);
+        } else {
+            session.attrs().remove(SESSION_ATTR_SELECTED_AGENT);
+        }
+
+        if (Assert.isNotEmpty(workspace)) {
+            try {
+                Path root = Paths.get(workspace);
+                if (!root.isAbsolute()) {
+                    throw new IllegalArgumentException("Goal workspace must be absolute");
+                }
+                root = root.toRealPath().normalize();
+                if (!Files.isDirectory(root)) {
+                    throw new IllegalArgumentException("Goal workspace not found");
+                }
+                session.attrs().put(HarnessEngine.ATTR_CWD, root.toString());
+            } catch (IOException error) {
+                throw new IllegalArgumentException("Goal workspace is invalid", error);
+            }
+        }
+
+        if (Assert.isNotEmpty(reasoningEffort)
+                && ReasoningEffortSupport.normalizeEffort(reasoningEffort) == null) {
+            throw new IllegalArgumentException("Invalid reasoning effort");
+        }
+        ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, true);
+        session.attrs().remove("_plan_mode");
+        session.attrs().remove(SESSION_ATTR_RUN_MODE);
+    }
+
+    static String extractGoalObjective(String input, String mode) {
+        if (input == null) {
+            return null;
+        }
+        String trimmed = input.trim();
+        boolean command = trimmed.equalsIgnoreCase("/goal")
+                || (trimmed.length() > 5 && trimmed.regionMatches(true, 0, "/goal", 0, 5)
+                && Character.isWhitespace(trimmed.charAt(5)));
+        if (command) {
+            return trimmed.length() == 5 ? "" : trimmed.substring(5).trim();
+        }
+        return "goal".equalsIgnoreCase(mode) ? trimmed : null;
+    }
+
+    private void startGoalStream(WebSocket socket, String sessionId, WsMessage req,
+                                 String objective, String cwd, String agentName) throws IOException {
+        if (loopScheduler == null) {
+            throw new IllegalStateException("Goal service is unavailable");
+        }
+        if (Assert.isEmpty(sessionId) || !sessionId.matches("[0-9]{1,18}")) {
+            throw new IllegalArgumentException("Invalid Session ID");
+        }
+        String displayedObjective = Assert.isNotEmpty(req.getGoalObjective())
+                ? req.getGoalObjective().trim() : objective;
+        if (Assert.isEmpty(displayedObjective) || displayedObjective.length() > 20_000) {
+            throw new IllegalArgumentException(Assert.isEmpty(displayedObjective)
+                    ? "请输入 Goal 目标" : "Goal 内容不能超过 20000 个字符");
+        }
+
+        Long maxTokens = normalizeGoalBudget(req.getGoalMaxTokens(), 1_000_000_000L, "Token");
+        Long maxDurationMinutes = normalizeGoalBudget(req.getGoalMaxDurationMinutes(), 525_600L, "时长");
+        Integer maxIterations = normalizeGoalIterations(req.getGoalMaxIterations());
+        String effectiveObjective = appendGoalAttachments(objective, req.getAttachments(), cwd);
+
+        String goalWorkspace = Assert.isNotEmpty(cwd) && Paths.get(cwd).isAbsolute() ? cwd : null;
+        configureGoalSession(sessionId, req.getModel(), agentName, goalWorkspace, req.getReasoningEffort());
+        loopScheduler.restore(sessionId);
+
+        synchronized (loopScheduler) {
+            LoopTask active = loopScheduler.findActiveGoalInSession(sessionId);
+            if (active != null) {
+                throw new IllegalStateException("当前对话已有正在执行或可恢复的 Goal");
+            }
+
+            completedGoalStreams.remove(sessionId);
+            streamHub.begin(sessionId, socket);
+            // 先完成持久化再显式触发，避免 runNow 与任务注册并发竞速。
+            LoopTask task = new LoopTask(effectiveObjective, 0, null, LoopTask.TaskType.GOAL, false);
+            task.getGoalState().setCondition(displayedObjective);
+            if (maxTokens != null) {
+                task.setMaxTokens(maxTokens);
+            }
+            if (maxDurationMinutes != null) {
+                task.setMaxDurationMs(Math.multiplyExact(maxDurationMinutes, 60_000L));
+            }
+            if (maxIterations != null) {
+                task.getGoalState().setMaxIterations(maxIterations);
+            }
+            loopScheduler.schedule(sessionId, task);
+            loopScheduler.trigger(sessionId, task.getId());
+        }
+    }
+
+    private Long normalizeGoalBudget(Long value, long maximum, String label) {
+        if (value == null || value == 0L) {
+            return null;
+        }
+        if (value < 0L || value > maximum) {
+            throw new IllegalArgumentException("Goal " + label + "预算无效");
+        }
+        return value;
+    }
+
+    private Integer normalizeGoalIterations(Integer value) {
+        if (value == null || value == 0) {
+            return null;
+        }
+        if (value < 0 || value > 10_000) {
+            throw new IllegalArgumentException("Goal 轮次限制无效");
+        }
+        return value;
+    }
+
+    private String appendGoalAttachments(String objective, List<WsMessage.WsAttachment> attachments,
+                                         String cwd) throws IOException {
+        if (attachments == null || attachments.isEmpty()) {
+            return objective;
+        }
+        if (attachments.size() > DesktopAttachmentSupport.MAX_ATTACHMENTS) {
+            throw new IllegalArgumentException("附件数量不能超过 10 个");
+        }
+
+        int totalAttachmentBytes = 0;
+        List<String> names = new ArrayList<>();
+        for (WsMessage.WsAttachment attachment : attachments) {
+            if (attachment == null || (!("image".equals(attachment.getType()))
+                    && !("file".equals(attachment.getType())))) {
+                throw new IllegalArgumentException("附件类型无效");
+            }
+            byte[] bytes = DesktopAttachmentSupport.decode(attachment);
+            totalAttachmentBytes += bytes.length;
+            if (totalAttachmentBytes > DesktopAttachmentSupport.MAX_TOTAL_ATTACHMENT_BYTES) {
+                throw new IllegalArgumentException("附件总大小不能超过 50 MB");
+            }
+            names.add(DesktopAttachmentSupport.save(Paths.get(cwd), attachment.getName(), bytes));
+        }
+
+        StringBuilder input = new StringBuilder();
+        for (String name : names) {
+            input.append("[附件: ").append(name).append("]\n");
+        }
+        return input.append(objective).toString();
+    }
+
+    private void onGoalChanged(String sessionId, LoopTask task, boolean removed) {
+        GoalState state = task.getGoalState();
+        if (state == null) {
+            return;
+        }
+
+        String status = removed || task.isCancelled() ? "STOPPED" : state.getStatus().name();
+        ONode message = new ONode().set("type", "goal_status")
+                .set("sessionId", sessionId)
+                .set("goalId", task.getId())
+                .set("objective", state.getCondition())
+                .set("status", status)
+                .set("running", task.isRunning())
+                .set("iteration", task.getCurrentIteration())
+                .set("maxIterations", state.getMaxIterations())
+                .set("consumedTokens", state.getConsumedTokens())
+                .set("maxTokens", state.getMaxTokens());
+        if (task.getLastResult() != null) {
+            message.set("lastResult", task.getLastResult());
+        }
+        streamHub.emit(sessionId, message.toJson());
+
+        boolean terminal = removed || task.isCancelled() || state.getStatus().isTerminal();
+        if (terminal && completedGoalStreams.add(sessionId)) {
+            AgentSession session = engine.getSession(sessionId);
+            String modelName = session.getContext().getAs(HarnessEngine.CTX_MODEL_SELECTED);
+            if (Assert.isEmpty(modelName)) {
+                modelName = engine.getMainModel().getConfig().getNameOrModel();
+            }
+            long elapsed = Math.max(0L, System.currentTimeMillis() - state.getStartEpochMs());
+            streamHub.emit(sessionId, new ONode().set("type", "done")
+                    .set("sessionId", sessionId)
+                    .set("modelName", modelName)
+                    .set("totalTokens", state.getConsumedTokens())
+                    .set("elapsedMs", elapsed)
+                    .toJson());
+        }
+    }
+
+    /** LoopScheduler 的桌面 Goal 执行入口：同步等待一轮结束并返回权威最终答复。 */
+    String runGoalRoundAndCapture(String sessionId, String input, String agentName) {
+        AgentSession session;
+        try {
+            session = engine.getSession(sessionId);
+            if (isSessionBusy(sessionId)) {
+                return null;
+            }
+        } catch (Throwable error) {
+            LOG.warn("[Desktop] Goal session check failed for {}: {}", sessionId, error.getMessage());
+            return null;
+        }
+
+        String selectedAgent = agentName;
+        if (Assert.isEmpty(selectedAgent)) {
+            Object configuredAgent = session.attrs().get(SESSION_ATTR_SELECTED_AGENT);
+            selectedAgent = configuredAgent == null ? null : String.valueOf(configuredAgent);
+        }
+        String selectedModel = session.getContext().getAs(HarnessEngine.CTX_MODEL_SELECTED);
+        ChatModel chatModel = engine.getModelOrDefInstance(selectedModel);
+        ReActAgent agent = engine.getAgentOrMain(selectedAgent);
+        String sessionCwd = String.valueOf(session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, "."));
+        String reasoningEffort = ReasoningEffortSupport.getSessionEffort(session);
+
+        Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
+        applyReasoningEffort(prompt, reasoningEffort);
+        CountDownLatch completed = new CountDownLatch(1);
+        AtomicReference<String> finalAnswer = new AtomicReference<>("");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        session.attrs().put("_loop_last_has_tool_calls", false);
+
+        streamHub.emit(sessionId, new ONode().set("type", "goal_round")
+                .set("sessionId", sessionId)
+                .toJson());
+
+        Disposable disposable = agent.prompt(prompt)
+                .session(session)
+                .options(options -> {
+                    options.chatModel(chatModel);
+                    options.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
+                    applyReasoningEffort(options, reasoningEffort);
+                })
+                .stream()
+                .doOnNext(chunk -> {
+                    if (chunk instanceof ReActChunk) {
+                        ReActChunk react = (ReActChunk) chunk;
+                        if (Assert.isNotEmpty(react.getContent())) {
+                            finalAnswer.set(react.getContent());
+                        }
+                        ReActTrace trace = react.getTrace();
+                        if (trace != null && trace.getMetrics() != null) {
+                            session.attrs().put("_loop_last_total_tokens", trace.getMetrics().getTotalTokens());
+                        }
+                        return;
+                    }
+
+                    String message = null;
+                    if (chunk instanceof ReasonChunk) {
+                        message = onReasonChunk((ReasonChunk) chunk, sessionId);
+                    } else if (chunk instanceof ActionChunk) {
+                        message = onActionStartChunk((ActionChunk) chunk, sessionId);
+                    } else if (chunk instanceof ObservationChunk) {
+                        ObservationChunk observation = (ObservationChunk) chunk;
+                        if (observation.getError() == null
+                                && Assert.isNotEmpty(observation.getToolName())
+                                && !GoalTalent.isGoalTool(observation.getToolName())) {
+                            session.attrs().put("_loop_last_has_tool_calls", true);
+                        }
+                        message = onObservationChunk(observation, sessionId);
+                    } else if (chunk instanceof ThoughtChunk) {
+                        ReActTrace trace = ((ThoughtChunk) chunk).getTrace();
+                        if (trace != null && trace.getMetrics() != null) {
+                            session.attrs().put("_loop_last_total_tokens", trace.getMetrics().getTotalTokens());
+                        }
+                        message = onThoughtChunk((ThoughtChunk) chunk, sessionId);
+                    }
+                    if (Assert.isNotEmpty(message)) {
+                        streamHub.emit(sessionId, message);
+                    }
+                })
+                .doOnError(failure::set)
+                .doFinally(signal -> {
+                    session.attrs().remove("disposable");
+                    completed.countDown();
+                })
+                .subscribe();
+
+        Disposable previous = (Disposable) session.attrs().put("disposable", disposable);
+        if (previous != null && !previous.isDisposed()) {
+            previous.dispose();
+        }
+
+        try {
+            completed.await();
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            disposable.dispose();
+            throw new IllegalStateException("Goal round interrupted", error);
+        }
+
+        if (failure.get() != null) {
+            String message = failure.get().getMessage();
+            throw new IllegalStateException(Assert.isEmpty(message)
+                    ? failure.get().getClass().getSimpleName() : message, failure.get());
+        }
+        if (Assert.isEmpty(finalAnswer.get())) {
+            throw new IllegalStateException("Goal round returned no final answer");
+        }
+        return finalAnswer.get();
+    }
+
+    void interruptGoalSession(String sessionId) {
+        try {
+            AgentSession session = engine.getSession(sessionId);
+            Object running = session.attrs().remove("disposable");
+            if (running instanceof Disposable && !((Disposable) running).isDisposed()) {
+                ((Disposable) running).dispose();
+            }
+        } catch (Throwable error) {
+            LOG.debug("[Desktop] Goal interrupt skipped for {}: {}", sessionId, error.getMessage());
+        }
     }
 
     @Override
@@ -159,9 +519,14 @@ public class WsGate extends SimpleWebSocketListener {
             AgentSession session = engine.getSession(sessionId);
 
             if ("[(sec)interrupt]".equals(req.getInput())) {
+                LoopTask activeGoal = loopScheduler == null ? null : loopScheduler.findActiveGoalInSession(sessionId);
                 Disposable disposable = (Disposable) session.attrs().remove("disposable");
                 if (disposable != null) {
                     disposable.dispose();
+                }
+                if (activeGoal != null) {
+                    loopScheduler.remove(sessionId, activeGoal);
+                    return;
                 }
                 session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
                 LOG.info("用户已取消任务.");
@@ -269,7 +634,8 @@ public class WsGate extends SimpleWebSocketListener {
                     req.getReasoningEffort() != null);
 
             // 模式处理：根据前端 mode 字段配置 session 行为
-            String mode = req.getMode();
+            String mode = normalizeDesktopRunMode(req.getMode());
+            session.attrs().put(SESSION_ATTR_RUN_MODE, mode);
             if ("plan".equals(mode)) {
                 // 规划模式：只读分析，不执行文件/命令操作
                 session.attrs().put("_plan_mode", true);
@@ -278,13 +644,22 @@ public class WsGate extends SimpleWebSocketListener {
                 }
             } else if ("auto".equals(mode)) {
                 // 自动编辑模式：文件编辑自动放行，shell 命令仍需审批
-                session.attrs().put("_hitl_shell_only", true);
+                session.attrs().remove("_plan_mode");
+            } else {
+                session.attrs().remove("_plan_mode");
             }
-            // default 模式：不做特殊处理，所有操作走正常 HITL 流程
+            // default 模式：write/edit/bash 都在真正执行前进入 HITL 审批。
 
             final ReActAgent agent = engine.getAgentOrMain(agentName);
             // 与 WebStreamBuilder 保持一致：记录本轮真正的源 Agent，供 HITL 恢复继续使用。
             session.attrs().put(SESSION_ATTR_SELECTED_AGENT, agent.name());
+
+            // Goal 是对话持续流，不再交给斜杠命令返回“任务已注册”回执。
+            String goalObjective = extractGoalObjective(currentInput, mode);
+            if (goalObjective != null) {
+                startGoalStream(socket, sessionId, req, goalObjective, cwd, agent.name());
+                return;
+            }
 
             // 命令处理：以 / 开头的输入走命令分发
             if (currentInput.startsWith("/")) {
@@ -301,17 +676,25 @@ public class WsGate extends SimpleWebSocketListener {
             List<String> fileNames = new ArrayList<>();
 
             if (attachments != null && !attachments.isEmpty()) {
+                if (attachments.size() > DesktopAttachmentSupport.MAX_ATTACHMENTS) {
+                    throw new IllegalArgumentException("附件数量不能超过 10 个");
+                }
+                int totalAttachmentBytes = 0;
                 for (WsMessage.WsAttachment att : attachments) {
-                    if ("image".equals(att.getType()) && att.getData() != null) {
-                        String base64 = att.getData();
-                        // 如果包含 data URL 前缀，去掉它
-                        int commaIdx = base64.indexOf(',');
-                        if (commaIdx > 0) {
-                            base64 = base64.substring(commaIdx + 1);
-                        }
-                        imageBlocks.add(ImageBlock.ofBase64(base64, att.getMimeType() != null ? att.getMimeType() : "image/png"));
-                    } else if (att.getName() != null) {
-                        fileNames.add(att.getName());
+                    if (att == null || (!("image".equals(att.getType())) && !("file".equals(att.getType())))) {
+                        throw new IllegalArgumentException("附件类型无效");
+                    }
+                    byte[] bytes = DesktopAttachmentSupport.decode(att);
+                    totalAttachmentBytes += bytes.length;
+                    if (totalAttachmentBytes > DesktopAttachmentSupport.MAX_TOTAL_ATTACHMENT_BYTES) {
+                        throw new IllegalArgumentException("附件总大小不能超过 50 MB");
+                    }
+                    String savedName = DesktopAttachmentSupport.save(Paths.get(cwd), att.getName(), bytes);
+                    if (DesktopAttachmentSupport.isMultimodalImage(att)) {
+                        imageBlocks.add(ImageBlock.ofBase64(
+                                Base64.getEncoder().encodeToString(bytes), att.getMimeType()));
+                    } else {
+                        fileNames.add(savedName);
                     }
                 }
             }
@@ -345,6 +728,7 @@ public class WsGate extends SimpleWebSocketListener {
                     .session(session)
                     .options(o -> {
                         o.chatModel(chatModel);
+                        applyRunMode(o, session);
                         o.toolContextPut(HarnessEngine.ATTR_CWD, finalCwd);
                         applyReasoningEffort(o, reasoningEffort);
                     })
@@ -356,7 +740,7 @@ public class WsGate extends SimpleWebSocketListener {
                         // ReActChunk 需要优先处理 metrics 收集（无论 hasContent 状态）
                         String msg = null;
                         if (chunk instanceof ReActChunk) {
-                            onReActChunk((ReActChunk) chunk, finalSessionId, terminalSent);
+                            onReActChunk((ReActChunk) chunk, session, finalSessionId, terminalSent);
                             return;
                         } else if (chunk instanceof ReasonChunk) {
                             msg = onReasonChunk((ReasonChunk) chunk, finalSessionId);
@@ -388,12 +772,27 @@ public class WsGate extends SimpleWebSocketListener {
         }
     }
 
-    private void onReActChunk(ReActChunk chunk, String finalSessionId,
+    private void onReActChunk(ReActChunk chunk, AgentSession session, String finalSessionId,
                               AtomicBoolean terminalSent) {
         ReActTrace trace = chunk.getTrace();
         Long start_time = trace.getOriginalPrompt().attrAs("start_time");
         long elapsed = start_time != null ? System.currentTimeMillis() - start_time : 0;
         long totalTokens = trace.getMetrics() != null ? trace.getMetrics().getTotalTokens() : 0;
+
+        if (HITL.isHitl(session)) {
+            HITLTask task = HITL.getPendingTask(session);
+            if (task != null && terminalSent.compareAndSet(false, true)) {
+                String command = "bash".equals(task.getToolName())
+                        ? String.valueOf(task.getArgs().get("command"))
+                        : null;
+                streamHub.emit(finalSessionId, new ONode().set("type", "hitl")
+                        .set("sessionId", finalSessionId)
+                        .set("toolName", task.getToolName())
+                        .set("command", command)
+                        .toJson());
+            }
+            return;
+        }
 
         sendDoneIfNeeded(terminalSent, finalSessionId,
                 trace.getOptions().getChatModel().getNameOrModel(), totalTokens, elapsed);
@@ -490,6 +889,7 @@ public class WsGate extends SimpleWebSocketListener {
             node.set("toolName", chunk.getToolName());
         } else {
             node.set("toolName", chunk.getAgentName() + "/" + chunk.getToolName());
+            node.set("agentName", chunk.getAgentName());
         }
 
         if (chunk.getArgs() != null) node.set("args", chunk.getArgs());
@@ -522,6 +922,7 @@ public class WsGate extends SimpleWebSocketListener {
             node.set("toolName", chunk.getToolName());
         } else {
             node.set("toolName", chunk.getAgentName() + "/" + chunk.getToolName());
+            node.set("agentName", chunk.getAgentName());
         }
 
         if (chunk.getObservation() != null && chunk.getObservation().getContent() != null) {
@@ -583,6 +984,7 @@ public class WsGate extends SimpleWebSocketListener {
                     .session(session)
                     .options(o -> {
                         o.chatModel(chatModel);
+                        applyRunMode(o, session);
                         applyReasoningEffort(o, reasoningEffort);
                         if (Assert.isNotEmpty(cwd)) {
                             o.toolContextPut(HarnessEngine.ATTR_CWD, cwd);
@@ -592,7 +994,7 @@ public class WsGate extends SimpleWebSocketListener {
                     .doFinally(signal -> session.attrs().remove("disposable"))
                     .doOnNext(chunk -> {
                         if (chunk instanceof ReActChunk) {
-                            onReActChunk((ReActChunk) chunk, sessionId, terminalSent);
+                            onReActChunk((ReActChunk) chunk, session, sessionId, terminalSent);
                             return;
                         }
                         String msg = null;
@@ -868,6 +1270,7 @@ public class WsGate extends SimpleWebSocketListener {
                 .session(session)
                 .options(o -> {
                     o.chatModel(chatModel);
+                    applyRunMode(o, session);
                     applyReasoningEffort(o, reasoningEffort);
                     if (Assert.isNotEmpty(sessionCwd)) {
                         o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
@@ -877,7 +1280,7 @@ public class WsGate extends SimpleWebSocketListener {
                 .doFinally(signal -> session.attrs().remove("disposable"))
                 .doOnNext(chunk -> {
                     if (chunk instanceof ReActChunk) {
-                        onReActChunk((ReActChunk) chunk, finalSessionId, terminalSent);
+                        onReActChunk((ReActChunk) chunk, session, finalSessionId, terminalSent);
                         return;
                     }
                     String msg = null;
@@ -903,5 +1306,52 @@ public class WsGate extends SimpleWebSocketListener {
         if (old != null && !old.isDisposed()) {
             old.dispose();
         }
+    }
+
+    private void applyRunMode(ReActOptionsAmend options, AgentSession session) {
+        Object configuredMode = session.attrs().get(SESSION_ATTR_RUN_MODE);
+        String runMode = normalizeDesktopRunMode(configuredMode == null ? null : String.valueOf(configuredMode));
+        boolean planning = "plan".equals(runMode);
+        options.planningMode(planning);
+        if (planning) {
+            options.planningInstruction("只分析问题并输出可执行计划，不调用文件、命令或外部工具，不修改任何状态。");
+            return;
+        }
+
+        // 请求级拦截只作用于桌面会话，不修改 HarnessEngine 的全局开关，Web 行为保持不变。
+        if ("default".equals(runMode) || "auto".equals(runMode)) {
+            // Interceptor 按类型去重；用一个桌面实例替换本次请求中的全局 HITL，防止重复挂起。
+            options.interceptorAdd(desktopHitlInterceptor);
+        }
+    }
+
+    private String desktopApprovalReason(ReActTrace trace, String toolName) {
+        AgentSession session = trace == null ? null : trace.getSession();
+        Object configuredMode = session == null ? null : session.attrs().get(SESSION_ATTR_RUN_MODE);
+        String runMode = normalizeDesktopRunMode(configuredMode == null ? null : String.valueOf(configuredMode));
+        if (!requiresDesktopApproval(runMode, toolName)) {
+            return null;
+        }
+        if ("bash".equals(toolName)) {
+            return "桌面执行模式要求批准此命令";
+        }
+        return "桌面审批执行模式要求批准此文件修改";
+    }
+
+    static String normalizeDesktopRunMode(String mode) {
+        if ("auto".equals(mode) || "plan".equals(mode) || "goal".equals(mode)) {
+            return mode;
+        }
+        // 未知或缺失模式按最严格的审批执行处理，避免客户端字段异常导致静默放行。
+        return "default";
+    }
+
+    static boolean requiresDesktopApproval(String mode, String toolName) {
+        String normalizedMode = normalizeDesktopRunMode(mode);
+        if ("bash".equals(toolName)) {
+            return "default".equals(normalizedMode) || "auto".equals(normalizedMode);
+        }
+        return "default".equals(normalizedMode)
+                && ("write".equals(toolName) || "edit".equals(toolName));
     }
 }

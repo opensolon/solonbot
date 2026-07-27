@@ -33,6 +33,7 @@ interface SessionsPanelProps {
   onSelectSession: (id: string) => void;
   onNewSession: (projectId?: string) => string | void;
   onDeleteSession: (id: string) => void | Promise<void>;
+  onForkSession?: (id: string) => void | Promise<void>;
   onCreateProject: () => void;
   onAddProject: () => void;
   onRemoveProject: (id: string) => void;
@@ -64,6 +65,7 @@ export function SessionsPanel({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onForkSession,
   onCreateProject,
   onAddProject,
   onRemoveProject,
@@ -89,7 +91,6 @@ export function SessionsPanel({
     projectId: string;
   } | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
-  const projectMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renameCancelledRef = useRef(false);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
@@ -146,12 +147,12 @@ export function SessionsPanel({
     };
   }, [projectMenu]);
 
-  useEffect(() => () => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-  }, []);
-
-  const showProjectMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>, projectId: string) => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
+  const toggleProjectMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>, projectId: string) => {
+    event.stopPropagation();
+    if (projectMenu?.projectId === projectId) {
+      setProjectMenu(null);
+      return;
+    }
     setProjectContextMenu(null);
     const rect = event.currentTarget.getBoundingClientRect();
     const width = 150;
@@ -159,16 +160,7 @@ export function SessionsPanel({
     const x = Math.min(rect.right + 4, window.innerWidth - width - 8);
     const y = Math.min(rect.top, window.innerHeight - height - 8);
     setProjectMenu({ x: Math.max(8, x), y: Math.max(8, y), projectId });
-  }, []);
-
-  const scheduleProjectMenuClose = useCallback(() => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-    projectMenuCloseTimerRef.current = setTimeout(() => setProjectMenu(null), 140);
-  }, []);
-
-  const keepProjectMenuOpen = useCallback(() => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-  }, []);
+  }, [projectMenu?.projectId]);
 
   const beginProjectRename = useCallback((projectId: string) => {
     const project = projects.find(item => item.id === projectId);
@@ -293,6 +285,19 @@ export function SessionsPanel({
             title="同步消息"
           >
             <Icon name={syncingIds.has(session.id) ? 'loading' : 'refresh'} size={14} />
+          </button>
+          <button
+            className="fork-btn"
+            onClick={event => {
+              event.stopPropagation();
+              void Promise.resolve(onForkSession?.(session.id)).catch(error => {
+                setProjectActionMessage({ text: error instanceof Error ? error.message : '会话分叉失败', error: true });
+              });
+            }}
+            title="从此会话创建分支"
+            disabled={session.id.startsWith('temp-') || runState === 'running'}
+          >
+            <Icon name="copy" size={14} />
           </button>
           {!session.isPermanent && (
             <button
@@ -438,14 +443,13 @@ export function SessionsPanel({
                   <span className="project-name">{entry.name}</span>
                 )}
                 <button
+                  type="button"
                   className="project-more-btn"
-                  onMouseEnter={event => showProjectMenu(event, entry.id)}
-                  onMouseLeave={scheduleProjectMenuClose}
-                  onFocus={event => showProjectMenu(event, entry.id)}
-                  onClick={event => event.stopPropagation()}
+                  onClick={event => toggleProjectMenu(event, entry.id)}
                   title="项目菜单"
                   aria-label={`${entry.name} 项目菜单`}
                   aria-haspopup="menu"
+                  aria-expanded={projectMenu?.projectId === entry.id}
                 >
                   <Icon name="more" size={14} />
                 </button>
@@ -517,8 +521,6 @@ export function SessionsPanel({
           style={{ left: projectMenu.x, top: projectMenu.y }}
           role="menu"
           aria-label={`${menuProject.name} 项目菜单`}
-          onMouseEnter={keepProjectMenuOpen}
-          onMouseLeave={scheduleProjectMenuClose}
           onClick={event => event.stopPropagation()}
         >
           <button

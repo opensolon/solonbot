@@ -212,6 +212,32 @@
   white-space: nowrap;
 }
 
+.message-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(360px, 60vw);
+  padding: 6px 10px;
+  color: inherit;
+  font-size: 13px;
+  background: rgba(127, 127, 127, 0.12);
+  border: 1px solid rgba(127, 127, 127, 0.2);
+  border-radius: 6px;
+}
+
+.message-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-file-size {
+  flex: 0 0 auto;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
 /* 通用可折叠块 */
 .collapsible-block {
   margin: 2px 0;
@@ -652,6 +678,8 @@
 /* 消息元数据 */
 .message-metadata {
   display: flex;
+  align-items: center;
+  margin-left: auto;
   gap: 12px;
   font-size: 10px;
   color: var(--cb-text-secondary);

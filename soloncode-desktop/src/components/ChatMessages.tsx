@@ -10,6 +10,7 @@ import { ActionGroupBlock } from './ActionGroupBlock';
 import type { Message, Theme, ContentItem } from '../types';
 import { isTodoToolName } from '../utils/todoTools';
 import { isSafeImageDataUrl } from '../utils/messageContent';
+import { permissionService } from '../services/permissionService';
 import './ChatMessages.css';
 
 interface ChatMessagesProps {
@@ -20,7 +21,7 @@ interface ChatMessagesProps {
   projectName?: string;
   onDeleteMessage?: (id: number) => void;
   onRerunMessage?: (id: number) => void;
-  onHitlAction?: (action: 'approve' | 'reject') => void;
+  onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void;
   onFileSelect?: (path: string) => void;
 }
 
@@ -333,7 +334,24 @@ function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
 }
 
 // 内容项渲染组件 — memo 化，避免消息不变时重渲染
-const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean }) {
+const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded, activeThinking }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean; activeThinking?: boolean }) {
+  if (item.type === 'FILE') {
+    const sizeLabel = item.size == null
+      ? ''
+      : item.size < 1024
+        ? `${item.size} B`
+        : item.size < 1024 * 1024
+          ? `${(item.size / 1024).toFixed(1)} KB`
+          : `${(item.size / (1024 * 1024)).toFixed(1)} MB`;
+    return (
+      <div className="content-item message-file">
+        <Icon name="file" size={14} />
+        <span className="message-file-name">{item.name || item.text}</span>
+        {sizeLabel && <span className="message-file-size">({sizeLabel})</span>}
+      </div>
+    );
+  }
+
   if (item.type === 'IMAGE') {
     if (!isSafeImageDataUrl(item.text)) return null;
     return (
@@ -350,7 +368,7 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
   }
 
   if (item.type === 'THINK') {
-    return <ThinkBlock content={item.text} theme={theme} />;
+    return <ThinkBlock content={item.text} theme={theme} active={activeThinking} />;
   }
 
   if (item.type === 'ACTION') {
@@ -370,8 +388,14 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
           {item.command && <div className="hitl-command"><code>{item.command}</code></div>}
         </div>
         <div className="hitl-actions">
-          <button className="hitl-btn approve" onClick={() => onHitlAction?.('approve')}>允许</button>
-          <button className="hitl-btn reject" onClick={() => onHitlAction?.('reject')}>拒绝</button>
+          <button className="hitl-btn approve" onClick={() => onHitlAction?.('approve', item)}>允许本次</button>
+          <button
+            className="hitl-btn approve"
+            disabled={!item.toolName || !permissionService.canRemember(item.toolName)}
+            title={item.toolName && permissionService.canRemember(item.toolName) ? '在当前项目中记住此工具' : '命令执行类工具不能永久放行'}
+            onClick={() => onHitlAction?.('approve_always', item)}
+          >项目内总是允许</button>
+          <button className="hitl-btn reject" onClick={() => onHitlAction?.('reject', item)}>拒绝</button>
         </div>
       </div>
     );
@@ -441,7 +465,7 @@ const ThinkingRow = memo(function ThinkingRow({ elapsedSeconds }: { elapsedSecon
   );
 });
 
-const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
+const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = message.contents
@@ -472,28 +496,36 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun,
             g.kind === 'group' ? (
               <ActionGroupBlock key={index} toolName={g.toolName} items={g.items} theme={theme} onFileClick={onFileSelect} autoExpanded={index === activeActionIndex} />
             ) : (
-              <ContentItemRenderer key={index} item={g.item} theme={theme} onHitlAction={onHitlAction} onFileSelect={onFileSelect} autoExpanded={index === activeActionIndex} />
+              <ContentItemRenderer
+                key={index}
+                item={g.item}
+                theme={theme}
+                onHitlAction={onHitlAction}
+                onFileSelect={onFileSelect}
+                autoExpanded={index === activeActionIndex}
+                activeThinking={Boolean(isStreaming && index === grouped.length - 1 && g.item.type === 'THINK')}
+              />
             )
           )}
         </div>
       </div>
       {!isStreaming && (
         <div className="message-footer">
-        <div className="message-time">{message.timestamp}</div>
-        <div className="message-actions">
-          <button className="message-action-btn" onClick={handleCopy} title="复制">
-            <Icon name={copied ? 'check' : 'copy'} size={12} />
-          </button>
-          {message.role === 'USER' && <>
-            <button className="message-action-btn" onClick={() => onRerun?.(message.id)} title="从此处重做">
-              <Icon name="refresh" size={12} />
-            </button>
-            <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="回退并删除此处及之后消息">
-              <Icon name="delete" size={12} />
-            </button>
-          </>}
+          <div className="message-time">{message.timestamp}</div>
           <MessageMetadata metadata={message.metadata} />
-        </div>
+          <div className="message-actions">
+            <button className="message-action-btn" onClick={handleCopy} title="复制">
+              <Icon name={copied ? 'check' : 'copy'} size={12} />
+            </button>
+            {message.role === 'USER' && <>
+              <button className="message-action-btn" onClick={() => onRerun?.(message.id)} title="从此处重做">
+                <Icon name="refresh" size={12} />
+              </button>
+              <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="回退并删除此处及之后消息">
+                <Icon name="delete" size={12} />
+              </button>
+            </>}
+          </div>
         </div>
       )}
     </div>
@@ -506,7 +538,20 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
     const autoFollowRef = useRef(true);
     const visibleMessages = useMemo(() => {
       return messages.reduce<Message[]>((result, message) => {
-        const contents = message.contents.filter(item => !isTodoToolName(item.toolName));
+        const contents = message.contents
+          .filter(item => !isTodoToolName(item.toolName))
+          .reduce<ContentItem[]>((items, item) => {
+            const previous = items[items.length - 1];
+            if (item.type === 'THINK' && previous?.type === 'THINK') {
+              items[items.length - 1] = {
+                ...previous,
+                text: `${previous.text}\n\n${item.text}`.trim(),
+              };
+            } else {
+              items.push(item);
+            }
+            return items;
+          }, []);
         if (contents.length === 0) return result;
         result.push(contents.length === message.contents.length ? message : { ...message, contents });
         return result;
@@ -520,7 +565,12 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       }
     }));
 
-    const showThinkingRow = isLoading;
+    const lastVisibleMessage = visibleMessages[visibleMessages.length - 1];
+    const hasStreamingAssistantContent = lastVisibleMessage?.role === 'ASSISTANT'
+      && lastVisibleMessage.contents.length > 0;
+    // 模型已经开始输出 THINK/TEXT/ACTION 时，由对应内容块表达运行状态，
+    // 不再额外追加“正在思考”占位，避免出现两条思考提示。
+    const showThinkingRow = isLoading && !hasStreamingAssistantContent;
 
     const itemContent = useCallback((index: number) => {
       if (showThinkingRow && index === visibleMessages.length) {

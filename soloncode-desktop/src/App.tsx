@@ -17,7 +17,6 @@ import {
 import { SkillsPanel } from './components/sidebar/SkillsPanel';
 import { AgentsPanel } from './components/sidebar/AgentsPanel';
 import { MemoryPanel } from './components/sidebar/MemoryPanel';
-import { GoalPanel } from './components/sidebar/GoalPanel';
 import { AgentDetail } from './components/sidebar/AgentDetail';
 import type { Settings } from './components/sidebar/SettingsPanel';
 import type { ChatReviewFile } from './components/ChatHeader';
@@ -78,6 +77,7 @@ const plugins: Plugin[] = [];
 const defaultSettings: Settings = {
   theme: 'dark', skin: 'default', fontSize: 14, language: 'zh-CN',
   autoCheckUpdates: false,
+  keepBackendAlive: true,
   lastUpdateCheckAt: '',
   editorTheme: 'auto',
   tabSize: 2, autoSave: true, formatOnSave: true,
@@ -415,6 +415,13 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    invoke('set_background_mode', { enabled: settings.keepBackendAlive }).catch(() => {
+      // 浏览器开发模式下没有 Tauri 命令。
+    });
+  }, [settings.keepBackendAlive, settingsLoaded]);
+
   const handleSettingsChange = useCallback((newSettings: Settings, baseSettings: Settings) => {
     const providers = mergeEditedProvidersWithLatest(
       baseSettings.providers,
@@ -470,7 +477,7 @@ function App() {
 
   const {
     sessions, currentSessionId, setCurrentSessionId, currentConversation,
-    handleNewSession, handleDeleteSession, handleUpdateSessionTitle,
+    handleNewSession, handleDeleteSession, handleForkSession, handleUpdateSessionTitle,
     incrementSessionMessageCount,
     linkCurrentEmptySessionToProject,
     remapProjectPath,
@@ -1466,6 +1473,7 @@ function App() {
             backendPort={backendPort}
             sessionRunStates={sessionRunStates}
             onSelectSession={handleSelectSession} onNewSession={handleCreateSessionInProject} onDeleteSession={handleDeleteSession}
+            onForkSession={handleForkSession}
             onCreateProject={handleCreateProject} onAddProject={handleAddProject} onRemoveProject={handleRemoveProject} onPinProject={handlePinProject} onRenameProject={(projectId, name) => {
               void handleRenameProject(projectId, name).catch(err => {
                 showToast(err instanceof Error ? err.message : '重命名项目失败');
@@ -1487,8 +1495,6 @@ function App() {
         );
       case 'memory':
         return <MemoryPanel backendPort={backendPort} />;
-      case 'goal':
-        return <GoalPanel backendPort={backendPort} sessionId={currentSessionId} defaultMaxTokens={settings.loopDefaultMaxTokens} defaultMaxDuration={settings.loopDefaultMaxDuration} />;
       case 'skills':
         return <SkillsPanel backendPort={backendPort} refreshKey={aiCreateRefreshKey} onFileSelect={(path) => { setPanelState(prev => ({ ...prev, editorVisible: true })); handleFileSelect(path); }} onCreateWithAI={() => handleStartPromptCreation('skill')} />;
       case 'agents':
@@ -1562,7 +1568,7 @@ function App() {
               setChatWorkspacePath(null);
               return handleNewSession(UNLINKED_PROJECT, title);
             }}
-            sessions={sessions} sessionRunStates={sessionRunStates} maxSteps={settings.maxSteps} onSelectSession={handleSelectSession}
+            sessions={sessions} sessionRunStates={sessionRunStates} maxSteps={settings.maxSteps} goalDefaultMaxTokens={settings.loopDefaultMaxTokens} goalDefaultMaxDuration={settings.loopDefaultMaxDuration} onSelectSession={handleSelectSession}
             providers={settings.providers} agents={[...settings.agents.filter(agent => agent.scope !== 'project'), ...projectAgents]} skills={settings.skills} agentRefreshKey={agentRefreshKey} activeProviderId={settings.activeProviderId} onActiveProviderChange={(providerId: string) => { setSettings(prev => { const updated = { ...prev, activeProviderId: providerId }; settingsService.save(updated); return updated; }); }}
             activeFileName={chatWorkspacePath ? activeFile?.name : undefined}
             activeFilePath={chatWorkspacePath ? (activeFilePath || undefined) : undefined}
