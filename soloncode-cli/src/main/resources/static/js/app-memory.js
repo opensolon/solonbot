@@ -292,6 +292,13 @@
         if (ta && d.content != null) ta.value = d.content;
         var impEl = row.querySelector('.mem-imp');
         if (impEl && d.importance != null) impEl.value = d.importance;
+        // 异步回填 scope 按钮状态（后端返回后修正默认显示）
+        if (d.scope) {
+            var scopeBtns = row.querySelectorAll('.mem-scope-btn');
+            Array.prototype.forEach.call(scopeBtns, function (b) {
+                b.classList.toggle('active', b.getAttribute('data-scope') === d.scope);
+            });
+        }
     }
 
     function cssEscape(s) {
