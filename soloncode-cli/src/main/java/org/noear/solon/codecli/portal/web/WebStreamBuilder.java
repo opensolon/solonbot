@@ -19,6 +19,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.*;
 import org.noear.solon.ai.agent.react.intercept.ContextSizeChunk;
 import org.noear.solon.ai.agent.react.intercept.HITL;
+import org.noear.solon.ai.agent.react.intercept.HITLPendingChunk;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.*;
 import org.noear.solon.ai.chat.ChatConfig;
@@ -56,8 +57,9 @@ import java.util.*;
  *       ReActChunk → 最终汇总（含异常）。</li>
  *   <li>IM 通道同步转发：在处理 ReasonCompleteChunk 和 FinalChunk 时，将内容同步推送到
  *       所有已绑定的 IM 通道（微信、飞书、钉钉等），实现 Web 端与 IM 端双路输出。</li>
- *   <li>HITL（人机交互循环）支持：流结束后自动检测挂起的人工审批任务，
- *       如有则生成对应的 HITL WebChunk 以暂停流等待人工确认。</li>
+ *   <li>HITL（人机交互循环）支持：流内消费 {@link HITLPendingChunk}，一批挂起任务逐个映射为
+ *       独立的 HITL WebChunk（各带 callId），暂停流等待人工逐卡审批；
+ *       并保留「未主动 push 过则按 pending 列表补发」的降级兜底。</li>
  * </ul></p>
  *
  * <p><b>架构位置：</b>位于 portal/web 层，是 Agent 后端与 Web 前端之间的流式适配器；
@@ -68,6 +70,9 @@ import java.util.*;
  */
 public class WebStreamBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(WebStreamBuilder.class);
+
+    /** 会话上下文标记：本流是否已主动 push 过 HITLPendingChunk，供尾部 concatWith 判断是否需要降级兜底补发。 */
+    private static final String HITL_PENDING_PUSHED = "__web_hitl_pending_pushed";
 
     /**
      * 任务执行引擎，用于判断当前引擎名称与 chunk 中代理名称的归属关系
@@ -239,6 +244,16 @@ public class WebStreamBuilder {
                     } else if (chunk instanceof ReasonEndChunk) {
                         //思考结束
                         webChunk = onReasonEndChunk(session, (ReasonEndChunk) chunk, taskAgentName, isMultitask);
+                    } else if (chunk instanceof HITLPendingChunk) {
+                        // HITL 挂起：一个上游 chunk 携带整批挂起任务，逐个映射为 hitl WebChunk
+                        // （批量多卡，前端按 callId 各自渲染审批卡片）
+                        List<WebChunk> hitlChunks = onHitlPendingChunk(session, (HITLPendingChunk) chunk);
+                        if (!hitlChunks.isEmpty()) {
+                            // 标记：本流已主动 push 过 pending，尾部 concatWith 不再兜底补发
+                            session.getContext().put(HITL_PENDING_PUSHED, Boolean.TRUE);
+                        }
+                        // 直接返回批量结果，绕开尾部单值收敛逻辑
+                        return Flux.fromIterable(hitlChunks);
                     } else if (chunk instanceof ToolCallStartChunk) {
                         //工具调用开始
                         webChunk = onToolCallStartChunk((ToolCallStartChunk) chunk, taskAgentName);
@@ -284,18 +299,16 @@ public class WebStreamBuilder {
                     return Flux.fromIterable(chunkList);
                 })
                 .concatWith(Flux.defer(() -> {
-                    // Check HITL state after stream completes
-                    if (HITL.isHitl(session)) {
-                        HITLTask task = HITL.getPendingTask(session);
-                        if (task != null) {
-                            String command = "bash".equals(task.getToolName())
-                                    ? String.valueOf(task.getArgs().get("command"))
-                                    : null;
-
-                            WebChunk hitlChuck = WebChunk.ofHitl(task.getToolName(), command);
-
-                            return Flux.just(hitlChuck);
+                    // 降级兜底：仅当本流从未主动 push 过 HITLPendingChunk（如 trace 无 streamSink 的边界），
+                    // 且仍存在挂起任务时，才按 pending 列表补发，避免与主路径重复弹卡。
+                    boolean pushed = Boolean.TRUE.equals(session.getContext().getAs(HITL_PENDING_PUSHED));
+                    session.getContext().remove(HITL_PENDING_PUSHED);
+                    if (!pushed && HITL.isHitl(session)) {
+                        List<WebChunk> hitlChunks = new ArrayList<>();
+                        for (HITLTask task : HITL.getPendingTasks(session)) {
+                            hitlChunks.add(buildHitlChunk(session, task));
                         }
+                        return Flux.fromIterable(hitlChunks);
                     }
 
                     return Flux.empty();
@@ -356,6 +369,55 @@ public class WebStreamBuilder {
         }
 
         return WebChunk.EMPTY;
+    }
+
+
+    /**
+     * 处理 HITL 挂起 chunk（{@link HITLPendingChunk}）。
+     *
+     * <p>一个上游 chunk 携带整批挂起任务（多个敏感工具同批拦截时），此处逐个
+     * 映射为 hitl {@link WebChunk}，每张卡携带独立的 callId（= HITLTask.callUuid），
+     * 供前端各自渲染审批卡片并精确回传决策。</p>
+     *
+     * @param session 当前会话
+     * @param chunk   HITL 挂起 chunk
+     * @return 批量 hitl WebChunk（可能为空列表）
+     */
+    private List<WebChunk> onHitlPendingChunk(AgentSession session, HITLPendingChunk chunk) {
+        List<WebChunk> result = new ArrayList<>();
+        if (chunk.getPendingTasks() == null) {
+            return result;
+        }
+        for (HITLTask task : chunk.getPendingTasks()) {
+            result.add(buildHitlChunk(session, task));
+        }
+        return result;
+    }
+
+    /**
+     * 将单个 {@link HITLTask} 构造为 hitl {@link WebChunk}。
+     *
+     * <p>携带 toolName / toolTitle / args / command / callId(callUuid) / comment，
+     * command 仅对 bash 等携带 {@code command} 参数的工具提取，其余工具靠 args 展示。</p>
+     *
+     * @param session 当前会话
+     * @param task    挂起任务
+     * @return hitl WebChunk
+     */
+    private WebChunk buildHitlChunk(AgentSession session, HITLTask task) {
+        String toolName = task.getToolName();
+        Map<String, Object> args = task.getArgs() != null
+                ? new LinkedHashMap<>(task.getArgs())
+                : null;
+
+        // command 仅当 args 中存在 command 字段时提取（不再硬编码限定 bash）
+        String command = (args != null && args.get("command") != null)
+                ? String.valueOf(args.get("command"))
+                : null;
+
+        WebChunk wc = WebChunk.ofHitl(toolName, toolName, args, command, task.getCallUuid(), task.getComment());
+        wc.setSessionId(session.getSessionId());
+        return wc;
     }
 
 

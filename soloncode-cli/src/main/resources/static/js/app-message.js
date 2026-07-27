@@ -1516,14 +1516,31 @@ function purgeInlineThinking(sess) {
 }
 
 /* ===== HITL ===== */
-function appendHitlCard(sess, toolName, command) {
+function appendHitlCard(sess, toolName, command, callId, args, toolTitle, comment) {
     ensureAssistantBubble(sess);
 
-    var card = createToolCard(toolName, command ? { command: command } : {}, '\u9700\u8981\u6388\u6743\uff1a' + (toolName || 'unknown'), null, 'warn');
+    // 本批挂起卡片计数：每收一张 +1，决策一张 -1，归零时才恢复流
+    sess.pendingHitlCount = (sess.pendingHitlCount || 0) + 1;
+
+    var cardArgs = (args && typeof args === 'object') ? args : (command ? { command: command } : {});
+    var card = createToolCard(toolName, cardArgs, '\u9700\u8981\u6388\u6743\uff1a' + (toolName || 'unknown'), null, 'warn');
     $(card).addClass('hitl-pending');
     if (sess.currentRunId) card.setAttribute('data-run-id', sess.currentRunId);
+    if (callId) card.setAttribute('data-call-id', callId);
     var body = $(card).find('.tool-card-body')[0];
-    if (body) body.textContent = command || '\u7b49\u5f85\u6388\u6743\u4ee5\u6267\u884c\u8be5\u5de5\u5177';
+    if (body) {
+        // 优先 command，其次 args 摘要，都没有时用默认提示
+        var bodyText = command;
+        if (!bodyText && args && typeof args === 'object') {
+            try { bodyText = JSON.stringify(args); } catch (e) { bodyText = ''; }
+        }
+        body.textContent = bodyText || '\u7b49\u5f85\u6388\u6743\u4ee5\u6267\u884c\u8be5\u5de5\u5177';
+    }
+    // 拦截理由作为副标题
+    if (comment) {
+        var titleEl = $(card).find('.tool-name')[0];
+        if (titleEl) titleEl.setAttribute('title', comment);
+    }
     card.insertAdjacentHTML('beforeend', '<div class="hitl-card-actions">'
         + '<button class="hitl-btn hitl-btn-approve">\u6279\u51c6</button>'
         + '<button class="hitl-btn hitl-btn-reject">\u62d2\u7edd</button>'
@@ -1543,7 +1560,7 @@ function appendHitlCard(sess, toolName, command) {
         $(card).find('.hitl-card-actions').remove();
         $(card).removeClass('hitl-pending');
         sess.approvedToolCard = card;
-        handleHitlResponse(sess, 'approve');
+        handleHitlResponse(sess, 'approve', callId);
     });
 
     $(rejectBtn).on('click', function() {
@@ -1555,31 +1572,39 @@ function appendHitlCard(sess, toolName, command) {
         $(card).find('.hitl-card-actions').remove();
         $(card).removeClass('hitl-pending expanded');
         sess.approvedToolCard = null;
-        handleHitlResponse(sess, 'reject');
+        handleHitlResponse(sess, 'reject', callId);
     });
 
     if (sess.sessionId === activeSessionId) scrollForStreamEvent(sess, null, card, false);
     return card;
 }
 
-function handleHitlResponse(sess, action) {
-    if (sess.eventSource) { sess.eventSource.close(); sess.eventSource = null; }
-    resetStreamState(sess);
+function handleHitlResponse(sess, action, callId) {
+    // 本批剩余未决策卡片数减一；仅当归零（本批最后一张决策）时才恢复流。
+    // 批量场景下前面几张卡只发决策 POST，不重建流、不重置状态，避免冲掉未点的其他卡。
+    sess.pendingHitlCount = Math.max(0, (sess.pendingHitlCount || 1) - 1);
+    var isLast = (sess.pendingHitlCount === 0);
 
-    sess.isStreaming = true;
-    sess.stopRequested = false;
-    sess.acceptingStream = true;
-    sess._streamClosed = false;
-    if (sess.sessionId === activeSessionId) {
-        isStreaming = true;
-        setBtnStopMode();
+    if (isLast) {
+        if (sess.eventSource) { sess.eventSource.close(); sess.eventSource = null; }
+        resetStreamState(sess);
+
+        sess.isStreaming = true;
+        sess.stopRequested = false;
+        sess.acceptingStream = true;
+        sess._streamClosed = false;
+        if (sess.sessionId === activeSessionId) {
+            isStreaming = true;
+            setBtnStopMode();
+        }
+        showThinking(sess);
     }
-    showThinking(sess);
 
     // 通过 HTTP POST 发送 HITL 决策，结果通过 WebSocket 推送
     var formData = new FormData();
     formData.append('hitlAction', action);
     formData.append('sessionId', sess.sessionId);
+    if (callId) formData.append('hitlCallId', callId);
 
     fetch(SSE_ENDPOINT, {
         method: 'POST',
@@ -1589,7 +1614,7 @@ function handleHitlResponse(sess, action) {
     }).catch(function(err) {
         console.error('HITL error:', err);
         // 通过回调占位调用 finishStream（由 app-streaming.js 注册）
-        if (onFinishStream) onFinishStream(sess);
+        if (isLast && onFinishStream) onFinishStream(sess);
     });
 }
 

@@ -20,6 +20,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.intercept.HITL;
+import org.noear.solon.ai.agent.react.intercept.HITLDecision;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.content.Contents;
@@ -66,6 +67,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class WebGate extends SimpleWebSocketListener {
     private static final Logger LOG = LoggerFactory.getLogger(WebGate.class);
+    /** HITL 审批时前端回传的 callUuid（通过 session context 透传） */
+    public static final String CTX_HITL_CALL_ID = "hitl.callId";
 
     /** 会话属性：本轮 agent 流是否已向客户端发送过 done（防 interrupt + doFinally 双发） */
     private static final String ATTR_STREAM_DONE_SENT = "streamDoneSent";
@@ -330,18 +333,29 @@ public class WebGate extends SimpleWebSocketListener {
             }
 
 
-            // HITL approve/reject handling
+            // HITL approve/reject handling（按 callUuid 精确决策，支持批量逐卡审批）
             if (Assert.isNotEmpty(hitlAction)) {
-                HITLTask task = HITL.getPendingTask(session);
+                // callId 通过 session context 透传（前端 POST hitlCallId），避免全链路改签名
+                String hitlCallId = session.getContext().getAs(CTX_HITL_CALL_ID);
+                session.getContext().remove(CTX_HITL_CALL_ID);
+
+                HITLTask task = Assert.isNotEmpty(hitlCallId)
+                        ? HITL.getPendingTaskByCallUuid(session, hitlCallId)
+                        : HITL.getPendingTask(session); // 无 callId 时回退单任务（兼容旧前端）
+
                 if (task != null) {
                     if ("approve".equals(hitlAction)) {
-                        HITL.approve(session, task.getToolName());
+                        HITL.approve(session, task);
                     } else {
-                        HITL.reject(session, task.getToolName());
+                        HITL.reject(session, task);
                     }
                 }
-                // Resume streaming after HITL decision
-                performAgentTaskAsync(session, sessionCwd, null, selectedModel, agentName);
+
+                // 恢复时机：批量场景下前端逐卡点击会发多次决策，
+                // 仅当本批所有挂起任务都已有决策时才恢复流，否则只写决策不 resume。
+                if (allHitlDecided(session)) {
+                    performAgentTaskAsync(session, sessionCwd, null, selectedModel, agentName);
+                }
                 return;
             }
 
@@ -469,6 +483,29 @@ public class WebGate extends SimpleWebSocketListener {
      * @param selectedModel 用户选择的 AI 模型标识
      * @param agentName    指定 Agent 名称（可为 null，表示使用默认 Agent）
      */
+    /**
+     * 判断本批所有 HITL 挂起任务是否均已有决策。
+     *
+     * <p>批量场景下前端逐卡点击会发多次决策 POST，仅当无任何未决策项时
+     * 才应恢复流，避免过早 resume 将未决策任务带走。</p>
+     *
+     * @param session 当前会话
+     * @return 均已决策（或无挂起任务）返回 true
+     */
+    private boolean allHitlDecided(AgentSession session) {
+        List<HITLTask> pending = HITL.getPendingTasks(session);
+        if (pending == null || pending.isEmpty()) {
+            return true;
+        }
+        for (HITLTask t : pending) {
+            HITLDecision decision = HITL.getDecision(session, t);
+            if (decision == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void performAgentTaskAsync(AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName) {
         String sessionId = session.getSessionId();
 

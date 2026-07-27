@@ -789,7 +789,7 @@ function processWebChunkNow(sess, chunk) {
             case 'agent': sourceEl = appendContentChunk(sess, segment, chunk.text, false, chunk.reasonId); break;
             case 'error': finishThinkingBlock(sess); sourceEl = appendErrorChunk(sess, chunk.text, chunk.taskId, chunk.taskDescription, chunk.agentName); break;
             case 'task_done': if (typeof applyTaskDoneChunk === 'function') applyTaskDoneChunk(sess, chunk); sourceEl = segment && segment.groupEl; break;
-            case 'hitl': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendHitlCard(sess, chunk.toolName, chunk.command); break;
+            case 'hitl': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendHitlCard(sess, chunk.toolName, chunk.command, chunk.callId, chunk.args, chunk.toolTitle, chunk.comment); break;
             case 'trace': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendTraceBadge(sess, chunk); break;
             case 'context_size': if (typeof updateContextIndicator === 'function') updateContextIndicator(chunk, sess); break;
         }

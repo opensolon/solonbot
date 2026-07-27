@@ -89,6 +89,9 @@ public class WebChunk {
     /** 命令内容，仅在 type 为 {@code hitl} 时使用，表示需要人工审批的命令文本。 */
     private String command;
 
+    /** 拦截理由/备注，仅在 type 为 {@code hitl} 时使用，展示触发人工审批的系统理由（来自 HITLTask.comment）。 */
+    private String comment;
+
     /** 模型名称，仅在 type 为 {@code trace} 时使用，记录本次推理使用的模型标识。 */
     private String model;
 
@@ -356,19 +359,41 @@ public class WebChunk {
     }
 
     /**
-     * 创建「人机协同中断」消息块。
-     * <p>type 为 {@code hitl}（Human-in-the-Loop），表示执行流程暂停，
-     * 等待人工对指定工具调用进行审批或确认后才会继续执行。</p>
+     * 创建「人机协同中断」消息块（兼容旧签名）。
      *
      * @param toolName 需要人工审批的工具名称
      * @param command  需要人工审批的命令文本
      * @return 携带工具名与命令内容的人机协同消息块
      */
     public static WebChunk ofHitl(String toolName, String command) {
+        return ofHitl(toolName, toolName, null, command, null, null);
+    }
+
+    /**
+     * 创建「人机协同中断」消息块（完整参，批量 HITL 专用）。
+     * <p>type 为 {@code hitl}（Human-in-the-Loop），表示执行流程暂停，
+     * 等待人工对指定工具调用进行审批或确认后才会继续执行。
+     * 携带 {@code callId}（= HITLTask.callUuid）供前端精确定位批准/拒绝目标，
+     * 并与后续同 callId 的 action_start/action_end 复用同一卡片。</p>
+     *
+     * @param toolName  工具原名（裸名，供前端识别）
+     * @param toolTitle 工具显示名（可含 agentName 前缀）
+     * @param args      拟调用的参数快照（可为 null）
+     * @param command   需要人工审批的命令文本（仅 bash 等场景，可为 null）
+     * @param callId    工具调用实例主键（= HITLTask.callUuid）
+     * @param comment   拦截理由/备注（可为 null）
+     * @return 携带完整审批上下文的人机协同消息块
+     */
+    public static WebChunk ofHitl(String toolName, String toolTitle, Map<String, Object> args,
+                                  String command, String callId, String comment) {
         WebChunk tmp = new WebChunk();
         tmp.type = "hitl";
         tmp.toolName = toolName;
+        tmp.toolTitle = toolTitle;
+        tmp.args = args;
         tmp.command = command;
+        tmp.callId = callId;
+        tmp.comment = comment;
         tmp.createdAt = Instant.now().toEpochMilli();
 
         return tmp;

@@ -750,7 +750,13 @@ public class WebController {
             }
             
             String hitlAction = ctx.param("hitlAction");
-            
+            String hitlCallId = ctx.param("hitlCallId");
+
+            // HITL 审批时，将前端回传的 callUuid 写入 session context，供 WebGate 精确定位决策
+            if (Assert.isNotEmpty(hitlAction) && Assert.isNotEmpty(hitlCallId)) {
+                engine.getSession(sessionId).getContext().put(WebGate.CTX_HITL_CALL_ID, hitlCallId);
+            }
+
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
             webGate.onChatInput(sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
                     reasoningEffort, selectedAgent);
