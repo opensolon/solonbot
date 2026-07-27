@@ -3,11 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Message, Conversation, Theme, Plugin, ContentType, ContentItem } from '../types';
 import { normalizeProviderType, type ModelProvider } from '../services/settingsService';
 import { fileService } from '../services/fileService';
-import { saveMessage, updateMessage, getMessagesByConversation } from '../db';
+import { saveMessage, updateMessage, getMessagesByConversation, truncateConversationMessages } from '../db';
 import { ChatHeader, type ChatReviewFile } from './ChatHeader';
 import { ChatTaskList, type ChatTask } from './ChatTaskList';
 import { ChatMessages } from './ChatMessages';
-import { ChatInput, type ChatAgentOption, type SendOptions, type ReasoningEffort } from './ChatInput';
+import { ChatInput, type Attachment, type ChatAgentOption, type ChatSkillOption, type SendOptions, type ReasoningEffort } from './ChatInput';
+import { ChatQueueDock } from './ChatQueueDock';
 import { Icon } from './common/Icon';
 import type { Session } from './sidebar/SessionsPanel';
 import {
@@ -16,7 +17,7 @@ import {
   type GeneratedAutomationPlan,
 } from '../utils/automationPlan';
 import { isTodoToolName } from '../utils/todoTools';
-import { buildUserMessageContents } from '../utils/messageContent';
+import { buildUserMessageContents, isSafeImageDataUrl } from '../utils/messageContent';
 import {
   EMPTY_RESPONSE_ERROR,
   RESPONSE_PROTOCOL_ERROR,
@@ -24,6 +25,7 @@ import {
   formatResponseErrorText,
 } from '../utils/responseErrors';
 import { withRetry } from '../utils/retry';
+import { chatQueueService, MAX_CHAT_QUEUE_SIZE, type QueuedChatMessage } from '../services/chatQueueService';
 import './ChatView.css';
 
 export type PromptCreationType = 'skill' | 'agent' | 'automation';
@@ -169,6 +171,7 @@ interface ChatViewProps {
   onSelectSession?: (sessionId: string) => void;
   providers?: ModelProvider[];
   agents?: ChatAgentOption[];
+  skills?: ChatSkillOption[];
   agentRefreshKey?: number;
   activeProviderId?: string;
   onActiveProviderChange?: (providerId: string) => void;
@@ -777,12 +780,16 @@ function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[
   );
 }
 
-export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], agentRefreshKey, activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved }: ChatViewProps) {
+export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], skills = [], agentRefreshKey, activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [reviewInfoSignal, setReviewInfoSignal] = useState(0);
   const [thinkingElapsedSeconds, setThinkingElapsedSeconds] = useState(0);
   const [sessionTodoTasks, setSessionTodoTasks] = useState<Record<string, ChatTask[]>>({});
+  const [sessionQueues, setSessionQueues] = useState<Record<string, QueuedChatMessage[]>>({});
+  const sessionQueuesRef = useRef<Record<string, QueuedChatMessage[]>>({});
+  const queueArmedSessionsRef = useRef(new Set<string>());
+  const queueDrainingRef = useRef(false);
   const chatMessagesRef = useRef<{ scrollToBottom: () => void } | null>(null);
   const sessionIdRef = useRef<string>('');
   const conversationIdRef = useRef<string | number>('');
@@ -807,6 +814,36 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   onAiCreateCompleteRef.current = onAiCreateComplete;
   const workspacePathRef = useRef(workspacePath);
   workspacePathRef.current = workspacePath;
+
+  const commitQueue = useCallback((sessionId: string, items: QueuedChatMessage[]) => {
+    const next = { ...sessionQueuesRef.current, [sessionId]: items };
+    sessionQueuesRef.current = next;
+    setSessionQueues(next);
+    if (backendPort && sessionId && !sessionId.startsWith('temp-') && !sessionId.startsWith('pending-')) {
+      void chatQueueService.save(backendPort, sessionId, items).catch(() => {
+        // 保留内存队列；后端恢复失败不能导致运行中追加任务丢失。
+      });
+    }
+  }, [backendPort]);
+
+  useEffect(() => {
+    const sessionId = currentConversation.id?.toString();
+    if (!backendPort || !sessionId || sessionId.startsWith('temp-') || sessionId.startsWith('pending-')) return;
+    if (Object.prototype.hasOwnProperty.call(sessionQueuesRef.current, sessionId)) return;
+    let cancelled = false;
+    chatQueueService.load(backendPort, sessionId).then(items => {
+      if (cancelled) return;
+      const next = { ...sessionQueuesRef.current, [sessionId]: items };
+      sessionQueuesRef.current = next;
+      setSessionQueues(next);
+    }).catch(() => {
+      if (cancelled) return;
+      const next = { ...sessionQueuesRef.current, [sessionId]: [] };
+      sessionQueuesRef.current = next;
+      setSessionQueues(next);
+    });
+    return () => { cancelled = true; };
+  }, [backendPort, currentConversation.id]);
 
   // 有序 segment 列表 �?保留 think/action/text 的真实交错顺�?
   type AccSegment =
@@ -1608,7 +1645,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     };
   }, []);
 
-  const sendMessage = useCallback(async (messageText: string, options: SendOptions, requestText?: string) => {
+  const sendMessage = useCallback(async (messageText: string, options: SendOptions, requestText?: string, requestTextIsComplete = false) => {
     let sessionId = currentConversation.id?.toString();
 
     // 无会话时，创建新会话（标题取消息�?0字），然后继续发�?
@@ -1623,26 +1660,28 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     let fullMessage = requestText || messageText;
     const contextParts: string[] = [];
 
-    if (activeFilePath) {
-      const activeFileContext = await buildActiveFileContext(activeFilePath, workspacePath);
-      if (activeFileContext) contextParts.push(activeFileContext);
-    }
+    if (!requestTextIsComplete) {
+      if (activeFilePath) {
+        const activeFileContext = await buildActiveFileContext(activeFilePath, workspacePath);
+        if (activeFileContext) contextParts.push(activeFileContext);
+      }
 
-    if (options.contexts.length > 0) {
-      contextParts.push(options.contexts.map(c => `[${c.name}]`).join(' '));
-    }
+      if (options.contexts.length > 0) {
+        contextParts.push(options.contexts.map(c => `[${c.name}]`).join(' '));
+      }
 
-    if (contextParts.length > 0) {
-      fullMessage = `${contextParts.join('\n\n')}\n\n${fullMessage}`;
-    }
+      if (contextParts.length > 0) {
+        fullMessage = `${contextParts.join('\n\n')}\n\n${fullMessage}`;
+      }
 
-    // 拼接文本附件内容（图片通过 attachments 字段单独发送）
-    if (options.attachments && options.attachments.length > 0) {
-      const textParts = options.attachments
-        .filter(att => att.type !== 'image')
-        .map(att => `--- 文件: ${att.name} ---\n${att.content}\n---`);
-      if (textParts.length > 0) {
-        fullMessage = `${textParts.join('\n\n')}\n\n${fullMessage}`;
+      // 拼接文本附件内容（图片通过 attachments 字段单独发送）
+      if (options.attachments && options.attachments.length > 0) {
+        const textParts = options.attachments
+          .filter(att => att.type !== 'image')
+          .map(att => `--- 文件: ${att.name} ---\n${att.content}\n---`);
+        if (textParts.length > 0) {
+          fullMessage = `${textParts.join('\n\n')}\n\n${fullMessage}`;
+        }
       }
     }
 
@@ -1849,10 +1888,29 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   }, [automationPrompt, currentConversation.id, onAutomationPromptConsumed, sendMessage]);
 
   const handleChatInputSend = useCallback((message: string, options: SendOptions) => {
-    const activeCreation = promptCreation?.sessionId === currentConversation.id?.toString()
+    const sessionId = currentConversation.id?.toString();
+    const activeCreation = promptCreation?.sessionId === sessionId
       ? promptCreation
       : null;
     if (!activeCreation) {
+      const running = Boolean(sessionId) && (
+        sessionRunStates[sessionId!] === 'running'
+        || (isLoading && streamingSessionIdRef.current === sessionId)
+      );
+      if (running && sessionId) {
+        const current = sessionQueuesRef.current[sessionId] || [];
+        if (current.length >= MAX_CHAT_QUEUE_SIZE) return;
+        const item: QueuedChatMessage = {
+          id: `queue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          text: message,
+          displayText: message.trim(),
+          options,
+          createdAt: Date.now(),
+        };
+        queueArmedSessionsRef.current.add(sessionId);
+        commitQueue(sessionId, [...current, item]);
+        return;
+      }
       void sendMessage(message, options);
       return;
     }
@@ -1871,7 +1929,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       : { type: 'agent' };
     const generationPrompt = buildResourcePrompt(activeCreation, message, name);
     void sendMessage(message, options, generationPrompt);
-  }, [currentConversation.id, onCreateAutomationFromPrompt, promptCreation, sendMessage]);
+  }, [commitQueue, currentConversation.id, isLoading, onCreateAutomationFromPrompt, promptCreation, sendMessage, sessionRunStates]);
 
   async function loadConversationMessages(convId: string | number) {
     const storedMessages = await getMessagesByConversation(convId);
@@ -2047,6 +2105,51 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const promptCreationUi = activePromptCreation ? promptCreationCopy[activePromptCreation.type] : null;
   const currentRunState = currentConversationIdString ? sessionRunStates[currentConversationIdString] : undefined;
   const isCurrentConversationLoading = currentRunState === 'running' || (isLoading && streamingSessionIdRef.current === currentConversationIdString);
+  const currentQueue = currentConversationIdString ? (sessionQueues[currentConversationIdString] || []) : [];
+
+  const sendNextQueuedMessage = useCallback(() => {
+    const sessionId = currentConversation.id?.toString();
+    if (!sessionId || queueDrainingRef.current || isCurrentConversationLoading) return;
+    const queue = sessionQueuesRef.current[sessionId] || [];
+    const nextItem = queue[0];
+    if (!nextItem) {
+      queueArmedSessionsRef.current.delete(sessionId);
+      return;
+    }
+    if (nextItem.hadFiles) {
+      window.alert('该恢复任务原本包含附件或上下文，但附件内容不会持久化。请移除后重新发送。');
+      return;
+    }
+    queueDrainingRef.current = true;
+    commitQueue(sessionId, queue.slice(1));
+    void sendMessage(nextItem.text, nextItem.options).finally(() => {
+      window.setTimeout(() => { queueDrainingRef.current = false; }, 150);
+    });
+  }, [commitQueue, currentConversation.id, isCurrentConversationLoading, sendMessage]);
+
+  useEffect(() => {
+    const sessionId = currentConversationIdString;
+    if (!sessionId || isCurrentConversationLoading || !queueArmedSessionsRef.current.has(sessionId)) return;
+    if ((sessionQueues[sessionId] || []).length === 0) {
+      queueArmedSessionsRef.current.delete(sessionId);
+      return;
+    }
+    const timer = window.setTimeout(sendNextQueuedMessage, 80);
+    return () => window.clearTimeout(timer);
+  }, [currentConversationIdString, isCurrentConversationLoading, sendNextQueuedMessage, sessionQueues]);
+
+  const removeQueuedMessage = useCallback((id: string) => {
+    const sessionId = currentConversation.id?.toString();
+    if (!sessionId) return;
+    commitQueue(sessionId, (sessionQueuesRef.current[sessionId] || []).filter(item => item.id !== id));
+  }, [commitQueue, currentConversation.id]);
+
+  const clearQueuedMessages = useCallback(() => {
+    const sessionId = currentConversation.id?.toString();
+    if (!sessionId) return;
+    queueArmedSessionsRef.current.delete(sessionId);
+    commitQueue(sessionId, []);
+  }, [commitQueue, currentConversation.id]);
   useEffect(() => {
     if (!currentConversationIdString || !isCurrentConversationLoading) {
       setThinkingElapsedSeconds(0);
@@ -2081,9 +2184,88 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     ? (sessionTodoTasks[currentConversationIdString] ?? messageTodoTasks)
     : messageTodoTasks;
 
-  const handleDeleteMessage = useCallback((id: number) => {
-    setMessages(prev => prev.filter(m => m.id !== id));
-  }, []);
+  const rewindFromMessage = useCallback(async (id: number, rerun: boolean) => {
+    const sessionId = currentConversation.id?.toString();
+    const messageIndex = messages.findIndex(message => message.id === id);
+    if (!backendPort || !sessionId || messageIndex < 0 || isCurrentConversationLoading) return;
+    const selected = messages[messageIndex];
+    if (selected.role !== 'USER') return;
+    const action = rerun ? '从此消息重做' : '回退并删除此消息及之后的所有内容';
+    if (!window.confirm(`确定${action}吗？`)) return;
+
+    try {
+      const historyResponse = await fetch(`http://localhost:${backendPort}/web/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
+      if (!historyResponse.ok) throw new Error('历史记录读取失败');
+      const historyPayload = await historyResponse.json();
+      const history: Array<{ role?: string; content?: unknown }> = Array.isArray(historyPayload?.data) ? historyPayload.data : [];
+      const selectedUserOrdinal = messages.slice(0, messageIndex + 1).filter(message => message.role === 'USER').length - 1;
+      let seenUsers = -1;
+      const serverIndex = history.findIndex((item: { role?: string }) => {
+        if (String(item.role || '').toUpperCase() !== 'USER') return false;
+        seenUsers += 1;
+        return seenUsers === selectedUserOrdinal;
+      });
+      if (serverIndex < 0) throw new Error('无法匹配后端历史');
+
+      const rewindBody = new URLSearchParams({ sessionId, count: String(history.length - serverIndex) });
+      const rewindResponse = await fetch(`http://localhost:${backendPort}/web/chat/rewind`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: rewindBody,
+      });
+      if (!rewindResponse.ok) throw new Error('后端回退失败');
+      const rewindPayload = await rewindResponse.json();
+      if (rewindPayload?.code !== undefined && rewindPayload.code !== 200) throw new Error('后端回退失败');
+
+      const removedCount = await truncateConversationMessages(sessionId, messageIndex);
+      const remainingMessages = messages.slice(0, messageIndex);
+      setMessages(remainingMessages);
+      liveBaseMessagesBySessionRef.current.set(sessionId, remainingMessages);
+      liveMessagesBySessionRef.current.set(sessionId, remainingMessages);
+      onSessionMessageSavedRef.current?.(sessionId, -removedCount);
+
+      if (rerun) {
+        const text = selected.contents
+          .filter(item => item.type !== 'IMAGE')
+          .map(item => item.text || '')
+          .join('\n')
+          .trim();
+        if (!text) return;
+        const imageAttachments: Attachment[] = selected.contents
+          .filter(item => item.type === 'IMAGE' && isSafeImageDataUrl(item.text))
+          .map((item, index) => ({
+            id: `rerun-${id}-${index}`,
+            name: item.name || `image-${index + 1}`,
+            type: 'image',
+            content: item.text,
+          }));
+        const originalRequestText = typeof history[serverIndex]?.content === 'string'
+          ? history[serverIndex].content as string
+          : text;
+        const compositeModelId = activeProviderId || providers.find(provider => provider.enabled)?.id || '';
+        const separatorIndex = compositeModelId.indexOf('__');
+        const providerId = separatorIndex >= 0 ? compositeModelId.slice(0, separatorIndex) : compositeModelId;
+        const explicitModel = separatorIndex >= 0 ? compositeModelId.slice(separatorIndex + 2) : '';
+        const provider = providers.find(item => item.id === providerId);
+        const savedEffort = localStorage.getItem('soloncode-reasoning-effort');
+        const reasoningEffort: ReasoningEffort = savedEffort === 'low' || savedEffort === 'high' || savedEffort === 'max' ? savedEffort : 'medium';
+        void sendMessage(text, {
+          model: compositeModelId,
+          modelName: explicitModel || provider?.model || compositeModelId,
+          agent: '',
+          contexts: [],
+          attachments: imageAttachments,
+          reasoningEffort,
+        }, originalRequestText, true);
+      }
+    } catch (error) {
+      console.warn('[ChatView] 会话回退失败，本地记录保持不变:', error);
+      window.alert('操作失败，消息未删除。请检查后端连接后重试。');
+    }
+  }, [activeProviderId, backendPort, currentConversation.id, isCurrentConversationLoading, messages, providers, sendMessage]);
+
+  const handleDeleteMessage = useCallback((id: number) => { void rewindFromMessage(id, false); }, [rewindFromMessage]);
+  const handleRerunMessage = useCallback((id: number) => { void rewindFromMessage(id, true); }, [rewindFromMessage]);
 
   return (
     <main className={`main-content${isEmpty ? ' empty-state' : ''}`}>
@@ -2101,7 +2283,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           openInfoSignal={reviewInfoSignal}
         />
       )}
-      <ChatMessages ref={chatMessagesRef} messages={messages} isLoading={isCurrentConversationLoading} thinkingElapsedSeconds={thinkingElapsedSeconds} theme={theme} projectName={projectName} onDeleteMessage={handleDeleteMessage} onHitlAction={handleHitlAction} onFileSelect={onFileSelect} />
+      <ChatMessages ref={chatMessagesRef} messages={messages} isLoading={isCurrentConversationLoading} thinkingElapsedSeconds={thinkingElapsedSeconds} theme={theme} projectName={projectName} onDeleteMessage={handleDeleteMessage} onRerunMessage={handleRerunMessage} onHitlAction={handleHitlAction} onFileSelect={onFileSelect} />
 
       {isEmpty ? (
         <div className="empty-center-container">
@@ -2115,7 +2297,8 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'new'} tasks={currentTodoTasks} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
+          <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
         </div>
       ) : (
         <>
@@ -2123,13 +2306,14 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'current'} tasks={currentTodoTasks} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
+          <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} />
         </>
       )}
       {/* 搴曢儴鎻愮ず */}
         <div className="input-footer">
           <span className="input-hint">
-            Enter 发送，Shift + Enter 换行，/ 命令，# 引用上下文，@ 选择智能体
+            Enter 发送，Shift + Enter 换行，/ 命令，$ Skill，# 引用上下文，@ 选择智能体
           </span>
         </div>
     </main>

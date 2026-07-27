@@ -134,6 +134,7 @@ export interface ModelProvider {
 /** 常规设置（键值对，存在 globalSettings 表） */
 export interface GeneralSettings {
   theme: 'dark' | 'light';
+  skin: 'default' | 'ocean' | 'forest' | 'sunset' | 'contrast';
   editorTheme: string;
   fontSize: number;
   language: string;
@@ -421,6 +422,7 @@ description: <简短描述 Agent 的职责>
 
 const defaultGeneral: GeneralSettings = {
   theme: 'dark',
+  skin: 'default',
   editorTheme: 'auto',
   fontSize: 14,
   language: 'zh-CN',

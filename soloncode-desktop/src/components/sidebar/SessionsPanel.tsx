@@ -32,7 +32,7 @@ interface SessionsPanelProps {
   sessionRunStates?: Record<string, 'running' | 'completed' | 'error'>;
   onSelectSession: (id: string) => void;
   onNewSession: (projectId?: string) => string | void;
-  onDeleteSession: (id: string) => void;
+  onDeleteSession: (id: string) => void | Promise<void>;
   onCreateProject: () => void;
   onAddProject: () => void;
   onRemoveProject: (id: string) => void;
@@ -75,6 +75,8 @@ export function SessionsPanel({
   const [confirmSync, setConfirmSync] = useState<{ sessionId: string; title: string } | null>(null);
   const [confirmSyncAll, setConfirmSyncAll] = useState(false);
   const [deleteProjectTarget, setDeleteProjectTarget] = useState<Project | null>(null);
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState<Session | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [projectActionMessage, setProjectActionMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [projectContextMenu, setProjectContextMenu] = useState<{
     x: number;
@@ -295,8 +297,9 @@ export function SessionsPanel({
           {!session.isPermanent && (
             <button
               className="delete-btn"
-              onClick={event => { event.stopPropagation(); onDeleteSession(session.id); }}
+              onClick={event => { event.stopPropagation(); setDeleteSessionTarget(session); }}
               title="删除"
+              disabled={deletingSessionId === session.id || runState === 'running'}
             >
               <Icon name="delete" size={14} />
             </button>
@@ -328,6 +331,26 @@ export function SessionsPanel({
           danger
           onConfirm={() => { handleSyncAll(); setConfirmSyncAll(false); }}
           onCancel={() => setConfirmSyncAll(false)}
+        />
+      )}
+      {deleteSessionTarget && (
+        <ConfirmDialog
+          title="删除会话"
+          message={`确定删除「${deleteSessionTarget.title}」吗？后端历史与本地记录会在确认成功后一起移除。`}
+          confirmLabel={deletingSessionId ? '删除中...' : '删除'}
+          danger
+          onConfirm={() => {
+            if (deletingSessionId) return;
+            const target = deleteSessionTarget;
+            setDeletingSessionId(target.id);
+            Promise.resolve(onDeleteSession(target.id)).then(() => {
+              setDeleteSessionTarget(null);
+              setProjectActionMessage({ text: '会话已删除' });
+            }).catch(() => {
+              setProjectActionMessage({ text: '删除失败，原会话已保留', error: true });
+            }).finally(() => setDeletingSessionId(null));
+          }}
+          onCancel={() => { if (!deletingSessionId) setDeleteSessionTarget(null); }}
         />
       )}
       {deleteProjectTarget && (

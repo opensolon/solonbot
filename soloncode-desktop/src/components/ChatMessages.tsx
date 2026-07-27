@@ -19,6 +19,7 @@ interface ChatMessagesProps {
   theme?: Theme;
   projectName?: string;
   onDeleteMessage?: (id: number) => void;
+  onRerunMessage?: (id: number) => void;
   onHitlAction?: (action: 'approve' | 'reject') => void;
   onFileSelect?: (path: string) => void;
 }
@@ -440,7 +441,7 @@ const ThinkingRow = memo(function ThinkingRow({ elapsedSeconds }: { elapsedSecon
   );
 });
 
-const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
+const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = message.contents
@@ -483,9 +484,14 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAc
           <button className="message-action-btn" onClick={handleCopy} title="复制">
             <Icon name={copied ? 'check' : 'copy'} size={12} />
           </button>
-          <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="删除">
-            <Icon name="delete" size={12} />
-          </button>
+          {message.role === 'USER' && <>
+            <button className="message-action-btn" onClick={() => onRerun?.(message.id)} title="从此处重做">
+              <Icon name="refresh" size={12} />
+            </button>
+            <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="回退并删除此处及之后消息">
+              <Icon name="delete" size={12} />
+            </button>
+          </>}
           <MessageMetadata metadata={message.metadata} />
         </div>
         </div>
@@ -495,7 +501,7 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAc
 });
 
 export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
-  ({ messages, isLoading, thinkingElapsedSeconds = 0, theme, projectName, onDeleteMessage, onHitlAction, onFileSelect }, ref) => {
+  ({ messages, isLoading, thinkingElapsedSeconds = 0, theme, projectName, onDeleteMessage, onRerunMessage, onHitlAction, onFileSelect }, ref) => {
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     const autoFollowRef = useRef(true);
     const visibleMessages = useMemo(() => {
@@ -523,9 +529,9 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       const message = visibleMessages[index];
       const isStreamingMessage = isLoading && index === visibleMessages.length - 1 && message?.role === 'ASSISTANT';
       return (
-        <MessageRow message={message} theme={theme} onDelete={onDeleteMessage} onHitlAction={onHitlAction} onFileSelect={onFileSelect} isStreaming={isStreamingMessage} />
+        <MessageRow message={message} theme={theme} onDelete={onDeleteMessage} onRerun={onRerunMessage} onHitlAction={onHitlAction} onFileSelect={onFileSelect} isStreaming={isStreamingMessage} />
       );
-    }, [visibleMessages, isLoading, showThinkingRow, thinkingElapsedSeconds, theme, onDeleteMessage, onHitlAction, onFileSelect]);
+    }, [visibleMessages, isLoading, showThinkingRow, thinkingElapsedSeconds, theme, onDeleteMessage, onRerunMessage, onHitlAction, onFileSelect]);
 
     if (visibleMessages.length === 0 && !isLoading) {
       return (

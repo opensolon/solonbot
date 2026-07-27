@@ -16,6 +16,8 @@ import {
 } from './components/sidebar/AutomationPanel';
 import { SkillsPanel } from './components/sidebar/SkillsPanel';
 import { AgentsPanel } from './components/sidebar/AgentsPanel';
+import { MemoryPanel } from './components/sidebar/MemoryPanel';
+import { GoalPanel } from './components/sidebar/GoalPanel';
 import { AgentDetail } from './components/sidebar/AgentDetail';
 import type { Settings } from './components/sidebar/SettingsPanel';
 import type { ChatReviewFile } from './components/ChatHeader';
@@ -74,7 +76,7 @@ const mockExtensions = [
 const plugins: Plugin[] = [];
 
 const defaultSettings: Settings = {
-  theme: 'dark', fontSize: 14, language: 'zh-CN',
+  theme: 'dark', skin: 'default', fontSize: 14, language: 'zh-CN',
   autoCheckUpdates: false,
   lastUpdateCheckAt: '',
   editorTheme: 'auto',
@@ -163,6 +165,15 @@ function applyAppTheme(theme: Theme) {
   localStorage.setItem('soloncode-theme', theme);
 }
 
+type AppSkin = Settings['skin'];
+const APP_SKINS: AppSkin[] = ['default', 'ocean', 'forest', 'sunset', 'contrast'];
+
+function applyAppSkin(skin?: string) {
+  const normalized = APP_SKINS.includes(skin as AppSkin) ? skin as AppSkin : 'default';
+  document.documentElement.setAttribute('data-skin', normalized);
+  localStorage.setItem('soloncode-skin', normalized);
+}
+
 function applyAppFontSize(fontSize: number) {
   const size = Math.min(24, Math.max(10, Number(fontSize) || 14));
   document.documentElement.style.setProperty('--font-size-base', `${size}px`);
@@ -181,6 +192,7 @@ function normalizeLoadedSettings(settings: Settings): Settings {
     : false;
   return {
     ...settings,
+    skin: APP_SKINS.includes(settings.skin) ? settings.skin : 'default',
     editorTheme: normalizeEditorTheme(settings.editorTheme),
     activeProviderId: hasActiveProvider
       ? settings.activeProviderId
@@ -373,6 +385,7 @@ function App() {
           setCurrentTheme(normalizedSettings.theme);
           applyAppTheme(normalizedSettings.theme);
         }
+        applyAppSkin(normalizedSettings.skin);
         applyAppFontSize(normalizedSettings.fontSize);
 
         try {
@@ -418,6 +431,7 @@ function App() {
       setCurrentTheme(normalizedSettings.theme);
       applyAppTheme(normalizedSettings.theme);
     }
+    applyAppSkin(normalizedSettings.skin);
     applyAppFontSize(normalizedSettings.fontSize);
     setSettings(normalizedSettings);
     settingsService.save(normalizedSettings);
@@ -462,6 +476,7 @@ function App() {
     remapProjectPath,
     restoreLastSession,
   } = useSessions(null, {
+    backendPort,
     onSessionIdResolved: (oldId, newId) => {
       resolvedSessionIdsRef.current[oldId] = newId;
       const automationRunId = automationRunBySessionRef.current[oldId];
@@ -1109,9 +1124,17 @@ function App() {
       setPromptCreation(null);
       setAutomationRefreshKey(current => current + 1);
       const creationSessionId = resolvedSessionIdsRef.current[creation.sessionId] || creation.sessionId;
-      handleDeleteSession(creationSessionId);
+      let cleanupFailed = false;
+      try {
+        await handleDeleteSession(creationSessionId);
+      } catch (cleanupError) {
+        cleanupFailed = true;
+        console.warn('[App] 自动化临时会话删除失败，已保留原会话:', cleanupError);
+      }
       setActiveActivity('automation');
-      showToast(plan.scheduleEnabled ? '定时自动化已创建' : '自动化已创建');
+      showToast(cleanupFailed
+        ? '自动化已创建，但临时会话删除失败并已保留'
+        : plan.scheduleEnabled ? '定时自动化已创建' : '自动化已创建');
     } catch (err) {
       console.error('[App] 创建自动化失败:', err);
       throw err;
@@ -1462,6 +1485,10 @@ function App() {
             onAutomationDeleted={handleAutomationDeleted}
           />
         );
+      case 'memory':
+        return <MemoryPanel backendPort={backendPort} />;
+      case 'goal':
+        return <GoalPanel backendPort={backendPort} sessionId={currentSessionId} defaultMaxTokens={settings.loopDefaultMaxTokens} defaultMaxDuration={settings.loopDefaultMaxDuration} />;
       case 'skills':
         return <SkillsPanel backendPort={backendPort} refreshKey={aiCreateRefreshKey} onFileSelect={(path) => { setPanelState(prev => ({ ...prev, editorVisible: true })); handleFileSelect(path); }} onCreateWithAI={() => handleStartPromptCreation('skill')} />;
       case 'agents':
@@ -1536,7 +1563,7 @@ function App() {
               return handleNewSession(UNLINKED_PROJECT, title);
             }}
             sessions={sessions} sessionRunStates={sessionRunStates} maxSteps={settings.maxSteps} onSelectSession={handleSelectSession}
-            providers={settings.providers} agents={[...settings.agents.filter(agent => agent.scope !== 'project'), ...projectAgents]} agentRefreshKey={agentRefreshKey} activeProviderId={settings.activeProviderId} onActiveProviderChange={(providerId: string) => { setSettings(prev => { const updated = { ...prev, activeProviderId: providerId }; settingsService.save(updated); return updated; }); }}
+            providers={settings.providers} agents={[...settings.agents.filter(agent => agent.scope !== 'project'), ...projectAgents]} skills={settings.skills} agentRefreshKey={agentRefreshKey} activeProviderId={settings.activeProviderId} onActiveProviderChange={(providerId: string) => { setSettings(prev => { const updated = { ...prev, activeProviderId: providerId }; settingsService.save(updated); return updated; }); }}
             activeFileName={chatWorkspacePath ? activeFile?.name : undefined}
             activeFilePath={chatWorkspacePath ? (activeFilePath || undefined) : undefined}
             onFileSelect={handleChatFileSelect}

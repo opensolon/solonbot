@@ -85,6 +85,12 @@ export interface ChatAgentOption {
   enabled: boolean;
 }
 
+export interface ChatSkillOption {
+  name: string;
+  description?: string;
+  enabled: boolean;
+}
+
 interface AgentMenuOption {
   id: string;
   name: string;
@@ -181,6 +187,7 @@ interface ChatInputProps {
   onStop?: () => void;
   availableFiles?: ContextRef[];
   agents?: ChatAgentOption[];
+  skills?: ChatSkillOption[];
   agentRefreshKey?: number;
   providers?: ModelProvider[];
   activeProviderId?: string;
@@ -232,7 +239,7 @@ function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
 }
 
-export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], agentRefreshKey = 0, providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, baseContextTokens = 0, contextTokenLimit = 128000 }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agents = [], skills = [], agentRefreshKey = 0, providers = [], activeProviderId, onModelChange, activeFileName, backendPort, showStartWork, onNewProject, onOpenFolder, workspacePath, baseContextTokens = 0, contextTokenLimit = 128000 }: ChatInputProps) {
   // 从每个 provider 的 availableModels 展开为独立的可选模型
   const allModels = useMemo(() => {
     const result: ModelProvider[] = [];
@@ -423,7 +430,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
 
   // 自动完成状态
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [autocompleteType, setAutocompleteType] = useState<'context' | 'agent' | 'command' | null>(null);
+  const [autocompleteType, setAutocompleteType] = useState<'context' | 'agent' | 'command' | 'skill' | null>(null);
   const [autocompleteQuery, setAutocompleteQuery] = useState('');
   const [autocompletePosition, setAutocompletePosition] = useState({ start: 0, end: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -593,6 +600,13 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         || (agent.description || '').toLocaleLowerCase().includes(query)
       );
     }
+    if (autocompleteType === 'skill') {
+      const query = autocompleteQuery.toLocaleLowerCase();
+      return skills.filter(skill => skill.enabled && (
+        skill.name.toLocaleLowerCase().includes(query)
+        || (skill.description || '').toLocaleLowerCase().includes(query)
+      )).map(skill => ({ id: skill.name, name: skill.name, description: skill.description, type: 'skill' }));
+    }
     if (autocompleteType === 'context') {
       // 首次触发时加载文件列表
       loadWorkspaceFiles();
@@ -601,7 +615,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
       return workspaceFiles.filter(f => f.name.toLowerCase().includes(query)).slice(0, 50);
     }
     return [];
-  }, [autocompleteType, autocompleteQuery, availableFiles, availableAgents, commands, workspaceFiles]);
+  }, [autocompleteType, autocompleteQuery, availableFiles, availableAgents, commands, skills, workspaceFiles]);
 
   // 处理输入变化
   function handleInput(event: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -613,20 +627,31 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
     const lastHashIndex = textBeforeCursor.lastIndexOf('#');
+    const lastDollarIndex = textBeforeCursor.lastIndexOf('$');
 
     // 检查 / 后面是否有空格（有则不算命令触发）
-    let triggerType: 'agent' | 'context' | 'command' | null = null;
+    let triggerType: 'agent' | 'context' | 'command' | 'skill' | null = null;
     let triggerIndex = -1;
 
     if (lastSlashIndex !== -1) {
       const afterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
       const beforeSlash = textBeforeCursor.substring(0, lastSlashIndex);
       const isCommandPosition = beforeSlash.length === 0 || /\s$/.test(beforeSlash);
-      if (isCommandPosition && !afterSlash.includes(' ') && lastSlashIndex >= lastAtIndex && lastSlashIndex >= lastHashIndex) {
+      if (isCommandPosition && !afterSlash.includes(' ') && lastSlashIndex >= lastAtIndex && lastSlashIndex >= lastHashIndex && lastSlashIndex >= lastDollarIndex) {
         triggerType = 'command';
         triggerIndex = lastSlashIndex;
         // 异步加载命令（首次）
         loadHints();
+      }
+    }
+
+    if (!triggerType && lastDollarIndex !== -1) {
+      const afterDollar = textBeforeCursor.substring(lastDollarIndex + 1);
+      const beforeDollar = textBeforeCursor.substring(0, lastDollarIndex);
+      const isSkillPosition = lastDollarIndex === 0 || /\s$/.test(beforeDollar);
+      if (isSkillPosition && !/\s/.test(afterDollar) && lastDollarIndex > lastAtIndex && lastDollarIndex > lastHashIndex) {
+        triggerType = 'skill';
+        triggerIndex = lastDollarIndex;
       }
     }
 
@@ -668,7 +693,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
     const beforeTrigger = userInput.substring(0, autocompletePosition.start);
     const afterCursor = userInput.substring(autocompletePosition.end);
 
-    const trigger = autocompleteType === 'agent' ? '@' : autocompleteType === 'command' ? '/' : '#';
+    const trigger = autocompleteType === 'agent' ? '@' : autocompleteType === 'command' ? '/' : autocompleteType === 'skill' ? '$' : '#';
 
     if (autocompleteType === 'command') {
       // 命令选择后直接填入并触发发送
@@ -1079,7 +1104,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         {showAutocomplete && autocompleteType !== 'agent' && (
           <div className="autocomplete-dropdown" ref={autocompleteRef}>
             <div className="autocomplete-header">
-              {autocompleteType === 'command' ? '命令' : autocompleteType === 'agent' ? '选择智能体' : '引用文件'}
+              {autocompleteType === 'command' ? '命令' : autocompleteType === 'skill' ? '选择 Skill' : '引用文件'}
             </div>
             <div className="autocomplete-list">
               {filteredOptions.length === 0 ? (
@@ -1096,6 +1121,8 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
                     <Icon name={
                       autocompleteType === 'command'
                         ? 'terminal'
+                        : autocompleteType === 'skill'
+                          ? 'skills'
                         : autocompleteType === 'agent'
                           ? (option as any).icon || 'bot'
                           : (option as any).type === 'folder' ? 'folder' : 'file'
@@ -1103,7 +1130,7 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
                   </span>
                   <div className="item-info">
                     <span className="item-name">
-                      {autocompleteType === 'command' ? `/${option.name}` : option.name}
+                      {autocompleteType === 'command' ? `/${option.name}` : autocompleteType === 'skill' ? `$${option.name}` : option.name}
                     </span>
                     {(option as any).description && (
                       <span className="item-desc">{(option as any).description}</span>

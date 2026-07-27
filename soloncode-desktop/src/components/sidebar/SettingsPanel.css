@@ -487,6 +487,17 @@
   min-height: 80px;
 }
 
+.settings-inline-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.settings-action-message { margin: 8px 0; padding: 7px 9px; border-radius: 5px; color: var(--cb-success); background: color-mix(in srgb, var(--cb-success) 10%, transparent); }
+.settings-action-message.error { color: var(--cb-error); background: color-mix(in srgb, var(--cb-error) 10%, transparent); }
+.settings-import-box, .settings-tools-editor { margin: 8px 0 12px; padding: 10px; border: 1px solid var(--cb-vscode-panel-border); border-radius: 7px; background: var(--cb-vscode-editor-background); }
+.settings-import-box textarea { width: 100%; resize: vertical; margin-bottom: 8px; }
+.settings-tools-editor { max-height: 320px; overflow: auto; }
+.settings-tools-title { margin-bottom: 8px; font-weight: 600; }
+.settings-tool-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 3px; border-bottom: 1px solid var(--cb-vscode-panel-border); }
+.settings-tool-row span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.settings-tool-row small { color: var(--cb-text-secondary); overflow-wrap: anywhere; }
+
 .settings-about-card {
   margin: 8px 16px 14px;
   padding: 16px;

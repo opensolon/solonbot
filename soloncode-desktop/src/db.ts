@@ -259,6 +259,20 @@ export async function getMessageCount(conversationId: string | number): Promise<
     .count();
 }
 
+/** 事务性删除指定会话从 keepCount 开始的消息；失败时不会留下半删除状态。 */
+export async function truncateConversationMessages(conversationId: string | number, keepCount: number): Promise<number> {
+  const normalizedKeepCount = Math.max(0, Math.floor(keepCount));
+  const numId = typeof conversationId === 'string' ? parseInt(conversationId, 10) : conversationId;
+  const ids = isNaN(numId) ? [conversationId] : [conversationId, numId];
+  return db.transaction('rw', db.messages, async () => {
+    const rows = await db.messages.where('conversationId').anyOf(ids).toArray();
+    rows.sort((left, right) => (left.id || 0) - (right.id || 0));
+    const deleteIds = rows.slice(normalizedKeepCount).map(row => row.id).filter((id): id is number => typeof id === 'number');
+    if (deleteIds.length > 0) await db.messages.bulkDelete(deleteIds);
+    return deleteIds.length;
+  });
+}
+
 /**
  * 一次索引扫描获取所有会话的消息数。
  * 历史数据可能混用 number/string 会话 ID，统一为字符串后合并计数。

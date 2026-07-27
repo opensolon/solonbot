@@ -18,6 +18,7 @@ import {
 } from '../../services/settingsService';
 import { fileService } from '../../services/fileService';
 import { updateService, type UpdateInfo } from '../../services/updateService';
+import { ChannelQrBind } from './ChannelQrBind';
 import './SettingsPanel.css';
 import './ChannelPanel.css';
 
@@ -210,6 +211,8 @@ export function SettingsPanel({ visible, settings, onSettingsChange, onClose, on
                 onAdd={handleAddMcpServer}
                 onRemove={handleRemoveMcpServer}
                 onUpdate={handleUpdateMcpServer}
+                onImport={servers => setLocalSettings(prev => ({ ...prev, mcpServers: [...prev.mcpServers, ...servers] }))}
+                backendPort={backendPort}
               />
             )}
             {activeMenu === 'openapi' && (
@@ -218,6 +221,7 @@ export function SettingsPanel({ visible, settings, onSettingsChange, onClose, on
                 onAdd={() => addListItem('openApiServers', { name: '', baseUrl: '', docUrl: '', scope: 'user', headers: {}, enabled: true })}
                 onRemove={index => removeListItem('openApiServers', index)}
                 onUpdate={(index, updates) => updateList('openApiServers', index, updates)}
+                backendPort={backendPort}
               />
             )}
             {activeMenu === 'lsp' && (
@@ -492,6 +496,16 @@ function GeneralSettings({ settings, updateSetting, backendPort }: {
         <input type="number" className="setting-input number" value={settings.cliPort}
           onChange={e => updateSetting('cliPort', parseInt(e.target.value) || 4808)}
           min={1024} max={65535} />
+      </SettingRow>
+      <SettingRow label="皮肤">
+        <select className="setting-select" value={settings.skin}
+          onChange={e => updateSetting('skin', e.target.value as Settings['skin'])}>
+          <option value="default">默认</option>
+          <option value="ocean">深海蓝</option>
+          <option value="forest">森林绿</option>
+          <option value="sunset">落日橙</option>
+          <option value="contrast">高对比</option>
+        </select>
       </SettingRow>
 
       <div className="settings-section-title">对话策略</div>
@@ -959,18 +973,85 @@ function MountSettings({ mounts, onAdd, onRemove, onUpdate }: {
 }
 
 /* ==================== MCP 服务器设置 ==================== */
-function McpSettings({ servers, onAdd, onRemove, onUpdate }: {
+function McpSettings({ servers, onAdd, onRemove, onUpdate, onImport, backendPort }: {
   servers: McpServerConfig[];
   onAdd: () => void;
   onRemove: (index: number) => void;
   onUpdate: (index: number, updates: Partial<McpServerConfig>) => void;
+  onImport: (servers: McpServerConfig[]) => void;
+  backendPort?: number | null;
 }) {
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [importText, setImportText] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [busyIndex, setBusyIndex] = useState<number | null>(null);
+  const [toolsEditor, setToolsEditor] = useState<{ serverName: string; tools: Array<{ name: string; description?: string }>; disabled: Set<string> } | null>(null);
+  const baseUrl = `http://localhost:${backendPort || 4808}`;
+
+  async function parseResponse(response: Response) {
+    if (!response.ok) throw new Error('请求失败');
+    const payload = await response.json();
+    if (payload.code !== undefined && payload.code !== 200) throw new Error(payload.message || payload.description || '操作失败');
+    return payload.data ?? payload;
+  }
+
+  async function checkServer(server: McpServerConfig, index: number) {
+    setBusyIndex(index); setMessage(null);
+    try {
+      const data = await parseResponse(await fetch(`${baseUrl}/web/settings/mcp/servers/check`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: server.type || 'stdio', command: server.command, args: server.args, url: server.url, env: server.env, headers: server.headers }),
+      }));
+      setMessage({ text: typeof data === 'string' ? data : '连接成功' });
+    } catch { setMessage({ text: '连接检测失败，请检查配置与服务状态', error: true }); }
+    finally { setBusyIndex(null); }
+  }
+
+  async function importServers() {
+    if (!importText.trim() || importText.length > 1_000_000) { setMessage({ text: '请输入小于 1 MB 的 MCP JSON', error: true }); return; }
+    try { const parsed = JSON.parse(importText); if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(); }
+    catch { setMessage({ text: 'JSON 格式无效', error: true }); return; }
+    try {
+      const data = await parseResponse(await fetch(`${baseUrl}/web/settings/mcp/import/parse/string`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: importText }));
+      const imported = (Array.isArray(data?.servers) ? data.servers : []).filter((item: any) => !item.error && item.name).slice(0, 100).map((item: any): McpServerConfig => ({
+        name: String(item.name), command: String(item.command || ''), args: Array.isArray(item.args) ? item.args.map(String) : [], enabled: item.enabled !== false,
+        scope: item.scope === 'workspace' ? 'workspace' : 'user', type: item.type === 'sse' || item.type === 'streamable' ? item.type : 'stdio',
+        url: item.url ? String(item.url) : undefined, env: item.env && typeof item.env === 'object' ? item.env : undefined,
+        headers: item.headers && typeof item.headers === 'object' ? item.headers : undefined, timeout: item.timeout ? String(item.timeout) : undefined,
+      }));
+      if (imported.length === 0) throw new Error();
+      onImport(imported); setImportText(''); setShowImport(false); setMessage({ text: `已导入 ${imported.length} 个配置，保存设置后生效` });
+    } catch { setMessage({ text: '导入解析失败', error: true }); }
+  }
+
+  async function loadTools(server: McpServerConfig) {
+    if (!server.name.trim()) return;
+    try {
+      const data = await parseResponse(await fetch(`${baseUrl}/web/settings/mcp/servers/tools?name=${encodeURIComponent(server.name.trim())}`, { cache: 'no-store' }));
+      setToolsEditor({ serverName: server.name.trim(), tools: Array.isArray(data.tools) ? data.tools : [], disabled: new Set(Array.isArray(data.disallowedTools) ? data.disallowedTools : []) });
+    } catch { setMessage({ text: '工具加载失败；请先保存并启用该 MCP 配置', error: true }); }
+  }
+
+  async function saveTools() {
+    if (!toolsEditor) return;
+    const body = new URLSearchParams({ serverName: toolsEditor.serverName });
+    toolsEditor.disabled.forEach(name => body.append('disallowedTools', name));
+    try {
+      await parseResponse(await fetch(`${baseUrl}/web/settings/mcp/servers/tools/save`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body }));
+      setToolsEditor(null); setMessage({ text: '工具权限已保存' });
+    } catch { setMessage({ text: '工具权限保存失败', error: true }); }
+  }
+
   return (
     <div className="settings-section-content">
       <div className="settings-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>MCP 服务器</span>
-        <button className="mcp-add-btn" onClick={onAdd}>+ 添加</button>
+        <span className="settings-inline-actions"><button className="mcp-add-btn" onClick={() => setShowImport(value => !value)}>导入 JSON</button><button className="mcp-add-btn" onClick={onAdd}>+ 添加</button></span>
       </div>
+
+      {message && <div className={`settings-action-message${message.error ? ' error' : ''}`}>{message.text}</div>}
+      {showImport && <div className="settings-import-box"><textarea value={importText} onChange={event => setImportText(event.target.value)} rows={7} placeholder={'粘贴 { "mcpServers": { ... } }'} /><div className="settings-inline-actions"><button className="settings-btn cancel" onClick={() => setShowImport(false)}>取消</button><button className="settings-btn save" onClick={() => void importServers()}>解析并导入</button></div></div>}
+      {toolsEditor && <div className="settings-tools-editor"><div className="settings-tools-title">{toolsEditor.serverName} · 工具权限</div>{toolsEditor.tools.map(tool => <label key={tool.name} className="settings-tool-row"><input type="checkbox" checked={!toolsEditor.disabled.has(tool.name)} onChange={event => setToolsEditor(current => { if (!current) return current; const disabled = new Set(current.disabled); if (event.target.checked) disabled.delete(tool.name); else disabled.add(tool.name); return { ...current, disabled }; })} /><span><b>{tool.name}</b><small>{tool.description}</small></span></label>)}<div className="settings-inline-actions"><button className="settings-btn cancel" onClick={() => setToolsEditor(null)}>取消</button><button className="settings-btn save" onClick={() => void saveTools()}>保存权限</button></div></div>}
 
       {servers.length === 0 && (
         <div className="mcp-empty">暂无 MCP 服务器配置，点击上方"添加"按钮新增</div>
@@ -984,9 +1065,9 @@ function McpSettings({ servers, onAdd, onRemove, onUpdate }: {
                 onChange={e => onUpdate(index, { enabled: e.target.checked })} />
               <span>启用</span>
             </label>
-            <button className="mcp-remove-btn" onClick={() => onRemove(index)}>
+            <span className="settings-inline-actions"><button className="mcp-add-btn" disabled={busyIndex === index} onClick={() => void checkServer(server, index)}>{busyIndex === index ? '检测中' : '测试'}</button><button className="mcp-add-btn" onClick={() => void loadTools(server)}>工具</button><button className="mcp-remove-btn" onClick={() => onRemove(index)}>
               <Icon name="close" size={12} />
-            </button>
+            </button></span>
           </div>
           <div className="mcp-server-fields">
             <div className="mcp-field">
@@ -1048,18 +1129,63 @@ function McpSettings({ servers, onAdd, onRemove, onUpdate }: {
   );
 }
 
-function OpenApiSettings({ servers, onAdd, onRemove, onUpdate }: {
+function OpenApiSettings({ servers, onAdd, onRemove, onUpdate, backendPort }: {
   servers: OpenApiServerConfig[];
   onAdd: () => void;
   onRemove: (index: number) => void;
   onUpdate: (index: number, updates: Partial<OpenApiServerConfig>) => void;
+  backendPort?: number | null;
 }) {
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [busyIndex, setBusyIndex] = useState<number | null>(null);
+  const [apisEditor, setApisEditor] = useState<{ serverName: string; apis: Array<{ name: string; method?: string; path?: string; description?: string }>; disabled: Set<string> } | null>(null);
+  const baseUrl = `http://localhost:${backendPort || 4808}`;
+
+  async function parseResponse(response: Response) {
+    if (!response.ok) throw new Error('请求失败');
+    const payload = await response.json();
+    if (payload.code !== undefined && payload.code !== 200) throw new Error(payload.message || payload.description || '操作失败');
+    return payload.data ?? payload;
+  }
+
+  async function checkServer(server: OpenApiServerConfig, index: number) {
+    setBusyIndex(index); setMessage(null);
+    try {
+      const data = await parseResponse(await fetch(`${baseUrl}/web/settings/openapi/servers/check`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiBaseUrl: server.baseUrl, docUrl: server.docUrl, headers: server.headers }),
+      }));
+      setMessage({ text: typeof data === 'string' ? data : '连接成功' });
+    } catch { setMessage({ text: 'OpenAPI 检测失败，请检查公网文档地址', error: true }); }
+    finally { setBusyIndex(null); }
+  }
+
+  async function loadApis(server: OpenApiServerConfig) {
+    if (!server.name.trim()) return;
+    try {
+      const data = await parseResponse(await fetch(`${baseUrl}/web/settings/openapi/servers/apis?name=${encodeURIComponent(server.name.trim())}`, { cache: 'no-store' }));
+      setApisEditor({ serverName: server.name.trim(), apis: Array.isArray(data.apis) ? data.apis : [], disabled: new Set(Array.isArray(data.disallowedTools) ? data.disallowedTools : []) });
+    } catch { setMessage({ text: 'API 列表加载失败；请先保存并启用该配置', error: true }); }
+  }
+
+  async function saveApis() {
+    if (!apisEditor) return;
+    const body = new URLSearchParams({ serverName: apisEditor.serverName });
+    apisEditor.disabled.forEach(name => body.append('disallowedTools', name));
+    try {
+      await parseResponse(await fetch(`${baseUrl}/web/settings/openapi/servers/apis/save`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body }));
+      setApisEditor(null); setMessage({ text: 'API 权限已保存' });
+    } catch { setMessage({ text: 'API 权限保存失败', error: true }); }
+  }
+
   return (
     <div className="settings-section-content">
       <div className="settings-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>OpenAPI 服务器</span>
         <button className="mcp-add-btn" onClick={onAdd}>+ 添加</button>
       </div>
+      {message && <div className={`settings-action-message${message.error ? ' error' : ''}`}>{message.text}</div>}
+      {apisEditor && <div className="settings-tools-editor"><div className="settings-tools-title">{apisEditor.serverName} · API 权限</div>{apisEditor.apis.map(api => <label key={api.name} className="settings-tool-row"><input type="checkbox" checked={!apisEditor.disabled.has(api.name)} onChange={event => setApisEditor(current => { if (!current) return current; const disabled = new Set(current.disabled); if (event.target.checked) disabled.delete(api.name); else disabled.add(api.name); return { ...current, disabled }; })} /><span><b>{api.name}</b><small>{[api.method, api.path, api.description].filter(Boolean).join(' · ')}</small></span></label>)}<div className="settings-inline-actions"><button className="settings-btn cancel" onClick={() => setApisEditor(null)}>取消</button><button className="settings-btn save" onClick={() => void saveApis()}>保存权限</button></div></div>}
       {servers.length === 0 && <div className="mcp-empty">暂无 OpenAPI 服务器配置</div>}
       {servers.map((server, index) => (
         <div key={index} className="mcp-server-card">
@@ -1068,7 +1194,7 @@ function OpenApiSettings({ servers, onAdd, onRemove, onUpdate }: {
               <input type="checkbox" checked={server.enabled} onChange={e => onUpdate(index, { enabled: e.target.checked })} />
               <span>启用</span>
             </label>
-            <button className="mcp-remove-btn" onClick={() => onRemove(index)}><Icon name="close" size={12} /></button>
+            <span className="settings-inline-actions"><button className="mcp-add-btn" disabled={busyIndex === index} onClick={() => void checkServer(server, index)}>{busyIndex === index ? '检测中' : '测试'}</button><button className="mcp-add-btn" onClick={() => void loadApis(server)}>API</button><button className="mcp-remove-btn" onClick={() => onRemove(index)}><Icon name="close" size={12} /></button></span>
           </div>
           <div className="mcp-server-fields">
             <div className="mcp-field"><label>名称</label><input className="setting-input" value={server.name} onChange={e => onUpdate(index, { name: e.target.value })} placeholder="my-api-server" /></div>
@@ -1776,9 +1902,7 @@ function FeishuCard({ backendPort, sessionId }: { backendPort?: number | null; s
           {bound ? (
             <button className="channel-btn unbind" onClick={unbind}>解绑</button>
           ) : (
-            <button className="channel-btn bind" onClick={() => setExpanded(!expanded)}>
-              {expanded ? '收起' : '绑定'}
-            </button>
+            <><ChannelQrBind channel="feishu" backendPort={backendPort} sessionId={sessionId} onBound={() => { setBound(true); setExpanded(false); stopPolling(); }} /><button className="channel-btn bind" onClick={() => setExpanded(!expanded)}>{expanded ? '收起' : '凭据'}</button></>
           )}
         </div>
       </div>
@@ -1903,9 +2027,7 @@ function DingTalkCard({ backendPort, sessionId }: { backendPort?: number | null;
           {bound ? (
             <button className="channel-btn unbind" onClick={unbind}>解绑</button>
           ) : (
-            <button className="channel-btn bind" onClick={() => setExpanded(!expanded)}>
-              {expanded ? '收起' : '绑定'}
-            </button>
+            <><ChannelQrBind channel="dingtalk" backendPort={backendPort} sessionId={sessionId} onBound={() => { setBound(true); setExpanded(false); stopPolling(); }} /><button className="channel-btn bind" onClick={() => setExpanded(!expanded)}>{expanded ? '收起' : '凭据'}</button></>
           )}
         </div>
       </div>

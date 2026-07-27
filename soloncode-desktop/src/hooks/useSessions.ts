@@ -22,6 +22,7 @@ export function useSessions(
   activeProjectPath: string | null,
   options?: {
     onSessionIdResolved?: (oldId: string, newId: string) => void;
+    backendPort?: number | null;
   },
 ) {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -87,18 +88,32 @@ export function useSessions(
     return tempId;
   }, [currentSessionId, sessions]);
 
-  const handleDeleteSession = useCallback((id: string) => {
-    const remaining = sessions.filter(s => s.id !== id);
-    setSessions(remaining);
+  const handleDeleteSession = useCallback(async (id: string) => {
     if (id.startsWith('temp-')) {
       setPendingSession(current => current?.id === id ? null : current);
     } else {
-      deleteConversation(id);
+      const targetSession = sessions.find(session => session.id === id);
+      const requestBody = new URLSearchParams({ sessionId: id });
+      if (targetSession?.workspacePath && targetSession.workspacePath !== UNLINKED_PROJECT) {
+        requestBody.set('workspace', targetSession.workspacePath);
+      }
+      const port = options?.backendPort || 4808;
+      const response = await fetch(`http://localhost:${port}/web/chat/sessions/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: requestBody,
+      });
+      if (!response.ok) throw new Error('后端删除失败');
+      const result = await response.json().catch(() => null);
+      if (result?.code !== undefined && result.code !== 200) throw new Error('后端删除失败');
+      await deleteConversation(id);
     }
-    if (currentSessionId === id) {
-      setCurrentSessionId(remaining.length > 0 ? remaining[0].id : undefined);
-    }
-  }, [currentSessionId, sessions]);
+    setSessions(current => {
+      const remaining = current.filter(session => session.id !== id);
+      if (currentSessionId === id) setCurrentSessionId(remaining[0]?.id);
+      return remaining;
+    });
+  }, [currentSessionId, options?.backendPort, sessions]);
 
   const handleUpdateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<string> => {
     if (!sessionId.startsWith('temp-')) {
