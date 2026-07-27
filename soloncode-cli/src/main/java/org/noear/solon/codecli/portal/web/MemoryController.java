@@ -131,6 +131,7 @@ public class MemoryController {
             m.put("content", node.get("content").getString());
             m.put("time", node.get("time").getString());
             m.put("importance", node.get("importance").getInt());
+            m.put("scope", node.get("scope").getString());
             return Result.succeed(m);
         } catch (Exception e) {
             LOG.warn("MemoryController get error, key={}", key, e);
@@ -171,6 +172,7 @@ public class MemoryController {
             data.put("content", content);
             data.put("time", now);
             data.put("importance", importance);
+            data.put("scope", scope);
 
             // 动态 TTL：>=10 永久，>=5 保留 30 天，其余 7 天（与 MemoryTalent.extract 一致）
             int ttl;
