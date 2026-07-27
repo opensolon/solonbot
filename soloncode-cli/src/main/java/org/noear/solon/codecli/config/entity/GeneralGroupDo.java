@@ -38,6 +38,12 @@ public class GeneralGroupDo implements Serializable {
     private boolean bashAsyncEnabled = false;
     //启用心智记忆（跨会话长期记忆）
     private boolean memoryEnabled = true;
+    //心智记忆-语义匹配条数（按对话内容匹配的记忆条数）
+    private int memoryRelevanceCount = 6;
+    //心智记忆-重要度兜底条数（按重要度兜底的记忆条数）
+    private int memoryPriorityCount = 5;
+    //心智记忆-摘要长度（记忆摘要的截断字符数）
+    private int memorySummaryLength = 80;
 
     //是否接入 MCP 服务
     private boolean mcpEnabled = true;

@@ -56,6 +56,9 @@
                 $('#generalMcpRetries').val(d.mcpRetries != null ? formatNum(d.mcpRetries) : '');
                 $('#generalModelRetries').val(d.modelRetries != null ? formatNum(d.modelRetries) : '');
                 $('#generalMemoryEnabled').prop('checked', d.memoryEnabled !== false);
+                $('#generalMemoryRelevanceCount').val(d.memoryRelevanceCount != null ? formatNum(d.memoryRelevanceCount) : '');
+                $('#generalMemoryPriorityCount').val(d.memoryPriorityCount != null ? formatNum(d.memoryPriorityCount) : '');
+                $('#generalMemorySummaryLength').val(d.memorySummaryLength != null ? formatNum(d.memorySummaryLength) : '');
                 $('#generalMcpEnabled').prop('checked', d.mcpEnabled !== false);
                 $('#generalOpenApiEnabled').prop('checked', d.openApiEnabled !== false);
                 $('#generalBashAsyncEnabled').prop('checked', !!d.bashAsyncEnabled);
@@ -105,6 +108,9 @@
             mcpRetries: parseNumStr($('#generalMcpRetries').val().trim()),
             modelRetries: parseNumStr($('#generalModelRetries').val().trim()),
             memoryEnabled: $('#generalMemoryEnabled').is(':checked'),
+            memoryRelevanceCount: parseNumStr($('#generalMemoryRelevanceCount').val().trim()),
+            memoryPriorityCount: parseNumStr($('#generalMemoryPriorityCount').val().trim()),
+            memorySummaryLength: parseNumStr($('#generalMemorySummaryLength').val().trim()),
             mcpEnabled: $('#generalMcpEnabled').is(':checked'),
             openApiEnabled: $('#generalOpenApiEnabled').is(':checked'),
             bashAsyncEnabled: $('#generalBashAsyncEnabled').is(':checked'),

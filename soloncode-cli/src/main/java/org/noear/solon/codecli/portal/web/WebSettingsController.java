@@ -290,6 +290,9 @@ public class WebSettingsController extends BaseSettingsController {
             engine.setSandboxSystemRestrict(g.isSandboxSystemRestrict());
             engine.setBashAsyncEnabled(g.isBashAsyncEnabled());
             engine.setMemoryEnabled(g.isMemoryEnabled());
+            engine.setMemoryRelevanceCount(g.getMemoryRelevanceCount());
+            engine.setMemoryPriorityCount(g.getMemoryPriorityCount());
+            engine.setMemorySummaryLength(g.getMemorySummaryLength());
             engine.setSubagentEnabled(g.isSubagentEnabled());
             engine.setMaxTurns(g.getMaxTurns());
             engine.setHitlEnabled(g.isHitlEnabled());
@@ -557,6 +560,9 @@ public class WebSettingsController extends BaseSettingsController {
 
             engine.setBashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled());
             engine.setMemoryEnabled(settings.getGeneral().isMemoryEnabled());
+            engine.setMemoryRelevanceCount(settings.getGeneral().getMemoryRelevanceCount());
+            engine.setMemoryPriorityCount(settings.getGeneral().getMemoryPriorityCount());
+            engine.setMemorySummaryLength(settings.getGeneral().getMemorySummaryLength());
             engine.setSubagentEnabled(settings.getGeneral().isSubagentEnabled());
 
 
