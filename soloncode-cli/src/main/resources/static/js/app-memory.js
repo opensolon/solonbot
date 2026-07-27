@@ -201,7 +201,7 @@
             '    <div class="mem-form-row">' +
             '      <label class="mem-field mem-field-key"><span>Key</span>' +
             '        <input type="text" class="mem-key" value="' + escapeHtml(keyVal) + '" ' + keyReadonly + ' placeholder="唯一标识，如 project-build" /></label>' +
-            '      <label class="mem-field mem-field-imp"><span>重要度 (1-10)</span>' +
+            '      <label class="mem-field mem-field-imp"><span>权重 (1-10)</span>' +
             '        <input type="number" class="mem-imp" min="1" max="10" value="' + imp + '" /></label>' +
             scopeField +
             '    </div>' +
