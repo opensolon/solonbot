@@ -156,8 +156,8 @@
         var openCls = isOpen ? ' open' : '';
         var dataKey = isNew ? NEW_KEY : escapeHtml(it.key);
 
-        var scopeLabel = it.scope === 'user' ? '全局' : '工作区';
-        var scopeCls = it.scope === 'user' ? 'mem-scope-user' : 'mem-scope-workspace';
+        var scopeLabel = it.scope === 'user' ? '' : '工作区';
+        var scopeCls = it.scope === 'user' ? '' : 'mem-scope-workspace';
 
         var head =
             '<div class="mem-row-head" data-key="' + dataKey + '">' +
