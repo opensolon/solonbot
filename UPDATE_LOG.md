@@ -1,6 +1,11 @@
+### v2026.7.28
+
+* 添加 添加 soloncode web 心智记忆管理作用域功能
+* 细节优化
+
 ### v2026.7.27
 
-* 添加 soloncode web 长期记忆管理
+* 添加 soloncode web 长期记忆管理（心智记忆）
 * 修复 soloncode grep 使用虚拟路径时返回失真的问题
 * 细节优化
 
