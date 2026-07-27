@@ -1,4 +1,5 @@
 export function isTodoToolName(toolName?: string) {
   const normalized = (toolName || '').toLowerCase().replace(/[_\s-]/g, '');
-  return normalized === 'todoread' || normalized === 'todowrite';
+  const leafName = normalized.split('/').pop() || normalized;
+  return leafName === 'todoread' || leafName === 'todowrite';
 }
