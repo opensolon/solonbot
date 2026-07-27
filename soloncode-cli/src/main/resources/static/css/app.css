@@ -2033,7 +2033,7 @@ body {
     background: none;
 }
 
-/* 中间主区全屏视图（长期记忆 / 审查详情 / 文件详情共用）：
+/* 中间主区全屏视图（心智记忆 / 审查详情 / 文件详情共用）：
    占据中间主区的整个区域（参与 flex 布局，非浮层），打开时隐藏主区顶部条，
    gitDiffViewer 靠自身 flex:1 撑满主区，右侧任务面板保持常驻，
    边栏/面板收起时随 flex 重排响应式变宽，无需 JS 计算 */
@@ -2941,7 +2941,7 @@ pre:hover .code-copy-btn { opacity: 1; }
 
 
 
-/* ===== 长期记忆管理面板 ===== */
+/* ===== 心智记忆管理面板 ===== */
 .git-viewer-content .mem-panel { white-space: normal; display: flex; flex-direction: column; height: 100%; font-size: 14px; }
 .mem-btn { height: 32px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
 .mem-btn:hover { background: var(--bg-hover); color: var(--text-primary); }

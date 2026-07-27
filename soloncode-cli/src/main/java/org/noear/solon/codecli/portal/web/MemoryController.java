@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 长期记忆管理控制器 —— 为 Web UI 的「长期记忆」面板提供 CRUD 接口。
+ * 心智记忆管理控制器 —— 为 Web UI 的「心智记忆」面板提供 CRUD 接口。
  *
  * <p>与 {@link org.noear.solon.ai.talents.memory.MemoryTalent} 共享同一
  * {@link MemorySolutionProvider}（取自 {@link HarnessEngine#getMemoryProvider()}），

@@ -36,7 +36,7 @@ public class GeneralGroupDo implements Serializable {
 
     //启用异步终端（增加上下文消耗，非编码用户建议关闭）
     private boolean bashAsyncEnabled = false;
-    //启用心智记忆（跨会话长期记忆）
+    //启用心智记忆
     private boolean memoryEnabled = true;
     //心智记忆-语义匹配条数（按对话内容匹配的记忆条数）
     private int memoryRelevanceCount = 6;

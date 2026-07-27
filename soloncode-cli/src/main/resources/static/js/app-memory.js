@@ -1,5 +1,5 @@
 /**
- * 长期记忆管理面板
+ * 心智记忆管理面板
  * 复用 gitDiffViewer 容器在中间大面板展示：左侧条目列表 + 右侧编辑区。
  * 后端接口：/web/chat/memory/{list,get,save,remove}
  */
@@ -39,7 +39,7 @@
         gitDiffViewer.classList.add('mem-overlay');
         gitDiffViewer.style.display = 'flex';
 
-        if (gitViewerLabel) gitViewerLabel.textContent = '长期记忆';
+        if (gitViewerLabel) gitViewerLabel.textContent = '心智记忆';
         if (gitViewerFile) gitViewerFile.textContent = '';
 
         // 记忆面板 header 保留「新建」「全屏」「关闭」：显式复位 header 按钮，
