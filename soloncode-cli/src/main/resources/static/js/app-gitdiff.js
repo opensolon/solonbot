@@ -3,8 +3,8 @@
 
 (function() {
     // ---- DOM 元素 ----
-    var tabs = document.querySelectorAll('.filer-tab');
-    var tabContents = document.querySelectorAll('.filer-tab-content');
+    var tabs = document.querySelectorAll('.workspace-tab');
+    var tabContents = document.querySelectorAll('.workspace-tab-content');
     var gitUnavailable = document.getElementById('gitUnavailable');
     var gitUninitialized = document.getElementById('gitUninitialized');
     var gitDiffPanel = document.getElementById('gitDiffPanel');
@@ -111,7 +111,7 @@
     var savedTab = localStorage.getItem('filer-active-tab');
     if (savedTab && savedTab !== 'files') {
         var savedContentId = 'tabContent' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1);
-        var savedTabEl = document.querySelector('.filer-tab[data-tab="' + savedTab + '"]');
+        var savedTabEl = document.querySelector('.workspace-tab[data-tab="' + savedTab + '"]');
         var savedContentEl = document.getElementById(savedContentId);
         if (savedTabEl && savedContentEl) {
             tabs.forEach(function(t) { t.classList.remove('active'); });
@@ -337,7 +337,9 @@
         if (welcomeView) welcomeView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
-        // 显示 viewer
+        // 显示 viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
+        document.body.classList.add('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
         gitDiffViewer.style.display = 'flex';
         diffViewerActive = true;
 
@@ -409,6 +411,10 @@
         // 显示全屏按钮（可能在审查详情中被隐藏）
         var _fullscreenReset = document.getElementById('gitViewerFullscreen');
         if (_fullscreenReset) _fullscreenReset.style.display = '';
+
+        // 隐藏记忆面板专用的「新建」按钮
+        var _memNewReset = document.getElementById('gitViewerMemNew');
+        if (_memNewReset) _memNewReset.style.display = 'none';
 
         var lang = guessLang(filePath || fileName);
         var lines = (content || '').split('\n');
@@ -698,7 +704,9 @@
         if (welcomeView) welcomeView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
-        // 显示 diff viewer
+        // 显示 diff viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
+        document.body.classList.add('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
         gitDiffViewer.style.display = 'flex';
         diffViewerActive = true;
 
@@ -706,9 +714,11 @@
         var _mdToggle = document.getElementById('gitViewerMdToggle');
         var _copyBtn = document.getElementById('gitViewerCopyBtn');
         var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
+        var _memNewBtn = document.getElementById('gitViewerMemNew');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
+        if (_memNewBtn) _memNewBtn.style.display = 'none';
 
         if (gitViewerLabel) gitViewerLabel.textContent = '变更详情';
         // 如果是挂载工作区，显示路径时带上 @xxx/ 前缀
@@ -786,7 +796,7 @@
                 .then(function(res) {
                     if (res && res.code === 200) {
                         loadGitStatus();
-                        closeDiffViewer();
+                        closeCenterViewer();
                     } else {
                         alert('操作失败：' + gitActionError(res));
                         addBtn.disabled = false;
@@ -820,7 +830,7 @@
                 .then(function(res) {
                     if (res && res.code === 200) {
                         loadGitStatus();
-                        closeDiffViewer();
+                        closeCenterViewer();
                     } else {
                         alert('操作失败：' + gitActionError(res));
                         unstageBtn.disabled = false;
@@ -868,7 +878,7 @@
                                 showToast('已回滚：' + path, 'success', 2200);
                             }
                             loadGitStatus();
-                            closeDiffViewer();
+                            closeCenterViewer();
                         } else {
                             if (typeof layer !== 'undefined' && layer.msg) {
                                 layer.msg('回滚失败：' + gitActionError(res), { icon: 2, time: 3000, offset: '120px' });
@@ -983,7 +993,7 @@
     }
 
     // ---- Diff Viewer：关闭，恢复原始视图 ----
-    function closeDiffViewer() {
+    function closeCenterViewer() {
         if (!gitDiffViewer) return;
 
         // 如果当前在全屏状态，退出全屏
@@ -993,6 +1003,10 @@
 
         gitDiffViewer.style.display = 'none';
         diffViewerActive = false;
+
+        // 恢复主区顶部条（审查/文件详情/记忆面板均在打开时将其隐藏）
+        document.body.classList.remove('memory-active');
+        gitDiffViewer.classList.remove('mem-overlay');
 
         // 清理操作栏
         var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
@@ -1013,7 +1027,7 @@
     }
 
     if (gitViewerClose) {
-        gitViewerClose.addEventListener('click', closeDiffViewer);
+        gitViewerClose.addEventListener('click', closeCenterViewer);
     }
 
     // ---- 全屏功能 ----
@@ -1050,7 +1064,7 @@
     // ESC 关闭 diff viewer
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && diffViewerActive) {
-            closeDiffViewer();
+            closeCenterViewer();
         }
     });
 
@@ -1235,7 +1249,7 @@
         if (origOnFilerChange) origOnFilerChange(chunk);
 
         // 如果当前在 Git tab 上且面板可见，debounce 后刷新
-        var gitTab = document.querySelector('.filer-tab[data-tab="gitdiff"]');
+        var gitTab = document.querySelector('.workspace-tab[data-tab="gitdiff"]');
         if (gitTab && gitTab.classList.contains('active') && gitDiffPanel && gitDiffPanel.style.display !== 'none') {
             clearTimeout(window._gitDiffRefreshTimer);
             window._gitDiffRefreshTimer = setTimeout(loadGitStatus, 1500);
@@ -1298,6 +1312,6 @@
     window.loadGitStatus = loadGitStatus;
     window.loadGitWorkspaces = loadGitWorkspaces;
     window.openFileViewer = openFileViewer;
-    window.closeDiffViewer = closeDiffViewer;
+    window.closeCenterViewer = closeCenterViewer;
     window.guessLang = guessLang;
 })();

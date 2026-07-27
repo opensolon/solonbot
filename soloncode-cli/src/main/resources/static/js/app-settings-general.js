@@ -48,7 +48,7 @@
                 var d = resp.data;
                 $('#generalSessionWindowSize').val(d.sessionWindowSize != null ? formatNum(d.sessionWindowSize) : '');
                 $('#generalSummaryWindowSize').val(d.summaryWindowSize != null ? formatNum(d.summaryWindowSize) : '');
-                $('#generalSummaryWindowToken').val(d.summaryWindowToken != null ? formatNum(d.summaryWindowToken) : '');
+                $('#generalCompressionThresholdPercent').val(d.compressionThresholdPercent != null ? formatNum(d.compressionThresholdPercent) : '');
                 $('#generalSandboxMode').prop('checked', !!d.sandboxMode);
                 $('#generalSandboxAllowUserHome').prop('checked', d.sandboxAllowUserHome !== false);
                 $('#generalSandboxSystemRestrict').prop('checked', !!d.sandboxSystemRestrict);
@@ -98,7 +98,7 @@
         var bodyObj = {
             sessionWindowSize: parseNumStr($('#generalSessionWindowSize').val().trim()),
             summaryWindowSize: parseNumStr($('#generalSummaryWindowSize').val().trim()),
-            summaryWindowToken: parseNumStr($('#generalSummaryWindowToken').val().trim()),
+            compressionThresholdPercent: parseNumStr($('#generalCompressionThresholdPercent').val().trim()),
             sandboxMode: $('#generalSandboxMode').is(':checked'),
             sandboxAllowUserHome: $('#generalSandboxAllowUserHome').is(':checked'),
             sandboxSystemRestrict: $('#generalSandboxSystemRestrict').is(':checked'),
@@ -121,17 +121,23 @@
         };
 
         $generalSaveBtn.prop('disabled', true);
-        $.ajax({ url: '/web/settings/general/save', method: 'POST', data: JSON.stringify(bodyObj), contentType: 'application/json', dataType: 'json' })
-            .done(function (resp) {
-                if (resp.code === 200) {
-                    window.cliPrintSimplified = bodyObj.cliPrintSimplified;
-                    showToast('保存成功');
-                } else showToast('保存失败: ' + (resp.message || '未知错误'), 'error');
-            })
-            .fail(function () { showToast('网络错误', 'error'); })
-            .always(function () { $generalSaveBtn.prop('disabled', false); });
 
-        // 同步保存 Loop Goal 配置
+        // 收集所有保存请求的 promise
+        var promises = [];
+
+        // 1. 保存通用设置（用 .then() 过滤 resp.code）
+        promises.push(
+            $.ajax({ url: '/web/settings/general/save', method: 'POST', data: JSON.stringify(bodyObj), contentType: 'application/json', dataType: 'json' })
+                .then(function (resp) {
+                    if (resp.code !== 200) {
+                        return $.Deferred().reject(resp.message || '未知错误').promise();
+                    }
+                    window.cliPrintSimplified = bodyObj.cliPrintSimplified;
+                    return resp;
+                })
+        );
+
+        // 2. 同步保存 Loop Goal 配置
         var loopObj = {
             defaultMaxTokens: parseNumStr($('#generalLoopDefaultMaxTokens').val().trim()) || 0,
             defaultMaxDurationMinutes: parseNumStr($('#generalLoopDefaultMaxDuration').val().trim()) || 0,
@@ -141,8 +147,27 @@
             budgetCriticalPercent: parseNumStr($('#generalLoopBudgetCriticalPercent').val().trim()),
             validatorEnabled: $('#generalLoopValidatorEnabled').is(':checked')
         };
-        $.ajax({ url: '/web/settings/loop/save', method: 'POST', data: JSON.stringify(loopObj), contentType: 'application/json', dataType: 'json' })
-            .fail(function () { console.error('[Settings] Failed to save loop settings'); });
+        promises.push(
+            $.ajax({ url: '/web/settings/loop/save', method: 'POST', data: JSON.stringify(loopObj), contentType: 'application/json', dataType: 'json' })
+                .then(function (resp) {
+                    if (resp.code !== 200) {
+                        return $.Deferred().reject(resp.message || '未知错误').promise();
+                    }
+                    return resp;
+                })
+        );
+
+        // 3. 同步保存工具权限
+        if (window._settingsPermission && typeof window._settingsPermission.save === 'function') {
+            var p = window._settingsPermission.save();
+            if (p) promises.push(p);
+        }
+
+        // 统一处理所有请求的结果
+        $.when.apply($, promises)
+            .done(function () { showToast('保存成功'); })
+            .fail(function () { showToast('保存失败', 'error'); })
+            .always(function () { $generalSaveBtn.prop('disabled', false); });
     });
 
     window._settingsGeneral = {

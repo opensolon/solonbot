@@ -33,8 +33,10 @@ import org.noear.solon.codecli.portal.desktop.WsController;
 import org.noear.solon.codecli.portal.desktop.WsGate;
 import org.noear.solon.codecli.portal.web.WebChannel;
 import org.noear.solon.codecli.portal.web.WebController;
+import org.noear.solon.codecli.portal.web.MemoryController;
 import org.noear.solon.codecli.portal.web.WebSettingsController;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.portal.web.settings.*;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.AppContext;
 import org.noear.solon.core.BeanWrap;
@@ -73,9 +75,6 @@ public class Configurator {
     @Inject
     SessionManager sessionManager;
 
-    @Inject
-    ModelsAdapterManager modelProviderFactory;
-
     private LoopScheduler loopScheduler;
 
     @Bean
@@ -96,18 +95,18 @@ public class Configurator {
                 .userAgent(settings.getGeneral().getUserAgent())
                 .systemPrompt(stealthIdentity + AgentFlags.getAgentsMd())
                 .maxTurns(settings.getGeneral().getMaxTurns())
-                .autoRethink(settings.getGeneral().getAutoRethink())
+                .autoRethink(settings.getGeneral().isAutoRethink())
                 .sessionWindowSize(settings.getGeneral().getSessionWindowSize())
                 .sessionProvider(sessionManager)
-                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getSummaryWindowToken())
-                .memoryEnabled(settings.getGeneral().getMemoryEnabled())
+                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D)
+                .memoryEnabled(settings.getGeneral().isMemoryEnabled())
                 .memoryProvider(new MemoryProvider(agentSettings))
-                .sandboxEnabled(settings.getGeneral().getSandboxMode())
-                .sandboxAllowUserHome(settings.getGeneral().getSandboxAllowUserHome())
-                .sandboxSystemRestrict(settings.getGeneral().getSandboxSystemRestrict())
-                .bashAsyncEnabled(settings.getGeneral().getBashAsyncEnabled())
-                .subagentEnabled(settings.getGeneral().getSubagentEnabled())
-                .hitlEnabled(settings.getGeneral().getHitlEnabled())
+                .sandboxEnabled(settings.getGeneral().isSandboxMode())
+                .sandboxAllowUserHome(settings.getGeneral().isSandboxAllowUserHome())
+                .sandboxSystemRestrict(settings.getGeneral().isSandboxSystemRestrict())
+                .bashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled())
+                .subagentEnabled(settings.getGeneral().isSubagentEnabled())
+                .hitlEnabled(settings.getGeneral().isHitlEnabled())
                 .apiRetries(settings.getGeneral().getApiRetries())
                 .modelRetries(settings.getGeneral().getModelRetries())
                 .mcpRetries(settings.getGeneral().getModelRetries())
@@ -153,7 +152,7 @@ public class Configurator {
         engine.getCommandRegistry().register(new RewindCommand());
         engine.getCommandRegistry().register(new ModelCommand());
 
-        engine.getLspTalent().setEnabled(settings.getGeneral().getLspEnabled());
+        engine.getLspTalent().setEnabled(settings.getGeneral().isLspEnabled());
 
         RunUtil.async(() -> addServers(engine));
 
@@ -164,15 +163,15 @@ public class Configurator {
         ValidatorFactory.initDefaults(workspace);
 
         // ★ Goal 模式（受 feature flag 控制）
-        boolean goalsEnabled = settings.getGeneral().getGoalsEnabled() != null
-                ? settings.getGeneral().getGoalsEnabled() : true;
+        boolean goalsEnabled = settings.getGeneral().isGoalsEnabled();
         GoalExtension goalExtension = new GoalExtension(loopScheduler);
         goalExtension.getGoalTalent().setEnabled(goalsEnabled);
         engine.addExtension(goalExtension);
 
         // LoopCommand 统一管理循环任务与 Goal（pause/resume 需 GoalTool 同步 sessionId）
-        engine.getCommandRegistry().register(
-                new LoopCommand(loopScheduler));
+        LoopCommand loopCommand = new LoopCommand(loopScheduler);
+        engine.getCommandRegistry().register(loopCommand);
+        engine.getCommandRegistry().register(new GoalCommand(loopCommand));
 
         engine.addExtension(new ManagerExtension(engine, agentSettings, loopScheduler));
 
@@ -283,7 +282,7 @@ public class Configurator {
         WebSocketRouter.getInstance().of("/desktop/ws", new WsGate(agentRuntime, settings));
 
         //serve desktop controller
-        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class, new WsController(agentRuntime, settings, modelProviderFactory));
+        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class, new WsController(agentRuntime, settings));
         Solon.app().router().add(desktopBean);
 
         cliShell.printWelcome("Server port: " + Solon.cfg().serverPort());
@@ -306,11 +305,17 @@ public class Configurator {
         BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(agentRuntime, webGate, loopScheduler, sessionManager));
         Solon.app().router().add(webController);
 
-        WebSettingsController settingsController = new WebSettingsController(agentRuntime, settings);
-        settingsController.setFileWatchService(fileWatchService);
-        settingsController.setWebGate(webGate);
-        BeanWrap webSettingsController = Solon.context().wrapAndPut(WebSettingsController.class, settingsController);
-        Solon.app().router().add(webSettingsController);
+        addWebBean(new WebSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new AgentSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new MountSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new SkillSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new LlmSettingController(agentRuntime, settings, fileWatchService, webGate));
+
+        addWebBean(new McpSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new OpenapiSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new LspSettingsController(agentRuntime, settings, fileWatchService, webGate));
+
+        addWebBean(new MemoryController(agentRuntime));
 
         BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(agentRuntime, webGate));
         Solon.app().router().add(webChannel);
@@ -346,6 +351,11 @@ public class Configurator {
             String url = "http://localhost:" + Solon.cfg().serverPort() + "/";
             cliShell.printWelcome("Web interface: " + url);
         }
+    }
+
+    private  void addWebBean(Object bean){
+        BeanWrap beanWrap = Solon.context().wrapAndPut(bean.getClass(), bean);
+        Solon.app().router().add(beanWrap);
     }
 
     private void openBrowser() {

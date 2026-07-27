@@ -1,3 +1,32 @@
+### v2026.7.27
+
+* 添加 soloncode web 长期记忆管理
+* 修复 soloncode grep 使用虚拟路径时返回失真的问题
+* 细节优化
+
+### v2026.7.26
+
+* 添加 soloncode  `/goal` 命令作为 `/loop goal` 的简化模式
+* 添加 soloncode web 输入面板，输入左键可显示循环任务面板
+* 优化 soloncode 上下文压缩算法
+* 调整 soloncode 压缩阀值由数值改为比例（默认 75%）
+* 细节优化
+
+### v2026.7.25
+
+* 调整 soloncode web 输入面板布局，突出子代理的权限
+* 细节优化
+
+### v2026.7.24
+
+* 添加 soloncode web 输入面板 Alt + Enter 换行支持
+* 添加 soloncode web 智能体（子代理）管理
+* 优化 soloncode web macOS Safari 输入法选词 Enter 时序问题
+* 优化 soloncode web 移动任务排队面板至会话任务区域，优化布局结构
+* 优化 soloncode web mcp 导入解析
+* 优化 soloncode web 流式消息列表取消线框
+* 细节优化
+
 ### v2026.7.22
 
 * 添加 soloncode web 刷新配置的功能（方便多实例同步）

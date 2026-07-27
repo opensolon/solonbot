@@ -502,6 +502,36 @@
 
 
 
+/* ===== 智能体管理 ===== */
+.agents-list { display: flex; flex-direction: column; }
+.agent-item { cursor: default; }
+.agent-status-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; background: rgba(16,185,129,0.1); color: #10b981; vertical-align: middle; }
+.agent-status-badge.muted { background: var(--bg-hover); color: var(--text-secondary); }
+.agent-status-badge.invalid { background: rgba(239,68,68,0.1); color: #ef4444; }
+.agents-prompt-editor { min-height: 0; resize: vertical; font-family: inherit !important; font-size: 13px !important; line-height: 1.6; }
+.agent-tools-trigger { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input-box); color: var(--text-primary); cursor: pointer; text-align: left; transition: border-radius 0.15s, border-color 0.15s; }
+.agent-tools-trigger:hover:not(:disabled):not(.is-open) { border-color: var(--accent); }
+.agent-tools-trigger:disabled { cursor: default; opacity: 0.75; }
+.agent-tools-trigger svg { transition: transform 0.2s; flex-shrink: 0; }
+.agent-tools-trigger.is-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+.agent-tools-trigger.is-open svg { transform: rotate(180deg); }
+.agent-tools-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-tools-selector { margin-top: 6px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); overflow: hidden; transition: margin-top 0.15s, border-radius 0.15s; }
+.agent-tools-selector.is-open { margin-top: 0; border-top: none; border-top-left-radius: 0; border-top-right-radius: 0; }
+.agent-tools-selector .permission-tools-grid { grid-template-columns: repeat(3, 1fr); }
+.agent-tools-selector .permission-tool-item { padding: 8px 10px; }
+.agent-tools-selector .agent-tool-option { display: flex; align-items: center; cursor: pointer; margin: 0; font-weight: normal; }
+.agent-tools-selector .agent-tool-option .permission-tool-checkbox { pointer-events: none; }
+.agent-tools-selector .agent-tool-option .permission-tool-info { display: flex; flex-direction: column; }
+.agent-tools-selector .agent-tool-option .permission-tool-name,
+.agent-tools-selector .agent-tool-option .permission-tool-desc { display: block; }
+
+@media (max-width: 760px) {
+    .agent-tools-selector .permission-tools-grid { grid-template-columns: 1fr; }
+    .agent-tools-selector .permission-tools-column { border-right: none; border-bottom: 1px solid var(--border-color); }
+    .agent-tools-selector .permission-tools-column:last-child { border-bottom: none; }
+}
+
 /* ===== General 通用设置 - 卡片布局 ===== */
 .general-card-group {
     display: flex;
@@ -1112,6 +1142,25 @@ select[disabled] {
     padding: 20px;
     border: 1px dashed var(--border-color);
     border-radius: 8px;
+}
+
+.provider-model-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-right: 10px;
+}
+
+.provider-model-item.disabled .provider-model-icon {
+    opacity: 0.5;
 }
 
 .provider-model-item {

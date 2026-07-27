@@ -138,30 +138,25 @@
     }
 
     // 保存权限设置
+    // 返回 jqXHR promise，由调用方统一处理 toast
     function savePermissionSettings() {
         // 从复选框获取禁用的工具列表
         var disallowedTools = getDisallowedTools();
 
-        var $btn = $('#permissionSaveBtn');
-        $btn.prop('disabled', true);
-        
         // 后端API需要tools字段，留空表示允许所有
         var bodyObj = {
             tools: ['**'],  // 允许所有工具
             disallowedTools: disallowedTools
         };
 
-        $.ajax({ url: '/web/settings/permission/save', method: 'POST', data: JSON.stringify(bodyObj), contentType: 'application/json', dataType: 'json' })
-            .done(function (resp) {
-                if (resp.code === 200) {
-                    showToast('保存成功');
-                    loadPermissionSettings();
-                } else {
-                    showToast('保存失败: ' + (resp.message || '未知错误'), 'error');
+        return $.ajax({ url: '/web/settings/permission/save', method: 'POST', data: JSON.stringify(bodyObj), contentType: 'application/json', dataType: 'json' })
+            .then(function (resp) {
+                if (resp.code !== 200) {
+                    return $.Deferred().reject(resp.message || '未知错误').promise();
                 }
-            })
-            .fail(function () { showToast('网络错误', 'error'); })
-            .always(function () { $btn.prop('disabled', false); });
+                loadPermissionSettings();
+                return resp;
+            });
     }
 
     // 转义HTML
@@ -178,8 +173,7 @@
 
     // 初始化事件绑定
     function initEvents() {
-        // 保存按钮
-        $('#permissionSaveBtn').on('click', savePermissionSettings);
+        // 保存按钮由通用 tab 底部统一处理
 
         // 移除搜索过滤功能
 
@@ -200,6 +194,7 @@
     initEvents();
 
     window._settingsPermission = {
-        load: loadPermissionSettings
+        load: loadPermissionSettings,
+        save: savePermissionSettings
     };
 })();

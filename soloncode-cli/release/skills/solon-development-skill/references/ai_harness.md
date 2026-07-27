@@ -128,7 +128,7 @@ engine.setDefaultModel("deepseek-v4-flash");
 
 ### 核心配置
 
-> v4 字段更名：`maxSteps`→`maxTurns`、`maxStepsAutoExtensible`→`autoRethink`、`summaryWindowSize`→`compressionMaxMessages`、`summaryWindowToken`→`compressionMaxTokens`、`summaryModel`→`compressionModel`、`sandboxMode`→`sandboxEnabled`、`mountPools`→`mounts`。`models` 由 `List` 改为 `Map`。
+> v4 字段更名：`maxSteps`→`maxTurns`、`maxStepsAutoExtensible`→`autoRethink`、`summaryWindowSize`→`compressionMaxMessages`、`summaryWindowRatio`→`compressionMaxContxtRatio`、`summaryModel`→`compressionModel`、`sandboxMode`→`sandboxEnabled`、`mountPools`→`mounts`。`models` 由 `List` 改为 `Map`。
 
 | 配置项 | 类型 | 默认值 | 描述 |
 |---|---|---|---|

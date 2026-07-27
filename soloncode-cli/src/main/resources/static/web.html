@@ -20,9 +20,20 @@
 
 <!-- Sidebar -->
 <div class="sidebar">
-    <div class="sidebar-header">
-        <button class="new-chat-btn" id="newChatBtn">
-            <i class="layui-icon layui-icon-addition"></i> 新对话
+    <div class="sidebar-nav">
+        <button class="sidebar-nav-item" id="newChatBtn" title="新对话">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span class="sidebar-nav-label">新对话</span>
+        </button>
+        <button class="sidebar-nav-item" id="memoryNavBtn" title="长期记忆">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/>
+            </svg>
+            <span class="sidebar-nav-label">长期记忆</span>
+            <span class="sidebar-nav-badge" id="memoryBadge" style="display:none">0</span>
         </button>
     </div>
     <div class="sidebar-title">最近对话</div>
@@ -89,55 +100,61 @@
             </div>
             <div class="welcome-toolbar">
                 <div class="toolbar-left">
-                    <div class="model-selector" id="welcomeModelSelector">
-                        <div class="model-selector-current" id="welcomeModelCurrent" title="切换模型">
-                            <span class="model-name" id="welcomeModelName">加载中...</span>
-                            <i class="layui-icon layui-icon-down model-arrow"></i>
+                    <div class="more-menu" id="welcomeMoreMenu">
+                        <button type="button" class="more-menu-btn" id="welcomeMoreBtn" title="更多工具" aria-label="更多工具" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                        <div class="more-menu-dropdown" role="menu">
+                            <button type="button" id="welcomeAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>上传可分析文件</button>
+                            <button type="button" id="welcomeImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>添加多模态素材</button>
+                            <div class="more-menu-separator"></div>
+                            <button type="button" id="welcomeCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>添加命令<span class="more-menu-hint">或输入 "/"</span></button>
+                            <button type="button" id="welcomeSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>添加技能<span class="more-menu-hint">或输入 "$"</span></button>
+                            <button type="button" id="welcomeAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>添加子代理单次引用<span class="more-menu-hint">或输入 "@"</span></button>
+                            <div class="more-menu-separator"></div>
+                            <button type="button" id="welcomeLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>循环任务<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
                         </div>
-                        <div class="model-dropdown" id="welcomeModelDropdown">
-                            <div class="model-search-wrap">
-                                <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                    </div>
+
+                    <div class="toolbar-selector-group agent-selector-group">
+                        <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg>
+                        <div class="agent-selector" id="welcomeAgentSelector">
+                            <button type="button" class="agent-selector-current" id="welcomeAgentCurrent" title="选择子代理" aria-haspopup="menu" aria-expanded="false">
+                                <span class="agent-name" id="welcomeAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
+                            </button>
+                            <div class="agent-dropdown" id="welcomeAgentDropdown" role="menu"></div>
+                        </div>
+                    </div>
+                    <div class="toolbar-selector-group model-selector-group">
+                        <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
+                        <div class="model-selector" id="welcomeModelSelector">
+                            <div class="model-selector-current" id="welcomeModelCurrent" title="切换模型">
+                                <span class="model-name" id="welcomeModelName">加载中...</span>
+                                <i class="layui-icon layui-icon-down model-arrow"></i>
                             </div>
-                            <div class="model-dropdown-items"></div>
-                            <div class="model-dropdown-footer">
-                                <div class="model-option-row model-reasoning-row" style="display:none">
-                                    <div class="model-option-main">
-                                        <span class="model-option-label">推理强度</span>
-                                        <div class="model-option-pills" data-kind="reasoning">
-                                            <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
-                                            <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
-                                            <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
-                                            <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
-                                            <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                            <div class="model-dropdown" id="welcomeModelDropdown">
+                                <div class="model-search-wrap">
+                                    <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                                </div>
+                                <div class="model-dropdown-items"></div>
+                                <div class="model-dropdown-footer">
+                                    <div class="model-option-row model-reasoning-row" style="display:none">
+                                        <div class="model-option-main">
+                                            <span class="model-option-label">推理强度</span>
+                                            <div class="model-option-pills" data-kind="reasoning">
+                                                <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
+                                                <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
+                                                <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
+                                                <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
+                                                <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <button class="attach-btn" id="welcomeAttachBtn" title="添加文件附件">
-                        <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                    </button>
+
                     <input type="file" class="attach-input" id="welcomeAttachInput" multiple accept="*/*"/>
-                    <button class="attach-btn" id="welcomeImageBtn" title="添加图片附件（多模态）">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                    </button>
                     <input type="file" class="attach-input" id="welcomeImageInput" multiple accept="image/*"/>
-                    <button class="attach-btn" id="welcomeCmdBtn" title="斜杠命令">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>
-                    </button>
-                    <button class="attach-btn" id="welcomeSkillBtn" title="技能">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>
-                    </button>
-                    <button class="attach-btn" id="welcomeAgentBtn" title="子代理">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>
-                    </button>
-                    <button class="attach-btn" id="welcomeLoopBtn" title="循环任务">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                    </button>
-                    <button class="attach-btn" id="welcomeHistoryBtn" title="历史消息" disabled>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </button>
                 </div>
                 <div class="toolbar-right">
                     <button class="voice-btn hidden" id="welcomeVoiceBtn" title="语音输入">
@@ -174,55 +191,62 @@
                 </div>
                 <div class="input-toolbar">
                     <div class="toolbar-left">
-                        <div class="model-selector" id="chatModelSelector">
-                            <div class="model-selector-current" id="chatModelCurrent" title="切换模型">
-                                <span class="model-name" id="chatModelName">加载中...</span>
-                                <i class="layui-icon layui-icon-down model-arrow"></i>
+                        <div class="more-menu" id="chatMoreMenu">
+                            <button type="button" class="more-menu-btn" id="chatMoreBtn" title="更多工具" aria-label="更多工具" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                            <div class="more-menu-dropdown" role="menu">
+                                <button type="button" id="chatAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>上传可分析文件</button>
+                                <button type="button" id="chatImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>添加多模态素材</button>
+                                <div class="more-menu-separator"></div>
+                                <button type="button" id="chatCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>添加命令<span class="more-menu-hint">或输入 "/"</span></button>
+                                <button type="button" id="chatSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>添加技能<span class="more-menu-hint">或输入 "$"</span></button>
+                                <button type="button" id="chatAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>添加子代理单次引用<span class="more-menu-hint">或输入 "@"</span></button>
+                                <div class="more-menu-separator"></div>
+                                <button type="button" id="chatLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>循环任务<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
+                                <button type="button" id="chatHistoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>历史消息<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="16" x2="12" y2="8"/><polyline points="8 12 12 8 16 12"/></svg></span></button>
                             </div>
-                            <div class="model-dropdown" id="chatModelDropdown">
-                                <div class="model-search-wrap">
-                                    <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                        </div>
+
+                        <div class="toolbar-selector-group agent-selector-group">
+                            <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg>
+                            <div class="agent-selector" id="chatAgentSelector">
+                                <button type="button" class="agent-selector-current" id="chatAgentCurrent" title="选择子代理" aria-haspopup="menu" aria-expanded="false">
+                                    <span class="agent-name" id="chatAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
+                                </button>
+                                <div class="agent-dropdown" id="chatAgentDropdown" role="menu"></div>
+                            </div>
+                        </div>
+                        <div class="toolbar-selector-group model-selector-group">
+                            <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
+                            <div class="model-selector" id="chatModelSelector">
+                                <div class="model-selector-current" id="chatModelCurrent" title="切换模型">
+                                    <span class="model-name" id="chatModelName">加载中...</span>
+                                    <i class="layui-icon layui-icon-down model-arrow"></i>
                                 </div>
-                                <div class="model-dropdown-items"></div>
-                                <div class="model-dropdown-footer">
-                                    <div class="model-option-row model-reasoning-row" style="display:none">
-                                        <div class="model-option-main">
-                                            <span class="model-option-label">推理强度</span>
-                                            <div class="model-option-pills" data-kind="reasoning">
-                                                <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
-                                                <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
-                                                <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
-                                                <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
-                                                <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                                <div class="model-dropdown" id="chatModelDropdown">
+                                    <div class="model-search-wrap">
+                                        <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                                    </div>
+                                    <div class="model-dropdown-items"></div>
+                                    <div class="model-dropdown-footer">
+                                        <div class="model-option-row model-reasoning-row" style="display:none">
+                                            <div class="model-option-main">
+                                                <span class="model-option-label">推理强度</span>
+                                                <div class="model-option-pills" data-kind="reasoning">
+                                                    <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
+                                                    <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
+                                                    <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
+                                                    <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
+                                                    <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <button class="attach-btn" id="chatAttachBtn" title="添加文件附件">
-                            <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                        </button>
+
                         <input type="file" class="attach-input" id="chatAttachInput" multiple accept="*/*"/>
-                        <button class="attach-btn" id="chatImageBtn" title="添加图片附件（多模态）">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                        </button>
                         <input type="file" class="attach-input" id="chatImageInput" multiple accept="image/*"/>
-                        <button class="attach-btn" id="chatCmdBtn" title="斜杠命令">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>
-                        </button>
-                        <button class="attach-btn" id="chatSkillBtn" title="技能">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>
-                        </button>
-                        <button class="attach-btn" id="chatAgentBtn" title="子代理">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>
-                        </button>
-                        <button class="attach-btn" id="chatLoopBtn" title="循环任务">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                        </button>
-                        <button class="attach-btn" id="chatHistoryBtn" title="历史消息">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </button>
                     </div>
                     <div class="toolbar-right">
                         <button class="voice-btn hidden" id="chatVoiceBtn" title="语音输入">
@@ -252,6 +276,9 @@
                 <button class="git-viewer-action-btn" id="gitViewerCopyBtn" title="复制文件内容">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
+                <button class="git-viewer-action-btn" id="gitViewerMemNew" title="新建记忆" style="display:none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
                 <button class="git-viewer-action-btn" id="gitViewerFullscreen" title="全屏">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                 </button>
@@ -266,158 +293,37 @@
 </div>
 
 <!-- File Tree Panel (Right Side) -->
-    <button class="filer-panel-toggle-btn collapsed" id="filerToggleBtn" title="展开文件树">‹</button>
-    <div class="filer-resize-handle" id="filerResizeHandle"></div>
-    <div class="filer-panel collapsed" id="filerPanel">
-        <div class="filer-tabs">
-            <button class="filer-tab" data-tab="tasks">
-                任务
-                <span class="todo-badge" id="todoBadge" style="display:none">0</span>
-            </button>
-            <button class="filer-tab active" data-tab="files">文件</button>
-            <button class="filer-tab" data-tab="gitdiff">
-                审查
-                <span class="git-badge" id="gitBadge" style="display:none">0</span>
-            </button>
-        </div>
+<button class="workspace-panel-toggle-btn collapsed" id="workspaceToggleBtn" title="展开文件树">‹</button>
+<div class="workspace-resize-handle" id="workspaceResizeHandle"></div>
+<div class="workspace-panel collapsed" id="workspacePanel">
+    <div class="workspace-tabs">
+        <button class="workspace-tab" data-tab="tasks">
+            任务
+            <span class="todo-badge" id="todoBadge" style="display:none">0</span>
+        </button>
+        <button class="workspace-tab active" data-tab="files">文件</button>
+        <button class="workspace-tab" data-tab="gitdiff">
+            审查
+            <span class="git-badge" id="gitBadge" style="display:none">0</span>
+        </button>
+    </div>
 
 
-        <!-- Tab Content: 任务 -->
-        <div class="filer-tab-content" id="tabContentTasks">
-            <div class="todo-panel">
-                <div class="todo-header">
-                    <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
-                    <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    </button>
-                </div>
-                <div class="todo-list" id="todoList"></div>
-                <div class="todo-empty" id="todoEmpty" style="display:none">
-                    当前会话暂无任务清单
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab Content: 文件树 -->
-        <div class="filer-tab-content active" id="tabContentFiles">
-            <div class="filer-search-bar">
-                <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
-                <button class="filer-search-clear" id="filerSearchClear" title="清除" style="display:none">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <!-- Tab Content: 任务 -->
+    <div class="workspace-tab-content" id="tabContentTasks">
+        <div class="todo-panel">
+            <div class="todo-header">
+                <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
+                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
             </div>
-            <div class="filer-panel-tree" id="filerTree"></div>
-            <div class="filer-mount-hint" id="filerMountHint">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <span>添加文件类型挂载</span>
+            <div class="todo-list" id="todoList"></div>
+            <div class="todo-empty" id="todoEmpty" style="display:none">
+                当前会话暂无任务清单
             </div>
         </div>
-
-        <!-- Tab Content: Git Diff -->
-        <div class="filer-tab-content" id="tabContentGitdiff">
-            <!-- 审查工作区选择器（自定义下拉） -->
-            <div class="git-workspace-bar" id="gitWorkspaceBar">
-                <div class="git-workspace-selector" id="gitWorkspaceSelector">
-                    <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区">
-                        <span class="git-workspace-name" id="gitWorkspaceName">加载中...</span>
-                        <i class="layui-icon layui-icon-down git-workspace-arrow"></i>
-                    </div>
-                    <div class="git-workspace-dropdown" id="gitWorkspaceDropdown">
-                        <div class="git-workspace-dropdown-items" id="gitWorkspaceDropdownItems"></div>
-                    </div>
-                </div>
-            </div>
-            <!-- 状态1：Git 不可用 -->
-            <div class="git-unavailable" id="gitUnavailable" style="display:none">
-                <div class="git-empty-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                        <line x1="12" y1="9" x2="12" y2="13"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                </div>
-                <div class="git-empty-title">Git 不可用</div>
-                <div class="git-empty-desc">系统未安装 Git 或 Git 不在 PATH 中</div>
-            </div>
-
-            <!-- 状态2：未初始化仓库 -->
-            <div class="git-uninitialized" id="gitUninitialized" style="display:none">
-                <div class="git-empty-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M15 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M11 8a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path d="M12 15v-6" />
-                        <path d="M15 11l-2 -2" />
-                        <path d="M11 7l-1.9 -1.9" />
-                        <path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0" />
-                    </svg>
-                </div>
-                <div class="git-empty-title">当前工作区不是 Git 仓库</div>
-                <div class="git-init-benefits">
-                    <div>初始化后可以：</div>
-                    <ul>
-                        <li>跟踪文件变更历史</li>
-                        <li>查看 diff 代码对比</li>
-                        <li>配合 AI 进行代码审查</li>
-                    </ul>
-                </div>
-                <div class="git-init-options">
-                    <label class="git-init-checkbox">
-                        <input type="checkbox" id="gitInitCommit" checked/>
-                        <span>自动提交当前所有文件</span>
-                    </label>
-                </div>
-                <button class="git-init-btn" id="gitInitBtn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    初始化 Git 仓库
-                </button>
-                <div class="git-init-note">将在工作区执行 git init</div>
-            </div>
-
-            <!-- 状态3：正常仓库 -->
-            <div class="git-diff-panel" id="gitDiffPanel" style="display:none">
-                <div class="git-diff-header">
-                    <div class="git-header-left">
-                        <label class="git-select-all-label" title="全选/取消全选">
-                            <input type="checkbox" id="gitSelectAll" checked/>
-                        </label>
-                    </div>
-                    <div class="git-header-center">
-                        <span class="git-branch" id="gitBranch">--</span>
-                    </div>
-                    <div class="git-header-right">
-                        <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="git-diff-file-list" id="gitDiffFileList"></div>
-                <div class="git-commit-bar" id="gitCommitBar">
-                    <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." rows="1"></textarea>
-                    <div class="git-commit-actions">
-                        <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg>
-                            生成摘要
-                        </button>
-                        <button class="git-commit-btn" id="gitCommitBtn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            提交
-                        </button>
-                    </div>
-                </div>
-                <div class="git-diff-empty" id="gitDiffEmpty" style="display:none">
-                    <div class="git-empty-desc">没有未提交的变更</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 右栏底部：任务排队（跨 Tab 常驻） -->
+        <!-- 任务面板底部：任务排队 -->
         <div class="queue-strip collapsed" id="chatQueueDock" style="display:none" aria-live="polite">
             <div class="queue-strip-header" id="chatQueueHeader">
                 <div class="queue-strip-title-row">
@@ -446,6 +352,128 @@
         </div>
     </div>
 
+    <!-- Tab Content: 文件树 -->
+    <div class="workspace-tab-content active" id="tabContentFiles">
+        <div class="filer-search-bar">
+            <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
+            <button class="filer-search-clear" id="filerSearchClear" title="清除" style="display:none">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="filer-panel-tree" id="filerTree"></div>
+        <div class="filer-mount-hint" id="filerMountHint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <span>添加文件类型挂载</span>
+        </div>
+    </div>
+
+    <!-- Tab Content: Git Diff -->
+    <div class="workspace-tab-content" id="tabContentGitdiff">
+        <!-- 审查工作区选择器（自定义下拉） -->
+        <div class="git-workspace-bar" id="gitWorkspaceBar">
+            <div class="git-workspace-selector" id="gitWorkspaceSelector">
+                <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区">
+                    <span class="git-workspace-name" id="gitWorkspaceName">加载中...</span>
+                    <i class="layui-icon layui-icon-down git-workspace-arrow"></i>
+                </div>
+                <div class="git-workspace-dropdown" id="gitWorkspaceDropdown">
+                    <div class="git-workspace-dropdown-items" id="gitWorkspaceDropdownItems"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 状态1：Git 不可用 -->
+        <div class="git-unavailable" id="gitUnavailable" style="display:none">
+            <div class="git-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="git-empty-title">Git 不可用</div>
+            <div class="git-empty-desc">系统未安装 Git 或 Git 不在 PATH 中</div>
+        </div>
+
+        <!-- 状态2：未初始化仓库 -->
+        <div class="git-uninitialized" id="gitUninitialized" style="display:none">
+            <div class="git-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)"
+                     stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M15 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M11 8a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                    <path d="M12 15v-6" />
+                    <path d="M15 11l-2 -2" />
+                    <path d="M11 7l-1.9 -1.9" />
+                    <path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0" />
+                </svg>
+            </div>
+            <div class="git-empty-title">当前工作区不是 Git 仓库</div>
+            <div class="git-init-benefits">
+                <div>初始化后可以：</div>
+                <ul>
+                    <li>跟踪文件变更历史</li>
+                    <li>查看 diff 代码对比</li>
+                    <li>配合 AI 进行代码审查</li>
+                </ul>
+            </div>
+            <div class="git-init-options">
+                <label class="git-init-checkbox">
+                    <input type="checkbox" id="gitInitCommit" checked/>
+                    <span>自动提交当前所有文件</span>
+                </label>
+            </div>
+            <button class="git-init-btn" id="gitInitBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                初始化 Git 仓库
+            </button>
+            <div class="git-init-note">将在工作区执行 git init</div>
+        </div>
+
+        <!-- 状态3：正常仓库 -->
+        <div class="git-diff-panel" id="gitDiffPanel" style="display:none">
+            <div class="git-diff-header">
+                <div class="git-header-left">
+                    <label class="git-select-all-label" title="全选/取消全选">
+                        <input type="checkbox" id="gitSelectAll" checked/>
+                    </label>
+                </div>
+                <div class="git-header-center">
+                    <span class="git-branch" id="gitBranch">--</span>
+                </div>
+                <div class="git-header-right">
+                    <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="git-diff-file-list" id="gitDiffFileList"></div>
+            <div class="git-commit-bar" id="gitCommitBar">
+                <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." rows="1"></textarea>
+                <div class="git-commit-actions">
+                    <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg>
+                        生成摘要
+                    </button>
+                    <button class="git-commit-btn" id="gitCommitBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        提交
+                    </button>
+                </div>
+            </div>
+            <div class="git-diff-empty" id="gitDiffEmpty" style="display:none">
+                <div class="git-empty-desc">没有未提交的变更</div>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+
 <!-- Settings Overlay (放在 body 最外层，确保 position:fixed 覆盖全屏) -->
 <div class="settings-overlay" id="settingsOverlay" style="display:none">
     <div class="settings-panel">
@@ -461,7 +489,8 @@
                     </button>
                 </div>
                 <button class="settings-tab active" data-tab="general"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 通用</button>
-                <button class="settings-tab" data-tab="permission"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> 工具权限</button>
+
+                <button class="settings-tab" data-tab="agents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg> 智能体</button>
                 <button class="settings-tab" data-tab="mounts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 挂载</button>
                 <button class="settings-tab" data-tab="skills"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 技能市场</button>
 
@@ -494,7 +523,7 @@
                             <!-- 上下文压缩策略 -->
                             <div class="general-card">
                                 <div class="general-card-header">
-                                        <div class="general-card-text">
+                                    <div class="general-card-text">
                                         <div class="general-card-title">对话策略</div>
                                     </div>
                                 </div>
@@ -509,14 +538,8 @@
                                             <input type="text" inputmode="numeric" class="general-input" id="generalSummaryWindowSize" placeholder="40（默认）"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">压缩触发词元数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalSummaryWindowToken" placeholder="64k（默认）" list="summaryTokenList" autocomplete="off"/>
-                                            <datalist id="summaryTokenList">
-                                                <option value="32k">
-                                                <option value="64k">
-                                                <option value="128k">
-                                                <option value="256k">
-                                            </datalist>
+                                            <label class="general-field-label">压缩触发上下文占比(%)</label>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionThresholdPercent" placeholder="75（默认）" autocomplete="off"/>
                                         </div>
                                     </div>
                                     <div class="general-toggle-desc settings-gap-top-sm">历史窗口控制新指令时使用几条历史消息；压缩策略控制对话上下文的自动压缩，防止超出模型窗口限制</div>
@@ -526,7 +549,7 @@
                             <!-- 沙盒模式 -->
                             <div class="general-card">
                                 <div class="general-card-header">
-                                        <div class="general-card-text">
+                                    <div class="general-card-text">
                                         <div class="general-card-title">沙盒模式</div>
                                     </div>
                                 </div>
@@ -822,33 +845,94 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="form-actions form-actions-end settings-actions-spacious">
-                            <button class="btn-primary" id="generalSaveBtn">保存</button>
+                            <!-- ============ 配置卡片: 工具权限 ============ -->
+                            <div class="general-card">
+                                <div class="general-card-header">
+                                    <div class="general-card-text">
+                                        <div class="general-card-title">工具权限</div>
+                                    </div>
+                                </div>
+                                <div class="general-card-body">
+                                    <div class="general-toggle-desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
+                                    <div class="permission-container">
+                                        <div class="permission-tools-list" id="permissionToolsList"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions form-actions-end settings-actions-spacious">
+                                <button class="btn-primary" id="generalSaveBtn">保存</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- Permission Tab -->
-                <div class="settings-tab-content" id="settingsTabPermission">
-                    <div class="settings-section">
-                        <div class="settings-section-header">
-                            <div>
-                                <span class="settings-section-title">工具权限</span>
-                                <div class="settings-section-desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
+
+                <!-- Agents Tab -->
+                <div class="settings-tab-content" id="settingsTabAgents">
+                    <div class="settings-view settings-view-list" id="agentsListView">
+                        <div class="settings-section">
+                            <div class="settings-section-header">
+                                <div>
+                                    <span class="settings-section-title">智能体</span>
+                                    <div class="settings-section-desc">管理用户全局与当前工作区的子代理定义</div>
+                                </div>
+                                <div class="settings-header-icon-actions">
+                                    <button class="mcp-action-btn" id="agentsRefreshBtn" title="从目录刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                    <button class="settings-add-btn" id="agentsAddBtn">+ 添加智能体</button>
+                                </div>
                             </div>
+                            <div class="agents-list" id="agentsList"></div>
                         </div>
-
-                        <div class="permission-container">
-
-                            <!-- 工具列表 -->
-                            <div class="permission-tools-list" id="permissionToolsList"></div>
-
-                            <!-- 高级模式已移除 -->
-                        </div>
-
-                        <div class="form-actions form-actions-end settings-actions-spacious">
-                            <button class="btn-primary" id="permissionSaveBtn">保存</button>
+                    </div>
+                    <div class="settings-view settings-view-form" id="agentsFormView" style="display:none">
+                        <div class="settings-section">
+                            <div class="settings-section-header">
+                                <div class="settings-title-row">
+                                    <button class="settings-back-btn" id="agentsBackBtn" title="返回"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                    <span class="settings-section-title" id="agentsFormTitle">添加智能体</span>
+                                </div>
+                                <div class="settings-form-actions" id="agentsFormActions" style="display:none">
+                                    <button class="settings-form-action-btn" id="agentsFormCopyBtn" title="复制为新定义"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制</button>
+                                    <button class="settings-form-action-btn danger" id="agentsFormDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 删除</button>
+                                </div>
+                            </div>
+                            <div class="agents-form">
+                                <div class="form-group">
+                                    <label>名称 <span class="required">*</span></label>
+                                    <input type="text" id="agentsName" placeholder="backend-dev"/>
+                                </div>
+                                <div class="form-group">
+                                    <label>作用域</label>
+                                    <input type="hidden" id="agentsScope" value="user"/>
+                                    <div class="settings-scope-toggle" data-target="agentsScope">
+                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
+                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>描述 <span class="required">*</span></label>
+                                    <input type="text" id="agentsDescription" placeholder="请填写智能体职责说明"/>
+                                </div>
+                                <div class="form-group">
+                                    <label>工具权限</label>
+                                    <button type="button" class="agent-tools-trigger" id="agentsToolsBtn">
+                                        <span id="agentsToolsSummary">请选择工具</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="agent-tools-selector" id="agentsToolsSelector" style="display:none">
+                                        <div class="permission-tools-grid" id="agentsToolsList"></div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>系统提示词 <span class="required">*</span></label>
+                                    <textarea id="agentsSystemPrompt" class="agents-prompt-editor" rows="5" spellcheck="false" placeholder="你是一位专项智能体。请说明职责、工作方式和输出要求。"></textarea>
+                                    <div class="form-hint">这里只填写智能体的角色、职责与工作要求，配置头由系统自动生成。内置智能体可复制到用户或工作区进行覆盖。</div>
+                                </div>
+                                <div class="form-actions form-actions-end">
+                                    <button class="btn-primary" id="agentsSaveBtn">保存</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -922,7 +1006,7 @@
                                 <div class="form-group">
                                     <label>API 密钥</label>
                                     <div class="password-input-group">
-<input type="password" id="llmApiKey" autocomplete="new-password"/>
+                                        <input type="password" id="llmApiKey" autocomplete="new-password"/>
                                         <button class="password-toggle" id="llmApiKeyToggle" title="显示/隐藏">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         </button>
@@ -934,18 +1018,18 @@
                                         <input type="text" id="llmModel" placeholder="deepseek-v4-flash" />
                                     </div>
                                     <div class="form-group">
-                                        <label>超时时间（可选）</label>
-                                        <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）"/>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>上下文长度（可选）</label>
-<input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
+                                        <label>上下文长度</label>
+                                        <input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
                                         <datalist id="contextLengthList">
                                             <option value="128k">
                                             <option value="256k">
                                             <option value="512k">
-<option value="1m">
+                                            <option value="1m">
                                         </datalist>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>超时时间（可选）</label>
+                                        <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）"/>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -1423,7 +1507,7 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">供应商（测试）</span>
+                                    <span class="settings-section-title">供应商</span>
                                     <div class="settings-section-desc">管理 AI 模型供应商配置，支持自动拉取模型列表</div>
                                 </div>
                                 <div class="openapi-header-actions">
@@ -1555,33 +1639,33 @@
 
 <!-- ===== 任务完成通知工具函数（需在 app-*.js 之前定义） ===== -->
 <script>
-(function() {
-    window._notifyPerm = Notification.permission;
-    function _requestNotifyPerm() {
-        if (window._notifyPerm === 'granted') return true;
-        if (window._notifyPerm === 'denied') return false;
-        Notification.requestPermission().then(function(p) {
-            window._notifyPerm = p;
-        });
-        return false;
-    }
-    // 通知函数（仅桌面通知，不播放声音）
-    window._notifyTaskComplete = function() {
-        if (document.hasFocus && document.hasFocus()) return;
-        if (window._notifyPerm === 'granted') {
-            try {
-                var n = new Notification('SolonCode', {
-                    body: 'AI 任务已完成',
-                    icon: '/img/favicon.png',
-                    tag: 'soloncode-task-done',
-                    requireInteraction: false
-                });
-                n.onclick = function() { window.focus(); this.close(); };
-                setTimeout(function() { n.close(); }, 5000);
-            } catch(e) {}
+    (function() {
+        window._notifyPerm = Notification.permission;
+        function _requestNotifyPerm() {
+            if (window._notifyPerm === 'granted') return true;
+            if (window._notifyPerm === 'denied') return false;
+            Notification.requestPermission().then(function(p) {
+                window._notifyPerm = p;
+            });
+            return false;
         }
-    };
-})();
+        // 通知函数（仅桌面通知，不播放声音）
+        window._notifyTaskComplete = function() {
+            if (document.hasFocus && document.hasFocus()) return;
+            if (window._notifyPerm === 'granted') {
+                try {
+                    var n = new Notification('SolonCode', {
+                        body: 'AI 任务已完成',
+                        icon: '/img/favicon.png',
+                        tag: 'soloncode-task-done',
+                        requireInteraction: false
+                    });
+                    n.onclick = function() { window.focus(); this.close(); };
+                    setTimeout(function() { n.close(); }, 5000);
+                } catch(e) {}
+            }
+        };
+    })();
 </script>
 
 <!-- 核心路径：立即加载 -->
@@ -1592,6 +1676,7 @@
 <script src="/js/app-streaming.js"></script>
 <script src="/js/app-filer.js"></script>
 <script src="/js/app-gitdiff.js"></script>
+<script src="/js/app-memory.js"></script>
 <script src="/js/app-todos.js"></script>
 <script src="/js/app-context.js"></script>
 <script src="/js/app-loop.js"></script>
@@ -1599,118 +1684,119 @@
 
 <!-- 设置模块：首次打开设置时再加载，降低首屏解析成本 -->
 <script>
-(function () {
-    // 核心必须先于子模块；子模块彼此无依赖，可并行
-    var SETTINGS_CORE = '/js/app-settings.js';
-    var SETTINGS_MODULES = [
-        '/js/app-settings-general.js',
-        '/js/app-settings-permission.js',
-        '/js/app-settings-llm.js',
-        '/js/app-settings-mounts.js',
-        '/js/app-settings-mcp.js',
-        '/js/app-settings-openapi.js',
-        '/js/app-settings-lsp.js',
-        '/js/app-settings-providers.js',
-        '/js/app-settings-skill.js',
-        '/js/app-settings-skin.js'
-    ];
-    var settingsLoading = null;
-    var realOpenSettingsTab = null;
+    (function () {
+        // 核心必须先于子模块；子模块彼此无依赖，可并行
+        var SETTINGS_CORE = '/js/app-settings.js';
+        var SETTINGS_MODULES = [
+            '/js/app-settings-general.js',
+            '/js/app-settings-permission.js',
+            '/js/app-settings-agents.js',
+            '/js/app-settings-llm.js',
+            '/js/app-settings-mounts.js',
+            '/js/app-settings-mcp.js',
+            '/js/app-settings-openapi.js',
+            '/js/app-settings-lsp.js',
+            '/js/app-settings-providers.js',
+            '/js/app-settings-skill.js',
+            '/js/app-settings-skin.js'
+        ];
+        var settingsLoading = null;
+        var realOpenSettingsTab = null;
 
-    function loadOneScript(src) {
-        return new Promise(function (resolve, reject) {
-            if (typeof loadScriptOnce === 'function') {
-                loadScriptOnce(src, function (err) {
-                    if (err) reject(err);
-                    else resolve();
-                });
-                return;
-            }
-            var s = document.createElement('script');
-            s.src = src;
-            s.async = true;
-            s.onload = function () { resolve(); };
-            s.onerror = function () { reject(new Error('Failed to load ' + src)); };
-            document.head.appendChild(s);
-        });
-    }
-
-    function loadSettingsModules() {
-        if (window.__settingsModulesReady) return Promise.resolve();
-        if (settingsLoading) return settingsLoading;
-        settingsLoading = loadOneScript(SETTINGS_CORE)
-            .then(function () {
-                return Promise.all(SETTINGS_MODULES.map(loadOneScript));
-            })
-            .then(function () {
-                window.__settingsModulesReady = true;
-                settingsLoading = null;
-            })
-            .catch(function (err) {
-                // 允许下次点击重试
-                settingsLoading = null;
-                window.__settingsModulesReady = false;
-                console.warn('[settings] load failed', err);
-                throw err;
-            });
-        return settingsLoading;
-    }
-    window.loadSettingsModules = loadSettingsModules;
-
-    function toastSettingsError() {
-        if (window.layer && typeof layer.msg === 'function') {
-            layer.msg('设置模块加载失败，请重试', { icon: 2, time: 2500 });
-        } else {
-            console.error('[settings] modules failed to load');
-        }
-    }
-
-    function openSettingsAfterReady(tab) {
-        loadSettingsModules().then(function () {
-            if (typeof realOpenSettingsTab === 'function') {
-                realOpenSettingsTab(tab || 'general');
-                return;
-            }
-            var overlay = document.getElementById('settingsOverlay');
-            if (overlay) overlay.style.display = 'flex';
-            if (tab) {
-                var tabBtn = document.querySelector('.settings-tab[data-tab="' + tab + '"]');
-                if (tabBtn) tabBtn.click();
-            }
-        }).catch(function () {
-            toastSettingsError();
-        });
-    }
-
-    // 捕获阶段拦截设置按钮：首次点击先加载模块
-    document.addEventListener('click', function (e) {
-        var btn = e.target && e.target.closest ? e.target.closest('#settingsBtn') : null;
-        if (!btn) return;
-        if (window.__settingsModulesReady) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openSettingsAfterReady(null);
-    }, true);
-
-    // 兼容 filer 等调用 window.openSettingsTab(tab)
-    Object.defineProperty(window, 'openSettingsTab', {
-        configurable: true,
-        enumerable: true,
-        get: function () {
-            return function (tab) {
-                if (!window.__settingsModulesReady) {
-                    openSettingsAfterReady(tab);
+        function loadOneScript(src) {
+            return new Promise(function (resolve, reject) {
+                if (typeof loadScriptOnce === 'function') {
+                    loadScriptOnce(src, function (err) {
+                        if (err) reject(err);
+                        else resolve();
+                    });
                     return;
                 }
-                if (typeof realOpenSettingsTab === 'function') realOpenSettingsTab(tab);
-            };
-        },
-        set: function (fn) {
-            // app-settings.js 赋值时保存真实实现
-            realOpenSettingsTab = fn;
+                var s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = function () { resolve(); };
+                s.onerror = function () { reject(new Error('Failed to load ' + src)); };
+                document.head.appendChild(s);
+            });
         }
-    });
-})();
+
+        function loadSettingsModules() {
+            if (window.__settingsModulesReady) return Promise.resolve();
+            if (settingsLoading) return settingsLoading;
+            settingsLoading = loadOneScript(SETTINGS_CORE)
+                .then(function () {
+                    return Promise.all(SETTINGS_MODULES.map(loadOneScript));
+                })
+                .then(function () {
+                    window.__settingsModulesReady = true;
+                    settingsLoading = null;
+                })
+                .catch(function (err) {
+                    // 允许下次点击重试
+                    settingsLoading = null;
+                    window.__settingsModulesReady = false;
+                    console.warn('[settings] load failed', err);
+                    throw err;
+                });
+            return settingsLoading;
+        }
+        window.loadSettingsModules = loadSettingsModules;
+
+        function toastSettingsError() {
+            if (window.layer && typeof layer.msg === 'function') {
+                layer.msg('设置模块加载失败，请重试', { icon: 2, time: 2500 });
+            } else {
+                console.error('[settings] modules failed to load');
+            }
+        }
+
+        function openSettingsAfterReady(tab) {
+            loadSettingsModules().then(function () {
+                if (typeof realOpenSettingsTab === 'function') {
+                    realOpenSettingsTab(tab || 'general');
+                    return;
+                }
+                var overlay = document.getElementById('settingsOverlay');
+                if (overlay) overlay.style.display = 'flex';
+                if (tab) {
+                    var tabBtn = document.querySelector('.settings-tab[data-tab="' + tab + '"]');
+                    if (tabBtn) tabBtn.click();
+                }
+            }).catch(function () {
+                toastSettingsError();
+            });
+        }
+
+        // 捕获阶段拦截设置按钮：首次点击先加载模块
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('#settingsBtn') : null;
+            if (!btn) return;
+            if (window.__settingsModulesReady) return;
+            e.preventDefault();
+            e.stopPropagation();
+            openSettingsAfterReady(null);
+        }, true);
+
+        // 兼容 filer 等调用 window.openSettingsTab(tab)
+        Object.defineProperty(window, 'openSettingsTab', {
+            configurable: true,
+            enumerable: true,
+            get: function () {
+                return function (tab) {
+                    if (!window.__settingsModulesReady) {
+                        openSettingsAfterReady(tab);
+                        return;
+                    }
+                    if (typeof realOpenSettingsTab === 'function') realOpenSettingsTab(tab);
+                };
+            },
+            set: function (fn) {
+                // app-settings.js 赋值时保存真实实现
+                realOpenSettingsTab = fn;
+            }
+        });
+    })();
 </script>
 
 </body>

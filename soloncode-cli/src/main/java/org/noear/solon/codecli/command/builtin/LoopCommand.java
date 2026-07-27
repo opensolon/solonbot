@@ -131,7 +131,7 @@ public class LoopCommand implements Command {
             doResume(ctx, sessionId, ctx.argAt(1));
         } else if ("goal".equals(sub)) {
             // /loop goal <objective> — 简化 Goal 模式（一个参数，立即执行）
-            doScheduleGoal(ctx, sessionId, workspace, harnessSessions);
+            doScheduleGoal(ctx, sessionId, workspace, harnessSessions, 1);
         } else {
             // Schedule a new task
             doSchedule(ctx, sessionId, workspace, harnessSessions);
@@ -250,18 +250,27 @@ public class LoopCommand implements Command {
     }
 
     /**
+     * 执行 /goal <objective> 快捷命令。
+     */
+    void executeGoal(CommandContext ctx) {
+        String sessionId = ctx.getSession().getSessionId();
+        HarnessEngine engine = ctx.getEngine();
+        doScheduleGoal(ctx, sessionId, engine.getWorkspace(), engine.getHarnessSessions(), 0);
+    }
+
+    /**
      * /loop goal &lt;objective&gt; — 简化 Goal 模式
      *
      * <p>与 Codex /goal &lt;objective&gt; 对齐：一个参数，立即执行，AI 自主推进。
      * prompt 即目标任务描述，type=GOAL，runNow=true，interval=0（调度器自动转 5 秒安全网）。</p>
      */
-    private void doScheduleGoal(CommandContext ctx, String sessionId, String workspace, String harnessSessions) {
+    private void doScheduleGoal(CommandContext ctx, String sessionId, String workspace, String harnessSessions, int promptStartIndex) {
         Long maxTokens = null;
         Long maxDurationMs = null;
         StringBuilder promptBuilder = new StringBuilder();
 
-        // 从 index=1 开始解析（index=0 是 "goal"）
-        for (int i = 1; ; i++) {
+        // /loop goal 从 index=1 开始；/goal 从 index=0 开始。
+        for (int i = promptStartIndex; ; i++) {
             String arg = ctx.argAt(i);
             if (arg == null) break;
 
@@ -306,8 +315,8 @@ public class LoopCommand implements Command {
 
         String prompt = promptBuilder.toString().trim();
         if (prompt.isEmpty()) {
-            ctx.println(ctx.color(RED + "Usage: /loop goal <objective>" + RESET));
-            ctx.println(ctx.color(DIM + "  /loop goal fix auth module" + RESET));
+            ctx.println(ctx.color(RED + "Usage: /goal <objective> (or /loop goal <objective>)" + RESET));
+            ctx.println(ctx.color(DIM + "  /goal fix auth module" + RESET));
 
             return;
         }

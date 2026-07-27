@@ -63,7 +63,7 @@ public class AgentSettingsReloadTest {
         boolean changed = settings.reloadInPlace();
         assertTrue(changed);
         assertEquals("m1", settings.getDefaultModel());
-        assertEquals(Boolean.TRUE, settings.getGeneral().getSandboxMode());
+        assertEquals(Boolean.TRUE, settings.getGeneral().isSandboxMode());
         assertEquals("DEBUG", settings.getGeneral().getLogLevel());
         assertTrue(settings.getModels().containsKey("m1"));
         assertEquals("gpt-x", settings.getModels().get("m1").getModel());
@@ -136,7 +136,7 @@ public class AgentSettingsReloadTest {
         // 内存保持不变
         assertEquals("keep-me", settings.getDefaultModel());
         assertEquals("INFO", settings.getGeneral().getLogLevel());
-        assertEquals(Boolean.TRUE, settings.getGeneral().getSandboxMode());
+        assertEquals(Boolean.TRUE, settings.getGeneral().isSandboxMode());
         assertTrue(settings.getModels().containsKey("alive"));
         assertEquals(1, settings.getModels().size());
     }
@@ -231,14 +231,14 @@ public class AgentSettingsReloadTest {
     void fillRuntimeDefaults_fillsNullOnly() {
         AgentSettings settings = new AgentSettings();
         settings.getGeneral().setSandboxMode(false);
-        settings.getGeneral().setMaxTurns(null);
+        settings.getGeneral().setMaxTurns(0);
     
         settings.fillRuntimeDefaults();
     
-        assertEquals(Boolean.FALSE, settings.getGeneral().getSandboxMode());
+        assertEquals(Boolean.FALSE, settings.getGeneral().isSandboxMode());
         assertNotNull(settings.getGeneral().getMaxTurns());
         assertEquals(Integer.valueOf(20), settings.getGeneral().getMaxTurns());
-        assertNotNull(settings.getGeneral().getMemoryEnabled());
+        assertNotNull(settings.getGeneral().isMemoryEnabled());
         assertNotNull(settings.getLoop().getBudgetWarningPercent());
     }
     
@@ -256,7 +256,7 @@ public class AgentSettingsReloadTest {
         assertEquals("m1", settings.getDefaultModel());
         // 磁盘未写 maxTurns → 回落默认
         assertEquals(Integer.valueOf(20), settings.getGeneral().getMaxTurns());
-        assertNotNull(settings.getGeneral().getSandboxMode());
+        assertNotNull(settings.getGeneral().isSandboxMode());
     
         // 内存已是“磁盘 + 默认”，再次 reload 应无变化
         assertFalse(settings.reloadInPlace());

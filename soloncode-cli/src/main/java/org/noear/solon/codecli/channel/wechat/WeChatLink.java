@@ -248,7 +248,12 @@ public class WeChatLink implements Channel, Runnable {
             }
 
             // 调用 AI 并回复
-            webGate.safeChatInput(sessionId, text, "WeChat");
+            boolean accepted = webGate.safeChatInput(sessionId, text, "WeChat");
+            if (!accepted) {
+                // 会话繁忙，向用户发送提示而不是静默丢弃
+                WeChatClient.sendMessage(binding.botToken, fromUserId, contextToken,
+                        "⏳ 正在处理上一条消息，请稍候再试");
+            }
 
             // 停止输入状态
             if (binding.typingTicket != null) {

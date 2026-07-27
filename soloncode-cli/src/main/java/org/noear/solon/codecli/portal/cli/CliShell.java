@@ -504,7 +504,7 @@ public class CliShell implements Runnable {
             String delta = clearThink(reason.getContent());
 
             if (reason.getMessage().isThinking()) {
-                if (agentProps.getGeneral().getCliThinkPrinted()) {
+                if (agentProps.getGeneral().isCliThinkPrinted()) {
                     onReasonDeltaChunkDo(DIM + delta + RESET, isFirstReasonDeltaChunk, isFirstConversation);
                 }
             } else {
@@ -623,7 +623,7 @@ public class CliShell implements Runnable {
             String argsStr = argsBuilder.toString().replace("\n", " ");
             boolean hasBigArgs = argsStr.length() > 100 || (args != null && args.values().stream().anyMatch(v -> v instanceof String && ((String) v).contains("\n")));
 
-            if (agentProps.getGeneral().getCliPrintSimplified() && isTodo == false) {
+            if (agentProps.getGeneral().isCliPrintSimplified() && isTodo == false) {
                 // --- 简化风格：单行摘要模式 ---
                 String content = action.getContent() == null ? "" : action.getContent().trim();
                 String summary;

@@ -750,6 +750,7 @@
     window.refreshLoopPanel = function() {
         if (loopPanelVisible) renderLoopList();
     };
+    window.toggleLoopPanel = toggleLoopPanel;
 
     // 面板显示时移除表单模式 class
     var _origRenderLoopList = renderLoopList;

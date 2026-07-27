@@ -79,12 +79,10 @@
             deleteProvider();
         });
 
-        // 列表项点击（编辑）
-        $providerList.on('click', '.mcp-server-item', function (e) {
-            // 忽略开关点击
-            if ($(e.target).closest('.toggle-switch').length) return;
-            if ($(e.target).closest('.mcp-action-btn').length) return;
-            var name = $(this).data('name');
+        // 编辑按钮（供应商列表项）
+        $providerList.on('click', '.provider-edit-btn', function (e) {
+            e.stopPropagation();
+            var name = $(this).closest('.mcp-server-item').data('name');
             editProvider(name);
         });
 
@@ -153,9 +151,15 @@
     }
 
     // ==================== 列表视图 ====================
+
+    function getStandardAbbr(standard) {
+        if (!standard) return '';
+        return standard.split('-').map(function(p) { return p.charAt(0).toUpperCase(); }).join('');
+    }
+
     function loadProvidersList() {
         $.ajax({
-            url: '/web/settings/providers',
+            url: '/web/settings/llm/providers',
             method: 'GET',
             success: function (res) {
                 if (res.code === 200) {
@@ -185,13 +189,13 @@
         var modelsCount = (provider.models || []).length;
 
         return '<div class="mcp-server-item' + (provider.enabled === false ? ' disabled' : '') + '" data-name="' + provider.name + '">' +
-            '<div class="mcp-server-icon">P</div>' +
+            '<div class="mcp-server-icon">' + (getStandardAbbr(provider.standard) || 'F') + '</div>' +
             '<div class="mcp-server-info">' +
                 '<div class="mcp-server-name">' + provider.name + ' <span class="settings-inline-tag">[' + (provider.standard || 'openai') + ']</span></div>' +
-                '<div class="mcp-server-detail">' + (provider.apiUrl || '未配置') + '</div>' +
+                '<div class="mcp-server-detail">' + (provider.apiUrl || '未配置') + ' - ' + modelsCount + ' 模型</div>' +
             '</div>' +
             '<div class="mcp-server-actions">' +
-                '<span class="mcp-server-detail">' + modelsCount + ' 模型</span>' +
+                '<button class="mcp-action-btn edit provider-edit-btn" title="编辑"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
                 '<label class="toggle-switch" title="' + (provider.enabled ? '停用' : '启用') + '">' +
                     '<input type="checkbox" ' + (provider.enabled ? 'checked' : '') + ' data-name="' + provider.name + '" class="provider-toggle"/>' +
                     '<span class="toggle-slider"></span>' +
@@ -233,7 +237,8 @@
 
     function showList() {
         $formView.hide();
-        $listView.show();
+        $listView.addClass('slide-back').show();
+        setTimeout(function(){ $listView.removeClass('slide-back'); }, 260);
         currentProvider = null;
         fetchedModels = [];
         loadProvidersList();
@@ -255,8 +260,8 @@
             + '<input type="text" id="manualModelName" placeholder="例如 gpt-4o-mini">'
             + '</div>'
             + '<div class="form-group">'
-            + '<label>上下文长度（可选）</label>'
-            + '<input type="text" id="manualModelTokens" inputmode="numeric" placeholder="1000k（模型上下文长度）" list="manualContextLengthList" autocomplete="off">'
+            + '<label>上下文长度</label>'
+            + '<input type="text" id="manualModelTokens" inputmode="numeric" placeholder="1m（模型上下文长度）" list="manualContextLengthList" autocomplete="off">'
             + '<datalist id="manualContextLengthList">'
             + '<option value="128k">'
             + '<option value="256k">'
@@ -350,7 +355,7 @@
         $btn.prop('disabled', true).html('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>');
 
         $.ajax({
-            url: '/web/settings/providers/fetch',
+            url: '/web/settings/llm/providers/fetch',
             method: 'POST',
             data: {
                 apiUrl: apiUrl,
@@ -449,6 +454,8 @@
         $modelsList.show();
 
         var providerName = $('#providerName').val() || '';
+        var providerStandard = $('#providerStandard').val();
+        var providerStandardAbbr = getStandardAbbr(providerStandard) || 'F';
         var providerEnabled = $('#providerEnabled').val() === 'true' || currentProvider && currentProvider.enabled !== false;
         var html = '';
         fetchedModels.forEach(function (model) {
@@ -464,6 +471,7 @@
                 ? '<button class="provider-model-remove-btn" title="移除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
                 : '';
             html += '<div class="provider-model-item' + (!enabled ? ' disabled' : '') + '" data-model-id="' + model.id + '">' +
+                '<div class="provider-model-icon">' + providerStandardAbbr + '</div>' +
                 '<div class="provider-model-info">' +
                     '<div class="provider-model-name">' + model.id + manualTag + (isSynced ? ' <span class="provider-model-synced">已同步</span>' : '') + '</div>' +
                 '</div>' +
@@ -504,7 +512,7 @@
     // ==================== CRUD 操作 ====================
     function editProvider(name) {
         $.ajax({
-            url: '/web/settings/providers/get',
+            url: '/web/settings/llm/providers/get',
             method: 'GET',
             data: { name: name },
             success: function (res) {
@@ -570,7 +578,7 @@
             data.originalName = currentProvider.name;
         }
 
-        var url = currentProvider ? '/web/settings/providers/update' : '/web/settings/providers/add';
+        var url = currentProvider ? '/web/settings/llm/providers/update' : '/web/settings/llm/providers/add';
 
         $.ajax({
             url: url,
@@ -596,7 +604,7 @@
     function syncModelsToLlm(providerData) {
         // 调用后端接口同步模型
         $.ajax({
-            url: '/web/settings/providers/sync-models',
+            url: '/web/settings/llm/providers/sync-models',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({
@@ -628,7 +636,7 @@
         }, function (index) {
             layui.layer.close(index);
             $.ajax({
-                url: '/web/settings/providers/remove',
+                url: '/web/settings/llm/providers/remove',
                 method: 'POST',
                 data: { name: currentProvider.name },
                 success: function (res) {
@@ -656,7 +664,7 @@
 
     function toggleProvider(name, enabled) {
         $.ajax({
-            url: '/web/settings/providers/toggle',
+            url: '/web/settings/llm/providers/toggle',
             method: 'POST',
             data: { name: name, enabled: enabled },
             success: function (res) {

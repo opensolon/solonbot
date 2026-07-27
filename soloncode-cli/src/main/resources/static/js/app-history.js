@@ -80,11 +80,32 @@ function ensureChatInHistory(sessionId, firstMsg, makeCurrent) {
 }
 
 /* Sidebar event delegation — single listener instead of per-item binding */
+function closeSidebarItemMenus() {
+    $(historyList).find('.sidebar-item-menu-wrap.open').removeClass('open');
+    $(historyList).find('.sidebar-item.menu-open').removeClass('menu-open');
+    $(historyList).find('.sidebar-item-menu-trigger').attr('aria-expanded', 'false');
+}
+
 $(historyList).on('click', function(e) {
     var $target = $(e.target);
+    var $menuTrigger = $target.closest('.sidebar-item-menu-trigger');
+    if ($menuTrigger.length) {
+        e.stopPropagation();
+        var $wrap = $menuTrigger.closest('.sidebar-item-menu-wrap');
+        var $item = $wrap.closest('.sidebar-item');
+        var shouldOpen = !$wrap.hasClass('open');
+        closeSidebarItemMenus();
+        if (shouldOpen) {
+            $wrap.addClass('open');
+            $item.addClass('menu-open');
+            $menuTrigger.attr('aria-expanded', 'true');
+        }
+        return;
+    }
     var $delBtn = $target.closest('.sidebar-item-del');
     if ($delBtn.length) {
         e.stopPropagation();
+        closeSidebarItemMenus();
         var idx = parseInt($delBtn.closest('.sidebar-item').attr('data-idx'));
         if (!isNaN(idx)) deleteSession(idx);
         return;
@@ -92,6 +113,7 @@ $(historyList).on('click', function(e) {
     var $renameBtn = $target.closest('.sidebar-item-rename');
     if ($renameBtn.length) {
         e.stopPropagation();
+        closeSidebarItemMenus();
         var idx = parseInt($renameBtn.closest('.sidebar-item').attr('data-idx'));
         if (!isNaN(idx)) startRename(idx);
         return;
@@ -99,6 +121,7 @@ $(historyList).on('click', function(e) {
     var $forkBtn = $target.closest('.sidebar-item-fork');
     if ($forkBtn.length) {
         e.stopPropagation();
+        closeSidebarItemMenus();
         var idx = parseInt($forkBtn.closest('.sidebar-item').attr('data-idx'));
         if (!isNaN(idx)) forkSession(idx);
         return;
@@ -108,6 +131,10 @@ $(historyList).on('click', function(e) {
         var idx = parseInt($item.attr('data-idx'));
         if (!isNaN(idx)) selectSession(idx);
     }
+});
+
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('.sidebar-item-menu-wrap').length) closeSidebarItemMenus();
 });
 
 var _updateHistoryUIPending = false;
@@ -133,10 +160,15 @@ function updateHistoryUI() {
             if (streaming) {
                 html += '<span class="sidebar-item-spinner" title="对话进行中..."></span>';
             }
-            html += '<button class="sidebar-item-rename" title="重命名"><i class="layui-icon layui-icon-edit"></i></button>'
-                + '<button class="sidebar-item-fork" title="复制对话"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.25 2.25 0 1 1-1.5 0v-2.128h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"/></svg></button>'
-                + '<button class="sidebar-item-del" title="删除对话"><i class="layui-icon layui-icon-close"></i></button>'
-                + '</div>';
+            html += '<span class="sidebar-item-menu-wrap">'
+                + '<button type="button" class="sidebar-item-menu-trigger" title="对话操作" aria-label="对话操作" aria-expanded="false">'
+                + '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="19" cy="12" r="1.25"/></svg>'
+                + '</button>'
+                + '<span class="sidebar-item-menu" role="menu">'
+                + '<button type="button" class="sidebar-item-rename" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>重命名</span></button>'
+                + '<button type="button" class="sidebar-item-fork" role="menuitem"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.25 2.25 0 1 1-1.5 0v-2.128h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 0 1.5Z"/></svg><span>复制对话</span></button>'
+                + '<button type="button" class="sidebar-item-del" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>删除</span></button>'
+                + '</span></span></div>';
         }
         var $list = $(historyList);
         // 仅当 HTML 真正变化时才写入 DOM，避免无效重排
@@ -161,7 +193,7 @@ function startRename(idx) {
     });
 
     $labelEl.hide();
-    $item.find('.sidebar-item-rename').hide();
+    $item.find('.sidebar-item-menu-wrap').hide();
     $labelEl.before($input);
     $input[0].focus();
     $input[0].select();
@@ -179,7 +211,7 @@ function startRename(idx) {
         }
         $input.remove();
         $labelEl.show();
-        $item.find('.sidebar-item-rename').show();
+        $item.find('.sidebar-item-menu-wrap').show();
         updateHistoryUI();
     }
 
@@ -279,6 +311,10 @@ function deleteSession(idx) {
 }
 
 function selectSession(idx) {
+    // 先关闭中间区域可能存在的覆盖层（记忆面板 / git diff / 详情），
+    // 必须放在早退守卫之前：否则点击"当前会话"时会因 idx===currentChatIndex 提前 return，
+    // 覆盖层无法关闭，视图卡在记忆/详情面板上。
+    if (typeof closeCenterViewer === 'function') closeCenterViewer();
     if (idx === currentChatIndex && inChatMode) return;
     var entry = chatHistory[idx];
     if (!entry) return;
@@ -286,7 +322,6 @@ function selectSession(idx) {
     currentChatIndex = idx;
     SESSION_ID = entry.sessionId;
     rememberActiveSession(entry.sessionId);
-    if (typeof closeDiffViewer === 'function') closeDiffViewer();
     if (!inChatMode) switchToChatMode();
     setActiveSession(entry.sessionId);
     updateHistoryUI();
@@ -381,9 +416,11 @@ function loadCommands() {
         try {
             commandList = resp.data || [];
             commandsLoaded = true;
+            if (typeof renderAgentUI === 'function') renderAgentUI();
         } catch (e) {}
     });
 }
+window.reloadCommandHints = loadCommands;
 
 // hints 非首屏必需，空闲时再拉，减少启动并发
 if (window.requestIdleCallback) {
@@ -413,7 +450,11 @@ function closeAllToolbarPanels() {
     // 循环任务面板
     $('#chatLoopPanel, #welcomeLoopPanel').hide();
     // 模型下拉
-    $('#chatModelDropdown, #welcomeModelDropdown').removeClass('show');
+    $('#chatModelSelector, #welcomeModelSelector').removeClass('open');
+    // 子代理下拉
+    $('#chatAgentSelector, #welcomeAgentSelector').removeClass('open');
+    // 更多菜单
+    $('#chatMoreMenu, #welcomeMoreMenu').removeClass('open');
 }
 window.closeAllToolbarPanels = closeAllToolbarPanels;
 
@@ -620,7 +661,7 @@ function handleInputForCommands(e) {
     }
 }
 
-// History button handler (toolbar)
+// History button handler (toolbar / more menu)
 $('#chatHistoryBtn').on('click', function(e) {
     e.stopPropagation();
     if ($chatHistoryPanel.hasClass('show')) {
@@ -647,23 +688,17 @@ function triggerCmdComplete(inputEl, completeEl, prefix) {
     inputEl.focus();
     showCmdComplete(inputEl, completeEl, prefix);
 }
-$('#welcomeCmdBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '/');
+$('#welcomeCmdBtn, #chatCmdBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '/');
 });
-$('#chatCmdBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '/');
+$('#welcomeAgentBtn, #chatAgentBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '@');
 });
-$('#welcomeAgentBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '@');
-});
-$('#chatAgentBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '@');
-});
-$('#welcomeSkillBtn').on('click', function() {
-    triggerCmdComplete(welcomeInput, $welcomeCmdComplete[0], '$');
-});
-$('#chatSkillBtn').on('click', function() {
-    triggerCmdComplete(chatInput, $chatCmdComplete[0], '$');
+$('#welcomeSkillBtn, #chatSkillBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('welcome') === 0;
+    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '$');
 });
 
 $(welcomeInput).on('input', handleInputForCommands);
@@ -673,13 +708,30 @@ $(chatInput).on('input', handleInputForCommands);
 $(document).on('compositionstart', function() { composing = true; });
 $(document).on('compositionend', function() { composing = false; });
 
+// 在 textarea 光标处插入文本的辅助函数
+function insertAtCursor(textarea, text) {
+    var start = textarea.selectionStart;
+    var end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    $(textarea).trigger('input');
+}
+
 // Keyboard navigation for command completion
 $(welcomeInput).on('keydown', function(e) {
     // 输入法正在组合中（如拼音选词），不触发发送
     if (isInputComposing(e)) return;
     var handled = navigateCmdComplete(e, welcomeInput, $welcomeCmdComplete[0]);
     if (handled) return;
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); }
+    // 输入框为空 + 左/右键 → 切换循环任务面板
+    if (!welcomeInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (typeof window.toggleLoopPanel === 'function') window.toggleLoopPanel();
+        return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); return; }
+    // Alt+Enter (macOS: Option+Enter) 换行
+    if (e.key === 'Enter' && e.altKey) { e.preventDefault(); insertAtCursor(welcomeInput, '\n'); }
 });
 $(chatInput).on('keydown', function(e) {
     // 输入法正在组合中（如拼音选词），不触发发送
@@ -706,7 +758,15 @@ $(chatInput).on('keydown', function(e) {
         showHistoryPanel();
         return;
     }
-    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); }
+    // 输入框为空 + 左/右键 → 切换循环任务面板
+    if (!chatInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        if (typeof window.toggleLoopPanel === 'function') window.toggleLoopPanel();
+        return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); return; }
+    // Alt+Enter (macOS: Option+Enter) 换行
+    if (e.key === 'Enter' && e.altKey) { e.preventDefault(); insertAtCursor(chatInput, '\n'); }
 });
 
 // Click on completion item
@@ -730,7 +790,7 @@ $chatCmdComplete.on('click', function(e) {
 // Hide on outside click
 $(document).on('click', function(e) {
     var $target = $(e.target);
-    if (!$target.closest('.cmd-complete').length && !$target.closest('.history-panel').length && !$target.closest('textarea').length && !$target.closest('#welcomeCmdBtn').length && !$target.closest('#welcomeAgentBtn').length && !$target.closest('#chatCmdBtn').length && !$target.closest('#chatAgentBtn').length && !$target.closest('#welcomeSkillBtn').length && !$target.closest('#chatSkillBtn').length && !$target.closest('#chatHistoryBtn').length) {
+    if (!$target.closest('.cmd-complete, .history-panel, textarea, .more-menu, .more-menu-btn').length) {
         hideCmdComplete();
         hideHistoryPanel();
     }
@@ -989,7 +1049,8 @@ function getCurrentModelMeta() {
 
     function parseModelItem(raw) {
     return {
-        name: raw.name || raw.model,
+        name: raw.name,
+        model: raw.model,
         desc: raw.description,
         contextLength: raw.contextLength || 0,
         standard: raw.standard || '',
@@ -1019,6 +1080,14 @@ function getCurrentModelMeta() {
                 sessionReasoningMap['_default'] = effort;
             }
 
+            // 加载子代理选择状态（与模型相同的会话绑定机制）
+            var selectedAgent = data.selectedAgent || '';
+            if (sessionId) {
+                sessionAgentMap[sessionId] = selectedAgent;
+            } else {
+                sessionAgentMap['_default'] = selectedAgent;
+            }
+
             // Only parse list once (it's the same for all sessions)
             if (!modelsLoaded) {
                 modelList = [];
@@ -1030,6 +1099,7 @@ function getCurrentModelMeta() {
             }
 
             renderModelUI();
+            renderAgentUI();
             if (callback) callback();
         } catch (e) {
             console.error('Failed to parse models:', e);
@@ -1042,31 +1112,38 @@ function getCurrentModelMeta() {
     loadModels(activeSessionId || null, callback);
             }
 
-        // Refresh model UI for a specific session using local cache (no network request)
+        // Refresh model & agent UI for a specific session using local cache (no network request)
             function refreshSessionModel(sessionId) {
     if (!sessionId) return;
-    // If we haven't seen this session's model yet, fetch it from backend
-    if (!sessionModelMap[sessionId]) {
+    // model 用 falsy 判断（默认模型始终非空）；agent 用 !== undefined 判断（空串表示 main，是有效缓存值）
+    var modelCached = !!sessionModelMap[sessionId];
+    var agentCached = sessionAgentMap[sessionId] !== undefined;
+    if (!modelCached || !agentCached) {
         var url = '/web/chat/models?sessionId=' + encodeURIComponent(sessionId);
         $.get(url, function(resp) {
             try {
                 var data = resp.data || {};
-                sessionModelMap[sessionId] = data.selected || '';
-                sessionReasoningMap[sessionId] = data.reasoningEffort || '';
+                if (!modelCached) {
+                    sessionModelMap[sessionId] = data.selected || '';
+                    sessionReasoningMap[sessionId] = data.reasoningEffort || '';
+                }
+                if (!agentCached) {
+                    sessionAgentMap[sessionId] = data.selectedAgent || '';
+                }
                 renderModelUI();
+                renderAgentUI();
             } catch (e) {}
         });
     } else {
         // Already cached — just re-render UI
         renderModelUI();
+        renderAgentUI();
     }
                 }
 
 function buildTriggerLabel(modelName, effort, showDepth) {
     var parts = [];
-    var displayName = modelName
-        ? (modelName.length > 18 ? modelName.substring(0, 18) + '...' : modelName)
-        : '默认模型';
+    var displayName = modelName ? modelName : '默认模型';
     parts.push(displayName);
     // 支持推理强度调节时始终展示档位，auto 显示英文词以便发现
     if (showDepth) {
@@ -1119,6 +1196,17 @@ function renderModelUI() {
     $('#chatModelCurrent').attr('title', title);
     $('#welcomeModelCurrent').attr('title', title);
 
+    function buildDescLine(m) {
+        var standard = m.standard || 'openai';
+        var hasDesc = !!(m.desc);
+        var parts = [];
+        if (hasDesc) {
+            parts.push(escapeHtml(m.desc));
+        }
+        parts.push('<span class="model-item-standard">[' + escapeHtml(standard) + ']</span>');
+        return '<span class="model-item-desc">' + parts.join(' ') + '</span>';
+    }
+
     var html = '';
     for (var i = 0; i < modelList.length; i++) {
         var m = modelList[i];
@@ -1126,7 +1214,7 @@ function renderModelUI() {
         var ctxLen = m.contextLength ? (m.contextLength >= 1000000 && m.contextLength % 1000000 === 0 ? (m.contextLength / 1000000) + 'm' : (m.contextLength >= 1000 ? (m.contextLength / 1000) + 'k' : m.contextLength)) : '';
         html += '<div class="model-dropdown-item' + cls + '" data-model="' + escapeHtml(m.name) + '">'
             + '<span class="model-item-name">' + escapeHtml(m.name) + (ctxLen ? '<span class="model-item-ctx">' + ctxLen + '</span>' : '') + '</span>'
-            + (m.desc ? '<span class="model-item-desc">' + escapeHtml(m.desc) + '</span>' : '')
+            + buildDescLine(m)
             + '</div>';
     }
     $chatDropdown.find('.model-dropdown-items').html(html);
@@ -1171,6 +1259,12 @@ function postModelSelect(payload) {
         console.error('Failed to select model options on server:', err);
     });
     }
+
+function postAgentSelect(payload) {
+    return $.post('/web/chat/agents/select', payload).fail(function(err) {
+        console.error('Failed to select agent on server:', err);
+    });
+}
 
         function selectModel(modelName) {
     var sid = getSessionKey();
@@ -1224,12 +1318,10 @@ function selectReasoning(effort) {
 
     $current.on('click', function(e) {
         e.stopPropagation();
-        // Close all other selectors
-        $('.model-selector.open').each(function() {
-            if (this.id !== selectorId) $(this).removeClass('open');
-        });
-        $selector.toggleClass('open');
-        if ($selector.hasClass('open')) {
+        var opening = !$selector.hasClass('open');
+        closeAllToolbarPanels();
+        $selector.toggleClass('open', opening);
+        if (opening) {
             requestAnimationFrame(function() {
                 var activeItem = $dropdown.find('.model-dropdown-items .model-dropdown-item.active').get(0);
                 if (activeItem) {
@@ -1298,3 +1390,84 @@ function initModelSearch(dropdownId) {
 
         // Initial load (no specific session, get default selected)
 loadModels(null);
+
+/* ===== Agent Selector ===== */
+var sessionAgentMap = {}; // { sessionId: selectedAgentName }, 空值表示 main
+
+function getSelectedAgent() {
+    var sid = getSessionKey();
+    if (sessionAgentMap[sid] !== undefined) return sessionAgentMap[sid] || '';
+    return sessionAgentMap['_default'] || '';
+}
+window.getSelectedAgent = getSelectedAgent;
+
+function renderAgentUI() {
+    var selected = getSelectedAgent();
+    var label = selected || 'main';
+    $('#chatAgentName, #welcomeAgentName').text(label);
+    $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? ('子代理: ' + selected) : '使用主代理 main');
+    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">主代理（工具权限最多，可以调度子代理）</span></button>';
+    for (var i = 0; i < commandList.length; i++) {
+        var item = commandList[i];
+        if (item.type !== 'subagent') continue;
+        html += '<button type="button" class="agent-dropdown-item' + (item.name === selected ? ' active' : '') + '" data-agent="' + escapeHtml(item.name) + '"><span class="agent-item-name">' + escapeHtml(item.name) + '</span><span class="agent-item-desc">' + escapeHtml(item.description || '') + '</span></button>';
+    }
+    $('#chatAgentDropdown, #welcomeAgentDropdown').html(html);
+}
+
+function selectAgent(agentName) {
+    var sid = getSessionKey();
+    sessionAgentMap[sid] = agentName || '';
+    renderAgentUI();
+    // 选择时调后端记住（与模型选择器保持一致）
+    postAgentSelect({ sessionId: sid, agentName: agentName || '' });
+}
+
+function initAgentSelector(selectorId, currentId, dropdownId) {
+    var $selector = $('#' + selectorId);
+    var $current = $('#' + currentId);
+    var $dropdown = $('#' + dropdownId);
+    $current.on('click', function(e) {
+        e.stopPropagation();
+        var opening = !$selector.hasClass('open');
+        closeAllToolbarPanels();
+        $selector.toggleClass('open', opening);
+        $current.attr('aria-expanded', opening ? 'true' : 'false');
+    });
+    $dropdown.on('click', '.agent-dropdown-item', function(e) {
+        e.stopPropagation();
+        selectAgent($(this).attr('data-agent') || '');
+        $selector.removeClass('open');
+        $current.attr('aria-expanded', 'false');
+    });
+}
+initAgentSelector('chatAgentSelector', 'chatAgentCurrent', 'chatAgentDropdown');
+initAgentSelector('welcomeAgentSelector', 'welcomeAgentCurrent', 'welcomeAgentDropdown');
+
+/* ===== More Menu ===== */
+function initMoreMenu(menuId, buttonId) {
+    var $menu = $('#' + menuId);
+    var $button = $('#' + buttonId);
+    $button.on('click', function(e) {
+        e.stopPropagation();
+        var opening = !$menu.hasClass('open');
+        closeAllToolbarPanels();
+        $menu.toggleClass('open', opening);
+        $button.attr('aria-expanded', opening ? 'true' : 'false');
+    });
+    $menu.find('.more-menu-dropdown').on('click', 'button', function() {
+        $menu.removeClass('open');
+        $button.attr('aria-expanded', 'false');
+    });
+}
+initMoreMenu('chatMoreMenu', 'chatMoreBtn');
+initMoreMenu('welcomeMoreMenu', 'welcomeMoreBtn');
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape') closeAllToolbarPanels();
+});
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('.agent-selector, .more-menu').length) {
+        $('#chatAgentSelector, #welcomeAgentSelector, #chatMoreMenu, #welcomeMoreMenu').removeClass('open');
+        $('#chatAgentCurrent, #welcomeAgentCurrent, #chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
+    }
+});

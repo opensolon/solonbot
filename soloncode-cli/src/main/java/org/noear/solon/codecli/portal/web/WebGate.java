@@ -263,7 +263,7 @@ public class WebGate extends SimpleWebSocketListener {
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source) {
         onChatInput(sessionId, sessionCwd, input, selectedModel, attachments, attachmentTypes,
-                hitlAction, source, null);
+                hitlAction, source, null, null);
     }
 
     /**
@@ -287,13 +287,14 @@ public class WebGate extends SimpleWebSocketListener {
      * @param hitlAction      HITL 操作类型，取值 "approve" 或 "reject"（可为 null）
      * @param source          消息来源通道标识
      * @param reasoningEffort 请求级推理水平（可选，写入会话后由 StreamBuilder 注入）
+     * @param selectedAgent   选择器指定的子代理（可选；空值时使用主 Agent）
      */
     public void onChatInput(String sessionId,
                             String sessionCwd,
                             String input, String selectedModel,
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source,
-                            String reasoningEffort) {
+                            String reasoningEffort, String selectedAgent) {
         AgentSession session = null;
         try {
             session = engine.getSession(sessionId);
@@ -302,6 +303,9 @@ public class WebGate extends SimpleWebSocketListener {
             if (Assert.isNotEmpty(selectedModel)) {
                 session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, selectedModel);
             }
+            // 写入会话级子代理选择（与模型一样的持久化逻辑）
+            session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED,
+                selectedAgent != null ? selectedAgent : "");
             boolean effortProvided = reasoningEffort != null;
             ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
 
@@ -311,12 +315,18 @@ public class WebGate extends SimpleWebSocketListener {
             if (currentInput != null && currentInput.startsWith("@")) {
                 int agentNameIdx = currentInput.indexOf(" ");
                 if (agentNameIdx > 0) {
-                    agentName = currentInput.substring(1, agentNameIdx);
-
-                    if (engine.getAgentManager().hasAgent(agentName)) {
+                    String explicitAgent = currentInput.substring(1, agentNameIdx);
+                    if (engine.getAgentManager().hasAgent(explicitAgent)) {
+                        agentName = explicitAgent;
                         currentInput = currentInput.substring(agentNameIdx + 1);
                     }
                 }
+            }
+
+            // 输入开头的有效 @子代理 优先；否则使用选择器传入的有效子代理；都没有时使用主 Agent。
+            if (agentName == null && Assert.isNotEmpty(selectedAgent)
+                    && engine.getAgentManager().hasAgent(selectedAgent)) {
+                agentName = selectedAgent;
             }
 
 
@@ -674,13 +684,14 @@ public class WebGate extends SimpleWebSocketListener {
      * 安全聊天输入入口。
      *
      * <p>在调用 {@link #onChatInput} 之前先检查会话是否繁忙（有 AI 任务正在执行），
-     * 若繁忙则跳过本次输入并记录警告日志。用于微信回调等需要避免并发冲突的场景。</p>
+     * 若繁忙则跳过本次输入并记录警告日志。用于 IM 回调等需要避免并发冲突的场景。</p>
      *
      * @param sessionId 会话标识
      * @param input     用户输入文本
-     * @param source    调用来源标识（用于日志记录，如 "WeChat"），同时用于标记消息来源通道
+     * @param source    调用来源标识（用于日志记录，如 "Feishu"），同时用于标记消息来源通道
+     * @return true 表示输入已接受并进入处理流程；false 表示会话繁忙已跳过
      */
-    public void safeChatInput(String sessionId, String input, String source) {
+    public boolean safeChatInput(String sessionId, String input, String source) {
         try {
             AgentSession session = engine.getSession(sessionId);
             if (isSessionBusy(session)) {
@@ -691,22 +702,23 @@ public class WebGate extends SimpleWebSocketListener {
                     if ("interrupt".equals(cmdName) || "exit".equals(cmdName)) {
                         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
                         onChatInput(sessionId, null, input, null, null, null, null, source);
-                        return;
+                        return true;
                     }
                 }
 
                 LOG.warn("[WebGate] {} event skipped for session {}: task in progress", source, sessionId);
-                return;
+                return false;
             }
         } catch (Exception e) {
             LOG.warn("[WebGate] {} event check failed for session {}: {}", source, sessionId, e.getMessage());
-            return;
+            return false;
         }
 
         // 先推送用户消息到前端，确保对话记录中显示用户侧消息
         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
 
         onChatInput(sessionId, null, input, null, null, null, null, source);
+        return true;
     }
 
 
@@ -859,7 +871,7 @@ public class WebGate extends SimpleWebSocketListener {
 
             ReActTrace trace = session.getContext().getAs("__main");
             if (trace != null) {
-                emitToClient(sessionId, streamBuilder.onFinalChunk(session, trace, true, "用户已取消任务."));
+                emitToClient(sessionId, streamBuilder.onRunEndChunk(session, trace, true, "用户已取消任务."));
             }
 
             // 2) 同线程先发 done，再 dispose；doFinally 中 emitDoneOnce 因 CAS 跳过
