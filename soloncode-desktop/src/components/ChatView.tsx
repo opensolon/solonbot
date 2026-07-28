@@ -2302,6 +2302,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const currentRunState = currentConversationIdString ? sessionRunStates[currentConversationIdString] : undefined;
   const isCurrentConversationLoading = currentRunState === 'running' || (isLoading && streamingSessionIdRef.current === currentConversationIdString);
   const currentQueue = currentConversationIdString ? (sessionQueues[currentConversationIdString] || []) : [];
+  const showStartWorkEntry = !currentConversationIdString && !workspacePath && !activePromptCreation;
 
   const sendNextQueuedMessage = useCallback(() => {
     const sessionId = currentConversation.id?.toString();
@@ -2517,7 +2518,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           )}
           <ChatTaskList key={currentConversationIdString || 'new'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={showStartWorkEntry} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
         </div>
       ) : (
         <>
@@ -2526,7 +2527,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           )}
           <ChatTaskList key={currentConversationIdString || 'current'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
-          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={!workspacePath && !activePromptCreation} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
+          <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={showStartWorkEntry} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
         </>
       )}
       {/* 搴曢儴鎻愮ず */}
