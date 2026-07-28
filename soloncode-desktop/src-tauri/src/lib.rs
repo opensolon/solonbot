@@ -1199,39 +1199,21 @@ struct DesktopBackendInfo {
 
 /// Read the identity of a backend bound to the desktop-only endpoint.
 fn query_soloncode_desktop_backend(port: u16) -> Option<DesktopBackendInfo> {
-    let addr = format!("127.0.0.1:{}", port);
-    let mut stream = match TcpStream::connect(&addr) {
-        Ok(stream) => stream,
-        Err(_) => return None,
-    };
-
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
-    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(2)));
-
-    let req = format!(
-        "GET /desktop/version HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
-        port
-    );
-    if stream.write_all(req.as_bytes()).is_err() {
-        return None;
-    }
-
-    let mut buf = Vec::with_capacity(4096);
-    let mut chunk = [0u8; 1024];
-    while buf.len() < 4096 {
-        match stream.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(n) => buf.extend_from_slice(&chunk[..n]),
-            Err(_) => break,
-        }
-    }
-
-    let resp = String::from_utf8_lossy(&buf);
-    if !resp.starts_with("HTTP/1.1 200") {
-        return None;
-    }
-    let body = resp.split_once("\r\n\r\n")?.1;
-    let json: serde_json::Value = serde_json::from_str(body).ok()?;
+    // Solon may return a chunked response. Use an HTTP client so transfer
+    // encoding is decoded before parsing JSON; treating the raw body as JSON
+    // misidentifies a running SolonCode backend as an unrelated process.
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .ok()?;
+    let json: serde_json::Value = client
+        .get(format!("http://127.0.0.1:{}/desktop/version", port))
+        .send()
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .ok()?;
     if json.get("code").and_then(|value| value.as_i64()) != Some(200) {
         return None;
     }
@@ -1242,6 +1224,37 @@ fn query_soloncode_desktop_backend(port: u16) -> Option<DesktopBackendInfo> {
         workspace: data.get("workspace").and_then(|value| value.as_str()).map(str::to_string),
         desktop_managed: data.get("desktopManaged").and_then(|value| value.as_bool()).unwrap_or(false),
     })
+}
+
+#[cfg(test)]
+mod backend_detection_tests {
+    use super::query_soloncode_desktop_backend;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[test]
+    fn detects_chunked_desktop_version_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request);
+            let body = r#"{"code":200,"data":{"version":"v1","workspace":"C:\\workspace","pid":42,"desktopManaged":false}}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:X}\r\n{}\r\n0\r\n\r\n",
+                body.len(),
+                body,
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let info = query_soloncode_desktop_backend(port).expect("chunked backend should be detected");
+        assert_eq!(info.pid, 42);
+        assert_eq!(info.workspace.as_deref(), Some("C:\\workspace"));
+        assert!(!info.desktop_managed);
+        server.join().unwrap();
+    }
 }
 
 fn is_soloncode_desktop_backend(port: u16) -> bool {

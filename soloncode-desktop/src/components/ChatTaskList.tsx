@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon } from './common/Icon';
 import './ChatTaskList.css';
 
@@ -22,6 +22,7 @@ function getTaskStatusMeta(status: ChatTask['status']) {
 
 export function ChatTaskList({ tasks }: ChatTaskListProps) {
   const [expanded, setExpanded] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const contentId = useId();
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
@@ -32,8 +33,18 @@ export function ChatTaskList({ tasks }: ChatTaskListProps) {
   const completedCount = sortedTasks.filter(task => task.status === 'done').length;
   const inProgressCount = sortedTasks.filter(task => task.status === 'in_progress').length;
   const progress = sortedTasks.length > 0 ? Math.round((completedCount / sortedTasks.length) * 100) : 0;
+  const taskVersion = sortedTasks
+    .map(task => `${task.id}\u001f${task.status}\u001f${task.title}\u001f${task.group || ''}\u001f${task.line || ''}`)
+    .join('\u001e');
+  const previousTaskVersionRef = useRef(taskVersion);
 
-  if (sortedTasks.length === 0) return null;
+  useEffect(() => {
+    if (previousTaskVersionRef.current === taskVersion) return;
+    previousTaskVersionRef.current = taskVersion;
+    setDismissed(false);
+  }, [taskVersion]);
+
+  if (sortedTasks.length === 0 || dismissed) return null;
 
   return (
     <section className={`chat-task-panel${expanded ? ' expanded' : ''}`} aria-label="任务列表">
@@ -61,28 +72,42 @@ export function ChatTaskList({ tasks }: ChatTaskListProps) {
           </ol>
         </div>
       )}
-      <button
-        type="button"
-        className="chat-task-trigger"
-        onClick={() => setExpanded(current => !current)}
-        aria-expanded={expanded}
-        aria-controls={contentId}
-      >
-        <span className="chat-task-trigger-icon" aria-hidden="true">
-          <Icon name="check" size={13} />
-        </span>
-        <span className="chat-task-trigger-main">
-          <span className="chat-task-trigger-title">任务列表</span>
-          <span className="chat-task-trigger-summary">
-            已完成 {completedCount}/{sortedTasks.length}
-            {inProgressCount > 0 && ` · ${inProgressCount} 项进行中`}
+      <div className="chat-task-trigger">
+        <button
+          type="button"
+          className="chat-task-toggle"
+          onClick={() => setExpanded(current => !current)}
+          aria-expanded={expanded}
+          aria-controls={contentId}
+        >
+          <span className="chat-task-trigger-icon" aria-hidden="true">
+            <Icon name="check" size={13} />
           </span>
-        </span>
-        <span className="chat-task-trigger-progress" aria-hidden="true">
-          <span style={{ width: `${progress}%` }} />
-        </span>
-        <Icon name={expanded ? 'chevron-down' : 'chevron-up'} size={14} />
-      </button>
+          <span className="chat-task-trigger-main">
+            <span className="chat-task-trigger-title">任务列表</span>
+            <span className="chat-task-trigger-summary">
+              已完成 {completedCount}/{sortedTasks.length}
+              {inProgressCount > 0 && ` · ${inProgressCount} 项进行中`}
+            </span>
+          </span>
+          <span className="chat-task-trigger-progress" aria-hidden="true">
+            <span style={{ width: `${progress}%` }} />
+          </span>
+          <Icon name={expanded ? 'chevron-down' : 'chevron-up'} size={14} />
+        </button>
+        <button
+          type="button"
+          className="chat-task-close"
+          onClick={() => {
+            setExpanded(false);
+            setDismissed(true);
+          }}
+          title="关闭任务列表"
+          aria-label="关闭任务列表"
+        >
+          <Icon name="close" size={13} />
+        </button>
+      </div>
     </section>
   );
 }

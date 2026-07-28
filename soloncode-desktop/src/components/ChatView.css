@@ -290,6 +290,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.start-work-panel.is-open {
+  z-index: 120;
+}
+
 .start-work-trigger {
   display: inline-flex;
   align-items: center;
@@ -327,6 +331,14 @@
   z-index: 100;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   min-width: 140px;
+}
+
+.start-work-dropdown.open-up {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .start-work-dropdown-item {

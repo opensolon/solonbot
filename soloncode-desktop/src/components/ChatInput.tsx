@@ -15,7 +15,19 @@ import './ChatInput.css';
 /** 开始工作下拉面板 */
 function StartWorkPanel({ onNewProject, onOpenFolder }: { onNewProject?: () => void; onOpenFolder?: () => void }) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<'up' | 'down'>('down');
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const updatePlacement = useCallback((estimatedHeight = 92) => {
+    const panel = ref.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    const menuHeight = dropdownRef.current?.offsetHeight || estimatedHeight;
+    const spaceAbove = Math.max(0, rect.top - 8);
+    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - 8);
+    setPlacement(spaceBelow < menuHeight && spaceAbove > spaceBelow ? 'up' : 'down');
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -26,17 +38,49 @@ function StartWorkPanel({ onNewProject, onOpenFolder }: { onNewProject?: () => v
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => updatePlacement());
+    const handleViewportChange = () => updatePlacement();
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [open, updatePlacement]);
+
+  const toggleOpen = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    updatePlacement();
+    setOpen(true);
+  };
+
   return (
-    <div className="start-work-panel" ref={ref}>
-      <button type="button" className="start-work-trigger" onClick={() => setOpen(prev => !prev)}>
+    <div className={`start-work-panel${open ? ' is-open' : ''}`} ref={ref}>
+      <button
+        type="button"
+        className="start-work-trigger"
+        onClick={toggleOpen}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         <span className="start-work-trigger-left">
           <Icon name="folder" size={14} />
           <span>进入项目工作</span>
         </span>
-        <Icon name="chevron-down" size={12} />
+        <Icon name={open && placement === 'up' ? 'chevron-up' : 'chevron-down'} size={12} />
       </button>
       {open && (
-        <div className="start-work-dropdown">
+        <div
+          ref={dropdownRef}
+          className={`start-work-dropdown open-${placement}`}
+          role="menu"
+        >
           <div className="start-work-dropdown-item" onClick={() => { setOpen(false); onNewProject?.(); }}>
             <Icon name="file" size={14} /> 新建项目
           </div>
