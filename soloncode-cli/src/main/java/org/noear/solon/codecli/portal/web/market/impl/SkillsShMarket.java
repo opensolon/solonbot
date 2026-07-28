@@ -143,7 +143,7 @@ public class SkillsShMarket implements Market {
             // 先查详情获取完整信息
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
-                return Result.failure("技能不存在: " + detailResult.getDescription());
+                return Result.failure(detailResult.getDescription());
             }
 
             MarketDetail detailData = detailResult.getData();

@@ -1,5 +1,9 @@
 /**
- * app-settings-skill.js — 技能市场交互逻辑（所有 API 调用均走后端代理）
+ * app-settings-skill.js — 「技能」页交互逻辑（所有 API 调用均走后端代理）
+ *
+ * 两个子视图：
+ *   已安装  — 按 SKILLS 挂载分组列出本地技能包，支持升级、删除、打开目录
+ *   技能市场 — 浏览/搜索/安装远程技能包
  *
  * 依赖：layui.js（jQuery）、app-base.js、app-settings.js（escapeHtml/escapeAttr 全局共享）
  * 协同：app-history.js（commandList / loadCommands）
@@ -9,6 +13,10 @@
  *   GET  /web/settings/skills/proxy?action=trending       — 热门技能列表
  *   GET  /web/settings/skills/proxy?action=search&q=xxx   — 搜索技能
  *   POST /web/settings/skills/install  {slug, marketName, mountAlias}  — 安装技能
+ *   GET  /web/settings/mounts                             — 挂载列表
+ *   GET  /web/settings/mounts/content?alias=&type=SKILLS  — 挂载内技能包列表
+ *   POST /web/settings/mounts/skills/remove {alias, skillName} — 删除技能包
+ *   GET  /web/settings/mounts/open?path=                  — 打开本地目录
  */
 
 (function () {
@@ -28,6 +36,18 @@
     var $skillsError = $('#skillsError');
     var $skillsStatus = $('#skillsStatus');
 
+    var $skillsViewToggle = $('#skillsViewToggle');
+    var $skillsViewInstalled = $('#skillsViewInstalled');
+    var $skillsViewMarket = $('#skillsViewMarket');
+    var $skillsInstalledCount = $('#skillsInstalledCount');
+    var $skillsInstalledList = $('#skillsInstalledList');
+    var $skillsInstalledStatus = $('#skillsInstalledStatus');
+    var $skillsInstalledLoading = $('#skillsInstalledLoading');
+    var $skillsInstalledError = $('#skillsInstalledError');
+    var $skillsMountFilter = $('#skillsMountFilter');
+    var $skillsInstalledFilter = $('#skillsInstalledFilter');
+    var $skillsInstalledFilterClear = $('#skillsInstalledFilterClear');
+
     // ==================== 状态 ====================
 
     var _installedSkillsCache = null;
@@ -35,18 +55,37 @@
     var _currentMarketName = '';  // 当前选中的市场名称
     var _mountPoolsCache = null;  // SKILLS 类型挂载缓存 [{alias, path}, ...]
 
+    var _currentView = 'installed';   // 当前子视图：installed | market
+    var _marketLoaded = false;        // 市场列表是否已拉取（懒加载）
+    var _installedDirty = true;       // 已安装列表是否需要重载
+    var _installedGroups = [];        // [{alias, skills:[{name, description, realPath}]}]
+
+    // 分页：已安装技能列表（防止大量技能导致 DOM 暴炸）
+    var _installedPage = 1;           // 当前页码
+    var _installedPageSize = 50;      // 每页渲染条数
+    var _installedFilteredGroups = null;  // 过滤后的分组缓存（用于分页追加渲染）
+    var _installedKeyword = '';           // 当前搜索关键词（供分页函数跨作用域访问）
+
+    // ==================== SVG 图标常量（消除重复硬编码） ====================
+
+    var SVG_REFRESH  = '<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+    var SVG_DOWNLOAD = '<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    var SVG_SPIN_REFRESH  = '<svg class="skill-install-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+    var SVG_SPIN_DOWNLOAD  = '<svg class="skill-install-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    var SVG_REFRESH_SM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+    var SVG_DELETE_SM  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
     // ==================== 工具函数 ====================
 
-    /** HTML 转义（与 app-settings.js 共享同一个闭包作用域不可用，自备一份） */
-    function escapeHtml(str) {
+    /** 使用全局共享的转义函数（app-settings.js 通过 window._settingsCore 暴露） */
+    var escapeHtml = (window._settingsCore && window._settingsCore.escapeHtml) || function (str) {
         if (!str) return '';
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function escapeAttr(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    var escapeAttr = (window._settingsCore && window._settingsCore.escapeAttr) || function (str) {
         if (!str) return '';
-        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
 
     // ==================== 挂载预加载 ====================
 
@@ -69,11 +108,12 @@
                 return { alias: p.alias || '', path: p.path || '' };
             });
             if (!_mountPoolsCache.length) {
-                _mountPoolsCache = [{ alias: '@skills', path: '' }];
+                // 兵底项仅供市场“安装到”下拉使用，已安装视图不能拿它去请求内容
+                _mountPoolsCache = [{ alias: '@skills', path: '', fallback: true }];
             }
             callback(_mountPoolsCache);
         }).fail(function () {
-            _mountPoolsCache = [{ alias: '@skills', path: '' }];
+            _mountPoolsCache = [{ alias: '@skills', path: '', fallback: true }];
             callback(_mountPoolsCache);
         });
     }
@@ -134,6 +174,391 @@
             callback(_installedSkillsCache);
         });
     }
+
+    // ==================== 子视图切换 ====================
+
+    function switchView(view) {
+        _currentView = (view === 'market') ? 'market' : 'installed';
+        $skillsViewToggle.find('.mcp-type-btn').removeClass('active')
+            .filter('[data-view="' + _currentView + '"]').addClass('active');
+
+        if (_currentView === 'market') {
+            $skillsViewInstalled.hide();
+            $skillsViewMarket.show();
+            if (!_marketLoaded) {
+                _marketLoaded = true;
+                loadMarketOptions();
+                loadSkillsList(null);
+            }
+        } else {
+            $skillsViewMarket.hide();
+            $skillsViewInstalled.show();
+            if (_installedDirty) loadInstalledSkills();
+        }
+    }
+
+    // ==================== 已安装：数据加载 ====================
+
+    /** 填充挂载筛选下拉框 */
+    function fillMountFilter(pools) {
+        var prev = $skillsMountFilter.val() || '';
+        var html = '<option value="">全部挂载</option>';
+        pools.forEach(function (p) {
+            html += '<option value="' + escapeAttr(p.alias) + '">' + escapeHtml(p.alias) + '</option>';
+        });
+        $skillsMountFilter.html(html);
+        if (prev) $skillsMountFilter.val(prev);
+    }
+
+    /**
+     * 加载已安装技能：逐个 SKILLS 挂载拉取内容后按挂载分组
+     */
+    function loadInstalledSkills() {
+        $skillsInstalledStatus.show();
+        $skillsInstalledLoading.css('display', 'flex');
+        $skillsInstalledError.hide();
+        $skillsInstalledList.html('');
+
+        loadMountPools(function (allPools) {
+            // 排除兵底占位项（无真实挂载时的占位）
+            var pools = allPools.filter(function (p) { return !p.fallback; });
+            fillMountFilter(pools);
+
+            var selected = $skillsMountFilter.val() || '';
+            var targets = selected
+                ? pools.filter(function (p) { return p.alias === selected; })
+                : pools;
+
+            if (!targets.length) {
+                _installedGroups = [];
+                _installedDirty = false;
+                $skillsInstalledLoading.hide();
+                $skillsInstalledStatus.hide();
+                renderInstalledList();
+                return;
+            }
+
+            var pending = targets.length;
+            var groups = [];
+
+            targets.forEach(function (pool, idx) {
+                $.get('/web/settings/mounts/content', { alias: pool.alias, type: 'SKILLS' })
+                    .done(function (resp) {
+                        var list = (resp && resp.code === 200 && Array.isArray(resp.data)) ? resp.data : [];
+                        groups[idx] = { alias: pool.alias, skills: list };
+                    })
+                    .fail(function () {
+                        groups[idx] = { alias: pool.alias, skills: [], failed: true };
+                    })
+                    .always(function () {
+                        if (--pending > 0) return;
+                        _installedGroups = groups.filter(function (g) { return !!g; });
+                        _installedDirty = false;
+                        $skillsInstalledLoading.hide();
+                        $skillsInstalledStatus.hide();
+                        renderInstalledList();
+                    });
+            });
+        });
+    }
+
+    // ==================== 已安装：渲染 ====================
+
+    /**
+     * 渲染已安装列表（分页渲染，防止大量技能导致 DOM 暴炸）
+     * 首次渲染第 1 页，底部追加「加载更多」按钮按需翻页。
+     * 搜索/筛选/挂载切换时重置页码。
+     */
+    function renderInstalledList() {
+        var keyword = ($skillsInstalledFilter.val() || '').trim().toLowerCase();
+
+        // 过滤出符合条件的分组数据
+        var filteredGroups = [];
+        var total = 0;
+
+        _installedGroups.forEach(function (group) {
+            var skills = group.skills || [];
+            if (keyword) {
+                skills = skills.filter(function (s) {
+                    return ((s.name || '') + ' ' + (s.description || '')).toLowerCase().indexOf(keyword) >= 0;
+                });
+            }
+            if (!skills.length) return;
+            total += skills.length;
+            filteredGroups.push({ alias: group.alias, skills: skills });
+        });
+
+        _installedFilteredGroups = filteredGroups;
+        _installedPage = 1;
+        _installedKeyword = keyword;
+
+        $skillsInstalledCount.text(total > 0 ? total : '');
+
+        if (!total) {
+            var isFiltering = !!keyword;
+            $skillsInstalledList.html(
+                '<div class="skill-empty-state">'
+                + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5">'
+                + '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
+                + '</svg>'
+                + '<div style="font-size:13px;margin-top:12px;">' + (isFiltering ? '没有匹配的技能' : '还没有安装任何技能') + '</div>'
+                + (isFiltering ? '' : '<div style="font-size:12px;margin-top:6px;opacity:.7">技能可以扩展 AI 的能力边界，去市场看看</div>'
+                    + '<button type="button" class="skills-installed-goto-market" style="max-width:200px;margin:16px auto 0">浏览技能市场</button>')
+                + '</div>'
+            );
+            return;
+        }
+
+        // 渲染第 1 页
+        var pageHtml = renderInstalledPageHtml(1);
+        $skillsInstalledList.html(pageHtml);
+
+        // 如果还有更多页，追加「加载更多」按钮
+        appendLoadMoreIfNeeded();
+    }
+
+    /**
+     * 计算指定页码的 HTML 片段
+     */
+    function renderInstalledPageHtml(pageNum) {
+        var start = (pageNum - 1) * _installedPageSize;
+        var end = start + _installedPageSize;
+
+        var html = '';
+        var rendered = 0;
+
+        // 扁平化所有分组中的技能，保留分组边界
+        var flatItems = [];
+        _installedFilteredGroups.forEach(function (group) {
+            group.skills.forEach(function (skill) {
+                flatItems.push({ group: group, skill: skill });
+            });
+        });
+
+        var slice = flatItems.slice(start, end);
+        var currentGroupAlias = null;
+
+        slice.forEach(function (item) {
+            // 遇到新分组时输出分组标题
+            if (item.group.alias !== currentGroupAlias) {
+                currentGroupAlias = item.group.alias;
+                // 计算该分组在当前页的可见数量（近似）
+                html += '<div class="skills-installed-group-title">' + escapeHtml(currentGroupAlias)
+                    + '<span class="skills-installed-group-count">' + item.group.skills.length + ' 个技能包</span></div>';
+            }
+
+            var skill = item.skill;
+            var name = skill.name || '';
+            html += '<div class="mcp-server-item mounts-skill-item" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
+                + '<div class="mcp-server-info">'
+                + '<div class="mcp-server-name">' + escapeHtml(name) + '</div>'
+                + (skill.description ? '<div class="mcp-server-detail">' + escapeHtml(skill.description) + '</div>' : '')
+                + (skill.realPath ? '<div class="mcp-server-detail settings-muted-text">' + escapeHtml(skill.realPath) + '</div>' : '')
+                + '</div><div class="mcp-server-actions">'
+                + '<button class="mcp-action-btn skills-installed-upgrade-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="从市场重新安装（升级）">' + SVG_REFRESH_SM + '</button>'
+                + '<button class="mcp-action-btn delete skills-installed-delete-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="删除技能包">' + SVG_DELETE_SM + '</button>'
+                + '</div></div>';
+            rendered++;
+        });
+
+        if (pageNum === 1 && !_installedKeyword) {
+            // 首页底部保留「去市场」入口
+            var totalItems = flatItems.length;
+            if (end >= totalItems) {
+                html += '<button type="button" class="skills-installed-goto-market">+ 去技能市场逗逗 →</button>';
+            }
+        }
+
+        return html;
+    }
+
+    /**
+     * 如果还有更多未渲染的技能，在列表底部追加「加载更多」按钮
+     */
+    function appendLoadMoreIfNeeded() {
+        if (!_installedFilteredGroups) return;
+        var flatItems = [];
+        _installedFilteredGroups.forEach(function (group) {
+            group.skills.forEach(function (skill) {
+                flatItems.push(skill);
+            });
+        });
+        var totalLoaded = _installedPage * _installedPageSize;
+        if (totalLoaded < flatItems.length) {
+            var remaining = flatItems.length - totalLoaded;
+            var btn = '<div class="skills-load-more-wrap" style="text-align:center;padding:12px;">'
+                + '<button type="button" class="skills-load-more-btn" style="min-width:200px;">'
+                + '加载更多（剩余 ' + remaining + ' 个）'
+                + '</button></div>';
+            $skillsInstalledList.append(btn);
+        } else {
+            // 全部已加载，追加「去市场」入口（如果首页没加过）
+            if (!($skillsInstalledList.find('.skills-installed-goto-market').length)) {
+                $skillsInstalledList.append('<button type="button" class="skills-installed-goto-market">+ 去技能市场逗逗 →</button>');
+            }
+        }
+    }
+
+    // ==================== 已安装：事件 ====================
+
+    $skillsViewToggle.on('click', '.mcp-type-btn', function () {
+        switchView($(this).attr('data-view'));
+    });
+
+    $skillsInstalledList.on('click', '.skills-installed-goto-market', function (e) {
+        e.stopPropagation();
+        switchView('market');
+    });
+
+    // 加载更多
+    $skillsInstalledList.on('click', '.skills-load-more-btn', function (e) {
+        e.stopPropagation();
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('加载中...');
+        _installedPage++;
+        var moreHtml = renderInstalledPageHtml(_installedPage);
+        $btn.parent('.skills-load-more-wrap').remove();
+        $skillsInstalledList.append(moreHtml);
+        appendLoadMoreIfNeeded();
+    });
+
+    // 挂载筛选
+    $skillsMountFilter.on('change', function () {
+        loadInstalledSkills();
+    });
+
+    // 本地过滤（纯前端，无需重新请求）
+    $skillsInstalledFilter.on('input', function () {
+        var val = $(this).val().trim();
+        $skillsInstalledFilterClear.toggle(val.length > 0);
+        clearTimeout(_skillsSearchTimer);
+        _skillsSearchTimer = setTimeout(renderInstalledList, 120);
+    });
+
+    $skillsInstalledFilterClear.on('click', function () {
+        $skillsInstalledFilter.val('').focus();
+        $(this).hide();
+        renderInstalledList();
+    });
+
+    // 删除技能包
+    $skillsInstalledList.on('click', '.skills-installed-delete-btn', function (e) {
+        e.stopPropagation();
+        var skillName = $(this).attr('data-skill');
+        var alias = $(this).attr('data-alias');
+
+        var doRemove = function () {
+            $.ajax({
+                url: '/web/settings/mounts/skills/remove',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ alias: alias, skillName: skillName }),
+                dataType: 'json'
+            }).done(function (resp) {
+                if (resp && resp.code === 200) {
+                    if (typeof layer !== 'undefined' && layer.msg) {
+                        layer.msg('已删除技能「' + escapeHtml(skillName) + '」', { icon: 1, time: 2000, offset: '120px' });
+                    }
+                    // 市场徒章需重算
+                    _installedSkillsCache = null;
+                    _marketLoaded = false;
+                    if (typeof loadCommands === 'function') loadCommands();
+                    loadInstalledSkills();
+                } else {
+                    var msg = (resp && (resp.description || resp.message)) || '删除失败';
+                    if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: 2, time: 3000, offset: '120px' });
+                }
+            }).fail(function () {
+                if (typeof layer !== 'undefined' && layer.msg) layer.msg('删除失败，请检查网络', { icon: 2, time: 3000, offset: '120px' });
+            });
+        };
+
+        if (typeof layer !== 'undefined' && layer.confirm) {
+            layer.confirm('确定删除技能包 "' + escapeHtml(skillName) + '"？此操作不可恢复。',
+                { title: '确认删除', btn: ['删除', '取消'], icon: 3, offset: '120px' },
+                function (index) { layer.close(index); doRemove(); });
+        } else if (confirm('确定删除技能包 "' + skillName + '"？')) {
+            doRemove();
+        }
+    });
+
+    // 升级（从市场重装到原挂载点）
+    $skillsInstalledList.on('click', '.skills-installed-upgrade-btn', function (e) {
+        e.stopPropagation();
+        var $btn = $(this);
+        if ($btn.hasClass('installing')) return;
+
+        var slug = $btn.attr('data-skill');
+        var alias = $btn.attr('data-alias');
+        var originHtml = $btn.html();
+
+        $btn.addClass('installing').prop('disabled', true).html(SVG_SPIN_REFRESH);
+
+        // 尝试安装：优先用当前选中的市场名，没有则让后端用默认市场
+        var tryInstall = function(marketName) {
+            var postData = { slug: slug, mountAlias: alias };
+            if (marketName) postData.marketName = marketName;
+
+            return $.ajax({
+                url: '/web/settings/skills/install',
+                method: 'POST',
+                data: postData,
+                timeout: 60000,
+                dataType: 'json'
+            });
+        };
+
+        // 先用当前市场尝试，失败则提示用户去市场搜索
+        var marketName = _currentMarketName || '';
+
+        $.when(tryInstall(marketName))
+        .done(function (resp) {
+            if (resp && resp.code === 200 && resp.data) {
+                if (typeof layer !== 'undefined' && layer.msg) {
+                    layer.msg('技能「' + escapeHtml((resp.data || slug) + '') + '」已升级！', { icon: 1, time: 2500, offset: '120px' });
+                }
+                _installedSkillsCache = null;
+                if (typeof loadCommands === 'function') loadCommands();
+                loadInstalledSkills();
+            } else {
+                var msg = (resp && (resp.description || resp.message)) || '升级失败，请稍后重试';
+                // 如果错误提示技能不存在，给用户更友好的引导
+                if (msg.indexOf('技能不存在') >= 0 || msg.indexOf('not found') >= 0) {
+                    msg = '技能「' + slug + '」在当前市场中未找到，可能来自其他市场。请到技能市场搜索并重新安装。';
+                }
+                if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: 2, time: 4000, offset: '120px' });
+                $btn.removeClass('installing').prop('disabled', false).html(originHtml);
+            }
+        })
+        .fail(function (jqXHR) {
+            var msg = '升级失败，请稍后重试';
+            try {
+                var err = JSON.parse(jqXHR.responseText);
+                if (err && (err.description || err.message)) msg = err.description || err.message;
+            } catch (ex) {
+                if (jqXHR.status) msg = '升级失败 (HTTP ' + jqXHR.status + ')';
+            }
+            if (msg.indexOf('技能不存在') >= 0) {
+                msg = '技能「' + slug + '」在当前市场中未找到，可能来自其他市场。请到技能市场搜索并重新安装。';
+            }
+            if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: 2, time: 4000, offset: '120px' });
+            $btn.removeClass('installing').prop('disabled', false).html(originHtml);
+        });
+    });
+
+    // 点击条目 → 打开所在目录
+    $skillsInstalledList.on('click', '.mounts-skill-item', function (e) {
+        if ($(e.target).closest('.mcp-action-btn').length) return;
+        var realPath = $(this).attr('data-real-path') || '';
+        if (!realPath) return;
+        $.get('/web/settings/mounts/open', { path: realPath }, function (resp) {
+            if (resp && resp.code !== 200 && typeof layer !== 'undefined' && layer.msg) {
+                layer.msg(resp.message || '打开目录失败', { icon: 2, time: 3000, offset: '120px' });
+            }
+        }).fail(function () {
+            if (typeof layer !== 'undefined' && layer.msg) layer.msg('打开目录失败', { icon: 2, time: 3000, offset: '120px' });
+        });
+    });
 
     // ==================== 数据加载 ====================
 
@@ -231,7 +656,7 @@
             var stars = skill.stars || (skill.stats && skill.stats.stars) || 0;
             var isInstalled = !!installedMap[name];
             var iconText = displayName ? displayName.substring(0, 2).toUpperCase() : 'SK';
-            var shortDesc = desc && desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
+            var shortDesc = desc && Array.from(desc).length > 60 ? Array.from(desc).slice(0, 60).join('') + '...' : desc;
 
             var skillUrl = skill.url || '';
 
@@ -249,10 +674,10 @@
                 + '<div class="skill-item-actions">'
                     + (isInstalled
                         ? '<div class="skill-install-wrap">'
-                    +   '<button class="skill-install-btn skill-reinstall-btn installed" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '" data-mount-alias="' + escapeAttr(installedMap[name]) + '" title="重新安装（升级）"><svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>'
+                    +   '<button class="skill-install-btn skill-reinstall-btn installed" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '" data-mount-alias="' + escapeAttr(installedMap[name]) + '" title="重新安装（升级）">' + SVG_REFRESH + '</button>'
                     + '</div>'
                         : '<div class="skill-install-wrap">'
-                    +   '<button class="skill-install-btn" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '" title="安装到"><svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
+                    +   '<button class="skill-install-btn" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '" title="安装到">' + SVG_DOWNLOAD + '</button>'
                     +   '<div class="skill-install-dropdown" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '">'
                     +     '<div class="skill-install-dropdown-loading">加载中...</div>'
                     +   '</div>'
@@ -355,7 +780,7 @@
         }
 
         // 开始安装（覆盖升级）
-        $btn.addClass('installing').html('<svg class="skill-install-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>').prop('disabled', true);
+        $btn.addClass('installing').html(SVG_SPIN_REFRESH).prop('disabled', true);
 
         var postData = { slug: slug, mountAlias: mountAlias };
         if (marketUrl) postData.marketName = marketUrl;
@@ -376,11 +801,13 @@
                 } else {
                     alert('技能「' + skillName + '」升级成功！');
                 }
-                $btn.removeClass('installing').html('<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>').prop('disabled', false);
+                $btn.removeClass('installing').html(SVG_REFRESH).prop('disabled', false);
+                _installedSkillsCache = null;  // 市场已安装徽章需重算
+                _installedDirty = true;   // 已安装列表需重载
                 if (typeof loadCommands === 'function') loadCommands();
             } else {
-                var msg = (resp && resp.description) ? resp.description : '升级失败，请稍后重试';
-                $btn.removeClass('installing').html('<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>').prop('disabled', false);
+                var msg = (resp && (resp.description || resp.message)) || '升级失败，请稍后重试';
+                $btn.removeClass('installing').html(SVG_REFRESH).prop('disabled', false);
                 if (typeof layer !== 'undefined' && layer.msg) {
                     layer.msg(msg, {icon: 2, time: 3000, offset: '120px'});
                 } else {
@@ -389,7 +816,7 @@
             }
         })
         .fail(function (jqXHR) {
-            $btn.removeClass('installing').html('<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>').prop('disabled', false);
+            $btn.removeClass('installing').html(SVG_REFRESH).prop('disabled', false);
             var msg = '升级失败，请稍后重试';
             try {
                 var err = JSON.parse(jqXHR.responseText);
@@ -419,7 +846,7 @@
         var $btn = $dropdown.closest('.skill-install-wrap').find('.skill-install-btn');
 
         // 开始安装
-        $btn.addClass('installing').html('<svg class="skill-install-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>').prop('disabled', true);
+        $btn.addClass('installing').html(SVG_SPIN_DOWNLOAD).prop('disabled', true);
         $dropdown.removeClass('active');
 
         var postData = { slug: slug, mountAlias: mountAlias };
@@ -443,7 +870,8 @@
                 }
                 $btn.closest('.skill-install-wrap').remove();
                 if (!_installedSkillsCache) _installedSkillsCache = {};
-                _installedSkillsCache[slug] = true;
+                _installedSkillsCache[slug] = mountAlias || true;
+                _installedDirty = true;   // 已安装列表需重载
                 if (typeof loadCommands === 'function') loadCommands();
                 if (typeof layer !== 'undefined' && layer.msg) {
                     layer.msg('技能「' + escapeHtml(skillName) + '」安装成功！', {icon: 1, time: 2500, offset: '120px'});
@@ -451,8 +879,8 @@
                     alert('技能「' + skillName + '」安装成功！');
                 }
             } else {
-                var msg = (resp && resp.description) ? resp.description : '安装失败，请稍后重试';
-                $btn.removeClass('installing').html('<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>').prop('disabled', false);
+                var msg = (resp && (resp.description || resp.message)) || '安装失败，请稍后重试';
+                $btn.removeClass('installing').html(SVG_DOWNLOAD).prop('disabled', false);
                 if (typeof layer !== 'undefined' && layer.msg) {
                     layer.msg(msg, {icon: 2, time: 3000, offset: '120px'});
                 } else {
@@ -461,7 +889,7 @@
             }
         })
         .fail(function (jqXHR) {
-            $btn.removeClass('installing').html('<svg class="skill-install-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>').prop('disabled', false);
+            $btn.removeClass('installing').html(SVG_DOWNLOAD).prop('disabled', false);
             var msg = '安装失败，请稍后重试';
             try {
                 var err = JSON.parse(jqXHR.responseText);
@@ -491,13 +919,19 @@
         }
     });
 
-    // 搜索输入（按回车键搜索）
+    // 搜索输入（防抖即时搜索 + 回车立即搜索）
+    var _marketSearchTimer = null;
     $skillsSearchInput.on('input', function () {
         var val = $(this).val().trim();
         $skillsSearchClear.toggle(val.length > 0);
+        clearTimeout(_marketSearchTimer);
+        _marketSearchTimer = setTimeout(function () {
+            loadSkillsList(val || null);
+        }, 350);
     }).on('keydown', function (e) {
         if (e.key === 'Enter' && !isInputComposing(e)) {
             e.preventDefault();
+            clearTimeout(_marketSearchTimer);
             var val = $(this).val().trim();
             loadSkillsList(val || null);
         }
@@ -510,17 +944,43 @@
         loadSkillsList(null);
     });
 
+    // 刷新按钮
+    $('#skillsRefreshBtn').on('click', function () {
+        var $btn = $(this);
+        $btn.prop('disabled', true).addClass('is-loading');
+        _installedSkillsCache = null;
+        _mountPoolsCache = null;
+        _marketLoaded = false;
+        _installedDirty = true;
+        _installedGroups = [];
+        switchView(_currentView === 'market' ? 'market' : 'installed');
+        if (_currentView === 'market') {
+            _marketLoaded = true;
+            loadMarketOptions();
+            loadSkillsList(null);
+        } else {
+            loadInstalledSkills();
+        }
+        setTimeout(function () { $btn.prop('disabled', false).removeClass('is-loading'); }, 800);
+    });
+
     // ==================== 暴露给外部调用的接口 ====================
 
     // 供 app-settings.js Tab 切换和面板初始化时调用
     window._skillModule = {
-        /** 重置缓存并加载技能列表 */
+        /**
+         * 重置缓存并加载。默认落在「已安装」子视图，
+         * 市场列表懒加载（首次切过去时才请求外网）。
+         */
         resetAndLoad: function () {
             _installedSkillsCache = null;
             _mountPoolsCache = null;
-            loadMountPools(function(){});
-            loadMarketOptions();
-            loadSkillsList(null);
+            _marketLoaded = false;
+            _installedDirty = true;
+            _installedGroups = [];
+            $skillsInstalledFilter.val('');
+            $skillsInstalledFilterClear.hide();
+            switchView('installed');
         }
     };
 

@@ -176,7 +176,7 @@ public class SkillhubMarket implements Market {
         try {
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
-                return Result.failure("技能不存在: " + detailResult.getDescription());
+                return Result.failure(detailResult.getDescription());
             }
 
             String displayName = detailResult.getData().getDisplayName();

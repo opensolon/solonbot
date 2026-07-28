@@ -148,7 +148,8 @@ public class ClawhubMarket implements Market {
         try {
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
-                return Result.failure("技能不存在: " + detailResult.getDescription());
+                // detail() 已经返回了具体的错误描述，直接透传，不要再次包装
+                return Result.failure(detailResult.getDescription());
             }
 
             String displayName = detailResult.getData().getDisplayName();

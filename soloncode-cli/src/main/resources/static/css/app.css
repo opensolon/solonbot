@@ -2960,7 +2960,8 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-caret { color: var(--text-secondary); width: 12px; height: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
     .mem-caret svg { display: block; transition: transform 0.15s ease; }
     .mem-row.open .mem-caret svg { transform: rotate(90deg); }
-    .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; }
+    .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; display: inline-flex; align-items: center; gap: 2px; }
+    .mem-row-star svg { display: block; flex-shrink: 0; }
     .mem-row-key { flex: 1; font-weight: 400; color: var(--text-primary); word-break: break-all; }
     .mem-row-time { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
     /* 展开体：靠留白与 head 分区，不再画分隔线 */
