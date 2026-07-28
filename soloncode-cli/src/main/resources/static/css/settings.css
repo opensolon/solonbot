@@ -27,7 +27,7 @@
 @keyframes settings-slide-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 
 .settings-content { flex: 1; display: flex; overflow: hidden; }
-.settings-tabs { display: flex; flex-direction: column; border-right: 1px solid var(--border-color); padding: 20px 0; min-width: 180px; background: var(--bg-settings-tabs); border-radius: 16px 0 0 16px; }
+.settings-tabs { display: flex; flex-direction: column; padding: 20px 0; min-width: 180px; background: var(--bg-settings-tabs); border-radius: 16px 0 0 16px; }
 .settings-sidebar-title-row {
     display: flex;
     align-items: center;
@@ -102,7 +102,7 @@
 .settings-muted-text { color: var(--text-secondary); opacity: 0.75; }
 
 /* Backward compatible aliases */
-.llm-model-item, .mcp-server-item { display: flex; align-items: center; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
+.llm-model-item, .mcp-server-item { display: flex; align-items: center; padding: 10px 12px;  border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
 .llm-model-item:hover, .mcp-server-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .llm-model-item:active, .mcp-server-item:active { transform: scale(0.997); }
 .llm-model-icon, .mcp-server-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
@@ -161,7 +161,7 @@
 .llm-fetch-item { padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text-primary); transition: background 0.15s; }
 .llm-fetch-item:hover { background: var(--bg-hover); }
 
-.llm-model-item { display: flex; align-items: center; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; transition: all 0.15s; gap: 10px; }
+.llm-model-item { display: flex; align-items: center; padding: 10px 12px;  border-radius: 10px; margin-bottom: 8px; transition: all 0.15s; gap: 10px; }
 .llm-model-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .llm-model-item:active { transform: scale(0.997); }
 .llm-model-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
@@ -266,7 +266,7 @@
 .mcp-type-btn.active { background: var(--accent); color: #fff; }
 .mcp-type-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
-.mcp-server-item { display: flex; align-items: center; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
+.mcp-server-item { display: flex; align-items: center; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
 .mcp-server-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .mcp-server-item:active { transform: scale(0.997); }
 .mcp-server-item.disabled { opacity: 0.5; }
@@ -556,7 +556,6 @@
     margin-top: 4px;
 }
 .general-card {
-    border: 1px solid var(--border-color);
     border-radius: 12px;
     background: var(--bg-primary);
     transition: border-color 0.2s, box-shadow 0.2s;
