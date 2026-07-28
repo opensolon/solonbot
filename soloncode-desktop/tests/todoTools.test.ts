@@ -3,7 +3,7 @@ import test from 'node:test';
 import { isTodoToolName } from '../src/utils/todoTools.ts';
 
 test('recognizes TodoRead and TodoWrite tool-name variants', () => {
-  for (const name of ['TodoRead', 'todo_read', 'todo-read', 'TODO WRITE', 'todowrite']) {
+  for (const name of ['TodoRead', 'todo_read', 'todo-read', 'TODO WRITE', 'todowrite', 'researcher/TodoWrite']) {
     assert.equal(isTodoToolName(name), true, name);
   }
 });

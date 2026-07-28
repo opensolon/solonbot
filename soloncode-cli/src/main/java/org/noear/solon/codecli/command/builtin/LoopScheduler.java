@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 定时循环任务调度管理器
@@ -64,6 +65,7 @@ public class LoopScheduler {
 
     private volatile List<TaskHandler> taskHandlers = new ArrayList<>();
     private volatile List<BusyChecker> busyCheckers = new ArrayList<>();
+    private final List<GoalListener> goalListeners = new CopyOnWriteArrayList<>();
 
     /**
      * 任务处理者
@@ -79,6 +81,14 @@ public class LoopScheduler {
     @FunctionalInterface
     public interface BusyChecker {
         boolean isBusy(String sessionId);
+    }
+
+    /**
+     * Goal 生命周期观察者。桌面端用它把后台多轮执行持续推回同一个对话流。
+     */
+    @FunctionalInterface
+    public interface GoalListener {
+        void onChanged(String sessionId, LoopTask task, boolean removed);
     }
 
     public LoopScheduler(HarnessEngine engine, AgentSettings agentSettings) {
@@ -104,6 +114,25 @@ public class LoopScheduler {
     public void addBusyChecker(BusyChecker busyChecker) {
         if (busyChecker != null) {
             this.busyCheckers.add(busyChecker);
+        }
+    }
+
+    public void addGoalListener(GoalListener listener) {
+        if (listener != null) {
+            this.goalListeners.add(listener);
+        }
+    }
+
+    private void notifyGoalChanged(String sessionId, LoopTask task, boolean removed) {
+        if (task == null || !task.isGoalMode()) {
+            return;
+        }
+        for (GoalListener listener : goalListeners) {
+            try {
+                listener.onChanged(sessionId, task, removed);
+            } catch (Throwable error) {
+                LOG.debug("Goal listener failed for task '{}': {}", task.getId(), error.getMessage());
+            }
         }
     }
 
@@ -185,6 +214,7 @@ public class LoopScheduler {
 
         if (task.isGoalMode()) {
             installInterruptHandler();
+            notifyGoalChanged(sessionId, task, false);
         }
 
         return task;
@@ -206,6 +236,7 @@ public class LoopScheduler {
 
         tasks.removeIf(t -> t.getId().equals(task.getId()));
         saveToFile(sessionId, tasks);
+        notifyGoalChanged(sessionId, task, true);
     }
 
     // ==================== Goal 生命周期管理 ====================
@@ -222,12 +253,18 @@ public class LoopScheduler {
 
         GoalState gs = task.getGoalState();
         if (!gs.pause()) {
+            if (gs.getStatus() == GoalState.Status.BLOCKED) {
+                disableGoalScheduling(sessionId, task);
+                notifyGoalChanged(sessionId, task, false);
+                return;
+            }
             LOG.warn("pauseGoal: task '{}' cannot be paused (status={})", taskId, gs.getStatus());
             return;
         }
 
         disableGoalScheduling(sessionId, task);
         LOG.info("Goal paused for task '{}'", taskId);
+        notifyGoalChanged(sessionId, task, false);
     }
 
     /**
@@ -249,6 +286,25 @@ public class LoopScheduler {
         registerJob(sessionId, task);
         saveToFile(sessionId, sessionTasks.get(sessionId));
         LOG.info("Goal resumed for task '{}'", taskId);
+        notifyGoalChanged(sessionId, task, false);
+    }
+
+    /** 更新 Goal 目标和预算；调用方应先中断正在执行的旧目标轮次。 */
+    public void updateGoalConfiguration(String sessionId, String taskId, String objective,
+                                        long maxTokens, int maxIterations) {
+        LoopTask task = getTaskById(sessionId, taskId);
+        if (task == null || !task.isGoalMode()) {
+            throw new IllegalArgumentException("Goal not found");
+        }
+        synchronized (task) {
+            task.setPrompt(objective);
+            task.setMaxTokens(maxTokens);
+            GoalState state = task.getGoalState();
+            state.setCondition(objective);
+            state.setMaxIterations(maxIterations);
+        }
+        saveToFile(sessionId, sessionTasks.get(sessionId));
+        notifyGoalChanged(sessionId, task, false);
     }
 
     /**
@@ -517,12 +573,15 @@ public class LoopScheduler {
         /** 目标已达成 */
         ACHIEVED,
         /** 预算耗尽（wrap-up 未达成） */
-        BUDGET_EXCEEDED
+        BUDGET_EXCEEDED,
+        /** 已执行到用户设置的最大轮次 */
+        ITERATION_EXCEEDED
     }
 
     private void onTrigger(String sessionId, LoopTask task) {
         // ① 前置守卫（禁用/过期/取消 → 繁忙 → 预算/状态/最大迭代）
         if (!checkGuardConditions(sessionId, task)) {
+            notifyGoalChanged(sessionId, task, false);
             return;
         }
 
@@ -530,6 +589,8 @@ public class LoopScheduler {
         if (!task.tryStart()) {
             return;
         }
+
+        notifyGoalChanged(sessionId, task, false);
 
         try {
             // ③ 执行一轮（含 prompt 构建、AI 调用、状态评估、持久化）
@@ -544,6 +605,7 @@ public class LoopScheduler {
             handleExecutionError(sessionId, task, e);
         } finally {
             task.finish();
+            notifyGoalChanged(sessionId, task, false);
         }
     }
 
@@ -606,6 +668,15 @@ public class LoopScheduler {
                 return false;
             }
 
+            // 轮次预算。该检查也覆盖服务重启后已达到上限的 Goal。
+            if (gs.isIterationExceeded(task.getCurrentIteration())) {
+                LOG.info("Loop task '{}' goal iteration limit reached ({} >= {})",
+                        task.getId(), task.getCurrentIteration(), gs.getMaxIterations());
+                gs.markIterationLimited();
+                disableGoalScheduling(sessionId, task);
+                return false;
+            }
+
             // 非活跃状态跳过
             if (!gs.getStatus().isActive()) {
                 return false;
@@ -660,6 +731,16 @@ public class LoopScheduler {
             // 完成检测：仅通过 GoalState 状态（由 goal_update(complete) 工具调用设置）
             boolean achieved = gs.getStatus() == GoalState.Status.ACHIEVED;
 
+            // 创建、修改、运行等执行型目标必须至少产生一次成功的非 Goal 工具调用。
+            // 桌面端会记录本轮真实工具证据，防止模型只回复“已完成”便提前结束。
+            if (achieved && requiresActionEvidence(gs.getCondition())
+                    && executionResult != null && !executionResult.isHasToolCalls()) {
+                gs.rejectAchievement();
+                task.updateLastExecution("完成声明被拒绝：本轮没有实际工具执行证据，请继续完成并验证目标。");
+                achieved = false;
+                LOG.warn("Goal '{}' completion rejected: no action evidence", task.getId());
+            }
+
             if (achieved) {
                 LOG.info("Loop task '{}' goal ACHIEVED at iteration {}", task.getId(), iteration);
                 disableGoalScheduling(sessionId, task);
@@ -681,6 +762,15 @@ public class LoopScheduler {
                     disableGoalScheduling(sessionId, task);
                     return GoalRoundOutcome.BUDGET_EXCEEDED;
                 }
+            }
+
+
+            if (gs.isIterationExceeded(iteration)) {
+                LOG.info("Loop task '{}' iteration limit reached at iteration {}",
+                        task.getId(), iteration);
+                gs.markIterationLimited();
+                disableGoalScheduling(sessionId, task);
+                return GoalRoundOutcome.ITERATION_EXCEEDED;
             }
         }
 
@@ -862,25 +952,65 @@ public class LoopScheduler {
             if (result != null) {
                 // 优先使用 LLM 返回的真实 token 消耗（Web 端通过 session attrs 传递）
                 long tokensUsed = 0;
+                Boolean hasToolCalls = null;
                 try {
                     AgentSession session = engine.getSession(sessionId);
                     Object val = session.attrs().get("_loop_last_total_tokens");
                     if (val instanceof Number) {
                         tokensUsed = ((Number) val).longValue();
                     }
+                    Object toolEvidence = session.attrs().remove("_loop_last_has_tool_calls");
+                    if (toolEvidence instanceof Boolean) {
+                        hasToolCalls = (Boolean) toolEvidence;
+                    }
                 } catch (Exception e) {
                     // fallback: 使用 fromText 估算
                 }
 
-                if (tokensUsed > 0) {
+                if (tokensUsed > 0 || hasToolCalls != null) {
+                    long effectiveTokens = tokensUsed > 0
+                            ? tokensUsed
+                            : Math.max(1, result.length() / 4);
                     return LoopExecutionResult.fromExecution(
-                            result.length() > 20 && !result.startsWith("error:"),
-                            tokensUsed, result);
+                            hasToolCalls != null
+                                    ? hasToolCalls
+                                    : result.length() > 20 && !result.startsWith("error:"),
+                            effectiveTokens, result);
                 }
                 return LoopExecutionResult.fromText(result);
             }
         }
         return LoopExecutionResult.submittedOnly();
+    }
+
+    static boolean requiresActionEvidence(String objective) {
+        if (objective == null || objective.trim().isEmpty()) {
+            return false;
+        }
+        String normalized = objective.toLowerCase(Locale.ROOT);
+        String[] keywords = {
+                "create", "generate", "write", "implement", "modify", "edit", "fix",
+                "add", "delete", "remove", "refactor", "build", "test", "run", "install",
+                "configure", "deploy", "file",
+                "生成", "创建", "新建", "编写", "写入", "修改", "编辑", "修复", "实现",
+                "添加", "删除", "重构", "构建", "测试", "运行", "安装", "配置", "部署", "文件"
+        };
+        for (String keyword : keywords) {
+            if (normalized.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** null 表示当前执行入口未提供证据追踪；false/true 表示已启用追踪。 */
+    Boolean currentRoundHasActionEvidence(String sessionId) {
+        try {
+            Object value = engine.getSession(sessionId).attrs().get("_loop_last_has_tool_calls");
+            return value instanceof Boolean ? (Boolean) value : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     // ==================== 清理过期任务 ====================

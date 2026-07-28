@@ -4,11 +4,13 @@
 <p>En Son Sürüm: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop çalışma alanı" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Önceden bazı beceriler kurmanız önerilir
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop, SolonCode'un yerel IDE deneyimidir. Agent konuşmalarını, proje dosyalarını, Monaco düzenleyicisini, entegre terminali, Git değişikliklerini ve görev yürütmeyi tek bir çalışma alanında birleştirir. İstemci Tauri, React ve TypeScript ile geliştirilmiştir; Java CLI backend ise Agent çalışma zamanını, model erişimini ve araçları sağlar.
+
+Öne çıkan özellikler:
+
+* **Agent modları** — onaylı yürütme, otomatik düzenleme, salt okunur planlama ve sürekli Goal yürütme.
+* **Projeye bağlı konuşmalar** — görüntü ve dosya ekleri, çalışma alanı bağlamı, çalışma sırasında yeni görevler ve model, Token, süre istatistikleri.
+* **Güvenilir oturumlar** — kalıcı geçmiş, uzun süreli bellek, geri alma, yeniden çalıştırma, güvenli silme ve kontrol noktaları.
+* **Entegre geliştirme araçları** — dosyalar, düzenleyici, terminal, Git, görev listesi, Skills, Agents, MCP, OpenAPI, LSP ve otomasyonlar.
+
+Kaynak koddan çalıştırırken backend'i ayrı başlatın:
+
+~~~bash
+# Terminal 1: Desktop backend
+soloncode serve 4808
+
+# Terminal 2: Desktop istemcisi
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Geliştirme modu 4808 portuna bağlanır ve backend sürecini otomatik olarak başlatmaz veya algılamaz. Ayrıntılar için [Desktop README](soloncode-desktop/README.md) ve [SolonCode Desk başlangıç kılavuzuna](docs/soloncode-desk-getting-started.md) bakın.
 
 ## Dokümantasyon
 

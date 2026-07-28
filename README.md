@@ -4,11 +4,13 @@
 <p>Latest Version: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop workspace" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -41,7 +43,7 @@ Once on the page, open "Settings -> LLM", add a model, and test the connection.
 
 ## Running
 
-Run the `soloncode cli` (CLI interactive) or `soloncode web 0` (Web interactive) command from any directory in the console (i.e., your workspace).
+Run the `soloncode cli` (CLI interactive), `soloncode web 0` (Web interactive), or SolonCode Desktop from your project workspace.
 
 * `soloncode` (CLI interactive)
 
@@ -64,6 +66,33 @@ SolonCode v2026.7.28 PID-73617 Model:deepseek-v4-flash
 2026-07-09 11:26
 Web interface: http://localhost:50488/
 ```
+
+## SolonCode Desktop
+
+SolonCode Desktop is the local IDE experience for SolonCode. It brings Agent conversations, project files, a Monaco-based editor, an integrated terminal, Git changes, and task execution into one workspace. The desktop client is built with Tauri, React, and TypeScript, while the Java CLI backend provides the Agent runtime, model access, and tools.
+
+Desktop highlights:
+
+* **Agent work modes** — approval execution, automatic editing, read-only planning, and persistent Goal execution.
+* **Project-aware conversations** — attach images and files, reference workspace context, queue follow-up tasks while an Agent is running, and keep model/Token/time statistics with each response.
+* **Reliable sessions** — persistent history, long-term memory, rewind, redo, safe deletion, and recoverable workspace checkpoints.
+* **Integrated development tools** — file explorer, Monaco editor, terminal, Git workflow, task list, and change review.
+* **Extensible runtime** — Skills, Agents, MCP, OpenAPI, LSP, automations, and channel binding.
+* **Customizable workspace** — multiple model providers, light/dark themes, and project-scoped settings.
+
+To run the desktop client from source, start its backend separately and then launch Tauri:
+
+```bash
+# Terminal 1: desktop backend
+soloncode serve 4808
+
+# Terminal 2: desktop client
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+```
+
+Development mode connects to the backend on port `4808`; it does not start or probe the backend process automatically. For more details, see the [Desktop README](soloncode-desktop/README.md) and the [SolonCode Desk getting-started guide](docs/soloncode-desk-getting-started.md).
 
 Feature Testing (try the following tasks, from simple to complex):
 

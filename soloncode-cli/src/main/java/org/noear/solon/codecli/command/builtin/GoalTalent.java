@@ -80,6 +80,11 @@ public class GoalTalent extends AbsTalent {
         goalNode.set("objective", gs.getCondition());
         goalNode.set("status", gs.getStatus().name().toLowerCase());
         goalNode.set("iteration", task.getCurrentIteration());
+        if (gs.getMaxIterations() > 0) {
+            goalNode.set("maxIterations", gs.getMaxIterations());
+            goalNode.set("remainingIterations",
+                    Math.max(0, gs.getMaxIterations() - task.getCurrentIteration()));
+        }
 
         long elapsed = (System.currentTimeMillis() - gs.getStartEpochMs()) / 1000;
         goalNode.set("elapsedSeconds", elapsed);
@@ -146,6 +151,14 @@ public class GoalTalent extends AbsTalent {
 
         // ---- complete ----
         if ("complete".equals(status)) {
+            Boolean hasActionEvidence = scheduler.currentRoundHasActionEvidence(__sessionId);
+            if (LoopScheduler.requiresActionEvidence(gs.getCondition())
+                    && Boolean.FALSE.equals(hasActionEvidence)) {
+                return errJson("ACTION_EVIDENCE_REQUIRED",
+                        "目标尚未完成：本轮没有成功的实际工具操作。"
+                                + "请先创建、修改、运行或验证目标产物；goal_get/goal_update 不算执行证据。");
+            }
+
             if (scheduler.getLoopConfig().isValidatorEnabledOrDefault()) {
                 GoalValidator validator = ValidatorFactory.forCondition(gs.getCondition());
                 GoalValidator.ValidationResult vr = validator.validate(gs.getCondition(), __sessionId);

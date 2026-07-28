@@ -41,10 +41,14 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.util.*;
 
@@ -248,26 +252,69 @@ public class WebController {
      * 删除指定会话及其所有消息记录。
      * <p>执行路径安全检查后，递归删除会话目录下的所有文件。</p>
      *
-     * @param sessionId 待删除的会话 ID（必须为 web- 前缀）
+     * @param sessionId 待删除的会话 ID
+     * @param workspace 会话所属工作区；桌面端跨项目删除时显式传入
      * @return 操作结果
      * @throws Exception 文件删除异常
      */
     @Post
     @Mapping("/web/chat/sessions/delete")
-    public Result deleteSession(@Param("sessionId") String sessionId) throws Exception {
+    public Result deleteSession(@Param("sessionId") String sessionId,
+                                @Param(value = "workspace", required = false) String workspace) throws Exception {
         if (!isValidSessionId(sessionId)) {
-            return Result.failure();
+            return Result.failure(400, "Invalid sessionId");
         }
 
-        //内存删除
-        sessionManager.removeSession(sessionId);
+        Path workspaceRoot;
+        try {
+            if (Assert.isEmpty(workspace)) {
+                workspaceRoot = Paths.get(engine.getWorkspace()).toAbsolutePath().normalize();
+            } else {
+                Path requestedWorkspace = Paths.get(workspace);
+                if (!requestedWorkspace.isAbsolute()) {
+                    return Result.failure(400, "Workspace must be absolute");
+                }
+                workspaceRoot = requestedWorkspace.normalize();
+            }
+        } catch (RuntimeException e) {
+            return Result.failure(400, "Invalid workspace");
+        }
 
-        //文件删除
-        Path sessionPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-        File sessionDir = sessionPath.toFile();
+        if (!Files.isDirectory(workspaceRoot)) {
+            return Result.failure(404, "Workspace not found");
+        }
 
-        if (sessionDir.exists() && sessionDir.isDirectory()) {
-            deleteDirectory(sessionDir);
+        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionsRoot.startsWith(workspaceRoot) || !sessionPath.startsWith(sessionsRoot)) {
+            return Result.failure(400, "Invalid session path");
+        }
+        boolean sessionPathExists = Files.exists(sessionPath, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+        if (sessionPathExists && !Files.isDirectory(sessionPath) && !Files.isSymbolicLink(sessionPath)) {
+            return Result.failure(409, "Session path is not a directory");
+        }
+
+        Path activeWorkspace = Paths.get(engine.getWorkspace()).toAbsolutePath().normalize();
+        boolean activeWorkspaceSession = workspaceRoot.equals(activeWorkspace);
+        if (activeWorkspaceSession && webGate.isSessionBusy(sessionId)) {
+            return Result.failure(409, "Session is running");
+        }
+
+        // 仅清理当前运行时工作区的内存状态，避免数字会话 ID 在不同项目间碰撞。
+        if (activeWorkspaceSession) {
+            if (loopScheduler != null) {
+                loopScheduler.stopAll(sessionId);
+            }
+            sessionManager.removeSession(sessionId);
+        }
+
+        if (sessionPathExists) {
+            try {
+                deleteDirectory(sessionPath);
+            } catch (IOException e) {
+                LOG.error("Session delete failed for {}: {}", sessionId, e.getMessage());
+                return Result.failure(500, "Session delete failed");
+            }
         }
 
         return Result.succeed();
@@ -505,8 +552,16 @@ public class WebController {
     @Get
     @Mapping("/web/chat/messages")
     public Result<List<Map>> messages(@Param("sessionId") String sessionId) throws Exception {
+        if (!isValidSessionId(sessionId)) {
+            return Result.failure(400, "Invalid sessionId");
+        }
+
         List<Map> data = new ArrayList<>();
-        Path sessionsPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionsPath.startsWith(sessionsRoot)) {
+            return Result.failure(400, "Invalid session path");
+        }
         File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
 
         if (msgFile.exists()) {
@@ -607,10 +662,13 @@ public class WebController {
     @Mapping("/web/chat/rewind")
     public Result rewindSession(@Param("sessionId") String sessionId, @Param(value = "count", required = false) Integer count) throws Exception {
         if (!isValidSessionId(sessionId)) {
-            return Result.failure();
+            return Result.failure(400, "Invalid sessionId");
         }
         if (count == null || count <= 0) {
             count = 2; // 默认回退2条（用户+助手）
+        }
+        if (webGate.isSessionBusy(sessionId)) {
+            return Result.failure(409, "Session is running");
         }
 
         try {
@@ -633,18 +691,30 @@ public class WebController {
                 for (int i = 0; i < removeCount; i++) {
                     lines.remove(lines.size() - 1);
                 }
-                // 重写文件
+                // 先写同目录临时文件，再原子替换，避免进程中断留下半个 ndjson。
                 StringBuilder sb = new StringBuilder();
                 for (String l : lines) {
                     sb.append(l).append("\n");
                 }
-                java.nio.file.Files.write(msgFile.toPath(), sb.toString().getBytes("UTF-8"));
+                Path tempFile = msgFile.toPath().resolveSibling(msgFile.getName() + ".rewind.tmp");
+                java.nio.file.Files.write(tempFile, sb.toString().getBytes("UTF-8"));
+                try {
+                    java.nio.file.Files.move(tempFile, msgFile.toPath(),
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                    java.nio.file.Files.move(tempFile, msgFile.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
             }
+
+            // 丢弃内存会话，下一次请求从已回退的持久化记录重建上下文。
+            sessionManager.removeSession(sessionId);
 
             return Result.succeed();
         } catch (Exception e) {
             LOG.error("Rewind failed for session {}: {}", sessionId, e.getMessage());
-            return Result.failure(500, e.getMessage());
+            return Result.failure(500, "Session rewind failed");
         }
     }
 
@@ -1354,9 +1424,10 @@ public class WebController {
         if (sessionId == null || sessionId.isEmpty()) {
             return false;
         }
-        // Web session IDs 以 "web" 开头，只允许字母、数字、下划线、连字符和点
-        // 兼容无连字符的默认回退值 "web"（当请求未携带 X-Session-Id 时使用）
-        return sessionId.matches("^web(-[a-zA-Z0-9._-]+)?$");
+        // Web 会话以 web 开头；桌面端的持久化会话使用正整数主键。
+        // 两类均使用严格白名单，保证后续 resolve 后不会出现路径穿越。
+        return sessionId.matches("^web(-[a-zA-Z0-9._-]+)?$")
+                || sessionId.matches("^[1-9][0-9]{0,18}$");
     }
 
     /**
@@ -1364,28 +1435,24 @@ public class WebController {
      *
      * @param dir 待删除的目录
      */
-    private void deleteDirectory(File dir) {
-        // 入口处检测目录本身是否为符号链接，防止跟随链接误删外部文件
-        if (Files.isSymbolicLink(dir.toPath())) {
-            dir.delete(); // 仅删除符号链接本身，不跟随
-            return;
-        }
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                // 跳过符号链接，防止误删工作区外部的文件
-                if (Files.isSymbolicLink(f.toPath())) {
-                    f.delete(); // 仅删除符号链接本身，不跟随
-                    continue;
-                }
-                if (f.isDirectory()) {
-                    deleteDirectory(f);
-                } else {
-                    f.delete();
-                }
+    private void deleteDirectory(Path dir) throws IOException {
+        // walkFileTree 默认不跟随符号链接；Files.delete 会把失败可靠地向上传播。
+        Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
             }
-        }
-        dir.delete();
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path directory, IOException failure) throws IOException {
+                if (failure != null) {
+                    throw failure;
+                }
+                Files.delete(directory);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     /**
@@ -1577,7 +1644,7 @@ public class WebController {
             return Result.succeed(data);
         } catch (Exception e) {
             LOG.error("Failed to read queue-tasks for session {}: {}", sessionId, e.getMessage());
-            return Result.failure(500, e.getMessage());
+            return Result.failure(500, "Queue read failed");
         }
     }
      
@@ -1666,7 +1733,15 @@ public class WebController {
             payload.put("items", items);
             
             String json = ONode.ofBean(payload, Feature.Write_PrettyFormat).toJson();
-            Files.write(queuePath, json.getBytes("UTF-8"));
+            Path tempPath = queuePath.resolveSibling(queuePath.getFileName() + ".tmp");
+            Files.write(tempPath, json.getBytes("UTF-8"));
+            try {
+                Files.move(tempPath, queuePath,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tempPath, queuePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
             // 迁移后清理旧文件名，避免双份
             if (legacyPath != null && Files.exists(legacyPath)) {
                 try {
@@ -1682,7 +1757,7 @@ public class WebController {
             return Result.succeed(data);
         } catch (Exception e) {
             LOG.error("Failed to save queue-tasks: {}", e.getMessage());
-            return Result.failure(500, e.getMessage());
+            return Result.failure(500, "Queue save failed");
         }
     }
     
@@ -1719,6 +1794,8 @@ public class WebController {
         }
 
         String model = safeQueueString(itemNode.get("model"), 200);
+        String modelName = safeQueueString(itemNode.get("modelName"), 200);
+        String selectedAgent = safeQueueString(itemNode.get("selectedAgent"), 128);
         String reasoningEffort = safeQueueString(itemNode.get("reasoningEffort"), 50);
 
         long createdAt = System.currentTimeMillis();
@@ -1744,6 +1821,12 @@ public class WebController {
         item.put("displayText", displayText);
         if (model != null && !model.isEmpty()) {
             item.put("model", model);
+        }
+        if (modelName != null && !modelName.isEmpty()) {
+            item.put("modelName", modelName);
+        }
+        if (selectedAgent != null && !selectedAgent.isEmpty()) {
+            item.put("selectedAgent", selectedAgent);
         }
         if (reasoningEffort != null && !reasoningEffort.isEmpty()) {
             item.put("reasoningEffort", reasoningEffort);

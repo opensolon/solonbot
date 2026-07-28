@@ -1,3 +1,4 @@
+/* ChatView layout and empty-state styles. */
 .main-content {
   flex: 1;
   display: flex;
@@ -298,14 +299,14 @@
   background-color: transparent;
   border: none;
   border-radius: 6px;
-  color: var(--cb-text-secondary);
+  color: var(--chat-input-muted, #64748b);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .start-work-trigger:hover {
-  background-color: #e0e0e0;
+  background-color: var(--chat-input-hover, #f3f4f6);
 }
 
 .start-work-trigger-left {
@@ -320,7 +321,7 @@
   left: 12px;
   margin-top: 4px;
   background-color: #ffffff;
-  border: 1px solid var(--cb-vscode-panel-border);
+  border: 1px solid var(--chat-input-border, #e2e8f0);
   border-radius: 8px;
   overflow: hidden;
   z-index: 100;
@@ -333,7 +334,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  color: var(--cb-text-primary);
+  color: var(--chat-input-text, #1f2937);
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
@@ -341,5 +342,47 @@
 }
 
 .start-work-dropdown-item:hover {
-  background-color: var(--cb-vscode-list-hoverBackground);
+  background-color: var(--chat-input-hover, #f3f4f6);
+}
+.plan-approval-bar {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--cb-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cb-accent) 10%, var(--cb-vscode-editor-background));
+}
+
+.plan-approval-bar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-approval-bar span {
+  color: var(--cb-text-secondary);
+  font-size: 12px;
+}
+
+.plan-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-approval-actions button {
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+  padding: 5px 10px;
+  color: var(--cb-text-primary);
+  background: var(--cb-vscode-button-secondaryBackground, transparent);
+  cursor: pointer;
+}
+
+.plan-approval-actions button.primary {
+  color: #fff;
+  border-color: var(--cb-accent);
+  background: var(--cb-accent);
 }

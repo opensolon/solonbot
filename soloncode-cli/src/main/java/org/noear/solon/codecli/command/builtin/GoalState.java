@@ -21,9 +21,9 @@ import java.util.UUID;
 /**
  * Goal 状态模型 — Codex CLI 对齐。
  *
- * <p>5 态状态机：
+ * <p>6 态状态机：
  * <pre>
- *   PURSUING ⇄ PAUSED → ACHIEVED | BUDGET_LIMITED
+ *   PURSUING ⇄ PAUSED → ACHIEVED | BUDGET_LIMITED | ITERATION_LIMITED
  *       ↓
  *     BLOCKED → (resume) → PURSUING
  * </pre>
@@ -32,18 +32,21 @@ import java.util.UUID;
 public class GoalState {
 
     public enum Status {
-        PURSUING, PAUSED, BLOCKED, ACHIEVED, BUDGET_LIMITED;
+        PURSUING, PAUSED, BLOCKED, ACHIEVED, BUDGET_LIMITED, ITERATION_LIMITED;
 
         public boolean isActive() { return this == PURSUING; }
-        public boolean isTerminal() { return this == ACHIEVED || this == BUDGET_LIMITED; }
+        public boolean isTerminal() {
+            return this == ACHIEVED || this == BUDGET_LIMITED || this == ITERATION_LIMITED;
+        }
         public boolean isResumable() { return this == PAUSED || this == BLOCKED; }
     }
 
     private String id;
-    private String condition;
-    private Status status;
-    private long consumedTokens;
-    private long maxTokens;
+    private volatile String condition;
+    private volatile Status status;
+    private volatile long consumedTokens;
+    private volatile long maxTokens;
+    private volatile int maxIterations;
     private long startEpochMs;
 
     // ===== 静态配置（由 LoopScheduler 在启动时通过 configure() 设置） =====
@@ -82,8 +85,19 @@ public class GoalState {
         if (status == Status.PURSUING) this.status = Status.ACHIEVED;
     }
 
+    /** 完成声明未通过运行时证据校验时，退回继续执行。 */
+    public boolean rejectAchievement() {
+        if (status != Status.ACHIEVED) return false;
+        this.status = Status.PURSUING;
+        return true;
+    }
+
     public void markBudgetLimited() {
         if (status == Status.PURSUING) this.status = Status.BUDGET_LIMITED;
+    }
+
+    public void markIterationLimited() {
+        if (status == Status.PURSUING) this.status = Status.ITERATION_LIMITED;
     }
 
     /** 模型主动声明阻塞（PURSUING → BLOCKED） */
@@ -99,6 +113,10 @@ public class GoalState {
 
     public boolean isBudgetExceeded() {
         return maxTokens > 0 && consumedTokens >= maxTokens;
+    }
+
+    public boolean isIterationExceeded(int completedIterations) {
+        return maxIterations > 0 && completedIterations >= maxIterations;
     }
 
     public boolean isBudgetCritical() {
@@ -134,6 +152,8 @@ public class GoalState {
     public long getConsumedTokens() { return consumedTokens; }
     public long getMaxTokens() { return maxTokens; }
     public void setMaxTokens(long maxTokens) { this.maxTokens = maxTokens; }
+    public int getMaxIterations() { return maxIterations; }
+    public void setMaxIterations(int maxIterations) { this.maxIterations = Math.max(0, maxIterations); }
     public long getStartEpochMs() { return startEpochMs; }
 
     // ===== 序列化 =====
@@ -145,6 +165,7 @@ public class GoalState {
         node.set("status", status.name());
         node.set("consumedTokens", consumedTokens);
         node.set("maxTokens", maxTokens);
+        node.set("maxIterations", maxIterations);
         node.set("startEpochMs", startEpochMs);
         return node;
     }
@@ -156,6 +177,8 @@ public class GoalState {
         gs.status = Status.valueOf(node.get("status").getString());
         gs.consumedTokens = node.get("consumedTokens").getLong();
         gs.maxTokens = node.get("maxTokens").getLong();
+        gs.maxIterations = node.getOrNull("maxIterations") != null
+                ? node.get("maxIterations").getInt() : 0;
         gs.startEpochMs = node.get("startEpochMs").getLong();
         return gs;
     }

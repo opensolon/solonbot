@@ -4,11 +4,13 @@
 <p>Nyeste version: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop-arbejdsområde" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Funktionstest (prøv følgende opgaver, fra enkel til kompleks):
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Det anbefales at installere nogle færdigheder på forhånd
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop er SolonCodes lokale IDE-oplevelse. Det samler Agent-samtaler, projektfiler, Monaco-editoren, en integreret terminal, Git-ændringer og opgavekørsel i ét arbejdsområde. Klienten er bygget med Tauri, React og TypeScript, mens Java CLI-backenden leverer Agent-runtime, modeladgang og værktøjer.
+
+Vigtige funktioner:
+
+* **Agent-tilstande** — kørsel med godkendelse, automatisk redigering, skrivebeskyttet planlægning og vedvarende Goal-kørsel.
+* **Projektbevidste samtaler** — billed- og filvedhæftninger, workspace-kontekst, ekstra opgaver under kørsel samt model-, Token- og tidsstatistik.
+* **Pålidelige sessioner** — vedvarende historik, langtidshukommelse, tilbagerulning, genkørsel, sikker sletning og checkpoints.
+* **Integrerede udviklingsværktøjer** — filer, editor, terminal, Git, opgaveliste, Skills, Agents, MCP, OpenAPI, LSP og automatiseringer.
+
+Når klienten køres fra kildekoden, skal backenden startes separat:
+
+~~~bash
+# Terminal 1: Desktop-backend
+soloncode serve 4808
+
+# Terminal 2: Desktop-klient
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Udviklingstilstand forbinder til port 4808 og starter eller registrerer ikke backend-processen automatisk. Se [Desktop README](soloncode-desktop/README.md) og [introduktionsguiden til SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## Dokumentation
 

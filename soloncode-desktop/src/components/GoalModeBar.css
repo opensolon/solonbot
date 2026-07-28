@@ -1,0 +1,213 @@
+.goal-mode-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+  z-index: 0;
+  margin: 0 12px -1px;
+  padding: 7px 9px;
+  color: var(--cb-text-secondary);
+  font-size: 11px;
+  background: color-mix(in srgb, var(--cb-accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cb-accent) 28%, var(--cb-vscode-panel-border));
+  border-radius: 11px 11px 0 0;
+}
+
+.goal-mode-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.goal-mode-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cb-text-primary);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.goal-mode-status {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  color: var(--cb-accent);
+  background: color-mix(in srgb, var(--cb-accent) 12%, transparent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.goal-mode-status.status-achieved {
+  color: var(--cb-success);
+  background: color-mix(in srgb, var(--cb-success) 12%, transparent);
+}
+
+.goal-mode-status.status-failed,
+.goal-mode-status.status-blocked,
+.goal-mode-status.status-budget_limited,
+.goal-mode-status.status-iteration_limited {
+  color: var(--cb-error);
+  background: color-mix(in srgb, var(--cb-error) 10%, transparent);
+}
+
+.goal-mode-objective {
+  flex: 1 1 auto;
+  min-width: 80px;
+  overflow: hidden;
+  color: var(--cb-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-mode-draft {
+  color: var(--cb-text-secondary);
+}
+
+.goal-mode-progress,
+.goal-mode-hint,
+.goal-budget-unlimited {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.goal-mode-hint {
+  margin-right: auto;
+}
+
+.goal-budget-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.goal-budget-field input {
+  box-sizing: border-box;
+  width: 74px;
+  height: 24px;
+  padding: 2px 5px;
+  color: var(--cb-text-primary);
+  font: inherit;
+  background: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+}
+
+.goal-mode-settings {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 5px;
+  border-top: 1px solid color-mix(in srgb, var(--cb-vscode-panel-border) 70%, transparent);
+}
+
+.goal-objective-field {
+  display: flex;
+  flex: 1 1 240px;
+  align-items: center;
+  gap: 5px;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.goal-objective-field input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 80px;
+  height: 24px;
+  padding: 2px 6px;
+  color: var(--cb-text-primary);
+  font: inherit;
+  background: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+}
+
+.goal-mode-main button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 7px;
+  color: var(--cb-text-primary);
+  font: inherit;
+  background: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.goal-mode-main button.goal-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  padding: 0;
+}
+
+.goal-mode-settings button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 8px;
+  color: var(--cb-text-primary);
+  font: inherit;
+  background: var(--cb-vscode-input-background);
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.goal-mode-settings button.goal-settings-save {
+  color: var(--cb-vscode-button-foreground);
+  background: var(--cb-vscode-button-background);
+  border-color: transparent;
+}
+
+.goal-mode-settings button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.goal-mode-settings button:disabled,
+.goal-mode-settings input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goal-mode-main button:hover:not(:disabled) {
+  background: var(--cb-vscode-list-hoverBackground);
+}
+
+.goal-mode-main button.danger {
+  color: var(--cb-error);
+}
+
+.goal-mode-main button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.goal-mode-message,
+.goal-mode-result {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-mode-message.error {
+  color: var(--cb-error);
+}
+
+@container (max-width: 600px) {
+  .goal-budget-unlimited,
+  .goal-mode-progress {
+    display: none;
+  }
+
+  .goal-mode-settings {
+    flex-wrap: wrap;
+  }
+
+  .goal-objective-field {
+    flex-basis: 100%;
+  }
+}

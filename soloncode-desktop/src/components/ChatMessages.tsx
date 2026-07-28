@@ -9,6 +9,8 @@ import { ActionBlock } from './ActionBlock';
 import { ActionGroupBlock } from './ActionGroupBlock';
 import type { Message, Theme, ContentItem } from '../types';
 import { isTodoToolName } from '../utils/todoTools';
+import { isSafeImageDataUrl } from '../utils/messageContent';
+import { permissionService } from '../services/permissionService';
 import './ChatMessages.css';
 
 interface ChatMessagesProps {
@@ -18,7 +20,8 @@ interface ChatMessagesProps {
   theme?: Theme;
   projectName?: string;
   onDeleteMessage?: (id: number) => void;
-  onHitlAction?: (action: 'approve' | 'reject') => void;
+  onRerunMessage?: (id: number) => void;
+  onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void;
   onFileSelect?: (path: string) => void;
 }
 
@@ -55,7 +58,10 @@ const LazyCodeBlock = lazy(async () => {
     yaml,
   ] = await Promise.all([
     import('react-syntax-highlighter/dist/esm/prism-light'),
-    import('react-syntax-highlighter/dist/esm/styles/prism'),
+    Promise.all([
+      import('react-syntax-highlighter/dist/esm/styles/prism/one-dark'),
+      import('react-syntax-highlighter/dist/esm/styles/prism/one-light'),
+    ]),
     import('react-syntax-highlighter/dist/esm/languages/prism/bash'),
     import('react-syntax-highlighter/dist/esm/languages/prism/css'),
     import('react-syntax-highlighter/dist/esm/languages/prism/diff'),
@@ -74,7 +80,9 @@ const LazyCodeBlock = lazy(async () => {
     import('react-syntax-highlighter/dist/esm/languages/prism/yaml'),
   ]);
   const SyntaxHighlighter = highlighterModule.default;
-  const { oneDark, oneLight } = styleModule;
+  const [oneDarkModule, oneLightModule] = styleModule;
+  const oneDark = oneDarkModule.default;
+  const oneLight = oneLightModule.default;
 
   SyntaxHighlighter.registerLanguage('bash', bash.default);
   SyntaxHighlighter.registerLanguage('shell', bash.default);
@@ -326,9 +334,41 @@ function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
 }
 
 // 内容项渲染组件 — memo 化，避免消息不变时重渲染
-const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean }) {
+const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded, activeThinking }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean; activeThinking?: boolean }) {
+  if (item.type === 'FILE') {
+    const sizeLabel = item.size == null
+      ? ''
+      : item.size < 1024
+        ? `${item.size} B`
+        : item.size < 1024 * 1024
+          ? `${(item.size / 1024).toFixed(1)} KB`
+          : `${(item.size / (1024 * 1024)).toFixed(1)} MB`;
+    return (
+      <div className="content-item message-file">
+        <Icon name="file" size={14} />
+        <span className="message-file-name">{item.name || item.text}</span>
+        {sizeLabel && <span className="message-file-size">({sizeLabel})</span>}
+      </div>
+    );
+  }
+
+  if (item.type === 'IMAGE') {
+    if (!isSafeImageDataUrl(item.text)) return null;
+    return (
+      <div className="content-item image-item">
+        <img
+          className="message-image"
+          src={item.text}
+          alt={item.name || '图片附件'}
+          decoding="async"
+        />
+        {item.name && <div className="message-image-name">{item.name}</div>}
+      </div>
+    );
+  }
+
   if (item.type === 'THINK') {
-    return <ThinkBlock content={item.text} theme={theme} />;
+    return <ThinkBlock content={item.text} theme={theme} active={activeThinking} />;
   }
 
   if (item.type === 'ACTION') {
@@ -348,8 +388,14 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
           {item.command && <div className="hitl-command"><code>{item.command}</code></div>}
         </div>
         <div className="hitl-actions">
-          <button className="hitl-btn approve" onClick={() => onHitlAction?.('approve')}>允许</button>
-          <button className="hitl-btn reject" onClick={() => onHitlAction?.('reject')}>拒绝</button>
+          <button className="hitl-btn approve" onClick={() => onHitlAction?.('approve', item)}>允许本次</button>
+          <button
+            className="hitl-btn approve"
+            disabled={!item.toolName || !permissionService.canRemember(item.toolName)}
+            title={item.toolName && permissionService.canRemember(item.toolName) ? '在当前项目中记住此工具' : '命令执行类工具不能永久放行'}
+            onClick={() => onHitlAction?.('approve_always', item)}
+          >项目内总是允许</button>
+          <button className="hitl-btn reject" onClick={() => onHitlAction?.('reject', item)}>拒绝</button>
         </div>
       </div>
     );
@@ -362,6 +408,7 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
   if (item.type === 'ERROR') {
     return (
       <div className="content-item error-item">
+        <Icon name="error" size={15} className="error-icon" />
         <span className="error-text">{item.text}</span>
       </div>
     );
@@ -412,16 +459,17 @@ const MessageMetadata = memo(function MessageMetadata({ metadata }: { metadata: 
 // 单条消息组件 — memo 化
 const ThinkingRow = memo(function ThinkingRow({ elapsedSeconds }: { elapsedSeconds: number }) {
   return (
-    <div className="message thinking-row">
-      <div className="thinking-text">正在思考 {elapsedSeconds}s</div>
+    <div className="message thinking-row" role="status" aria-live="polite" aria-label={`正在思考，已处理 ${elapsedSeconds} 秒`}>
+      <div className="thinking-text">正在思考</div>
     </div>
   );
 });
 
-const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onHitlAction?: (action: 'approve' | 'reject') => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
+const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = message.contents
+      .filter(item => item.type !== 'IMAGE')
       .map(item => item.text)
       .filter(Boolean)
       .join('\n');
@@ -448,23 +496,36 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAc
             g.kind === 'group' ? (
               <ActionGroupBlock key={index} toolName={g.toolName} items={g.items} theme={theme} onFileClick={onFileSelect} autoExpanded={index === activeActionIndex} />
             ) : (
-              <ContentItemRenderer key={index} item={g.item} theme={theme} onHitlAction={onHitlAction} onFileSelect={onFileSelect} autoExpanded={index === activeActionIndex} />
+              <ContentItemRenderer
+                key={index}
+                item={g.item}
+                theme={theme}
+                onHitlAction={onHitlAction}
+                onFileSelect={onFileSelect}
+                autoExpanded={index === activeActionIndex}
+                activeThinking={Boolean(isStreaming && index === grouped.length - 1 && g.item.type === 'THINK')}
+              />
             )
           )}
         </div>
       </div>
       {!isStreaming && (
         <div className="message-footer">
-        <div className="message-time">{message.timestamp}</div>
-        <div className="message-actions">
-          <button className="message-action-btn" onClick={handleCopy} title="复制">
-            <Icon name={copied ? 'check' : 'copy'} size={12} />
-          </button>
-          <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="删除">
-            <Icon name="delete" size={12} />
-          </button>
+          <div className="message-time">{message.timestamp}</div>
           <MessageMetadata metadata={message.metadata} />
-        </div>
+          <div className="message-actions">
+            <button className="message-action-btn" onClick={handleCopy} title="复制">
+              <Icon name={copied ? 'check' : 'copy'} size={12} />
+            </button>
+            {message.role === 'USER' && <>
+              <button className="message-action-btn" onClick={() => onRerun?.(message.id)} title="从此处重做">
+                <Icon name="refresh" size={12} />
+              </button>
+              <button className="message-action-btn" onClick={() => onDelete?.(message.id)} title="回退并删除此处及之后消息">
+                <Icon name="delete" size={12} />
+              </button>
+            </>}
+          </div>
         </div>
       )}
     </div>
@@ -472,12 +533,25 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onHitlAc
 });
 
 export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
-  ({ messages, isLoading, thinkingElapsedSeconds = 0, theme, projectName, onDeleteMessage, onHitlAction, onFileSelect }, ref) => {
+  ({ messages, isLoading, thinkingElapsedSeconds = 0, theme, projectName, onDeleteMessage, onRerunMessage, onHitlAction, onFileSelect }, ref) => {
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     const autoFollowRef = useRef(true);
     const visibleMessages = useMemo(() => {
       return messages.reduce<Message[]>((result, message) => {
-        const contents = message.contents.filter(item => !isTodoToolName(item.toolName));
+        const contents = message.contents
+          .filter(item => !isTodoToolName(item.toolName))
+          .reduce<ContentItem[]>((items, item) => {
+            const previous = items[items.length - 1];
+            if (item.type === 'THINK' && previous?.type === 'THINK') {
+              items[items.length - 1] = {
+                ...previous,
+                text: `${previous.text}\n\n${item.text}`.trim(),
+              };
+            } else {
+              items.push(item);
+            }
+            return items;
+          }, []);
         if (contents.length === 0) return result;
         result.push(contents.length === message.contents.length ? message : { ...message, contents });
         return result;
@@ -491,7 +565,12 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       }
     }));
 
-    const showThinkingRow = isLoading && visibleMessages[visibleMessages.length - 1]?.role !== 'ASSISTANT';
+    const lastVisibleMessage = visibleMessages[visibleMessages.length - 1];
+    const hasStreamingAssistantContent = lastVisibleMessage?.role === 'ASSISTANT'
+      && lastVisibleMessage.contents.length > 0;
+    // 模型已经开始输出 THINK/TEXT/ACTION 时，由对应内容块表达运行状态，
+    // 不再额外追加“正在思考”占位，避免出现两条思考提示。
+    const showThinkingRow = isLoading && !hasStreamingAssistantContent;
 
     const itemContent = useCallback((index: number) => {
       if (showThinkingRow && index === visibleMessages.length) {
@@ -500,9 +579,9 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       const message = visibleMessages[index];
       const isStreamingMessage = isLoading && index === visibleMessages.length - 1 && message?.role === 'ASSISTANT';
       return (
-        <MessageRow message={message} theme={theme} onDelete={onDeleteMessage} onHitlAction={onHitlAction} onFileSelect={onFileSelect} isStreaming={isStreamingMessage} />
+        <MessageRow message={message} theme={theme} onDelete={onDeleteMessage} onRerun={onRerunMessage} onHitlAction={onHitlAction} onFileSelect={onFileSelect} isStreaming={isStreamingMessage} />
       );
-    }, [visibleMessages, isLoading, showThinkingRow, thinkingElapsedSeconds, theme, onDeleteMessage, onHitlAction, onFileSelect]);
+    }, [visibleMessages, isLoading, showThinkingRow, thinkingElapsedSeconds, theme, onDeleteMessage, onRerunMessage, onHitlAction, onFileSelect]);
 
     if (visibleMessages.length === 0 && !isLoading) {
       return (
@@ -530,21 +609,6 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
           computeItemKey={(index) => showThinkingRow && index === visibleMessages.length ? 'thinking' : (visibleMessages[index]?.id ?? index)}
           style={{ height: '100%' }}
         />
-        {false && (
-          <div className="message assistant loading">
-            <div className="message-bubble">
-              <div className="message-header">
-                <Icon name="bot" size={12} />
-                <span className="message-role">助手</span>
-              </div>
-              <div className="loading-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

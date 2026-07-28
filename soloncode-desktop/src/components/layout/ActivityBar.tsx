@@ -2,7 +2,7 @@ import { Icon } from '../common/Icon';
 import type { Theme } from '../../types';
 import './ActivityBar.css';
 
-export type ActivityType = 'explorer' | 'git' | 'extensions' | 'sessions' | 'automation' | 'settings' | 'skills' | 'agents';
+export type ActivityType = 'explorer' | 'git' | 'extensions' | 'sessions' | 'automation' | 'memory' | 'settings' | 'skills' | 'agents';
 
 interface ActivityBarProps {
   activeActivity: ActivityType;
@@ -13,14 +13,15 @@ interface ActivityBarProps {
 
 interface ActivityItem {
   id: ActivityType;
-  icon: 'explorer' | 'search' | 'git' | 'extensions' | 'sessions' | 'automation' | 'settings' | 'skills' | 'agents';
+  icon: 'explorer' | 'search' | 'git' | 'extensions' | 'sessions' | 'automation' | 'memory' | 'settings' | 'skills' | 'agents';
   title: string;
 }
 
 const activities: ActivityItem[] = [
   { id: 'sessions', icon: 'sessions', title: '对话管理' },
-  { id: 'automation', icon: 'automation', title: '自动化' },
   { id: 'explorer', icon: 'explorer', title: '项目管理' },
+  { id: 'automation', icon: 'automation', title: '自动化' },
+  { id: 'memory', icon: 'memory', title: '长期记忆' },
   { id: 'skills', icon: 'skills', title: 'Skills' },
   { id: 'agents', icon: 'agents', title: 'Agents' },
 ];
@@ -34,7 +35,7 @@ export function ActivityBar({ activeActivity, theme, onActivityChange, onToggleT
             key={activity.id}
             className={`activity-item${activeActivity === activity.id ? ' active' : ''}`}
             title={activity.title}
-            onClick={() => onActivityChange(activeActivity === activity.id ? 'explorer' : activity.id)}
+            onClick={() => onActivityChange(activeActivity === activity.id ? 'sessions' : activity.id)}
           >
             <Icon name={activity.icon} size={24} />
           </button>
@@ -68,7 +69,7 @@ export function ActivityBar({ activeActivity, theme, onActivityChange, onToggleT
         <button
           className={`activity-item${activeActivity === 'settings' ? ' active' : ''}`}
           title="设置"
-          onClick={() => onActivityChange(activeActivity === 'settings' ? 'explorer' : 'settings')}
+          onClick={() => onActivityChange(activeActivity === 'settings' ? 'sessions' : 'settings')}
         >
           <Icon name="settings" size={24} />
         </button>

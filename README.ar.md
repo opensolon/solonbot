@@ -4,11 +4,13 @@
 <p>أحدث إصدار: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="مساحة عمل SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -72,6 +74,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // يُنصح بتثبيت بعض المهارات مسبقًا
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+يمثل SolonCode Desktop تجربة IDE محلية لـ SolonCode. فهو يجمع محادثات Agent وملفات المشروع ومحرر Monaco والطرفية المدمجة وتغييرات Git وتنفيذ المهام في مساحة عمل واحدة. بُني العميل باستخدام Tauri وReact وTypeScript، بينما توفر واجهة Java CLI الخلفية بيئة تشغيل Agent والوصول إلى النماذج والأدوات.
+
+أبرز ميزات سطح المكتب:
+
+* **أوضاع Agent** — تنفيذ بعد الموافقة، وتحرير تلقائي، وتخطيط للقراءة فقط، وتنفيذ Goal مستمر.
+* **محادثات مرتبطة بالمشروع** — إرفاق الصور والملفات، وسياق مساحة العمل، وإضافة مهام أثناء التشغيل، وإحصاءات النموذج وToken والوقت.
+* **جلسات موثوقة** — سجل دائم، وذاكرة طويلة الأمد، وتراجع، وإعادة تنفيذ، وحذف آمن، ونقاط تحقق لمساحة العمل.
+* **أدوات تطوير متكاملة** — الملفات والمحرر والطرفية وGit وقائمة المهام وSkills وAgents وMCP وOpenAPI وLSP والأتمتة.
+
+عند التشغيل من المصدر، شغّل الواجهة الخلفية بشكل منفصل:
+
+~~~bash
+# الطرفية 1: الواجهة الخلفية لسطح المكتب
+soloncode serve 4808
+
+# الطرفية 2: عميل سطح المكتب
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+يتصل وضع التطوير بالمنفذ 4808 ولا يبدأ عملية الواجهة الخلفية أو يكتشفها تلقائيًا. راجع [Desktop README](soloncode-desktop/README.md) و[دليل البدء مع SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## التوثيق
 

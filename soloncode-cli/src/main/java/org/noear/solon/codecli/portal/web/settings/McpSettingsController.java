@@ -706,13 +706,16 @@ public class McpSettingsController extends BaseSettingsController{
      */
     @Post
     @Mapping("/web/settings/mcp/servers/tools/save")
-    public Result mcpServerToolsSave(@Param("serverName") String serverName, @Param("disallowedTools") String[] disallowedTools) throws IOException {
+    public Result mcpServerToolsSave(@Param("serverName") String serverName,
+                                     @Param(value = "disallowedTools", required = false) String[] disallowedTools) throws IOException {
         McpServerDo serverParameters = settings.getMcpServers().get(serverName);
         if (serverParameters == null) {
             return Result.failure("Server not found: " + serverName);
         }
 
-        serverParameters.setDisallowedTools(Arrays.asList(disallowedTools));
+        serverParameters.setDisallowedTools(disallowedTools == null
+                ? Collections.emptyList()
+                : Arrays.asList(disallowedTools));
 
         // 同步到引擎 provider 并热重载
         McpClientProvider provider = engine.getMcpServer(serverName);
