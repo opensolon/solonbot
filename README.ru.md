@@ -4,11 +4,13 @@
 <p>Последняя версия: v2026.7.27</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="Рабочее пространство SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -38,7 +40,7 @@ soloncode web 0
 
 <img height="260" src="SETTINGS-LLM.png">
 
-## Запуск
+## апуск
 
 Выполните команду `soloncode cli` (CLI-интерактивный) или `soloncode web 0` (Web-интерактивный) из любой директории в консоли (то есть вашей рабочей области).
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Рекомендуется предварительно установить некоторые навыки
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop — локальная IDE-версия SolonCode. Она объединяет диалоги с Agent, файлы проекта, редактор Monaco, встроенный терминал, изменения Git и выполнение задач в одном рабочем пространстве. Клиент создан на Tauri, React и TypeScript, а Java CLI отвечает за среду выполнения Agent, доступ к моделям и инструменты.
+
+Основные возможности:
+
+* **Режимы Agent** — выполнение с подтверждением, автоматическое редактирование, планирование только для чтения и непрерывное выполнение Goal.
+* **Диалоги в контексте проекта** — изображения и файлы, контекст рабочего пространства, добавление задач во время выполнения и статистика модели, Token и времени.
+* **Надёжные сессии** — постоянная история, долговременная память, откат, повторный апуск, безопасное удаление и контрольные точки.
+* **Встроенные инструменты разработки** — файлы, редактор, терминал, Git, список задач, Skills, Agents, MCP, OpenAPI, LSP и автоматизации.
+
+При запуске из исходного кода backend необходимо запустить отдельно:
+
+~~~bash
+# Терминал 1: backend для Desktop
+soloncode serve 4808
+
+# Терминал 2: клиент Desktop
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Режим разработки подключается к порту 4808 и не запускает и не обнаруживает процесс backend автоматически. Подробнее см. [README Desktop](soloncode-desktop/README.md) и [руководство по началу работы с SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## Документация
 

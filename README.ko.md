@@ -4,11 +4,13 @@
 <p>최신 버전: v2026.7.27</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop 워크스페이스" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `웹에서 AI MCP 프로토콜을 분석하고 PPT를 생성해 주세요` // 사전에 일부 스킬을 설치하는 것을 권장합니다
 * `agent team을 설계해 주세요 (설계안은 demo-dis.md로 저장), solon + java17로 클래식 권한 관리 시스템을 개발해 주세요 (demo-web), 프론트엔드는 vue3를 사용하고 인터페이스는 간결하고 미려하게 만들어 주세요`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop은 SolonCode의 로컬 IDE 환경입니다. Agent 대화, 프로젝트 파일, Monaco 편집기, 통합 터미널, Git 변경 사항과 작업 실행을 하나의 워크스페이스에 제공합니다. 데스크톱 클라이언트는 Tauri, React, TypeScript로 구축되며 Java CLI 백엔드가 Agent 런타임, 모델 연결 및 도구 실행을 담당합니다.
+
+주요 기능:
+
+* **Agent 실행 모드** — 승인 실행, 자동 편집, 읽기 전용 계획 및 지속적인 Goal 실행.
+* **프로젝트 인식 대화** — 이미지와 파일 첨부, 워크스페이스 컨텍스트, 실행 중 작업 추가, 모델·Token·소요 시간 표시.
+* **안정적인 세션** — 기록 유지, 장기 메모리, 되돌리기, 다시 실행, 안전한 삭제 및 워크스페이스 체크포인트.
+* **통합 개발 도구** — 파일 관리, 코드 편집기, 터미널, Git, 작업 목록, Skills, Agents, MCP, OpenAPI, LSP 및 자동화.
+
+소스에서 실행할 때는 백엔드를 별도로 시작하세요:
+
+~~~bash
+# 터미널 1: 데스크톱 백엔드
+soloncode serve 4808
+
+# 터미널 2: 데스크톱 클라이언트
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+개발 모드는 4808 포트의 백엔드에 연결하며 백엔드 프로세스를 자동으로 시작하거나 탐지하지 않습니다. 자세한 내용은 [Desktop README](soloncode-desktop/README.md)와 [SolonCode Desk 시작 가이드](docs/soloncode-desk-getting-started.md)를 참조하세요.
 
 ## 문서
 

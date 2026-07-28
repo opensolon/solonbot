@@ -4,11 +4,13 @@
 <p>最新版本：v2026.7.27</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop 工作台" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` //最好提前安装些 skill
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode 桌面版
+
+SolonCode Desktop 是 SolonCode 的本地 IDE 形态，将 Agent 对话、项目文件、Monaco 编辑器、终端、Git 变更和任务执行集中在同一个工作区。桌面客户端使用 Tauri、React 和 TypeScript 构建，Java CLI 后端负责 Agent 运行时、模型访问和工具调用。
+
+桌面版特性：
+
+* **Agent 工作模式** — 支持审批执行、自动编辑、只读规划和持续 Goal 执行。
+* **项目级对话** — 支持图片与文件附件、工作区上下文、运行中追加任务，以及每条回答的模型、Token 和耗时统计。
+* **可靠会话** — 支持历史持久化、长期记忆、回退、重做、安全删除和工作区检查点。
+* **完整开发工作台** — 集成文件管理、代码编辑器、终端、Git、任务列表、Skills、Agents、MCP、OpenAPI、LSP 和自动化。
+
+从源码运行桌面端时，需要单独启动后端：
+
+~~~bash
+# 终端 1：桌面后端
+soloncode serve 4808
+
+# 终端 2：桌面客户端
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+开发模式连接 4808 端口，不会自动启动或探测后端进程。更多内容请查看 [Desktop README](soloncode-desktop/README.md) 和 [SolonCode Desk 入门指南](docs/soloncode-desk-getting-started.md)。
 
 ## 文档
 

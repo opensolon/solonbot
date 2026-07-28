@@ -4,11 +4,13 @@
 <p>Τελευταία Έκδοση: v2026.7.27</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="Χώρος εργασίας SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Προτείνεται η προηγούμενη εγκατάσταση κάποιων δεξιοτήτων
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+Το SolonCode Desktop είναι η τοπική εμπειρία IDE του SolonCode. Συγκεντρώνει συνομιλίες Agent, αρχεία έργου, τον επεξεργαστή Monaco, ενσωματωμένο τερματικό, αλλαγές Git και εκτέλεση εργασιών σε έναν χώρο εργασίας. Ο client βασίζεται σε Tauri, React και TypeScript, ενώ το Java CLI backend παρέχει το Agent runtime, πρόσβαση στα μοντέλα και εργαλεία.
+
+Κύριες δυνατότητες:
+
+* **Λειτουργίες Agent** — εκτέλεση με έγκριση, αυτόματη επεξεργασία, σχεδιασμός μόνο για ανάγνωση και συνεχής εκτέλεση Goal.
+* **Συνομιλίες με επίγνωση έργου** — εικόνες και αρχεία, περιβάλλον workspace, πρόσθετες εργασίες κατά την εκτέλεση και στατιστικά μοντέλου, Token και χρόνου.
+* **Αξιόπιστες συνεδρίες** — μόνιμο ιστορικό, μακροχρόνια μνήμη, επαναφορά, επανεκτέλεση, ασφαλής διαγραφή και checkpoints.
+* **Ενσωματωμένα εργαλεία ανάπτυξης** — αρχεία, editor, τερματικό, Git, λίστα εργασιών, Skills, Agents, MCP, OpenAPI, LSP και αυτοματισμοί.
+
+Για εκτέλεση από τον πηγαίο κώδικα, ξεκινήστε το backend ξεχωριστά:
+
+~~~bash
+# Τερματικό 1: Desktop backend
+soloncode serve 4808
+
+# Τερματικό 2: Desktop client
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Η λειτουργία ανάπτυξης συνδέεται στη θύρα 4808 και δεν ξεκινά ούτε εντοπίζει αυτόματα τη διεργασία backend. Δείτε το [Desktop README](soloncode-desktop/README.md) και τον [οδηγό έναρξης SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## Τεκμηρίωση
 

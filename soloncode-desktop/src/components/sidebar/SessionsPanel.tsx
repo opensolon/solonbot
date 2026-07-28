@@ -179,20 +179,6 @@ export function SessionsPanel({
     setRenameProjectValue('');
   }, [onRenameProject, projects]);
 
-  const isCurrentSessionLatest = (sessionList: Session[]) => {
-    if (!currentSessionId || sessionList.length === 0) return false;
-
-    const latestSession = sessionList.reduce((latest, session) => {
-      const latestTime = Date.parse(latest.timestamp);
-      const sessionTime = Date.parse(session.timestamp);
-      const normalizedLatestTime = Number.isFinite(latestTime) ? latestTime : 0;
-      const normalizedSessionTime = Number.isFinite(sessionTime) ? sessionTime : 0;
-      return normalizedSessionTime > normalizedLatestTime ? session : latest;
-    });
-
-    return latestSession.id === currentSessionId;
-  };
-
   const handleSync = useCallback(async (sessionId: string) => {
     if (syncingIds.has(sessionId)) return;
     setSyncingIds(prev => new Set(prev).add(sessionId));
@@ -477,15 +463,14 @@ export function SessionsPanel({
 
         <div className="group-header chat-group-header">
           <span>对话</span>
-          {!isCurrentSessionLatest(unlinkedSessions) && (
-            <button
-              className="chat-add-btn"
-              onClick={() => onNewSession(UNLINKED_PROJECT)}
-              title="新建对话"
-            >
-              <Icon name="add" size={12} />
-            </button>
-          )}
+          <button
+            className="chat-add-btn"
+            onClick={() => onNewSession(UNLINKED_PROJECT)}
+            title="新建临时对话"
+            aria-label="新建临时对话"
+          >
+            <Icon name="add" size={12} />
+          </button>
         </div>
 
         {unlinkedSessions.length === 0 && (
