@@ -70,7 +70,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: inherit; /* 跟随会话项标题色：普通项 secondary，active 为 accent */
     pointer-events: none;
 }
 .sidebar-item-pin-mark svg {
