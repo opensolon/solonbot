@@ -356,16 +356,16 @@
             var name = skill.name || '';
             var version = skill.version || '';
             var iconText = name ? name.substring(0, 2).toUpperCase() : 'SK';
-            html += '<div class="mcp-server-item mounts-skill-item" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
-                + '<div class="skill-item-icon">' + escapeHtml(iconText) + '</div>'
-                + '<div class="mcp-server-info">'
-                + '<div class="mcp-server-name">' + escapeHtml(name) + '</div>'
-                + (skill.description ? '<div class="mcp-server-detail">' + escapeHtml(skill.description) + '</div>' : '')
-                + (skill.realPath ? '<div class="mcp-server-detail settings-muted-text">' + escapeHtml(skill.realPath) + '</div>' : '')
-                + (version ? '<div class="mcp-server-detail"><span class="skill-item-version">v' + escapeHtml(version.replace(/^v/i, '')) + '</span></div>' : '')
-                + '</div><div class="mcp-server-actions">'
-                + '<button class="mcp-action-btn skills-installed-upgrade-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="从市场重新安装（升级）">' + SVG_REFRESH_SM + '</button>'
-                + '<button class="mcp-action-btn delete skills-installed-delete-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="删除技能包">' + SVG_DELETE_SM + '</button>'
+            html += '<div class="settings-list-item mounts-skill-item" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
+                + '<div class="settings-list-icon">' + escapeHtml(iconText) + '</div>'
+                + '<div class="settings-list-info">'
+                + '<div class="settings-list-title">' + escapeHtml(name) + '</div>'
+                + (skill.description ? '<div class="settings-list-desc">' + escapeHtml(skill.description) + '</div>' : '')
+                + (skill.realPath ? '<div class="settings-list-desc settings-muted-text">' + escapeHtml(skill.realPath) + '</div>' : '')
+                + (version ? '<div class="settings-list-desc"><span class="skill-item-version">v' + escapeHtml(version.replace(/^v/i, '')) + '</span></div>' : '')
+                + '</div><div class="settings-list-actions">'
+                + '<button class="settings-action-btn skills-installed-upgrade-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="从市场重新安装（升级）">' + SVG_REFRESH_SM + '</button>'
+                + '<button class="settings-action-btn delete skills-installed-delete-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="删除技能包">' + SVG_DELETE_SM + '</button>'
                 + '</div></div>';
             rendered++;
         });
@@ -557,7 +557,7 @@
 
     // 点击条目 → 打开所在目录
     $skillsInstalledList.on('click', '.mounts-skill-item', function (e) {
-        if ($(e.target).closest('.mcp-action-btn').length) return;
+        if ($(e.target).closest('.settings-action-btn').length) return;
         var realPath = $(this).attr('data-real-path') || '';
         if (!realPath) return;
         $.get('/web/settings/mounts/open', { path: realPath }, function (resp) {
@@ -670,11 +670,11 @@
 
             var skillUrl = skill.url || '';
 
-            html += '<div class="skill-item" data-url="' + escapeAttr(skillUrl) + '">'
-                + '<div class="skill-item-icon">' + escapeHtml(iconText) + '</div>'
-                + '<div class="skill-item-info">'
-                + '<div class="skill-item-name" title="' + escapeAttr(name) + '">' + escapeHtml(displayName) + (isInstalled ? '<span class="skill-installed-badge">已安装</span>' : '') + '</div>'
-                + (shortDesc ? '<div class="skill-item-desc" title="' + escapeAttr(desc) + '">' + escapeHtml(shortDesc) + '</div>' : '')
+            html += '<div class="settings-list-item" data-url="' + escapeAttr(skillUrl) + '">'
+                + '<div class="settings-list-icon">' + escapeHtml(iconText) + '</div>'
+                + '<div class="settings-list-info">'
+                + '<div class="settings-list-title" title="' + escapeAttr(name) + '">' + escapeHtml(displayName) + (isInstalled ? '<span class="skill-installed-badge">已安装</span>' : '') + '</div>'
+                + (shortDesc ? '<div class="settings-list-desc" title="' + escapeAttr(desc) + '">' + escapeHtml(shortDesc) + '</div>' : '')
                 + '<div class="skill-item-meta">'
                 + (version ? '<span class="skill-item-version">v' + escapeHtml(version.replace(/^v/i, '')) + '</span>' : '')
                 + (installs > 0 ? '<span>' + (installs >= 1000 ? (installs / 1000).toFixed(1) + 'k' : installs) + ' 安装</span>' : '')
@@ -682,7 +682,7 @@
                 + (owner ? '<span>' + escapeHtml(owner) + '</span>' : '')
                 + (skillUrl ? '<span class="skill-item-detail-link" title="查看详情">↗</span>' : '')
                 + '</div></div>'
-                + '<div class="skill-item-actions">'
+                + '<div class="settings-list-actions">'
                     + (isInstalled
                         ? '<div class="skill-install-wrap">'
                     +   '<button class="skill-install-btn skill-reinstall-btn installed" data-slug="' + escapeAttr(name) + '" data-display="' + escapeAttr(displayName) + '" data-market="' + escapeAttr(_currentMarketName) + '" data-mount-alias="' + escapeAttr(installedMap[name]) + '" title="重新安装（升级）">' + SVG_REFRESH + '</button>'
@@ -874,8 +874,8 @@
             var isSuccess = resp && resp.code === 200 && resp.data;
             if (isSuccess) {
                 var skillName = (resp.data || slug) + '';
-                var $item = $btn.closest('.skill-item');
-                var $nameEl = $item.find('.skill-item-name');
+                var $item = $btn.closest('.settings-list-item');
+                var $nameEl = $item.find('.settings-list-title');
                 if (!$nameEl.find('.skill-installed-badge').length) {
                     $nameEl.append('<span class="skill-installed-badge">已安装</span>');
                 }
@@ -923,7 +923,7 @@
     });
 
     // 点击技能行打开详情页（新窗口）
-    $skillsList.on('click', '.skill-item', function () {
+    $skillsList.on('click', '.settings-list-item', function () {
         var url = $(this).attr('data-url');
         if (url) {
             window.open(url, '_blank');

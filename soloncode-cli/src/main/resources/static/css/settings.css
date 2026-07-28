@@ -87,29 +87,21 @@
 .settings-add-btn:hover { border-color: var(--accent); background: var(--accent-light); }
 
 /* ===== Settings common list item ===== */
-.settings-list-item { display: flex; align-items: center; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
-.settings-list-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.settings-list-item { display: flex; align-items: center; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
+.settings-list-item:hover { border-color: var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
 .settings-list-item:active { transform: scale(0.997); }
 .settings-list-item.disabled { opacity: 0.5; }
 .settings-list-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
 .settings-list-item.disabled .settings-list-icon { opacity: 0.5; }
 .settings-list-info { flex: 1; min-width: 0; }
-.settings-list-title { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-list-title { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
 .settings-list-desc { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .settings-list-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
 .settings-inline-tag { font-size: 10px; color: var(--text-secondary); font-weight: 400; }
 .settings-accent-text { color: var(--accent); }
 .settings-muted-text { color: var(--text-secondary); opacity: 0.75; }
 
-/* Backward compatible aliases */
-.llm-model-item, .mcp-server-item { display: flex; align-items: center; padding: 10px 12px;  border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
-.llm-model-item:hover, .mcp-server-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.llm-model-item:active, .mcp-server-item:active { transform: scale(0.997); }
-.llm-model-icon, .mcp-server-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
-.llm-model-info, .mcp-server-info { flex: 1; min-width: 0; }
-.llm-model-name, .mcp-server-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.llm-model-desc, .mcp-server-detail { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.llm-model-actions, .mcp-server-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+
 
 /* ===== Segmented scope selector ===== */
 .settings-scope-toggle { display: flex; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--bg-input-box); }
@@ -161,22 +153,8 @@
 .llm-fetch-item { padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text-primary); transition: background 0.15s; }
 .llm-fetch-item:hover { background: var(--bg-hover); }
 
-.llm-model-item { display: flex; align-items: center; padding: 10px 12px;  border-radius: 10px; margin-bottom: 8px; transition: all 0.15s; gap: 10px; }
-.llm-model-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.llm-model-item:active { transform: scale(0.997); }
-.llm-model-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
-.llm-model-info { flex: 1; min-width: 0; }
-.llm-model-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.llm-model-desc { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.llm-model-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
-.llm-action-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; }
-.llm-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.llm-action-btn.delete:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
-.llm-model-item.disabled { opacity: 0.5; }
-.llm-model-item.disabled .llm-model-icon { opacity: 0.5; }
-
-/* LLM header 区域按钮组 */
-.llm-header-actions { display: flex; gap: 6px; align-items: center; }
+/* LLM 列表操作按钮（统一使用 .settings-action-btn） */
+.llm-edit-btn { height: 22px; display: flex; align-items: center; justify-content: center; }
 
 /* LLM 列表模型 meta 行 */
 .llm-model-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
@@ -185,12 +163,7 @@
 .llm-api-hint { font-size: 10px; color: var(--text-secondary); }
 
 
-/* LLM 操作按钮悬停色 */
-.llm-action-btn.edit:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
-.llm-edit-btn { height: 22px; display: flex; align-items: center; justify-content: center; }
-.llm-action-btn.copy:hover { background: rgba(16,185,129,0.08); color: #10b981; }
 
-/* LLM 禁用模型项低透明度 */
 
 /* ===== Toggle Switch（大号） ===== */
 .toggle-label { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: default; }
@@ -266,30 +239,22 @@
 .mcp-type-btn.active { background: var(--accent); color: #fff; }
 .mcp-type-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
-.mcp-server-item { display: flex; align-items: center; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; gap: 10px; transition: all 0.15s; cursor: pointer; }
-.mcp-server-item:hover { border-color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-.mcp-server-item:active { transform: scale(0.997); }
-.mcp-server-item.disabled { opacity: 0.5; }
-.mcp-server-item.disabled .mcp-server-icon { opacity: 0.5; }
-.mcp-server-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.mcp-server-info { flex: 1; min-width: 0; }
-.mcp-server-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-.mcp-server-detail { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mcp-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--border-color); }
 .mcp-status-dot.connected { background: #22c55e; }
-.mcp-server-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
 
-/* MCP 工具列表工具栏 */
+/* ===== Settings common action button ===== */
+.settings-action-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; }
+.settings-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.settings-action-btn.delete:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
+.settings-action-btn.edit:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.settings-action-btn.browse:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.settings-action-btn.copy:hover { background: rgba(16,185,129,0.08); color: #10b981; }
 .mcp-tools-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); }
 .mcp-tools-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; user-select: none; }
 .mcp-tools-select-all input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; border-radius: 3px; }
 .mcp-tools-toolbar-actions { display: flex; align-items: center; gap: 12px; }
 .mcp-tools-count { font-size: 12px; color: var(--text-secondary); }
-.mcp-action-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; }
-.mcp-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.mcp-action-btn.delete:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
-.mcp-action-btn.edit:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
-.mcp-action-btn.browse:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+
 
 /* MCP 检测连接 */
 .mcp-check-result { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
@@ -312,7 +277,7 @@
 .mcp-import-dialog-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; }
 
 /* MCP 工具列表 - 左侧方块复选框 */
-.mcp-tool-item .mcp-server-icon { display: none; }
+.mcp-tool-item .settings-list-icon { display: none; }
 .mcp-tool-checkbox {
     position: relative;
     display: inline-flex;
@@ -445,17 +410,10 @@
 .skills-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .skills-error { color: #ef4444; }
 .skills-list { display: flex; flex-direction: column; gap: 6px; }
-.skill-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
-.skill-item:hover { border-color: var(--accent); box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
-.skill-item:active { transform: scale(0.997); }
-.skill-item-icon { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary)); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
-.skill-item-info { flex: 1; min-width: 0; }
-.skill-item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+/* 技能市场内容类（结构类统一使用 .settings-list-*） */
 .skill-installed-badge { font-size: 10px; font-weight: 500; color: #22c55e; background: rgba(34,197,94,0.1); padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
-.skill-item-desc { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .skill-item-meta { font-size: 10px; color: var(--text-secondary); margin-top: 3px; display: flex; gap: 10px; }
 .skill-item-version { font-size: 10px; font-weight: 400; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 0 5px; border-radius: 3px; }
-.skill-item-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
 .skill-install-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
 .skill-install-btn:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
 .skill-install-btn.installing { opacity: 0.6; cursor: wait; }
@@ -504,7 +462,6 @@
 
 /* ===== 挂载 ===== */
 .mounts-pool-item { cursor: pointer; }
-.mounts-pool-item:hover { border-color: var(--accent); }
 .mounts-pool-item.mounts-system { opacity: 0.85; }
 .mounts-system-badge { font-size: 10px; background: var(--bg-accent-subtle, rgba(59,130,246,0.1)); color: var(--accent); padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
 .mounts-writeable-badge { font-size: 10px; background: rgba(34,197,94,0.1); color: #22c55e; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
@@ -556,14 +513,15 @@
     margin-top: 4px;
 }
 .general-card {
+    border: 1px solid transparent;
     border-radius: 12px;
     background: var(--bg-primary);
     transition: border-color 0.2s, box-shadow 0.2s;
     overflow: hidden;
 }
 .general-card:hover {
-    border-color: rgba(var(--accent-rgb, 79,110,247), 0.35);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    border-color: var(--border-color);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .general-card-header {
     display: flex;
@@ -1038,12 +996,12 @@ select[disabled] {
 .permission-search input:focus { border-color: var(--accent); outline: none; }
 .permission-toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .permission-count { font-size: 12px; color: var(--text-secondary); margin-right: 8px; }
-.permission-tools-list { max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); }
+.permission-tools-list { max-height: 400px; overflow-y: auto; background: var(--bg-primary); }
 .permission-tools-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
-.permission-tools-column { border-right: 1px solid var(--border-color); }
+.permission-tools-column { }
 .permission-tools-column:last-child { border-right: none; }
 .permission-tools-column .permission-tool-item { padding: 8px 12px; }
-.permission-category { border-bottom: 1px solid var(--border-color); }
+.permission-category {  }
 .permission-category:last-child { border-bottom: none; }
 .permission-category-header { display: flex; align-items: center; padding: 10px 12px; background: var(--bg-hover); border-bottom: 1px solid var(--border-color); }
 .permission-category-title { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
