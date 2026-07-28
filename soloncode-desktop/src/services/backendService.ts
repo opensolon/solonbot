@@ -41,8 +41,8 @@ async function waitForBackendReady(port: number): Promise<boolean> {
 export const backendService = {
   /**
    * Connect to or start the backend service.
-   * The Rust `start_backend` command encapsulates the reuse-first logic so the
-   * frontend does not need to probe the port by itself.
+   * Reuse a compatible service first; production may launch one when absent,
+   * while development always expects the backend to be started separately.
    */
   async start(workspacePath: string, port: number = DEFAULT_PORT): Promise<number | null> {
     if (!isTauriEnv()) {
@@ -52,6 +52,22 @@ export const backendService = {
 
     try {
       await fileService.writeLog(`backendService.start called, workspacePath=${workspacePath}, port=${port}`);
+
+      // Always reuse a compatible service already bound to the configured
+      // port. One backend can serve chats from multiple workspaces because
+      // each desktop request carries its own cwd.
+      if (await isBackendReady(port)) {
+        await fileService.writeLog(`existing backend detected on port ${port}, reusing`);
+        return port;
+      }
+
+      // Tauri development uses a separately launched backend. Never start a
+      // second process from the desktop dev client when that service is down.
+      if (import.meta.env.DEV) {
+        await fileService.writeLog(`development backend is not ready on port ${port}; managed start skipped`);
+        return null;
+      }
+
       const pid = await fileService.startBackend(workspacePath, port);
       await fileService.writeLog(`startBackend returned PID=${pid}`);
       const ready = await waitForBackendReady(port);

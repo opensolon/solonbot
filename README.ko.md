@@ -5,7 +5,7 @@
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
 <br />
-<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop 워크스페이스" />
+<img height="260"  src="SHOW_DESKTOP.png" alt="SolonCode Desktop 워크스페이스" />
 </div>
 
 <div align="center">
