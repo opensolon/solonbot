@@ -424,9 +424,7 @@
 
 /* ===== 技能页子视图切换 ===== */
 .skills-view-count { margin-left: 5px; font-size: 11px; opacity: 0.65; }
-.skills-installed-group-title { font-size: 11px; color: var(--text-secondary); font-weight: 600; margin: 14px 0 8px; padding: 0 4px; letter-spacing: 0.3px; }
-.skills-installed-group-title:first-child { margin-top: 0; }
-.skills-installed-group-title .skills-installed-group-count { font-weight: 400; opacity: 0.7; margin-left: 6px; }
+
 .skills-installed-goto-market { display: block; width: 100%; margin-top: 16px; padding: 10px; background: transparent; border: 1px dashed var(--border-color); border-radius: 8px; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; }
 .skills-installed-goto-market:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
 

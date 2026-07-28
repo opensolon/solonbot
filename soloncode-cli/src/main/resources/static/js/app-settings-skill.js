@@ -199,12 +199,13 @@
 
     // ==================== 已安装：数据加载 ====================
 
-    /** 填充挂载筛选下拉框 */
-    function fillMountFilter(pools) {
+    /** 填充挂载筛选下拉框（带技能包计数） */
+    function fillMountFilter(pools, groupCounts) {
         var prev = $skillsMountFilter.val() || '';
         var html = '';
         pools.forEach(function (p) {
-            html += '<option value="' + escapeAttr(p.alias) + '">' + escapeHtml(p.alias) + '</option>';
+            var count = groupCounts ? (groupCounts[p.alias] || 0) : 0;
+            html += '<option value="' + escapeAttr(p.alias) + '">' + escapeHtml(p.alias) + ' - ' + count + '</option>';
         });
         $skillsMountFilter.html(html);
         // 默认选中第一个挂载（取消"全部挂载"后保证有初始选中项）
@@ -216,7 +217,7 @@
     }
 
     /**
-     * 加载已安装技能：逐个 SKILLS 挂载拉取内容后按挂载分组
+     * 加载已安装技能：加载全部 SKILLS 挂载内容，填充下拉框计数后按选中挂载过滤渲染
      */
     function loadInstalledSkills() {
         $skillsInstalledStatus.show();
@@ -227,37 +228,49 @@
         loadMountPools(function (allPools) {
             // 排除兵底占位项（无真实挂载时的占位）
             var pools = allPools.filter(function (p) { return !p.fallback; });
-            fillMountFilter(pools);
 
-            var selected = $skillsMountFilter.val() || (pools.length ? pools[0].alias : '');
-            var targets = selected
-                ? pools.filter(function (p) { return p.alias === selected; })
-                : [];
-
-            if (!targets.length) {
+            if (!pools.length) {
                 _installedGroups = [];
                 _installedDirty = false;
+                fillMountFilter(pools);
                 $skillsInstalledLoading.hide();
                 $skillsInstalledStatus.hide();
                 renderInstalledList();
                 return;
             }
 
-            var pending = targets.length;
-            var groups = [];
+            // 加载所有挂载的技能内容（用于在下拉框中显示各挂载的技能包计数）
+            var pending = pools.length;
+            var allGroups = [];
 
-            targets.forEach(function (pool, idx) {
+            pools.forEach(function (pool, idx) {
                 $.get('/web/settings/mounts/content', { alias: pool.alias, type: 'SKILLS' })
                     .done(function (resp) {
                         var list = (resp && resp.code === 200 && Array.isArray(resp.data)) ? resp.data : [];
-                        groups[idx] = { alias: pool.alias, skills: list };
+                        allGroups[idx] = { alias: pool.alias, skills: list };
                     })
                     .fail(function () {
-                        groups[idx] = { alias: pool.alias, skills: [], failed: true };
+                        allGroups[idx] = { alias: pool.alias, skills: [], failed: true };
                     })
                     .always(function () {
                         if (--pending > 0) return;
-                        _installedGroups = groups.filter(function (g) { return !!g; });
+                        allGroups = allGroups.filter(function (g) { return !!g; });
+
+                        // 构建挂载计数映射
+                        var groupCounts = {};
+                        allGroups.forEach(function (g) {
+                            groupCounts[g.alias] = (g.skills || []).length;
+                        });
+
+                        // 填充下拉框（带计数）
+                        fillMountFilter(pools, groupCounts);
+
+                        // 按选中的挂载过滤
+                        var selected = $skillsMountFilter.val() || (pools.length ? pools[0].alias : '');
+                        _installedGroups = selected
+                            ? allGroups.filter(function (g) { return g.alias === selected; })
+                            : allGroups;
+
                         _installedDirty = false;
                         $skillsInstalledLoading.hide();
                         $skillsInstalledStatus.hide();
@@ -341,17 +354,8 @@
         });
 
         var slice = flatItems.slice(start, end);
-        var currentGroupAlias = null;
 
         slice.forEach(function (item) {
-            // 遇到新分组时输出分组标题
-            if (item.group.alias !== currentGroupAlias) {
-                currentGroupAlias = item.group.alias;
-                // 计算该分组在当前页的可见数量（近似）
-                html += '<div class="skills-installed-group-title">' + escapeHtml(currentGroupAlias)
-                    + '<span class="skills-installed-group-count">' + item.group.skills.length + ' 个技能包</span></div>';
-            }
-
             var skill = item.skill;
             var name = skill.name || '';
             var version = skill.version || '';
