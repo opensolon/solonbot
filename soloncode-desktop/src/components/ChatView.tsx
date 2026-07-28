@@ -207,8 +207,11 @@ interface ChatViewProps {
 // 全局 WebSocket 连接管理器（每次请求独立连接�?
 const STREAM_BATCH_INTERVAL_MS = 16;
 const STREAM_BATCH_CHARS = 24;
+const WS_CONNECT_TIMEOUT_MS = 10_000;
 const WS_CONNECT_RETRY_DELAYS_MS = [300, 700, 1500];
-const WS_RECONNECT_DELAYS_MS = [500, 1000, 2000, 4000, 8000];
+const WS_RECONNECT_DELAYS_MS = [500, 1000, 2000];
+const RESPONSE_TIMEOUT_MS = 120_000;
+const RESPONSE_TIMEOUT_MAX_RETRIES = 3;
 
 class WebSocketManager {
   private static instance: WebSocketManager | null = null;
@@ -266,32 +269,47 @@ class WebSocketManager {
   }
 
   /** 每次请求创建独立 WebSocket 连接 */
-  private createConnection(sessionId?: string, resume = false, manageSession = false): Promise<WebSocket> {
+  private createConnection(sessionId?: string, resume = false): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
       const wsUrl = this.getWebSocketUrl(sessionId, resume);
       console.log('[WS] Connecting to:', wsUrl);
       const ws = new WebSocket(wsUrl);
-      if (sessionId && manageSession) this.bindSessionSocket(sessionId, ws);
+      let settled = false;
 
       const onOpen = () => {
+        if (settled) return;
+        settled = true;
         cleanup();
         console.log('[WS] Connected');
         resolve(ws);
       };
       const onError = () => {
+        if (settled) return;
+        settled = true;
         cleanup();
         console.error('[WS] Connection error');
         reject(new Error('WebSocket connection failed'));
       };
       const onClose = () => {
+        if (settled) return;
+        settled = true;
         cleanup();
         reject(new Error('WebSocket closed before connected'));
       };
       const cleanup = () => {
+        clearTimeout(timeout);
         ws.removeEventListener('open', onOpen);
         ws.removeEventListener('error', onError);
         ws.removeEventListener('close', onClose);
       };
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        this.intentionallyClosedWs.add(ws);
+        ws.close();
+        reject(new Error('WebSocket connection timed out'));
+      }, WS_CONNECT_TIMEOUT_MS);
       ws.addEventListener('open', onOpen);
       ws.addEventListener('error', onError);
       ws.addEventListener('close', onClose);
@@ -433,13 +451,14 @@ class WebSocketManager {
       if (this.terminalSessions.has(sessionId)) return;
       this.reconnectAttempts.set(sessionId, attempt + 1);
       try {
-        const ws = await this.createConnection(sessionId, true, true);
+        const ws = await this.createConnection(sessionId, true);
         if (this.terminalSessions.has(sessionId)) {
           this.intentionallyClosedWs.add(ws);
           ws.close();
           return;
         }
         this.activeWs.set(sessionId, ws);
+        this.bindSessionSocket(sessionId, ws);
         this.statusCallback?.(sessionId, 'running');
       } catch (error) {
         console.warn(`[WS] Reconnect attempt ${attempt + 1} failed:`, error);
@@ -489,6 +508,21 @@ class WebSocketManager {
 
   getSessionSocket(sessionId: string): WebSocket | null {
     return this.activeWs.get(sessionId) || null;
+  }
+
+  /** 回答长时间无响应时仅重连并续传，避免重新执行已经完成的工具调用。 */
+  retrySession(sessionId: string): boolean {
+    if (!sessionId || this.terminalSessions.has(sessionId)) return false;
+    this.clearReconnectTimer(sessionId);
+    const ws = this.activeWs.get(sessionId);
+    if (ws) {
+      this.activeWs.delete(sessionId);
+      this.intentionallyClosedWs.add(ws);
+      ws.close();
+    }
+    this.reconnectAttempts.set(sessionId, 0);
+    this.scheduleReconnect(sessionId);
+    return true;
   }
 
   disconnect() {
@@ -1192,12 +1226,32 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
 
   // 加载超时计时器：收到消息时重置，120秒无新消息自动停�?
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const responseTimeoutRetriesRef = useRef(new Map<string, number>());
 
   const startLoadingTimer = useCallback(() => {
     if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
-    loadingTimerRef.current = setTimeout(() => {
-      console.log('[ChatView] Loading timeout (120s), auto-stopping');
+
+    function armTimer() {
+      loadingTimerRef.current = setTimeout(handleTimeout, RESPONSE_TIMEOUT_MS);
+    }
+
+    function handleTimeout() {
       const timedOutSessionId = streamingSessionIdRef.current;
+      if (!timedOutSessionId) return;
+
+      const retries = responseTimeoutRetriesRef.current.get(timedOutSessionId) || 0;
+      if (retries < RESPONSE_TIMEOUT_MAX_RETRIES) {
+        const nextRetry = retries + 1;
+        responseTimeoutRetriesRef.current.set(timedOutSessionId, nextRetry);
+        console.warn(`[ChatView] Response timeout, reconnecting (${nextRetry}/${RESPONSE_TIMEOUT_MAX_RETRIES})`);
+        if (WebSocketManager.getInstance().retrySession(timedOutSessionId)) {
+          armTimer();
+          return;
+        }
+      }
+
+      console.error(`[ChatView] Response timeout after ${RESPONSE_TIMEOUT_MAX_RETRIES} retries, auto-stopping`);
+      responseTimeoutRetriesRef.current.delete(timedOutSessionId);
       if (timedOutSessionId) {
         WebSocketManager.getInstance().cancelSession(timedOutSessionId);
         clearStreamQueue(timedOutSessionId);
@@ -1215,7 +1269,9 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       if (timedOutSessionId) {
         onSessionRunStateChangeRef.current?.(timedOutSessionId, 'error', RESPONSE_TIMEOUT_ERROR);
       }
-    }, 120000);
+    }
+
+    armTimer();
   }, [appendResponseError]);
 
   const clearLoadingTimer = useCallback(() => {
@@ -1401,6 +1457,8 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     const handleMessage = async (data: any) => {
       const msgSessionId = (data.sessionId || conversationIdRef.current.toString()).toString();
       const isCurrentSession = msgSessionId === conversationIdRef.current.toString() || msgSessionId === sessionIdRef.current;
+      // 任意有效消息都说明回答流已经恢复；下一次连续无响应重新计算 3 次机会。
+      responseTimeoutRetriesRef.current.delete(msgSessionId);
 
       // done / error 类型必须处理，不�?session 校验限制（保�?loading 状态正确）
       if (data.type === 'done') {
@@ -1839,6 +1897,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     isStreamingRef.current = true;
     streamingSessionIdRef.current = sessionId!;
     thinkingStartedAtBySessionRef.current.set(sessionId!, Date.now());
+    responseTimeoutRetriesRef.current.delete(sessionId!);
 
     setIsLoading(true);
     startLoadingTimer(); // 开始超时计�?
@@ -2176,6 +2235,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const handleStop = useCallback(async () => {
     const stoppedSessionId = sessionIdRef.current;
     WebSocketManager.getInstance().cancelSession(stoppedSessionId);
+    responseTimeoutRetriesRef.current.delete(stoppedSessionId);
     clearLoadingTimer();
     clearStreamQueue(stoppedSessionId);
     setIsLoading(false);
