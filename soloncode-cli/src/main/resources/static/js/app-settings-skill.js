@@ -354,11 +354,15 @@
 
             var skill = item.skill;
             var name = skill.name || '';
+            var version = skill.version || '';
+            var iconText = name ? name.substring(0, 2).toUpperCase() : 'SK';
             html += '<div class="mcp-server-item mounts-skill-item" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
+                + '<div class="skill-item-icon">' + escapeHtml(iconText) + '</div>'
                 + '<div class="mcp-server-info">'
                 + '<div class="mcp-server-name">' + escapeHtml(name) + '</div>'
                 + (skill.description ? '<div class="mcp-server-detail">' + escapeHtml(skill.description) + '</div>' : '')
                 + (skill.realPath ? '<div class="mcp-server-detail settings-muted-text">' + escapeHtml(skill.realPath) + '</div>' : '')
+                + (version ? '<div class="mcp-server-detail"><span class="skill-item-version">v' + escapeHtml(version.replace(/^v/i, '')) + '</span></div>' : '')
                 + '</div><div class="mcp-server-actions">'
                 + '<button class="mcp-action-btn skills-installed-upgrade-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="从市场重新安装（升级）">' + SVG_REFRESH_SM + '</button>'
                 + '<button class="mcp-action-btn delete skills-installed-delete-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="删除技能包">' + SVG_DELETE_SM + '</button>'

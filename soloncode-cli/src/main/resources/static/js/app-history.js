@@ -43,7 +43,7 @@ function loadSessionHistory() {
             var list = resp.data;
             chatHistory = [];
             for (var i = 0; i < list.length; i++) {
-                chatHistory.push({ label: list[i].label, sessionId: list[i].sessionId });
+                chatHistory.push({ label: list[i].label, sessionId: list[i].sessionId, isPinned: list[i].isPinned === true });
             }
             updateHistoryUI();
             restoreActiveSession();
@@ -68,7 +68,7 @@ function ensureChatInHistory(sessionId, firstMsg, makeCurrent) {
             return;
         }
     }
-    chatHistory.unshift({ label: label, sessionId: sessionId });
+    chatHistory.unshift({ label: label, sessionId: sessionId, isPinned: false });
     if (chatHistory.length > 50) chatHistory.pop();
     if (shouldMakeCurrent) {
         currentChatIndex = 0;
@@ -126,6 +126,14 @@ $(historyList).on('click', function(e) {
         if (!isNaN(idx)) forkSession(idx);
         return;
     }
+    var $pinBtn = $target.closest('.sidebar-item-pin-btn');
+    if ($pinBtn.length) {
+        e.stopPropagation();
+        closeSidebarItemMenus();
+        var idx = parseInt($pinBtn.closest('.sidebar-item').attr('data-idx'));
+        if (!isNaN(idx)) togglePin(idx);
+        return;
+    }
     var $item = $target.closest('.sidebar-item');
     if ($item.length) {
         var idx = parseInt($item.attr('data-idx'));
@@ -143,14 +151,27 @@ function updateHistoryUI() {
     _updateHistoryUIPending = true;
     requestAnimationFrame(function() {
         _updateHistoryUIPending = false;
+
+        // 排序：置顶优先，内部保持原始顺序
+        var sortedIndices = [];
+        for (var si = 0; si < chatHistory.length; si++) sortedIndices.push(si);
+        sortedIndices.sort(function(a, b) {
+            var aPinned = chatHistory[a].isPinned ? 1 : 0;
+            var bPinned = chatHistory[b].isPinned ? 1 : 0;
+            if (aPinned !== bPinned) return bPinned - aPinned;
+            return 0;
+        });
+
         var html = '';
-        for (var i = 0; i < chatHistory.length; i++) {
+        for (var si = 0; si < sortedIndices.length; si++) {
+            var i = sortedIndices[si];
             var sess = sessionMap[chatHistory[i].sessionId];
             var streaming = sess && sess.isStreaming;
             var cls = 'sidebar-item' + (i === currentChatIndex ? ' active' : '') + (streaming ? ' streaming' : '');
 
             html += '<div class="' + cls + '" data-idx="' + i + '">'
                 + '<span class="sidebar-item-label">' + escapeHtml(chatHistory[i].label) + '</span>';
+
             // 任务进度 badge
             var todoInfo = window.sessionTodoMap && window.sessionTodoMap[chatHistory[i].sessionId];
             if (todoInfo && todoInfo.total > 0) {
@@ -165,6 +186,7 @@ function updateHistoryUI() {
                 + '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="19" cy="12" r="1.25"/></svg>'
                 + '</button>'
                 + '<span class="sidebar-item-menu" role="menu">'
+                + '<button type="button" class="sidebar-item-pin-btn" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg><span>' + (chatHistory[i].isPinned ? '取消置顶' : '置顶对话') + '</span></button>'
                 + '<button type="button" class="sidebar-item-rename" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>重命名</span></button>'
                 + '<button type="button" class="sidebar-item-fork" role="menuitem"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.25 2.25 0 1 1-1.5 0v-2.128h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 0 1.5Z"/></svg><span>复制对话</span></button>'
                 + '<button type="button" class="sidebar-item-del" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>删除</span></button>'
@@ -307,6 +329,27 @@ function deleteSession(idx) {
             alert('删除对话失败，请重试');
         }
     });
+    });
+}
+
+function togglePin(idx) {
+    var entry = chatHistory[idx];
+    if (!entry) return;
+
+    var newPinned = !entry.isPinned;
+    $.post('/web/chat/sessions/pin', {
+        sessionId: entry.sessionId,
+        pinned: newPinned
+    }, function() {
+        // 更新本地状态
+        entry.isPinned = newPinned;
+        updateHistoryUI();
+    }).fail(function() {
+        if (typeof layer !== 'undefined' && layer.msg) {
+            layer.msg('操作失败，请重试', { icon: 2, time: 3000, offset: '120px' });
+        } else {
+            alert('操作失败，请重试');
+        }
     });
 }
 

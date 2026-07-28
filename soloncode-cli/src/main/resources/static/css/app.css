@@ -196,6 +196,7 @@ body {
     color: #4caf50;
     background: rgba(76,175,80,0.1);
 }
+
 .sidebar-item-spinner {
     flex-shrink: 0;
     width: 16px;

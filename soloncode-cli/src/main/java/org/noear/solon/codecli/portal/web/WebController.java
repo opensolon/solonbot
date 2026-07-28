@@ -207,7 +207,7 @@ public class WebController {
         if (sessionsDir.exists() && sessionsDir.isDirectory()) {
             File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
             if (dirs != null) {
-                Arrays.sort(dirs, Comparator.comparingLong(File::lastModified).reversed());
+                // 不在 dirs 层面排序，后面统一按置顶+时间排序
 
                 for (File dir : dirs) {
                     String sid = dir.getName();
@@ -233,15 +233,40 @@ public class WebController {
                         continue;
                     }
 
+                    // 读取置顶状态
+                    boolean isPinned = false;
+                    File pinFile = new File(dir, "pin.txt");
+                    if (pinFile.exists()) {
+                        try (BufferedReader pinReader = new BufferedReader(
+                                new InputStreamReader(new FileInputStream(pinFile), "UTF-8"))) {
+                            String val = pinReader.readLine();
+                            isPinned = "true".equalsIgnoreCase(val);
+                        } catch (Exception ignored) {
+                        }
+                    }
+
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("sessionId", sid);
                     item.put("label", label.length() > 30 ? label.substring(0, 30) + "..." : label);
                     item.put("time", dir.lastModified());
+                    item.put("isPinned", isPinned);
                     data.add(item);
 
                     //恢复定时任务
                     loopScheduler.restore(sid);
                 }
+
+                // 排序：置顶优先（按 time 降序），非置顶在后（按 time 降序）
+                data.sort((a, b) -> {
+                    boolean aPinned = (Boolean) a.getOrDefault("isPinned", false);
+                    boolean bPinned = (Boolean) b.getOrDefault("isPinned", false);
+                    if (aPinned != bPinned) {
+                        return aPinned ? -1 : 1;
+                    }
+                    Long aTime = (Long) a.getOrDefault("time", 0L);
+                    Long bTime = (Long) b.getOrDefault("time", 0L);
+                    return bTime.compareTo(aTime);
+                });
             }
         }
 
@@ -414,6 +439,47 @@ public class WebController {
         }
 
         java.nio.file.Files.write(labelFile.toPath(), label.trim().getBytes("UTF-8"));
+
+        return Result.succeed();
+    }
+
+    /**
+     * 置顶/取消置顶会话。
+     * <p>在会话目录下写入 pin.txt 文件保存置顶状态（内容为 true/false）。
+     * 取消置顶时删除 pin.txt 文件。</p>
+     *
+     * @param sessionId 会话 ID
+     * @param pinned    是否置顶
+     * @return 操作结果
+     * @throws Exception 文件写入异常
+     */
+    @Post
+    @Mapping("/web/chat/sessions/pin")
+    public Result pinSession(@Param("sessionId") String sessionId,
+                             @Param("pinned") boolean pinned) throws Exception {
+        if (!isValidSessionId(sessionId)) {
+            return Result.failure(400, "Invalid sessionId");
+        }
+
+        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionPath.startsWith(sessionsRoot)) {
+            return Result.failure(400, "Invalid session path");
+        }
+
+        File sessionDir = sessionPath.toFile();
+        if (!sessionDir.exists() || !sessionDir.isDirectory()) {
+            return Result.failure(404, "Session not found");
+        }
+
+        File pinFile = new File(sessionDir, "pin.txt");
+        if (pinned) {
+            java.nio.file.Files.write(pinFile.toPath(), "true".getBytes("UTF-8"));
+        } else {
+            if (pinFile.exists()) {
+                pinFile.delete();
+            }
+        }
 
         return Result.succeed();
     }
