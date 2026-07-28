@@ -37,7 +37,7 @@ interface ExplorerPanelProps {
   onCreateProject: () => void;
   onRemoveProject: (id: string) => Promise<void>;
   onRenameProject: (id: string, name: string) => Promise<void>;
-  onSetActiveProject: (path: string) => void;
+  onSetActiveProject: (path: string) => void | Promise<void>;
   onRefreshProject: (projectPath: string) => void;
   onNewFile: (projectPath: string) => void;
   onNewFolder: (projectPath: string) => Promise<void>;
@@ -202,6 +202,7 @@ export function ExplorerPanel({
 
   // 切换项目展开/折叠
   const toggleProject = useCallback(async (projectPath: string) => {
+    await onSetActiveProject(projectPath);
     const next = new Set(expandedProjects);
     if (next.has(projectPath)) {
       next.delete(projectPath);
@@ -214,8 +215,6 @@ export function ExplorerPanel({
     if (!projectTrees.has(projectPath) && !loadingProjects.has(projectPath)) {
       await loadProjectTree(projectPath);
     }
-
-    onSetActiveProject(projectPath);
   }, [expandedProjects, projectTrees, loadingProjects, loadProjectTree, onSetActiveProject]);
 
   // 刷新单个项目
@@ -564,7 +563,6 @@ export function ExplorerPanel({
     // 项目根目录本身占一层，子目录和文件从下一层开始缩进。
     const indent = (depth + 1) * 16;
     const isExpanded = expandedFolders.has(node.path);
-    const isLoading = loadingFolders.has(node.path);
     const isRenaming = renamingPath === node.path;
     const isCut = clipboard?.operation === 'cut' && clipboard.path === node.path;
 
@@ -586,23 +584,11 @@ export function ExplorerPanel({
             handleContextMenu(e, node, projectPath);
           }}
         >
-          {node.type === 'folder' ? (
-            <>
-              <span className="chevron-icon">
-                <Icon
-                  name={isLoading ? 'loading' : isExpanded ? 'chevron-down' : 'chevron-right'}
-                  size={12}
-                  className={isLoading ? 'spinning' : ''}
-                />
-              </span>
-              <Icon name={isExpanded ? 'folder-open' : 'folder'} size={16} className="file-icon" />
-            </>
-          ) : (
-            <>
-              <span className="chevron-placeholder" />
-              <Icon name={getFileIconName(node.name)} size={16} className="file-icon" />
-            </>
-          )}
+          <Icon
+            name={node.type === 'folder' ? (isExpanded ? 'folder-open' : 'folder') : getFileIconName(node.name)}
+            size={16}
+            className="file-icon"
+          />
           {isRenaming ? (
             <input
               className="rename-input"

@@ -12,6 +12,9 @@ import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
 import org.noear.solon.codecli.config.models.ModelsAdapterManager;
+import org.noear.solon.codecli.command.builtin.GoalState;
+import org.noear.solon.codecli.command.builtin.LoopScheduler;
+import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -22,6 +25,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
+import java.net.URI;
+import java.time.Instant;
 
 /**
  * Desktop Controller
@@ -34,11 +44,25 @@ public class WsController {
     private final HarnessEngine engine;
     private final AgentSettings settings;
     private final ModelsAdapterManager modelsAdapterManager;
+    private final WsGate wsGate;
+    private final LoopScheduler loopScheduler;
 
-    public WsController(HarnessEngine engine, AgentSettings settings) {
+    public WsController(HarnessEngine engine, AgentSettings settings, WsGate wsGate, LoopScheduler loopScheduler) {
         this.engine = engine;
         this.settings = settings;
+        this.wsGate = wsGate;
+        this.loopScheduler = loopScheduler;
         this.modelsAdapterManager = ModelsAdapterManager.getInstance();
+
+        if (loopScheduler != null) {
+            loopScheduler.addBusyChecker(sessionId -> isDesktopSessionId(sessionId) && wsGate.isSessionBusy(sessionId));
+            loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
+                if (!isDesktopSessionId(sessionId)) {
+                    return null;
+                }
+                return wsGate.runGoalRoundAndCapture(sessionId, prompt, agentName);
+            });
+        }
     }
 
     /**
@@ -47,10 +71,21 @@ public class WsController {
     @Get
     @Mapping("/desktop/version")
     public Result<Map> version() {
-        Map<String, String> data = new LinkedHashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
         data.put("version", AgentFlags.getVersion());
         data.put("workspace", engine.getWorkspace());
+        data.put("pid", currentProcessId());
+        data.put("desktopManaged", "1".equals(System.getenv("SOLONCODE_DESKTOP_MANAGED")));
         return Result.succeed(data);
+    }
+
+    private long currentProcessId() {
+        try {
+            String runtimeName = java.lang.management.ManagementFactory.getRuntimeMXBean().getName();
+            return Long.parseLong(runtimeName.split("@", 2)[0]);
+        } catch (Throwable ignored) {
+            return 0L;
+        }
     }
 
     /**
@@ -84,11 +119,29 @@ public class WsController {
     /**
      * 通过 ModelsAdapterManager 从远程 API 获取可用模型列表
      */
-    @Get
+    @Post
     @Mapping("/desktop/chat/models/fetch")
-    public Result<List<Map>> fetchModels(@Param("apiUrl") String apiUrl, @Param("apiKey") String apiKey, @Param("provider") String provider, @Param("model") String model) throws Exception {
+    public Result<List<Map>> fetchModels(Context ctx) throws Exception {
+        ONode root = ONode.ofJson(ctx.body());
+        String apiUrl = root.get("apiUrl").getString();
+        String apiKey = root.get("apiKey").getString();
+        String provider = root.get("provider").getString();
+        String model = root.get("model").getString();
         if (Assert.isEmpty(apiUrl)) {
             return Result.failure("apiUrl is required");
+        }
+        if (apiUrl.length() > 2048 || (apiKey != null && apiKey.length() > 8192)
+                || (provider != null && provider.length() > 64) || (model != null && model.length() > 256)) {
+            return Result.failure(400, "Model configuration is too long");
+        }
+        try {
+            URI uri = URI.create(apiUrl);
+            if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                    || Assert.isEmpty(uri.getHost())) {
+                return Result.failure(400, "Invalid apiUrl");
+            }
+        } catch (RuntimeException e) {
+            return Result.failure(400, "Invalid apiUrl");
         }
 
         ModelsAdapter modelsAdapter = modelsAdapterManager.getAdapter(provider);
@@ -146,6 +199,389 @@ public class WsController {
         }
 
         return Result.succeed(list);
+    }
+
+    /**
+     * 分叉桌面会话的 Agent 历史文件。前端的会话元数据仍由桌面 IndexedDB 管理。
+     */
+    @Post
+    @Mapping("/desktop/chat/sessions/fork")
+    public Result forkSession(Context ctx) throws Exception {
+        ONode root = ONode.ofJson(ctx.body());
+        String sourceId = root.get("sourceId").getString();
+        String targetId = root.get("targetId").getString();
+        if (!isDesktopSessionId(sourceId) || !isDesktopSessionId(targetId) || sourceId.equals(targetId)) {
+            return Result.failure(400, "Invalid session id");
+        }
+
+        Path workspaceRoot;
+        try {
+            workspaceRoot = resolveWorkspaceRoot(root.get("workspace").getString());
+        } catch (IllegalArgumentException e) {
+            return Result.failure(400, "Invalid workspace");
+        }
+        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sourceDir = sessionsRoot.resolve(sourceId).normalize();
+        Path targetDir = sessionsRoot.resolve(targetId).normalize();
+        if (!sessionsRoot.startsWith(workspaceRoot) || !sourceDir.startsWith(sessionsRoot) || !targetDir.startsWith(sessionsRoot)) {
+            return Result.failure(400, "Invalid session path");
+        }
+        Path sourceMessages = sourceDir.resolve(sourceId + ".messages.ndjson");
+        if (isActiveWorkspace(workspaceRoot) && wsGate.isSessionBusy(sourceId)) {
+            return Result.failure(409, "Source session is running");
+        }
+        if (!Files.isRegularFile(sourceMessages) || Files.exists(targetDir)) {
+            return Result.failure(404, "Source session not found or target exists");
+        }
+
+        Files.createDirectories(targetDir);
+        try {
+            Files.copy(sourceMessages, targetDir.resolve(targetId + ".messages.ndjson"), StandardCopyOption.COPY_ATTRIBUTES);
+            Path sourceLabel = sourceDir.resolve("label.txt");
+            if (Files.isRegularFile(sourceLabel)) {
+                Files.copy(sourceLabel, targetDir.resolve("label.txt"), StandardCopyOption.COPY_ATTRIBUTES);
+            }
+            return Result.succeed(targetId);
+        } catch (Exception e) {
+            try {
+                Files.deleteIfExists(targetDir.resolve(targetId + ".messages.ndjson"));
+                Files.deleteIfExists(targetDir.resolve("label.txt"));
+                Files.deleteIfExists(targetDir);
+            } catch (Exception ignored) {
+            }
+            LOG.warn("[Desktop] Failed to fork session {}: {}", sourceId, e.getMessage());
+            return Result.failure("Failed to fork session");
+        }
+    }
+
+    private boolean isDesktopSessionId(String value) {
+        return value != null && value.matches("[0-9]{1,18}");
+    }
+
+    /** 删除桌面会话的服务端历史；仅允许数字 ID 和已存在的绝对工作区。 */
+    @Post
+    @Mapping("/desktop/chat/sessions/delete")
+    public Result deleteSession(Context ctx) throws Exception {
+        ONode root = ONode.ofJson(ctx.body());
+        String sessionId = root.get("sessionId").getString();
+        if (!isDesktopSessionId(sessionId)) {
+            return Result.failure(400, "Invalid session id");
+        }
+        Path workspaceRoot;
+        try {
+            workspaceRoot = resolveWorkspaceRoot(root.get("workspace").getString());
+        } catch (IllegalArgumentException e) {
+            return Result.failure(400, "Invalid workspace");
+        }
+        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionDir = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionsRoot.startsWith(workspaceRoot) || !sessionDir.startsWith(sessionsRoot)) {
+            return Result.failure(400, "Invalid session path");
+        }
+        if (!Files.exists(sessionDir, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            return Result.succeed();
+        }
+        if (isActiveWorkspace(workspaceRoot) && wsGate.isSessionBusy(sessionId)) {
+            return Result.failure(409, "Session is running");
+        }
+        try (java.util.stream.Stream<Path> paths = Files.walk(sessionDir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.delete(path);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return Result.succeed();
+        } catch (Exception e) {
+            LOG.warn("[Desktop] Failed to delete session {}: {}", sessionId, e.getMessage());
+            return Result.failure("Failed to delete session");
+        }
+    }
+
+    private Path resolveWorkspaceRoot(String workspace) {
+        Path requested = Assert.isEmpty(workspace) ? Paths.get(engine.getWorkspace()) : Paths.get(workspace);
+        if (!requested.isAbsolute()) {
+            throw new IllegalArgumentException("workspace must be absolute");
+        }
+        try {
+            Path root = requested.toRealPath().normalize();
+            if (!Files.isDirectory(root)) {
+                throw new IllegalArgumentException("workspace not found");
+            }
+            return root;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("invalid workspace", e);
+        }
+    }
+
+    private boolean isActiveWorkspace(Path workspaceRoot) {
+        try {
+            return workspaceRoot.equals(Paths.get(engine.getWorkspace()).toRealPath().normalize());
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** 当前桌面会话的 Goal 列表。 */
+    @Get
+    @Mapping("/desktop/chat/goals/list")
+    public Result<List<Map>> goalsList(@Param("sessionId") String sessionId) {
+        if (!isDesktopSessionId(sessionId) || loopScheduler == null) {
+            return Result.failure(400, "Invalid session id");
+        }
+        loopScheduler.restore(sessionId);
+        List<Map> items = new ArrayList<>();
+        for (LoopTask task : loopScheduler.listAll(sessionId)) {
+            if (task.isGoalMode()) {
+                items.add(buildGoalTaskMap(task));
+            }
+        }
+        return Result.succeed(items);
+    }
+
+    /** 从对话输入框启动 Goal；目标正文通过 JSON 传输，不经过命令行解析。 */
+    @Post
+    @Mapping("/desktop/chat/goals/add")
+    public Result goalsAdd(Context ctx) throws Exception {
+        if (loopScheduler == null) {
+            return Result.failure(503, "Goal service is unavailable");
+        }
+        ONode root = ONode.ofJson(ctx.body());
+        String sessionId = root.get("sessionId").getString();
+        String prompt = root.get("prompt").getString();
+        if (!isDesktopSessionId(sessionId)) {
+            return Result.failure(400, "Invalid session id");
+        }
+        if (Assert.isEmpty(prompt) || prompt.trim().length() > 20_000) {
+            return Result.failure(400, "Goal prompt is required and must not exceed 20000 characters");
+        }
+
+        Long maxTokens = optionalPositiveLong(root, "maxTokens", 1_000_000_000L);
+        Long maxDurationMinutes = optionalPositiveLong(root, "maxDurationMinutes", 525_600L);
+        Integer maxIterations = optionalNonNegativeInt(root, "maxIterations", 10_000);
+        if (maxTokens != null && maxTokens < 0 || maxDurationMinutes != null && maxDurationMinutes < 0
+                || maxIterations != null && maxIterations < 0) {
+            return Result.failure(400, "Invalid Goal budget");
+        }
+
+        try {
+            wsGate.configureGoalSession(
+                    sessionId,
+                    root.get("modelName").getString(),
+                    root.get("agent").getString(),
+                    root.get("workspace").getString(),
+                    root.get("reasoningEffort").getString());
+
+            synchronized (loopScheduler) {
+                LoopTask active = loopScheduler.findActiveGoalInSession(sessionId);
+                if (active != null) {
+                    return Result.failure(409, "A Goal is already active in this session");
+                }
+                LoopTask task = new LoopTask(prompt.trim(), 0, null, LoopTask.TaskType.GOAL, true);
+                if (maxTokens != null) {
+                    task.setMaxTokens(maxTokens);
+                }
+                if (maxDurationMinutes != null) {
+                    task.setMaxDurationMs(Math.multiplyExact(maxDurationMinutes, 60_000L));
+                }
+                if (maxIterations != null) {
+                    task.getGoalState().setMaxIterations(maxIterations);
+                }
+                loopScheduler.schedule(sessionId, task);
+                return Result.succeed(task.getId());
+            }
+        } catch (IllegalArgumentException | ArithmeticException error) {
+            return Result.failure(400, error.getMessage());
+        } catch (IllegalStateException error) {
+            return Result.failure(409, error.getMessage());
+        }
+    }
+
+    @Post
+    @Mapping("/desktop/chat/goals/update")
+    public Result goalsUpdate(Context ctx) throws Exception {
+        if (loopScheduler == null) {
+            return Result.failure(503, "Goal service is unavailable");
+        }
+        ONode root = ONode.ofJson(ctx.body());
+        String sessionId = root.get("sessionId").getString();
+        String taskId = root.get("taskId").getString();
+        if (!isDesktopSessionId(sessionId) || Assert.isEmpty(taskId) || taskId.length() > 64) {
+            return Result.failure(400, "Invalid Goal request");
+        }
+
+        loopScheduler.restore(sessionId);
+        LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
+        if (task == null || !task.isGoalMode()) {
+            return Result.failure(404, "Goal not found");
+        }
+        if (task.getGoalState().getStatus().isTerminal()) {
+            return Result.failure(409, "Completed Goal cannot be edited");
+        }
+
+        String objective = root.getOrNull("prompt") == null
+                ? task.getGoalState().getCondition() : root.get("prompt").getString().trim();
+        if (Assert.isEmpty(objective) || objective.length() > 20_000) {
+            return Result.failure(400, "Goal prompt is required and must not exceed 20000 characters");
+        }
+        Long maxTokens = optionalNonNegativeLong(root, "maxTokens", 1_000_000_000L);
+        Integer maxIterations = optionalNonNegativeInt(root, "maxIterations", 10_000);
+        if (maxTokens != null && maxTokens < 0 || maxIterations != null && maxIterations < 0) {
+            return Result.failure(400, "Invalid Goal limit");
+        }
+
+        boolean resumeAfterUpdate = task.getGoalState().getStatus() == GoalState.Status.PURSUING;
+        if (resumeAfterUpdate) {
+            loopScheduler.pauseGoal(sessionId, taskId);
+            wsGate.interruptGoalSession(sessionId);
+            if (task.getGoalState().getStatus() != GoalState.Status.PAUSED) {
+                return Result.failure(409, "Goal state changed before settings could be applied");
+            }
+            for (int attempt = 0; task.isRunning() && attempt < 200; attempt++) {
+                Thread.sleep(10L);
+            }
+            if (task.isRunning()) {
+                return Result.failure(409, "Goal is still stopping; please retry");
+            }
+        }
+
+        loopScheduler.updateGoalConfiguration(
+                sessionId,
+                taskId,
+                objective,
+                maxTokens != null ? maxTokens : task.getGoalState().getMaxTokens(),
+                maxIterations != null ? maxIterations : task.getGoalState().getMaxIterations());
+        if (resumeAfterUpdate) {
+            loopScheduler.resumeGoal(sessionId, taskId);
+            loopScheduler.trigger(sessionId, taskId);
+        }
+        return Result.succeed();
+    }
+
+    @Post
+    @Mapping("/desktop/chat/goals/pause")
+    public Result goalsPause(Context ctx) throws Exception {
+        return operateGoal(ctx, "pause");
+    }
+
+    @Post
+    @Mapping("/desktop/chat/goals/resume")
+    public Result goalsResume(Context ctx) throws Exception {
+        return operateGoal(ctx, "resume");
+    }
+
+    @Post
+    @Mapping("/desktop/chat/goals/trigger")
+    public Result goalsTrigger(Context ctx) throws Exception {
+        return operateGoal(ctx, "trigger");
+    }
+
+    @Post
+    @Mapping("/desktop/chat/goals/remove")
+    public Result goalsRemove(Context ctx) throws Exception {
+        return operateGoal(ctx, "remove");
+    }
+
+    private Result operateGoal(Context ctx, String action) throws Exception {
+        if (loopScheduler == null) {
+            return Result.failure(503, "Goal service is unavailable");
+        }
+        ONode root = ONode.ofJson(ctx.body());
+        String sessionId = root.get("sessionId").getString();
+        String taskId = root.get("taskId").getString();
+        if (!isDesktopSessionId(sessionId) || Assert.isEmpty(taskId) || taskId.length() > 64) {
+            return Result.failure(400, "Invalid Goal request");
+        }
+        loopScheduler.restore(sessionId);
+        LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
+        if (task == null || !task.isGoalMode()) {
+            return Result.failure(404, "Goal not found");
+        }
+        switch (action) {
+            case "pause":
+                loopScheduler.pauseGoal(sessionId, taskId);
+                wsGate.interruptGoalSession(sessionId);
+                break;
+            case "resume":
+                loopScheduler.resumeGoal(sessionId, taskId);
+                break;
+            case "trigger":
+                loopScheduler.trigger(sessionId, taskId);
+                break;
+            case "remove":
+                if (task.getGoalState().getStatus() == GoalState.Status.PURSUING) {
+                    loopScheduler.pauseGoal(sessionId, taskId);
+                }
+                wsGate.interruptGoalSession(sessionId);
+                loopScheduler.remove(sessionId, task);
+                break;
+            default:
+                return Result.failure(400, "Invalid Goal action");
+        }
+        return Result.succeed();
+    }
+
+    private Long optionalPositiveLong(ONode root, String name, long maximum) {
+        ONode node = root.get(name);
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        long value = node.getLong();
+        if (value < 0) {
+            return -1L;
+        }
+        if (value == 0) {
+            return null;
+        }
+        if (value > maximum) {
+            return -1L;
+        }
+        return value;
+    }
+
+    private Long optionalNonNegativeLong(ONode root, String name, long maximum) {
+        if (root.getOrNull(name) == null) {
+            return null;
+        }
+        long value = root.get(name).getLong();
+        return value < 0 || value > maximum ? -1L : value;
+    }
+
+    private Integer optionalNonNegativeInt(ONode root, String name, int maximum) {
+        if (root.getOrNull(name) == null) {
+            return null;
+        }
+        long value = root.get(name).getLong();
+        return value < 0 || value > maximum ? -1 : (int) value;
+    }
+
+    private Map<String, Object> buildGoalTaskMap(LoopTask task) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", task.getId());
+        item.put("type", task.getType().name());
+        item.put("prompt", task.getPrompt());
+        item.put("enabled", task.isEnabled());
+        item.put("running", task.isRunning());
+        item.put("currentIteration", task.getCurrentIteration());
+        if (task.getMaxTokens() != null) item.put("maxTokens", task.getMaxTokens());
+        if (task.getMaxDurationMs() != null) item.put("maxDurationMs", task.getMaxDurationMs());
+        if (task.getLastResult() != null) item.put("lastResult", task.getLastResult());
+        if (task.getLastExecutedAt() != null) item.put("lastExecutedAt", task.getLastExecutedAt().toString());
+
+        GoalState state = task.getGoalState();
+        Map<String, Object> goal = new LinkedHashMap<>();
+        goal.put("condition", state.getCondition());
+        goal.put("status", state.getStatus().name());
+        goal.put("iteration", task.getCurrentIteration());
+        goal.put("maxIterations", state.getMaxIterations());
+        goal.put("consumedTokens", state.getConsumedTokens());
+        goal.put("maxTokens", state.getMaxTokens());
+        if (state.getStartEpochMs() > 0) {
+            goal.put("startedAt", Instant.ofEpochMilli(state.getStartEpochMs()).toString());
+        }
+        item.put("goal", goal);
+        return item;
     }
 
     /**

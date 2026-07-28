@@ -4,11 +4,13 @@
 <p>Versão Mais Recente: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="Área de trabalho do SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Teste de Funcionalidades (experimente as seguintes tarefas, do simples ao comple
 * `use a web para analisar o protocolo ai mcp e depois gere um ppt` // Recomenda-se instalar algumas habilidades previamente
 * `ajude-me a projetar uma equipe de agentes (salvar o design em demo-dis.md), para desenvolver um sistema clássico de gerenciamento de permissões com solon + java17 (demo-web), usando vue3 no frontend, com interface limpa e bonita`
 
+
+## SolonCode Desktop
+
+O SolonCode Desktop é a experiência de IDE local do SolonCode. Ele reúne conversas com Agents, arquivos do projeto, editor Monaco, terminal integrado, alterações do Git e execução de tarefas em um único espaço de trabalho. O cliente usa Tauri, React e TypeScript, enquanto o backend CLI em Java fornece o runtime dos Agents, o acesso aos modelos e as ferramentas.
+
+Destaques:
+
+* **Modos de Agent** — execução com aprovação, edição automática, planejamento somente leitura e execução contínua de Goal.
+* **Conversas vinculadas ao projeto** — anexos de imagem e arquivo, contexto do workspace, tarefas adicionais durante a execução e estatísticas de modelo, Token e tempo.
+* **Sessões confiáveis** — histórico persistente, memória de longo prazo, reversão, reexecução, exclusão segura e checkpoints do workspace.
+* **Ferramentas de desenvolvimento integradas** — arquivos, editor, terminal, Git, lista de tarefas, Skills, Agents, MCP, OpenAPI, LSP e automações.
+
+Para executar o cliente a partir do código-fonte, inicie o backend separadamente:
+
+~~~bash
+# Terminal 1: backend desktop
+soloncode serve 4808
+
+# Terminal 2: cliente desktop
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+O modo de desenvolvimento conecta-se à porta 4808 e não inicia nem detecta automaticamente o processo backend. Consulte o [README do Desktop](soloncode-desktop/README.md) e o [guia de introdução do SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## Documentação
 

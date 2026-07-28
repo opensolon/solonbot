@@ -404,14 +404,17 @@ public class OpenapiSettingsController extends BaseSettingsController{
      */
     @Post
     @Mapping("/web/settings/openapi/servers/apis/save")
-    public Result openapiServerApisSave(@Param("serverName") String serverName, @Param("disallowedTools") String[] disallowedTools) {
+    public Result openapiServerApisSave(@Param("serverName") String serverName,
+                                        @Param(value = "disallowedTools", required = false) String[] disallowedTools) {
         ApiSource source = settings.getApiServers().get(serverName);
         if (source == null) {
             return Result.failure("Server not found: " + serverName);
         }
 
         // disallowedTools
-        source.setDisallowedTools(Arrays.asList(disallowedTools));
+        source.setDisallowedTools(disallowedTools == null
+                ? Collections.emptyList()
+                : Arrays.asList(disallowedTools));
 
         // 同步到引擎 client 并热重载
         ApiSourceClient client = engine.getApiServer(source.getDocUrl());

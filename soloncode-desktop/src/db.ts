@@ -137,6 +137,25 @@ export interface DbAgent {
   sortOrder: number;
 }
 
+export interface DbPermissionPolicy {
+  id: string;
+  workspacePath: string;
+  toolName: string;
+  createdAt: string;
+}
+
+export type PermissionAuditAction = 'approve_once' | 'approve_always' | 'reject' | 'auto_approve';
+
+export interface DbPermissionAudit {
+  id?: number;
+  sessionId: string;
+  workspacePath: string;
+  toolName: string;
+  action: PermissionAuditAction;
+  commandPreview?: string;
+  createdAt: string;
+}
+
 // ==================== 数据库定义 ====================
 
 class SolonCodeDatabase extends Dexie {
@@ -150,6 +169,8 @@ class SolonCodeDatabase extends Dexie {
   projects!: Table<DbProject>;
   automations!: Table<DbAutomation>;
   automationRuns!: Table<DbAutomationRun>;
+  permissionPolicies!: Table<DbPermissionPolicy>;
+  permissionAudits!: Table<DbPermissionAudit>;
 
   constructor() {
     super('SolonCodeDB');
@@ -192,6 +213,10 @@ class SolonCodeDatabase extends Dexie {
       if (typeof automation.scheduleEnabled !== 'boolean') automation.scheduleEnabled = false;
       if (!automation.cron) automation.cron = '0 9 * * *';
     }));
+    this.version(11).stores({
+      permissionPolicies: 'id, workspacePath, toolName, createdAt',
+      permissionAudits: '++id, sessionId, workspacePath, toolName, action, createdAt',
+    });
   }
 }
 
@@ -259,6 +284,33 @@ export async function getMessageCount(conversationId: string | number): Promise<
     .count();
 }
 
+/** 事务性删除指定会话从 keepCount 开始的消息；失败时不会留下半删除状态。 */
+export async function truncateConversationMessages(conversationId: string | number, keepCount: number): Promise<number> {
+  const normalizedKeepCount = Math.max(0, Math.floor(keepCount));
+  const numId = typeof conversationId === 'string' ? parseInt(conversationId, 10) : conversationId;
+  const ids = isNaN(numId) ? [conversationId] : [conversationId, numId];
+  return db.transaction('rw', db.messages, async () => {
+    const rows = await db.messages.where('conversationId').anyOf(ids).toArray();
+    rows.sort((left, right) => (left.id || 0) - (right.id || 0));
+    const deleteIds = rows.slice(normalizedKeepCount).map(row => row.id).filter((id): id is number => typeof id === 'number');
+    if (deleteIds.length > 0) await db.messages.bulkDelete(deleteIds);
+    return deleteIds.length;
+  });
+}
+
+/**
+ * 一次索引扫描获取所有会话的消息数。
+ * 历史数据可能混用 number/string 会话 ID，统一为字符串后合并计数。
+ */
+export async function getMessageCountsByConversation(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  await db.messages.orderBy('conversationId').eachKey(key => {
+    const conversationId = String(key);
+    counts.set(conversationId, (counts.get(conversationId) || 0) + 1);
+  });
+  return counts;
+}
+
 export async function saveConversation(conversation: DbConversation): Promise<number> {
   if (conversation.id) {
     await db.conversations.update(conversation.id, conversation);
@@ -280,6 +332,33 @@ export async function deleteConversation(id: string | number): Promise<void> {
   if (isNaN(numId)) return;
   await db.messages.where('conversationId').anyOf([id, numId]).delete();
   await db.conversations.delete(numId);
+}
+
+/** 原子复制会话元数据与本地消息，后端 Agent 历史由桌面接口另行复制。 */
+export async function forkConversation(sourceId: string | number, title?: string): Promise<number> {
+  const numericSourceId = typeof sourceId === 'string' ? parseInt(sourceId, 10) : sourceId;
+  if (!Number.isSafeInteger(numericSourceId) || numericSourceId <= 0) throw new Error('源会话无效');
+  return db.transaction('rw', [db.conversations, db.messages], async () => {
+    const source = await db.conversations.get(numericSourceId);
+    if (!source) throw new Error('源会话不存在');
+    const targetId = await db.conversations.add({
+      ...source,
+      id: undefined,
+      title: title?.trim() || `${source.title} · 分支`,
+      timestamp: new Date().toISOString(),
+      status: 'active',
+      isPermanent: false,
+    });
+    const sourceMessages = await db.messages.where('conversationId').anyOf([String(numericSourceId), numericSourceId]).toArray();
+    if (sourceMessages.length > 0) {
+      await db.messages.bulkAdd(sourceMessages.map(message => ({
+        ...message,
+        id: undefined,
+        conversationId: String(targetId),
+      })));
+    }
+    return targetId;
+  });
 }
 
 export async function updateConversation(id: string | number, updates: Partial<DbConversation>): Promise<void> {

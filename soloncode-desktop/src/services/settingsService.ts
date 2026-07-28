@@ -3,6 +3,8 @@
  */
 import { db, getSetting, setSetting } from '../db';
 import { fileService } from './fileService';
+import { mergeFetchedModelsIntoLatest } from '../utils/providerMerge';
+import { credentialService } from './credentialService';
 
 // ==================== 类型定义 ====================
 
@@ -25,6 +27,7 @@ export interface MountConfig {
   path: string;
   type: 'SKILLS' | 'AGENTS' | 'FILES';
   scope: 'user' | 'workspace';
+  enabled: boolean;
   writeable: boolean;
   description?: string;
 }
@@ -66,6 +69,8 @@ export interface AgentConfig {
   path: string;
   enabled: boolean;
   source: 'manual' | 'discovered';
+  scope?: 'system' | 'project';
+  projectPath?: string;
 }
 
 export type ProviderType = '' | 'openai' | 'openai-responses' | 'anthropic' | 'ollama';
@@ -130,10 +135,12 @@ export interface ModelProvider {
 /** 常规设置（键值对，存在 globalSettings 表） */
 export interface GeneralSettings {
   theme: 'dark' | 'light';
+  skin: 'default' | 'ocean' | 'forest' | 'sunset' | 'contrast';
   editorTheme: string;
   fontSize: number;
   language: string;
   autoCheckUpdates: boolean;
+  keepBackendAlive: boolean;
   lastUpdateCheckAt: string;
   tabSize: number;
   autoSave: boolean;
@@ -319,6 +326,19 @@ function upsertConfiguredProvider(
   return { providers: nextProviders, providerId: updated.id, changed };
 }
 
+function mergeFetchedModelsIntoConfiguredProvider(
+  existingProviders: ModelProvider[],
+  config: ChatModelConfig,
+  availableModels: ModelProvider['availableModels'],
+): { providers: ModelProvider[]; providerId: string; changed: boolean } {
+  const providerType = normalizeProviderType(config.provider);
+  return mergeFetchedModelsIntoLatest(
+    existingProviders,
+    { apiUrl: config.apiUrl, type: providerType },
+    availableModels || [],
+  );
+}
+
 export const DEFAULT_PROMPTS: Record<'skillPrompt' | 'agentPrompt' | 'gitPrompt', string> = {
   skillPrompt: `请帮我创建一个名为「{name}」的 Skill。
 {description}
@@ -404,10 +424,12 @@ description: <简短描述 Agent 的职责>
 
 const defaultGeneral: GeneralSettings = {
   theme: 'dark',
+  skin: 'default',
   editorTheme: 'auto',
   fontSize: 14,
   language: 'zh-CN',
   autoCheckUpdates: false,
+  keepBackendAlive: true,
   lastUpdateCheckAt: '',
   tabSize: 2,
   autoSave: true,
@@ -521,6 +543,7 @@ type RuntimeSettingsSection = 'general' | 'loop' | 'permission' | 'mounts' | 'mc
 
 const CORE_RUNTIME_SETTINGS_SECTIONS: RuntimeSettingsSection[] = ['general', 'mounts', 'mcp', 'openapi'];
 const FULL_RUNTIME_SETTINGS_SECTIONS: RuntimeSettingsSection[] = ['general', 'loop', 'permission', 'mounts', 'mcp', 'openapi', 'lsp'];
+let settingsSaveQueue: Promise<void> = Promise.resolve();
 
 function backendBaseUrl(backendPort: number): string {
   return `http://localhost:${backendPort}`;
@@ -775,6 +798,7 @@ export const settingsService = {
           path: item.path || '',
           type: item.type || 'SKILLS',
           scope: normalizeScope(item.scope),
+          enabled: item.enabled !== false,
           writeable: !!item.writeable,
           description: item.description || '',
         }));
@@ -829,8 +853,17 @@ export const settingsService = {
   ensureConfiguredProvider(
     existingProviders: ModelProvider[],
     config: ChatModelConfig,
+    availableModels?: ModelProvider['availableModels'],
   ): { providers: ModelProvider[]; providerId: string; changed: boolean } {
-    return upsertConfiguredProvider(existingProviders, config);
+    return upsertConfiguredProvider(existingProviders, config, availableModels);
+  },
+
+  mergeFetchedModelsIntoConfiguredProvider(
+    existingProviders: ModelProvider[],
+    config: ChatModelConfig,
+    availableModels: ModelProvider['availableModels'],
+  ): { providers: ModelProvider[]; providerId: string; changed: boolean } {
+    return mergeFetchedModelsIntoConfiguredProvider(existingProviders, config, availableModels);
   },
 
   async syncRuntimeSettings(backendPort: number, settings: AppSettings): Promise<void> {
@@ -848,22 +881,35 @@ export const settingsService = {
         backendGet<any[]>(backendPort, '/web/settings/lsp/servers'),
       ]);
 
+      const normalizeMountAlias = (alias: string) => {
+        const trimmed = alias.trim();
+        return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+      };
       const remoteMountMap = new Map((remoteMounts || []).map(item => [item.alias, item]));
       for (const mount of settings.mounts || []) {
         if (!mount.alias || !mount.path) continue;
-        const exists = remoteMountMap.has(mount.alias);
+        const alias = normalizeMountAlias(mount.alias);
+        const remoteMount = remoteMountMap.get(alias);
+        const exists = !!remoteMount;
         await backendPost(backendPort, exists ? '/web/settings/mounts/update' : '/web/settings/mounts/add', {
-          alias: mount.alias,
+          alias,
           path: mount.path,
           type: mount.type || 'SKILLS',
           writeable: !!mount.writeable,
           description: mount.description || '',
           scope: mount.scope || 'user',
         });
+        const enabled = mount.enabled !== false;
+        if ((exists && remoteMount.enabled !== enabled) || (!exists && !enabled)) {
+          await backendPost(backendPort, '/web/settings/mounts/toggle', { alias, enabled });
+        }
       }
+      const localMountAliases = new Set(
+        (settings.mounts || []).filter(mount => mount.alias).map(mount => normalizeMountAlias(mount.alias)),
+      );
       for (const remote of remoteMounts || []) {
         if (remote.system === true) continue;
-        if (!(settings.mounts || []).some(mount => mount.alias === remote.alias)) {
+        if (!localMountAliases.has(remote.alias)) {
           await backendPost(backendPort, '/web/settings/mounts/remove', { alias: remote.alias });
         }
       }
@@ -876,96 +922,32 @@ export const settingsService = {
     }
   },
 
-  /**
-   * 从后端获取可用模型列表并生成为 ModelProvider[]
-   * 获取后自动注入到 CLI 后端的动态模型配置器
-   */
+  /** 从后端获取可用模型；调用方必须把结果合并到执行回调时的最新供应商状态。 */
   async fetchModelsFromBackend(
     backendPort: number,
     apiUrl: string,
     apiKey: string,
-    existingProviders: ModelProvider[],
     provider: string = '',
     model: string = '',
-  ): Promise<{ providers: ModelProvider[]; activeProviderId: string } | null> {
+  ): Promise<ModelProvider['availableModels'] | null> {
     try {
-      const resp = await fetch(
-        `http://localhost:${backendPort}/desktop/chat/models/fetch?apiUrl=${encodeURIComponent(apiUrl)}&apiKey=${encodeURIComponent(apiKey)}&provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(model)}`,
-      );
+      const resp = await fetch(`http://localhost:${backendPort}/desktop/chat/models/fetch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiUrl, apiKey, provider, model }),
+      });
       if (!resp.ok) return null;
 
       const result = await resp.json();
       const modelList = result.data;
       if (!Array.isArray(modelList) || modelList.length === 0) return null;
 
-      const existingIds = new Set(existingProviders.map(p => p.id));
-      const existingModels = new Set(existingProviders.map(p => p.model));
-      const newProviders: ModelProvider[] = [];
       const availableModels = modelList.map(m => ({
         id: String(m.id),
         ownedBy: m.ownedBy || m.owned_by,
         contextLength: Number(m.contextLength || m.context_length) || undefined,
       }));
-      const merged = upsertConfiguredProvider(
-        existingProviders,
-        { apiUrl, apiKey, provider, model },
-        availableModels,
-      );
-
-      for (const m of modelList) {
-        const modelId = m.id as string;
-        const providerId = `model_${modelId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-        const contextLength = Number(m.contextLength || m.context_length) || undefined;
-
-        if (existingIds.has(providerId)) continue;
-
-        const modelProvider: ModelProvider = {
-          id: providerId,
-          type: normalizeProviderType(provider),
-          name: m.ownedBy || '远程',
-          apiUrl,
-          apiKey,
-          model: modelId,
-          enabled: true,
-          scope: 'user',
-          timeout: 'PT120S',
-          contextLength,
-          defaultOptions: '',
-        };
-        newProviders.push(modelProvider);
-
-        // 注入到 CLI 后端（仅注入尚未添加的模型）
-        if (!existingModels.has(modelId)) {
-          try {
-            await fetch(`http://localhost:${backendPort}/desktop/chat/models/add`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: modelId,
-                apiUrl,
-                apiKey,
-                model: modelId,
-                provider: normalizeProviderType(provider),
-                standard: normalizeProviderType(provider),
-                scope: modelProvider.scope,
-                timeout: 'PT120S',
-                contextLength: modelProvider.contextLength,
-              }),
-            });
-          } catch (e) {
-            console.warn('[settingsService] 注入模型到CLI失败:', modelId, e);
-          }
-        }
-      }
-
-      if (!merged.changed && newProviders.length === 0) return null;
-
-      const allProviders = [...merged.providers, ...newProviders.filter(p => !merged.providers.some(existing => existing.id === p.id))];
-      const activeProviderId = existingProviders.length === 0 && merged.providerId
-        ? merged.providerId
-        : '';
-
-      return { providers: allProviders, activeProviderId };
+      return availableModels;
     } catch (err) {
       console.warn('[settingsService] 获取远程模型列表失败:', err);
       return null;
@@ -1044,19 +1026,28 @@ export const settingsService = {
 
     // 2. Providers
     const providerRows = await db.providers.orderBy('sortOrder').toArray();
-    const providers: ModelProvider[] = providerRows.map(r => ({
-      id: r.id,
-      type: normalizeProviderType(r.type),
-      name: r.name,
-      apiUrl: r.apiUrl,
-      apiKey: r.apiKey,
-      model: r.model,
-      enabled: !!r.enabled,
-      scope: ((r as any).scope === 'workspace' ? 'workspace' : 'user'),
-      timeout: (r as any).timeout || 'PT120S',
-      contextLength: Number((r as any).contextLength) || 128000,
-      defaultOptions: (r as any).defaultOptions || '',
-      availableModels: r.availableModels ? JSON.parse(r.availableModels) : undefined,
+    const providers: ModelProvider[] = await Promise.all(providerRows.map(async r => {
+      let apiKey = await credentialService.getProviderApiKey(r.id);
+      if (!apiKey && r.apiKey) {
+        // 从旧版 IndexedDB 明文字段一次性迁移到 Windows Credential Manager。
+        const migrated = await credentialService.setProviderApiKey(r.id, r.apiKey);
+        apiKey = r.apiKey;
+        if (migrated) await db.providers.update(r.id, { apiKey: '' });
+      }
+      return {
+        id: r.id,
+        type: normalizeProviderType(r.type),
+        name: r.name,
+        apiUrl: r.apiUrl,
+        apiKey: apiKey || '',
+        model: r.model,
+        enabled: !!r.enabled,
+        scope: ((r as any).scope === 'workspace' ? 'workspace' : 'user'),
+        timeout: (r as any).timeout || 'PT120S',
+        contextLength: Number((r as any).contextLength) || 128000,
+        defaultOptions: (r as any).defaultOptions || '',
+        availableModels: r.availableModels ? JSON.parse(r.availableModels) : undefined,
+      };
     }));
 
     // 3. MCP Servers
@@ -1096,9 +1087,15 @@ export const settingsService = {
       path: r.path,
       enabled: !!r.enabled,
       source: r.source as 'manual' | 'discovered',
+      scope: 'system',
     }));
 
-    return { ...general, providers, mcpServers, skills, agents };
+    const mounts = (general.mounts || []).map(mount => ({
+      ...mount,
+      enabled: mount.enabled !== false,
+    }));
+
+    return { ...general, mounts, providers, mcpServers, skills, agents };
   },
 
   /**
@@ -1106,76 +1103,86 @@ export const settingsService = {
    */
   async save(settings: AppSettings): Promise<void> {
     const { providers, mcpServers, skills, agents, ...general } = settings;
+    const generalValue = JSON.stringify(general);
+    const previousProviderIds = (await db.providers.toCollection().primaryKeys()).map(String);
+    const credentialResults = await Promise.all(providers.map(async provider => ({
+      id: provider.id,
+      stored: await credentialService.setProviderApiKey(provider.id, provider.apiKey),
+    })));
+    const credentialStored = new Map(credentialResults.map(item => [item.id, item.stored]));
+    const currentProviderIds = new Set(providers.map(provider => provider.id));
+    await Promise.all(previousProviderIds
+      .filter(id => !currentProviderIds.has(id))
+      .map(id => credentialService.setProviderApiKey(id, '')));
+    const providerRows = providers.map((p, sortOrder) => ({
+      id: p.id,
+      type: normalizeProviderType(p.type),
+      name: p.name,
+      apiUrl: p.apiUrl,
+      // 系统凭据库不可用时保留旧存储作为兼容降级，避免保存操作造成密钥丢失。
+      apiKey: credentialStored.get(p.id) ? '' : p.apiKey,
+      model: p.model,
+      enabled: p.enabled ? 1 : 0,
+      sortOrder,
+      scope: p.scope || 'user',
+      timeout: p.timeout || 'PT120S',
+      contextLength: p.contextLength || 128000,
+      defaultOptions: p.defaultOptions || '',
+      availableModels: p.availableModels ? JSON.stringify(p.availableModels) : '',
+    }));
+    const mcpRows = mcpServers.map(s => ({
+      name: s.name,
+      command: s.command,
+      args: JSON.stringify(s.args),
+      scope: s.scope || 'user',
+      type: s.type || 'stdio',
+      url: s.url || '',
+      env: s.env ? JSON.stringify(s.env) : '',
+      headers: s.headers ? JSON.stringify(s.headers) : '',
+      timeout: s.timeout || '',
+      enabled: s.enabled ? 1 : 0,
+      sortOrder: 0,
+    }));
+    const skillRows = (skills || []).map((s, sortOrder) => ({
+      name: s.name,
+      description: s.description,
+      path: s.path,
+      enabled: s.enabled ? 1 : 0,
+      source: s.source,
+      sortOrder,
+    }));
+    const agentRows = (agents || []).map((a, sortOrder) => ({
+      name: a.name,
+      description: a.description,
+      path: a.path,
+      enabled: a.enabled ? 1 : 0,
+      source: a.source,
+      sortOrder,
+    }));
 
-    // 1. 常规设置
-    await db.globalSettings.put({ key: 'general', value: JSON.stringify(general) });
+    const persistSnapshot = () => db.transaction(
+      'rw',
+      [db.globalSettings, db.providers, db.mcpServers, db.skills, db.agents],
+      async () => {
+        await db.globalSettings.put({ key: 'general', value: generalValue });
 
-    // 2. Providers：全量覆盖
-    await db.providers.clear();
-    for (let i = 0; i < providers.length; i++) {
-      const p = providers[i];
-      await db.providers.put({
-        id: p.id,
-        type: normalizeProviderType(p.type),
-        name: p.name,
-        apiUrl: p.apiUrl,
-        apiKey: p.apiKey,
-        model: p.model,
-        enabled: p.enabled ? 1 : 0,
-        sortOrder: i,
-        scope: p.scope || 'user',
-        timeout: p.timeout || 'PT120S',
-        contextLength: p.contextLength || 128000,
-        defaultOptions: p.defaultOptions || '',
-        availableModels: p.availableModels ? JSON.stringify(p.availableModels) : '',
-      });
-    }
+        await db.providers.clear();
+        if (providerRows.length > 0) await db.providers.bulkPut(providerRows);
 
-    // 3. MCP Servers：全量覆盖
-    await db.mcpServers.clear();
-    for (const s of mcpServers) {
-      await db.mcpServers.add({
-        name: s.name,
-        command: s.command,
-        args: JSON.stringify(s.args),
-        scope: s.scope || 'user',
-        type: s.type || 'stdio',
-        url: s.url || '',
-        env: s.env ? JSON.stringify(s.env) : '',
-        headers: s.headers ? JSON.stringify(s.headers) : '',
-        timeout: s.timeout || '',
-        enabled: s.enabled ? 1 : 0,
-        sortOrder: 0,
-      });
-    }
+        await db.mcpServers.clear();
+        if (mcpRows.length > 0) await db.mcpServers.bulkAdd(mcpRows);
 
-    // 4. Skills：全量覆盖
-    await db.skills.clear();
-    for (let i = 0; i < (skills || []).length; i++) {
-      const s = (skills || [])[i];
-      await db.skills.add({
-        name: s.name,
-        description: s.description,
-        path: s.path,
-        enabled: s.enabled ? 1 : 0,
-        source: s.source,
-        sortOrder: i,
-      });
-    }
+        await db.skills.clear();
+        if (skillRows.length > 0) await db.skills.bulkAdd(skillRows);
 
-    // 5. Agents：全量覆盖
-    await db.agents.clear();
-    for (let i = 0; i < (agents || []).length; i++) {
-      const a = (agents || [])[i];
-      await db.agents.add({
-        name: a.name,
-        description: a.description,
-        path: a.path,
-        enabled: a.enabled ? 1 : 0,
-        source: a.source,
-        sortOrder: i,
-      });
-    }
+        await db.agents.clear();
+        if (agentRows.length > 0) await db.agents.bulkAdd(agentRows);
+      },
+    );
+
+    const saveOperation = settingsSaveQueue.then(persistSnapshot, persistSnapshot);
+    settingsSaveQueue = saveOperation.catch(() => undefined);
+    return saveOperation;
   },
 
   /**
@@ -1228,12 +1235,35 @@ export const settingsService = {
           const agentMdPath = `${entry.path}/AGENT.md`;
           const hasMd = await fileService.pathExists(agentMdPath);
           if (hasMd) {
+            let name = entry.name;
+            let description = '';
+            try {
+              const content = await fileService.readFile(agentMdPath);
+              const lines = content.replace(/\r\n/g, '\n').split('\n');
+              if (lines[0]?.trim() === '---') {
+                const end = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+                if (end > 0) {
+                  for (const line of lines.slice(1, end)) {
+                    const match = line.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
+                    if (!match) continue;
+                    const [, key, rawValue] = match;
+                    const value = rawValue.trim().replace(/^['"]|['"]$/g, '');
+                    if (key === 'name' && value) name = value;
+                    if (key === 'description') description = value;
+                  }
+                }
+              }
+            } catch {
+              // 读取单个 Agent 元数据失败时，仍显示目录名。
+            }
             agents.push({
-              name: entry.name,
-              description: '',
+              name,
+              description,
               path: entry.path,
-              enabled: true,
+              enabled: !(await fileService.pathExists(`${entry.path}/.disabled`)),
               source: 'discovered',
+              scope: 'project',
+              projectPath: workspacePath,
             });
           }
         }

@@ -72,11 +72,6 @@
   background-color: var(--cb-vscode-list-hoverBackground);
 }
 
-.project-header.active,
-.project-header.expanded {
-  background-color: rgba(128, 128, 128, 0.14);
-}
-
 .project-name {
   flex: 1;
   font-size: 13px;
@@ -219,7 +214,8 @@
 }
 
 .delete-btn,
-.sync-btn {
+.sync-btn,
+.fork-btn {
   width: 20px;
   height: 20px;
   background: transparent;
@@ -234,12 +230,14 @@
 }
 
 .session-item:hover .delete-btn,
-.session-item:hover .sync-btn {
+.session-item:hover .sync-btn,
+.session-item:hover .fork-btn {
   opacity: 0.5;
 }
 
 .delete-btn:hover,
-.sync-btn:hover {
+.sync-btn:hover,
+.fork-btn:hover {
   opacity: 1 !important;
 }
 

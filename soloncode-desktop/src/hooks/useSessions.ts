@@ -3,10 +3,12 @@ import {
   getAllConversations, saveConversation, deleteConversation,
   updateConversation, saveLastSessionId, loadLastSessionId,
   migrateConversationsToProjects, reassignMessages,
-  getMessageCount,
+  getMessageCount, getMessageCountsByConversation,
+  forkConversation,
   UNLINKED_PROJECT,
 } from '../db';
 import type { Conversation } from '../types';
+import { isUnlinkedEmptySession } from '../utils/sessionProject';
 
 export interface Session {
   id: string;
@@ -21,6 +23,7 @@ export function useSessions(
   activeProjectPath: string | null,
   options?: {
     onSessionIdResolved?: (oldId: string, newId: string) => void;
+    backendPort?: number | null;
   },
 ) {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -30,22 +33,27 @@ export function useSessions(
 
   // 初始化加载会话
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       await migrateConversationsToProjects();
-      const convs = await getAllConversations();
-      const loaded: Session[] = await Promise.all(convs.map(async c => {
+      const [convs, messageCounts] = await Promise.all([
+        getAllConversations(),
+        getMessageCountsByConversation(),
+      ]);
+      const loaded: Session[] = convs.map(c => {
         const id = c.id!.toString();
         return {
           id,
           title: c.title,
           timestamp: c.timestamp,
-          messageCount: await getMessageCount(id),
+          messageCount: messageCounts.get(id) || 0,
           isPermanent: c.isPermanent,
           workspacePath: c.workspacePath || UNLINKED_PROJECT,
         };
-      }));
-      setSessions(loaded);
+      });
+      if (!cancelled) setSessions(loaded);
     })();
+    return () => { cancelled = true; };
   }, []);
 
   // 恢复项目最后会话
@@ -81,18 +89,69 @@ export function useSessions(
     return tempId;
   }, [currentSessionId, sessions]);
 
-  const handleDeleteSession = useCallback((id: string) => {
-    const remaining = sessions.filter(s => s.id !== id);
-    setSessions(remaining);
+  const handleDeleteSession = useCallback(async (id: string) => {
     if (id.startsWith('temp-')) {
       setPendingSession(current => current?.id === id ? null : current);
     } else {
-      deleteConversation(id);
+      const targetSession = sessions.find(session => session.id === id);
+      const port = options?.backendPort || 4808;
+      const response = await fetch(`http://localhost:${port}/desktop/chat/sessions/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: id,
+          workspace: targetSession?.workspacePath && targetSession.workspacePath !== UNLINKED_PROJECT
+            ? targetSession.workspacePath
+            : undefined,
+        }),
+      });
+      if (!response.ok) throw new Error('后端删除失败');
+      const result = await response.json().catch(() => null);
+      if (result?.code !== undefined && result.code !== 200) throw new Error('后端删除失败');
+      await deleteConversation(id);
     }
-    if (currentSessionId === id) {
-      setCurrentSessionId(remaining.length > 0 ? remaining[0].id : undefined);
+    setSessions(current => {
+      const remaining = current.filter(session => session.id !== id);
+      if (currentSessionId === id) setCurrentSessionId(remaining[0]?.id);
+      return remaining;
+    });
+  }, [currentSessionId, options?.backendPort, sessions]);
+
+  const handleForkSession = useCallback(async (id: string): Promise<string> => {
+    if (!/^\d+$/.test(id)) throw new Error('临时会话不能分叉');
+    const source = sessions.find(session => session.id === id);
+    if (!source) throw new Error('源会话不存在');
+    const targetId = await forkConversation(id, `${source.title} · 分支`);
+    const target = targetId.toString();
+    try {
+      if (source.workspacePath && source.workspacePath !== UNLINKED_PROJECT) {
+        const response = await fetch(`http://localhost:${options?.backendPort || 4808}/desktop/chat/sessions/fork`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceId: id, targetId: target, workspace: source.workspacePath }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || (result?.code !== undefined && result.code !== 200)) {
+          throw new Error('后端历史复制失败');
+        }
+      }
+      const messageCount = await getMessageCount(target);
+      const forked: Session = {
+        ...source,
+        id: target,
+        title: `${source.title} · 分支`,
+        timestamp: new Date().toISOString(),
+        messageCount,
+        isPermanent: false,
+      };
+      setSessions(current => [forked, ...current]);
+      setCurrentSessionId(target);
+      return target;
+    } catch (error) {
+      await deleteConversation(target);
+      throw error;
     }
-  }, [currentSessionId, sessions]);
+  }, [options?.backendPort, sessions]);
 
   const handleUpdateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<string> => {
     if (!sessionId.startsWith('temp-')) {
@@ -164,6 +223,34 @@ export function useSessions(
     ));
   }, []);
 
+  const linkCurrentEmptySessionToProject = useCallback(async (projectPath: string): Promise<boolean> => {
+    if (!projectPath || projectPath === UNLINKED_PROJECT) return false;
+
+    if (!currentSessionId) {
+      return Boolean(handleNewSession(projectPath));
+    }
+
+    if (currentSessionId.startsWith('temp-')) {
+      const pending = pendingSession?.id === currentSessionId ? pendingSession : null;
+      if (!pending || !isUnlinkedEmptySession(pending)) return false;
+      setPendingSession(current => current?.id === currentSessionId
+        ? { ...current, workspacePath: projectPath }
+        : current
+      );
+      return true;
+    }
+
+    const session = sessions.find(item => item.id === currentSessionId);
+    if (!session || !isUnlinkedEmptySession(session)) return false;
+
+    await updateConversation(currentSessionId, { workspacePath: projectPath });
+    setSessions(current => current.map(item => item.id === currentSessionId
+      ? { ...item, workspacePath: projectPath }
+      : item
+    ));
+    return true;
+  }, [currentSessionId, handleNewSession, pendingSession, sessions]);
+
   const remapProjectPath = useCallback((oldPath: string, newPath: string) => {
     setSessions(prev => prev.map(session =>
       session.workspacePath === oldPath
@@ -196,8 +283,10 @@ export function useSessions(
     currentConversation,
     handleNewSession,
     handleDeleteSession,
+    handleForkSession,
     handleUpdateSessionTitle,
     incrementSessionMessageCount,
+    linkCurrentEmptySessionToProject,
     remapProjectPath,
     restoreLastSession,
   };

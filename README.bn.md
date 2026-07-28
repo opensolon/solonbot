@@ -4,11 +4,13 @@
 <p>সর্বশেষ সংস্করণ: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop workspace" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // আগে কিছু দক্ষতা ইনস্টল করার পরামর্শ দেওয়া হয়
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop হলো SolonCode-এর স্থানীয় IDE অভিজ্ঞতা। এটি Agent কথোপকথন, প্রকল্পের ফাইল, Monaco এডিটর, সমন্বিত টার্মিনাল, Git পরিবর্তন এবং টাস্ক নির্বাহকে একটি workspace-এ একত্র করে। ডেস্কটপ ক্লায়েন্টটি Tauri, React ও TypeScript দিয়ে তৈরি; Java CLI backend Agent runtime, মডেল অ্যাক্সেস ও টুল সরবরাহ করে।
+
+প্রধান বৈশিষ্ট্য:
+
+* **Agent মোড** — অনুমোদনসহ নির্বাহ, স্বয়ংক্রিয় সম্পাদনা, শুধু-পঠন পরিকল্পনা এবং ধারাবাহিক Goal নির্বাহ।
+* **প্রকল্প-সচেতন কথোপকথন** — ছবি ও ফাইল সংযুক্তি, workspace প্রসঙ্গ, চলমান অবস্থায় নতুন টাস্ক এবং মডেল, Token ও সময়ের পরিসংখ্যান।
+* **নির্ভরযোগ্য সেশন** — স্থায়ী ইতিহাস, দীর্ঘমেয়াদি মেমরি, রিওয়াইন্ড, পুনরায় চালানো, নিরাপদ মোছা এবং workspace checkpoint।
+* **সমন্বিত ডেভেলপমেন্ট টুল** — ফাইল, এডিটর, টার্মিনাল, Git, টাস্ক তালিকা, Skills, Agents, MCP, OpenAPI, LSP ও automation।
+
+সোর্স থেকে চালানোর সময় backend আলাদাভাবে চালু করুন:
+
+~~~bash
+# টার্মিনাল 1: Desktop backend
+soloncode serve 4808
+
+# টার্মিনাল 2: Desktop client
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+ডেভেলপমেন্ট মোড 4808 পোর্টের backend-এ সংযোগ করে এবং backend প্রক্রিয়া স্বয়ংক্রিয়ভাবে চালু বা শনাক্ত করে না। বিস্তারিত জানতে [Desktop README](soloncode-desktop/README.md) এবং [SolonCode Desk শুরুর নির্দেশিকা](docs/soloncode-desk-getting-started.md) দেখুন।
 
 ## ডকুমেন্টেশন
 

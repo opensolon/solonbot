@@ -4,11 +4,13 @@
 <p>เวอร์ชันล่าสุด: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="พื้นที่ทำงาน SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Web interface: http://localhost:50488/
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // แนะนำให้ติดตั้งสกิลบางอย่างล่วงหน้า
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop คือประสบการณ์ IDE บนเครื่องของ SolonCode ซึ่งรวมการสนทนากับ Agent ไฟล์โปรเจกต์ ตัวแก้ไข Monaco เทอร์มินัลในตัว การเปลี่ยนแปลง Git และการรันงานไว้ใน workspace เดียว ตัวไคลเอนต์สร้างด้วย Tauri, React และ TypeScript ส่วน backend Java CLI ให้บริการ Agent runtime การเข้าถึงโมเดล และเครื่องมือ
+
+คุณสมบัติเด่น:
+
+* **โหมด Agent** — รันแบบต้องอนุมัติ แก้ไขอัตโนมัติ วางแผนแบบอ่านอย่างเดียว และรัน Goal อย่างต่อเนื่อง
+* **การสนทนาตามบริบทโปรเจกต์** — แนบรูปภาพและไฟล์ ใช้บริบท workspace เพิ่มงานระหว่างที่กำลังรัน และแสดงสถิติโมเดล Token และเวลา
+* **เซสชันที่เชื่อถือได้** — เก็บประวัติ หน่วยความจำระยะยาว ย้อนกลับ รันใหม่ ลบอย่างปลอดภัย และ checkpoint ของ workspace
+* **เครื่องมือพัฒนาในตัว** — ไฟล์ ตัวแก้ไข เทอร์มินัล Git รายการงาน Skills, Agents, MCP, OpenAPI, LSP และระบบอัตโนมัติ
+
+เมื่อรันจากซอร์สโค้ด ให้เริ่ม backend แยกต่างหาก:
+
+~~~bash
+# เทอร์มินัล 1: Desktop backend
+soloncode serve 4808
+
+# เทอร์มินัล 2: Desktop client
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+โหมดพัฒนาเชื่อมต่อพอร์ต 4808 และจะไม่เริ่มหรือตรวจจับโปรเซส backend โดยอัตโนมัติ ดูรายละเอียดที่ [Desktop README](soloncode-desktop/README.md) และ [คู่มือเริ่มต้น SolonCode Desk](docs/soloncode-desk-getting-started.md)
 
 ## เอกสาร
 

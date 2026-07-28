@@ -32,7 +32,8 @@ interface SessionsPanelProps {
   sessionRunStates?: Record<string, 'running' | 'completed' | 'error'>;
   onSelectSession: (id: string) => void;
   onNewSession: (projectId?: string) => string | void;
-  onDeleteSession: (id: string) => void;
+  onDeleteSession: (id: string) => void | Promise<void>;
+  onForkSession?: (id: string) => void | Promise<void>;
   onCreateProject: () => void;
   onAddProject: () => void;
   onRemoveProject: (id: string) => void;
@@ -64,6 +65,7 @@ export function SessionsPanel({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onForkSession,
   onCreateProject,
   onAddProject,
   onRemoveProject,
@@ -75,6 +77,8 @@ export function SessionsPanel({
   const [confirmSync, setConfirmSync] = useState<{ sessionId: string; title: string } | null>(null);
   const [confirmSyncAll, setConfirmSyncAll] = useState(false);
   const [deleteProjectTarget, setDeleteProjectTarget] = useState<Project | null>(null);
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState<Session | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [projectActionMessage, setProjectActionMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [projectContextMenu, setProjectContextMenu] = useState<{
     x: number;
@@ -87,7 +91,6 @@ export function SessionsPanel({
     projectId: string;
   } | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
-  const projectMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renameCancelledRef = useRef(false);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
@@ -144,12 +147,12 @@ export function SessionsPanel({
     };
   }, [projectMenu]);
 
-  useEffect(() => () => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-  }, []);
-
-  const showProjectMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>, projectId: string) => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
+  const toggleProjectMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>, projectId: string) => {
+    event.stopPropagation();
+    if (projectMenu?.projectId === projectId) {
+      setProjectMenu(null);
+      return;
+    }
     setProjectContextMenu(null);
     const rect = event.currentTarget.getBoundingClientRect();
     const width = 150;
@@ -157,16 +160,7 @@ export function SessionsPanel({
     const x = Math.min(rect.right + 4, window.innerWidth - width - 8);
     const y = Math.min(rect.top, window.innerHeight - height - 8);
     setProjectMenu({ x: Math.max(8, x), y: Math.max(8, y), projectId });
-  }, []);
-
-  const scheduleProjectMenuClose = useCallback(() => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-    projectMenuCloseTimerRef.current = setTimeout(() => setProjectMenu(null), 140);
-  }, []);
-
-  const keepProjectMenuOpen = useCallback(() => {
-    if (projectMenuCloseTimerRef.current) clearTimeout(projectMenuCloseTimerRef.current);
-  }, []);
+  }, [projectMenu?.projectId]);
 
   const beginProjectRename = useCallback((projectId: string) => {
     const project = projects.find(item => item.id === projectId);
@@ -184,20 +178,6 @@ export function SessionsPanel({
     setRenamingProjectId(null);
     setRenameProjectValue('');
   }, [onRenameProject, projects]);
-
-  const isCurrentSessionLatest = (sessionList: Session[]) => {
-    if (!currentSessionId || sessionList.length === 0) return false;
-
-    const latestSession = sessionList.reduce((latest, session) => {
-      const latestTime = Date.parse(latest.timestamp);
-      const sessionTime = Date.parse(session.timestamp);
-      const normalizedLatestTime = Number.isFinite(latestTime) ? latestTime : 0;
-      const normalizedSessionTime = Number.isFinite(sessionTime) ? sessionTime : 0;
-      return normalizedSessionTime > normalizedLatestTime ? session : latest;
-    });
-
-    return latestSession.id === currentSessionId;
-  };
 
   const handleSync = useCallback(async (sessionId: string) => {
     if (syncingIds.has(sessionId)) return;
@@ -292,11 +272,25 @@ export function SessionsPanel({
           >
             <Icon name={syncingIds.has(session.id) ? 'loading' : 'refresh'} size={14} />
           </button>
+          <button
+            className="fork-btn"
+            onClick={event => {
+              event.stopPropagation();
+              void Promise.resolve(onForkSession?.(session.id)).catch(error => {
+                setProjectActionMessage({ text: error instanceof Error ? error.message : '会话分叉失败', error: true });
+              });
+            }}
+            title="从此会话创建分支"
+            disabled={session.id.startsWith('temp-') || runState === 'running'}
+          >
+            <Icon name="copy" size={14} />
+          </button>
           {!session.isPermanent && (
             <button
               className="delete-btn"
-              onClick={event => { event.stopPropagation(); onDeleteSession(session.id); }}
+              onClick={event => { event.stopPropagation(); setDeleteSessionTarget(session); }}
               title="删除"
+              disabled={deletingSessionId === session.id || runState === 'running'}
             >
               <Icon name="delete" size={14} />
             </button>
@@ -330,6 +324,26 @@ export function SessionsPanel({
           onCancel={() => setConfirmSyncAll(false)}
         />
       )}
+      {deleteSessionTarget && (
+        <ConfirmDialog
+          title="删除会话"
+          message={`确定删除「${deleteSessionTarget.title}」吗？后端历史与本地记录会在确认成功后一起移除。`}
+          confirmLabel={deletingSessionId ? '删除中...' : '删除'}
+          danger
+          onConfirm={() => {
+            if (deletingSessionId) return;
+            const target = deleteSessionTarget;
+            setDeletingSessionId(target.id);
+            Promise.resolve(onDeleteSession(target.id)).then(() => {
+              setDeleteSessionTarget(null);
+              setProjectActionMessage({ text: '会话已删除' });
+            }).catch(() => {
+              setProjectActionMessage({ text: '删除失败，原会话已保留', error: true });
+            }).finally(() => setDeletingSessionId(null));
+          }}
+          onCancel={() => { if (!deletingSessionId) setDeleteSessionTarget(null); }}
+        />
+      )}
       {deleteProjectTarget && (
         <ConfirmDialog
           title="删除项目"
@@ -346,7 +360,7 @@ export function SessionsPanel({
       )}
 
       <div className="panel-header">
-        <span className="panel-title">项目</span>
+        <span className="panel-title">对话管理</span>
         <div className="panel-header-actions">
           <DropdownMenu
             align="right"
@@ -369,12 +383,11 @@ export function SessionsPanel({
         {projectEntries.length > 0 && projectEntries.map(entry => {
           const projectSessions = sessionsByProject.get(entry.id) || [];
           const isExpanded = expandedProjects.has(entry.id);
-          const isActive = currentProjectId === entry.id;
 
           return (
             <div key={entry.id} className="project-group">
               <div
-                className={`project-header${isActive ? ' active' : ''}${isExpanded ? ' expanded' : ''}`}
+                className={`project-header${isExpanded ? ' expanded' : ''}`}
                 onClick={() => toggleExpand(entry.id)}
                 onContextMenu={event => {
                   event.preventDefault();
@@ -416,14 +429,13 @@ export function SessionsPanel({
                   <span className="project-name">{entry.name}</span>
                 )}
                 <button
+                  type="button"
                   className="project-more-btn"
-                  onMouseEnter={event => showProjectMenu(event, entry.id)}
-                  onMouseLeave={scheduleProjectMenuClose}
-                  onFocus={event => showProjectMenu(event, entry.id)}
-                  onClick={event => event.stopPropagation()}
+                  onClick={event => toggleProjectMenu(event, entry.id)}
                   title="项目菜单"
                   aria-label={`${entry.name} 项目菜单`}
                   aria-haspopup="menu"
+                  aria-expanded={projectMenu?.projectId === entry.id}
                 >
                   <Icon name="more" size={14} />
                 </button>
@@ -451,15 +463,14 @@ export function SessionsPanel({
 
         <div className="group-header chat-group-header">
           <span>对话</span>
-          {!isCurrentSessionLatest(unlinkedSessions) && (
-            <button
-              className="chat-add-btn"
-              onClick={() => onNewSession(UNLINKED_PROJECT)}
-              title="新建对话"
-            >
-              <Icon name="add" size={12} />
-            </button>
-          )}
+          <button
+            className="chat-add-btn"
+            onClick={() => onNewSession(UNLINKED_PROJECT)}
+            title="新建临时对话"
+            aria-label="新建临时对话"
+          >
+            <Icon name="add" size={12} />
+          </button>
         </div>
 
         {unlinkedSessions.length === 0 && (
@@ -495,8 +506,6 @@ export function SessionsPanel({
           style={{ left: projectMenu.x, top: projectMenu.y }}
           role="menu"
           aria-label={`${menuProject.name} 项目菜单`}
-          onMouseEnter={keepProjectMenuOpen}
-          onMouseLeave={scheduleProjectMenuClose}
           onClick={event => event.stopPropagation()}
         >
           <button

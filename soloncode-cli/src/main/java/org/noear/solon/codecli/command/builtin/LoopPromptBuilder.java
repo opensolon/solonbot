@@ -61,7 +61,7 @@ public class LoopPromptBuilder {
         int iter = task.getCurrentIteration();
         boolean isFirstIter = iter == 0;
 
-        String budgetInfo = buildBudgetInfo(gs);
+        String budgetInfo = buildBudgetInfo(gs) + buildIterationInfo(task, gs);
 
         // 预算感知精简模式
         double budgetRatio = budgetRatio(gs);
@@ -98,6 +98,7 @@ public class LoopPromptBuilder {
         sb.append("1. 回顾：目标是什么？检查已有的进展。\n");
         sb.append("2. 核查：针对目标中的每一项，通过运行测试、检查文件等客观手段验证其是否已完成。\n");
         sb.append("   不要仅凭推理 — 必须有权威证据（测试通过、构建成功、文件存在且内容正确）。\n");
+        sb.append("   对创建、修改、运行类目标，至少完成一次实际工具操作；goal_get/goal_update 不算执行证据。\n");
         sb.append("3. 如果你已完成所有项，说明你是如何实现每一项的，\n");
         sb.append("   然后调用 goal_update(complete) 标记完成。\n");
         sb.append("\n");
@@ -213,6 +214,7 @@ public class LoopPromptBuilder {
 
         sb.append("--- 审计完成 (Audit Check) ---\n");
         sb.append("逐条验证目标完成情况。必须有客观证据（测试通过/文件存在）。不要凭推理判定完成。\n");
+        sb.append("创建、修改、运行类目标必须有实际工具操作，goal_get/goal_update 不算执行证据。\n");
         sb.append("\n");
 
         if (!isFirstIter && task.getLastResult() != null) {
@@ -233,7 +235,7 @@ public class LoopPromptBuilder {
         sb.append("\n\n");
         sb.append("目标: ").append(gs.getCondition()).append(" | ");
         sb.append(budgetInfo.trim()).append("\n");
-        sb.append("持续工作直至完成。完成后调用 goal_update(complete) 标记完成。连续 3 轮无进展则调用 goal_update(blocked)。\n");
+        sb.append("持续工作直至完成。执行型目标必须先产生实际工具证据，goal_get/goal_update 不算。完成后调用 goal_update(complete)；连续 3 轮无进展则调用 goal_update(blocked)。\n");
         return prompt + sb.toString();
     }
 
@@ -275,6 +277,18 @@ public class LoopPromptBuilder {
         }
 
         return sb.toString();
+    }
+
+    static String buildIterationInfo(LoopTask task, GoalState gs) {
+        if (gs.getMaxIterations() <= 0) {
+            return "";
+        }
+        int completed = Math.max(0, task.getCurrentIteration());
+        int current = Math.min(completed + 1, gs.getMaxIterations());
+        int remainingAfterCurrent = Math.max(0, gs.getMaxIterations() - current);
+        return "\n轮次限制: 当前为第 " + current + " / " + gs.getMaxIterations()
+                + " 轮，本轮结束后最多还可执行 " + remainingAfterCurrent
+                + " 轮。请优先完成并验证目标，不要把关键工作留到限制之后。";
     }
 
     static String budgetPercent(long value, long total) {

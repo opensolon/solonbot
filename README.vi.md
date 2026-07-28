@@ -4,11 +4,13 @@
 <p>Phiên bản mới nhất: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="Không gian làm việc SolonCode Desktop" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Kiểm tra Tính năng (thử các tác vụ sau, từ đơn giản đến phứ
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Khuyên dùng nên cài đặt một số kỹ năng trước
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop là trải nghiệm IDE cục bộ của SolonCode. Ứng dụng tập hợp hội thoại với Agent, tệp dự án, trình soạn thảo Monaco, terminal tích hợp, thay đổi Git và thực thi tác vụ trong một workspace. Client được xây dựng bằng Tauri, React và TypeScript; backend CLI Java cung cấp runtime Agent, truy cập mô hình và công cụ.
+
+Tính năng nổi bật:
+
+* **Chế độ Agent** — thực thi có phê duyệt, chỉnh sửa tự động, lập kế hoạch chỉ đọc và thực thi Goal liên tục.
+* **Hội thoại theo dự án** — đính kèm hình ảnh và tệp, ngữ cảnh workspace, thêm tác vụ khi đang chạy và thống kê mô hình, Token, thời gian.
+* **Phiên làm việc tin cậy** — lịch sử bền vững, bộ nhớ dài hạn, quay lui, chạy lại, xóa an toàn và checkpoint workspace.
+* **Công cụ phát triển tích hợp** — tệp, trình soạn thảo, terminal, Git, danh sách tác vụ, Skills, Agents, MCP, OpenAPI, LSP và tự động hóa.
+
+Khi chạy từ mã nguồn, hãy khởi động backend riêng:
+
+~~~bash
+# Terminal 1: backend desktop
+soloncode serve 4808
+
+# Terminal 2: client desktop
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Chế độ phát triển kết nối tới cổng 4808 và không tự động khởi động hoặc dò tìm tiến trình backend. Xem [Desktop README](soloncode-desktop/README.md) và [hướng dẫn bắt đầu với SolonCode Desk](docs/soloncode-desk-getting-started.md).
 
 ## Tài liệu
 

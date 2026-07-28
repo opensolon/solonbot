@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { homeDir } from '@tauri-apps/api/path';
 import {
   getAllProjects, addProject as dbAddProject, removeProject as dbRemoveProject,
   renameProject as dbRenameProject,
@@ -146,19 +147,6 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
         });
       }
 
-      // 自动发现 agents
-      const discoveredAgents = await settingsService.scanAgentsDir(selectedPath);
-      if (discoveredAgents.length > 0) {
-        setSettings((prev: any) => {
-          const existingPaths = new Set(prev.agents.map((a: any) => a.path));
-          const newAgents = discoveredAgents.filter((a: any) => !existingPaths.has(a.path));
-          if (newAgents.length > 0) {
-            return { ...prev, agents: [...prev.agents, ...newAgents] };
-          }
-          return prev;
-        });
-      }
-
       const lastSessionId = await loadLastSessionId(selectedPath);
       if (lastSessionId) {
         setCurrentSessionId(lastSessionId);
@@ -171,9 +159,9 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
     }
   }, [projects, backendPortRef, setOpenFiles, setActiveFilePath, setActiveActivity, setSettings, setCurrentSessionId]);
 
-  const handleSetActiveProject = useCallback(async (path: string) => {
+  const handleSetActiveProject = useCallback(async (path: string, syncChatWorkspace = true) => {
     setActiveProjectPath(path);
-    setChatWorkspacePath(path);
+    if (syncChatWorkspace) setChatWorkspacePath(path);
     saveLastActiveProject(path);
     setOpenFiles([]);
     setActiveFilePath(null);
@@ -273,11 +261,11 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
 
   const handleCreateProject = useCallback(async () => {
     try {
-      const homeDir = await import('@tauri-apps/api/path').then(m => m.homeDir());
-      const sep = homeDir.includes('\\') ? '\\' : '/';
-      const normalizedHome = homeDir.endsWith('\\') || homeDir.endsWith('/')
-        ? homeDir
-        : `${homeDir}${sep}`;
+      const userHome = await homeDir();
+      const sep = userHome.includes('\\') ? '\\' : '/';
+      const normalizedHome = userHome.endsWith('\\') || userHome.endsWith('/')
+        ? userHome
+        : `${userHome}${sep}`;
       const baseDir = `${normalizedHome}Documents${sep}SolonCode`;
 
       await fileService.createDirectory(baseDir);

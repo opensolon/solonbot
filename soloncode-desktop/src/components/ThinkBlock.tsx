@@ -9,20 +9,21 @@ import './ThinkBlock.css';
 interface ThinkBlockProps {
   content: string;
   theme?: Theme;
+  active?: boolean;
 }
 
 function stripThinkTags(text: string): string {
   return text.replace(/<\/?(think|thinking)>/g, '');
 }
 
-export function ThinkBlock({ content, theme }: ThinkBlockProps) {
+export function ThinkBlock({ content, theme, active = false }: ThinkBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const cleanContent = stripThinkTags(content);
 
   return (
     <div className="think-block">
       <div className="think-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <span className="think-title">思考中</span>
+        <span className="think-title">{active ? '思考中' : '已思考'}</span>
         <span className={`think-arrow ${isExpanded ? 'expanded' : ''}`}>▾</span>
       </div>
       {isExpanded && (

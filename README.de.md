@@ -4,11 +4,13 @@
 <p>Aktuelle Version: v2026.7.28</p>
 <img height="260" src="SHOW.png" />
 <img height="260" src="SHOW2.png" />
+<br />
+<img height="260"  src="DESKTOP_HOME.png" alt="SolonCode Desktop-Arbeitsbereich" />
 </div>
 
 <div align="center">
 
-[中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
+[中文](README.zh.md) | [繁體中文](README.zht.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [Español](README.es.md) | [Italiano](README.it.md)
 
 [Русский](README.ru.md) | [العربية](README.ar.md) | [Português (BR)](README.br.md) | [ไทย](README.th.md) | [Tiếng Việt](README.vi.md) | [Polski](README.pl.md)
 
@@ -70,6 +72,31 @@ Funktionstest (probieren Sie die folgenden Aufgaben, von einfach bis komplex):
 * `用网络分析下 ai mcp 协议，然后生成个 ppt` // Es wird empfohlen, einige Skills im Voraus zu installieren
 * `帮我设计一个 agent team（设计案存为 demo-dis.md），开发一个 solon + java17 的经典权限管理系统（demo-web），前端用 vue3，界面要简洁好看`
 
+
+## SolonCode Desktop
+
+SolonCode Desktop ist die lokale IDE-Oberfläche von SolonCode. Agent-Dialoge, Projektdateien, Monaco-Editor, integriertes Terminal, Git-Änderungen und Aufgabenausführung befinden sich in einem Arbeitsbereich. Der Desktop-Client basiert auf Tauri, React und TypeScript; das Java-CLI-Backend stellt Agent-Laufzeit, Modellzugriff und Werkzeuge bereit.
+
+Desktop-Funktionen:
+
+* **Agent-Modi** — Ausführung mit Genehmigung, automatische Bearbeitung, schreibgeschützte Planung und fortlaufende Goal-Ausführung.
+* **Projektbezogene Dialoge** — Bild- und Dateianhänge, Workspace-Kontext, zusätzliche Aufgaben während der Ausführung sowie Modell-, Token- und Zeitangaben.
+* **Zuverlässige Sitzungen** — persistenter Verlauf, Langzeitgedächtnis, Zurücksetzen, erneute Ausführung, sicheres Löschen und Workspace-Checkpoints.
+* **Integrierte Entwicklungswerkzeuge** — Dateiverwaltung, Editor, Terminal, Git, Aufgabenliste, Skills, Agents, MCP, OpenAPI, LSP und Automatisierungen.
+
+Beim Start aus dem Quellcode muss das Backend separat ausgeführt werden:
+
+~~~bash
+# Terminal 1: Desktop-Backend
+soloncode serve 4808
+
+# Terminal 2: Desktop-Client
+cd soloncode-desktop
+npm install
+npm run tauri:dev
+~~~
+
+Der Entwicklungsmodus verbindet sich mit Port 4808 und startet oder erkennt den Backend-Prozess nicht automatisch. Weitere Informationen finden Sie in der [Desktop README](soloncode-desktop/README.md) und im [SolonCode Desk-Einstiegsleitfaden](docs/soloncode-desk-getting-started.md).
 
 ## Dokumentation
 

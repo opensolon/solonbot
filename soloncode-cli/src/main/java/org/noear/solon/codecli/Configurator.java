@@ -282,10 +282,11 @@ public class Configurator {
 
     private void runDesktopServe(HarnessEngine agentRuntime, AgentSettings settings, CliShell cliShell) {
         //serve ws gate
-        WebSocketRouter.getInstance().of("/desktop/ws", new WsGate(agentRuntime, settings));
+        WsGate wsGate = new WsGate(agentRuntime, settings, loopScheduler);
+        WebSocketRouter.getInstance().of("/desktop/ws", wsGate);
 
         //serve desktop controller
-        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class, new WsController(agentRuntime, settings));
+        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class, new WsController(agentRuntime, settings, wsGate, loopScheduler));
         Solon.app().router().add(desktopBean);
 
         cliShell.printWelcome("Server port: " + Solon.cfg().serverPort());

@@ -607,12 +607,6 @@ export const fileService = {
 
   // ==================== 文件监听 ====================
 
-  /** 活跃的监听器取消函数 */
-  _watcherUnsubs: [] as Array<() => void>,
-
-  /** 轮询定时器（非 Tauri 环境备用） */
-  _pollingTimers: [] as Array<ReturnType<typeof setInterval>>,
-
   /**
    * 监听指定路径的文件变化
    * @param path 监听路径（目录）
@@ -640,7 +634,6 @@ export const fileService = {
         const unsub = () => {
           try { unwatch(); } catch (_) { /* ignore */ }
         };
-        this._watcherUnsubs.push(unsub);
         return unsub;
       } catch (err) {
         console.error('[fileService] Tauri 文件监听失败，回退到轮询:', err);
@@ -704,24 +697,10 @@ export const fileService = {
     // 首次初始化快照
     poll();
     const timer = setInterval(poll, interval);
-    this._pollingTimers.push(timer);
 
     return () => {
       clearInterval(timer);
-      const idx = this._pollingTimers.indexOf(timer);
-      if (idx >= 0) this._pollingTimers.splice(idx, 1);
     };
-  },
-
-  /**
-   * 停止所有文件监听
-   */
-  unwatchAll(): void {
-    this._watcherUnsubs.forEach(unsub => { try { unsub(); } catch (_) {} });
-    this._watcherUnsubs = [];
-    this._pollingTimers.forEach(timer => clearInterval(timer));
-    this._pollingTimers = [];
-    console.log('[fileService] 已停止所有文件监听');
   },
 };
 
