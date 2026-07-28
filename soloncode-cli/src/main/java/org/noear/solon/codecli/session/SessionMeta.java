@@ -42,7 +42,7 @@ import java.nio.file.StandardOpenOption;
 public class SessionMeta {
     private static final Logger LOG = LoggerFactory.getLogger(SessionMeta.class);
 
-    public static final String FILE_NAME = "meta.json";
+    public static final String FILE_NAME = "_meta.json";
     private static final String LEGACY_LABEL = "label.txt";
 
     private String label;

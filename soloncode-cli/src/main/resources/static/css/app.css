@@ -54,9 +54,33 @@ body {
     display: none;
     flex-shrink: 0;
     margin-left: 4px;
+    width: 26px;
+    height: 26px;
 }
 .sidebar-item:hover .sidebar-item-menu-wrap,
-.sidebar-item-menu-wrap:focus-within { display: block; }
+.sidebar-item-menu-wrap:focus-within,
+.sidebar-item-menu-wrap.open { display: block; }
+/* pinned：未 hover 时在 ⋯ 槽位显示 pin 标识 */
+.sidebar-item.pinned .sidebar-item-menu-wrap { display: block; }
+.sidebar-item-pin-mark {
+    position: absolute;
+    inset: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    pointer-events: none;
+}
+.sidebar-item-pin-mark svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.9;
+}
+.sidebar-item:hover .sidebar-item-pin-mark,
+.sidebar-item-menu-wrap:focus-within .sidebar-item-pin-mark,
+.sidebar-item-menu-wrap.open .sidebar-item-pin-mark { display: none; }
 .sidebar-item-menu-trigger {
     width: 26px;
     height: 26px;
@@ -66,16 +90,19 @@ body {
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     transition: background 0.15s, color 0.15s;
 }
+/* 未置顶：hover/focus/open 时显示 ⋯；已置顶：同样在 hover/focus/open 时替换 pin */
+.sidebar-item:hover .sidebar-item-menu-trigger,
+.sidebar-item-menu-wrap:focus-within .sidebar-item-menu-trigger,
+.sidebar-item-menu-wrap.open .sidebar-item-menu-trigger { display: flex; }
 .sidebar-item-menu-trigger svg {
     width: 16px;
     height: 16px;
 }
-.sidebar-item-menu-wrap.open { display: block; }
 .sidebar-item-menu-trigger:hover,
 .sidebar-item-menu-trigger:focus-visible {
     background: rgba(127, 127, 127, 0.15);
