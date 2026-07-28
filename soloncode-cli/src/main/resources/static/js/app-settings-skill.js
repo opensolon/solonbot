@@ -202,12 +202,17 @@
     /** 填充挂载筛选下拉框 */
     function fillMountFilter(pools) {
         var prev = $skillsMountFilter.val() || '';
-        var html = '<option value="">全部挂载</option>';
+        var html = '';
         pools.forEach(function (p) {
             html += '<option value="' + escapeAttr(p.alias) + '">' + escapeHtml(p.alias) + '</option>';
         });
         $skillsMountFilter.html(html);
-        if (prev) $skillsMountFilter.val(prev);
+        // 默认选中第一个挂载（取消"全部挂载"后保证有初始选中项）
+        if (!prev || !pools.some(function (p) { return p.alias === prev; })) {
+            if (pools.length) $skillsMountFilter.val(pools[0].alias);
+        } else {
+            $skillsMountFilter.val(prev);
+        }
     }
 
     /**
@@ -224,10 +229,10 @@
             var pools = allPools.filter(function (p) { return !p.fallback; });
             fillMountFilter(pools);
 
-            var selected = $skillsMountFilter.val() || '';
+            var selected = $skillsMountFilter.val() || (pools.length ? pools[0].alias : '');
             var targets = selected
                 ? pools.filter(function (p) { return p.alias === selected; })
-                : pools;
+                : [];
 
             if (!targets.length) {
                 _installedGroups = [];
@@ -292,7 +297,7 @@
         _installedPage = 1;
         _installedKeyword = keyword;
 
-        $skillsInstalledCount.text(total > 0 ? total : '');
+        // 已安装 tab 上的数字已移除，不再显示计数
 
         if (!total) {
             var isFiltering = !!keyword;
@@ -654,6 +659,7 @@
             var source = owner ? owner + '/' + name : name;
             var installs = skill.installs || (skill.stats && skill.stats.installsCurrent) || 0;
             var stars = skill.stars || (skill.stats && skill.stats.stars) || 0;
+            var version = skill.version || '';
             var isInstalled = !!installedMap[name];
             var iconText = displayName ? displayName.substring(0, 2).toUpperCase() : 'SK';
             var shortDesc = desc && Array.from(desc).length > 60 ? Array.from(desc).slice(0, 60).join('') + '...' : desc;
@@ -666,6 +672,7 @@
                 + '<div class="skill-item-name" title="' + escapeAttr(name) + '">' + escapeHtml(displayName) + (isInstalled ? '<span class="skill-installed-badge">已安装</span>' : '') + '</div>'
                 + (shortDesc ? '<div class="skill-item-desc" title="' + escapeAttr(desc) + '">' + escapeHtml(shortDesc) + '</div>' : '')
                 + '<div class="skill-item-meta">'
+                + (version ? '<span class="skill-item-version">v' + escapeHtml(version.replace(/^v/i, '')) + '</span>' : '')
                 + (installs > 0 ? '<span>' + (installs >= 1000 ? (installs / 1000).toFixed(1) + 'k' : installs) + ' 安装</span>' : '')
                 + (stars > 0 ? '<span>⭐ ' + (stars >= 1000 ? (stars / 1000).toFixed(1) + 'k' : stars) + '</span>' : '')
                 + (owner ? '<span>' + escapeHtml(owner) + '</span>' : '')

@@ -1,7 +1,8 @@
 
 ### v2026.7.29
 
-* 优化 soloncode web 技术管理功能
+* 添加 soloncode web 对话置顶功能
+* 优化 soloncode web 技能管理功能
 * 细节优化
 
 ### v2026.7.28
