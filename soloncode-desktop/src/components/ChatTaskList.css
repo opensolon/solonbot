@@ -13,22 +13,62 @@
   min-height: 38px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 11px;
+  padding: 0;
   border: 1px solid var(--cb-vscode-panel-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--cb-vscode-input-background) 82%, var(--cb-vscode-editor-background));
   color: var(--cb-text-primary);
-  cursor: pointer;
   text-align: left;
   transition: border-color 0.16s, background-color 0.16s;
 }
 
 .chat-task-trigger:hover,
-.chat-task-trigger:focus-visible {
+.chat-task-trigger:focus-within {
   border-color: color-mix(in srgb, var(--cb-accent) 52%, var(--cb-vscode-panel-border));
   background: var(--cb-vscode-list-hoverBackground);
   outline: none;
+}
+
+.chat-task-toggle {
+  min-width: 0;
+  min-height: 36px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 6px 7px 11px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chat-task-toggle:focus-visible,
+.chat-task-close:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--cb-accent) 72%, transparent);
+  outline-offset: -2px;
+}
+
+.chat-task-close {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cb-text-secondary);
+  cursor: pointer;
+}
+
+.chat-task-close:hover {
+  color: var(--cb-text-primary);
+  background: color-mix(in srgb, var(--cb-text-secondary) 14%, transparent);
 }
 
 .chat-task-panel.expanded .chat-task-trigger {
