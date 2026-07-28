@@ -34,6 +34,7 @@ import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningEffortSupport;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
@@ -453,14 +454,15 @@ public class WebGate extends SimpleWebSocketListener {
                     //如果是空，可能发的是 command（还没有对话记录）
                     try {
                         Path sessionPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-                        File labelFile = new File(sessionPath.toFile(), "label.txt");
-                        if (labelFile.exists() == false) {
+                        SessionMeta meta = SessionMeta.load(sessionPath);
+                        if (Assert.isEmpty(meta.getLabel())) {
                             // 从用户输入生成 label（空会话场景，如纯命令输入）
                             String label = input.trim();
                             if (label.length() > 50) {
                                 label = label.substring(0, 50);
                             }
-                            java.nio.file.Files.write(labelFile.toPath(), label.getBytes("UTF-8"));
+                            meta.setLabel(label);
+                            meta.save(sessionPath);
                         }
                     } catch (Throwable e) {
                         LOG.warn("[WebGate] Failed to generate label for session {}: {}", sessionId, e.getMessage());

@@ -30,6 +30,7 @@ import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningEffortSupport;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
@@ -191,10 +192,10 @@ public class WebController {
     /**
      * 加载 Web 端会话列表。
      * <p>扫描工作区 .soloncode/sessions 目录下以 "web-" 开头的会话文件夹，
-     * 读取每个会话的标签（优先使用自定义标签，否则取首条用户消息），
-     * 按最后修改时间倒序排列返回。同时恢复每个会话关联的循环任务。</p>
+     * 读取每个会话的标签（优先使用 meta.json 自定义标签，否则取首条用户消息），
+     * 按置顶 + 创建时间（createdAt）倒序排列返回。同时恢复每个会话关联的循环任务。</p>
      *
-     * @return 会话列表，每项包含 sessionId、label、time
+     * @return 会话列表，每项包含 sessionId、label、time、isPinned
      * @throws Exception 文件读取异常
      */
     @Get
@@ -207,21 +208,14 @@ public class WebController {
         if (sessionsDir.exists() && sessionsDir.isDirectory()) {
             File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
             if (dirs != null) {
-                // 不在 dirs 层面排序，后面统一按置顶+时间排序
+                // 不在 dirs 层面排序，后面统一按置顶+创建时间排序
 
                 for (File dir : dirs) {
                     String sid = dir.getName();
-                    // 优先使用自定义标签
-                    String label = null;
-                    File labelFile = new File(dir, "label.txt");
-                    if (labelFile.exists()) {
-                        try (BufferedReader lblReader = new BufferedReader(
-                                new InputStreamReader(new FileInputStream(labelFile), "UTF-8"))) {
-                            label = lblReader.readLine();
-                        } catch (Exception ignored) {
-                        }
-                    }
+                    SessionMeta meta = SessionMeta.load(dir);
 
+                    // 优先使用自定义标签
+                    String label = meta.getLabel();
                     if (Assert.isEmpty(label)) {
                         File msgFile = new File(dir, sid + ".messages.ndjson");
                         if (!msgFile.exists()) continue;
@@ -233,30 +227,23 @@ public class WebController {
                         continue;
                     }
 
-                    // 读取置顶状态
-                    boolean isPinned = false;
-                    File pinFile = new File(dir, "pin.txt");
-                    if (pinFile.exists()) {
-                        try (BufferedReader pinReader = new BufferedReader(
-                                new InputStreamReader(new FileInputStream(pinFile), "UTF-8"))) {
-                            String val = pinReader.readLine();
-                            isPinned = "true".equalsIgnoreCase(val);
-                        } catch (Exception ignored) {
-                        }
+                    long createdAt = meta.getCreatedAt();
+                    if (createdAt <= 0L) {
+                        createdAt = dir.lastModified();
                     }
 
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("sessionId", sid);
                     item.put("label", label.length() > 30 ? label.substring(0, 30) + "..." : label);
-                    item.put("time", dir.lastModified());
-                    item.put("isPinned", isPinned);
+                    item.put("time", createdAt);
+                    item.put("isPinned", meta.isPinned());
                     data.add(item);
 
                     //恢复定时任务
                     loopScheduler.restore(sid);
                 }
 
-                // 排序：置顶优先（按 time 降序），非置顶在后（按 time 降序）
+                // 排序：置顶优先（按 time/createdAt 降序），非置顶在后（按 time/createdAt 降序）
                 data.sort((a, b) -> {
                     boolean aPinned = (Boolean) a.getOrDefault("isPinned", false);
                     boolean bPinned = (Boolean) b.getOrDefault("isPinned", false);
@@ -390,14 +377,12 @@ public class WebController {
                 if (sourceMarker.exists()) {
                     Files.copy(sourceMarker.toPath(), targetMarker.toPath());
                 }
-                // 复制自定义 label.txt（如有），便于延续原标题风格
-                String name = newSessionId;
-                File sourceLabel = new File(sourceDir, "label.txt");
-                if (sourceLabel.exists()) {
-                    Files.copy(sourceLabel.toPath(),
-                            new File(targetDir, "label.txt").toPath());
-                    name = new String(java.nio.file.Files.readAllBytes(sourceLabel.toPath()), "UTF-8").trim();
-                    if (name.isEmpty()) name = newSessionId;
+                // 复制会话 meta（label/pinned），并刷新 createdAt
+                SessionMeta.copy(sourceDir, targetDir);
+                SessionMeta targetMeta = SessionMeta.load(targetDir);
+                String name = targetMeta.getLabel();
+                if (Assert.isEmpty(name)) {
+                    name = newSessionId;
                 }
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("sessionId", newSessionId);
@@ -410,7 +395,7 @@ public class WebController {
 
     /**
      * 重命名会话标签。
-     * <p>在会话目录下写入 label.txt 文件保存自定义标签，标签最大长度 50 字符。</p>
+     * <p>写入会话目录 meta.json 的 label 字段，标签最大长度 50 字符。</p>
      *
      * @param sessionId 待重命名的会话 ID
      * @param label     新的会话标签文本
@@ -432,21 +417,19 @@ public class WebController {
         }
 
         Path sessionPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-        File labelFile = new File(sessionPath.toFile(), "label.txt");
 
         if (!sessionPath.toFile().exists() || !sessionPath.toFile().isDirectory()) {
             return Result.failure(404, "Session not found");
         }
 
-        java.nio.file.Files.write(labelFile.toPath(), label.trim().getBytes("UTF-8"));
+        SessionMeta.updateLabel(sessionPath, label.trim());
 
         return Result.succeed();
     }
 
     /**
      * 置顶/取消置顶会话。
-     * <p>在会话目录下写入 pin.txt 文件保存置顶状态（内容为 true/false）。
-     * 取消置顶时删除 pin.txt 文件。</p>
+     * <p>写入会话目录 meta.json 的 pinned 字段。</p>
      *
      * @param sessionId 会话 ID
      * @param pinned    是否置顶
@@ -472,14 +455,7 @@ public class WebController {
             return Result.failure(404, "Session not found");
         }
 
-        File pinFile = new File(sessionDir, "pin.txt");
-        if (pinned) {
-            java.nio.file.Files.write(pinFile.toPath(), "true".getBytes("UTF-8"));
-        } else {
-            if (pinFile.exists()) {
-                pinFile.delete();
-            }
-        }
+        SessionMeta.updatePinned(sessionDir, pinned);
 
         return Result.succeed();
     }
