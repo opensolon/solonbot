@@ -30,9 +30,13 @@ import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -137,7 +141,7 @@ public class AcpLink implements Runnable {
                                 "Session not found: " + sessionId));
                     }
 
-                    Prompt userInput = toPrompt(request);
+                    Prompt userInput = toPrompt(request, context.getCwd());
                     AgentSession session = agentRuntime.getSession(sessionId);
 
                     final long startTime = System.currentTimeMillis();
@@ -515,26 +519,138 @@ public class AcpLink implements Runnable {
         return sb.toString().replace("\n", " ");
     }
 
-    public Prompt toPrompt(AcpSchema.PromptRequest promptRequest) {
+    public Prompt toPrompt(AcpSchema.PromptRequest promptRequest, String cwd) {
         Prompt prompt = Prompt.of();
-
         Contents contents = new Contents();
+
+        // 文本块和 ResourceLink 的 [path] 统一收集到一个 StringBuilder，
+        // 保证 "用户文本 [uri]" 连续输出在同一个 TextBlock 中。
+        StringBuilder textBuilder = new StringBuilder();
 
         for (AcpSchema.ContentBlock cp : promptRequest.prompt()) {
             if (cp instanceof AcpSchema.TextContent) {
                 AcpSchema.TextContent text = (AcpSchema.TextContent) cp;
-                contents.addBlock(TextBlock.of(text.text()));
+                if (textBuilder.length() > 0) textBuilder.append(" ");
+                textBuilder.append(text.text());
             } else if (cp instanceof AcpSchema.ImageContent) {
+                // 遇到非文本块时先 flush 已累积的文本
+                flushText(contents, textBuilder);
                 AcpSchema.ImageContent image = (AcpSchema.ImageContent) cp;
                 if (Assert.isEmpty(image.uri())) {
                     contents.addBlock(ImageBlock.ofBase64(image.data(), image.mimeType()));
                 } else {
                     contents.addBlock(ImageBlock.ofUrl(image.uri(), image.mimeType()));
                 }
+            } else if (cp instanceof AcpSchema.ResourceLink) {
+                // 文件拖拽引用：不读取内容，只将 URI 转为工作区相对路径，
+                // 以 [path] 形式追加到用户文本后面
+                String relativePath = toRelativePath(((AcpSchema.ResourceLink) cp).uri(), cwd);
+                if (Assert.isNotEmpty(relativePath)) {
+                    if (textBuilder.length() > 0) textBuilder.append(" ");
+                    textBuilder.append("[").append(relativePath).append("]");
+                }
+            } else if (cp instanceof AcpSchema.Resource) {
+                // 遇到非文本块时先 flush 已累积的文本
+                flushText(contents, textBuilder);
+                handleEmbeddedResource(contents, (AcpSchema.Resource) cp);
             }
         }
 
+        // flush 剩余文本
+        flushText(contents, textBuilder);
+
         return prompt.addMessage(ChatMessage.ofUser(contents));
+    }
+
+    /** 将 StringBuilder 中累积的文本作为 TextBlock 加入 contents，然后清空。 */
+    private void flushText(Contents contents, StringBuilder textBuilder) {
+        if (textBuilder.length() > 0) {
+            contents.addBlock(TextBlock.of(textBuilder.toString()));
+            textBuilder.setLength(0);
+        }
+    }
+
+    /**
+     * 将 ResourceLink 的 URI 转为工作区相对路径。
+     * <p>去除 file:// 前缀，若路径以 cwd 开头则转为相对路径，否则返回原路径。</p>
+     */
+    private String toRelativePath(String uri, String cwd) {
+        if (Assert.isEmpty(uri)) {
+            return null;
+        }
+
+        // 去除 file:// 前缀
+        String filePath = uri;
+        if (filePath.startsWith("file://")) {
+            filePath = filePath.substring(7);
+            // Windows: file:///C:/... → C:/...
+            if (filePath.startsWith("/") && filePath.length() > 2 && filePath.charAt(2) == ':') {
+                filePath = filePath.substring(1);
+            }
+        }
+
+        // 转为工作区相对路径
+        if (Assert.isNotEmpty(cwd)) {
+            Path fullPath = Paths.get(filePath);
+            Path cwdPath = Paths.get(cwd);
+            if (fullPath.startsWith(cwdPath)) {
+                return cwdPath.relativize(fullPath).toString();
+            }
+        }
+
+        return filePath;
+    }
+
+
+
+    /**
+     * 处理 Resource：客户端内联嵌入的资源内容。
+     * <ul>
+     *   <li>TextResourceContents：text 字段已有内容，直接作为 TextBlock</li>
+     *   <li>BlobResourceContents：base64 编码，图片转 ImageBlock，其余尝试解码为文本</li>
+     * </ul>
+     */
+    private void handleEmbeddedResource(Contents contents, AcpSchema.Resource resource) {
+        AcpSchema.EmbeddedResourceResource res = resource.resource();
+        if (res == null) {
+            return;
+        }
+
+        if (res instanceof AcpSchema.TextResourceContents) {
+            AcpSchema.TextResourceContents textRes = (AcpSchema.TextResourceContents) res;
+            String text = textRes.text();
+            if (Assert.isNotEmpty(text)) {
+                String uri = textRes.uri();
+                String label = Assert.isNotEmpty(uri) ? "File: " + uri + "\n" : "";
+                contents.addBlock(TextBlock.of(label + "```\n" + text + "\n```"));
+            }
+        } else if (res instanceof AcpSchema.BlobResourceContents) {
+            AcpSchema.BlobResourceContents blobRes = (AcpSchema.BlobResourceContents) res;
+            String blob = blobRes.blob();
+            String mimeType = blobRes.mimeType();
+            if (Assert.isEmpty(blob)) {
+                return;
+            }
+
+            if (mimeType != null && mimeType.startsWith("image/")) {
+                contents.addBlock(ImageBlock.ofBase64(blob, mimeType));
+            } else {
+                // 尝试解码为文本
+                try {
+                    byte[] decoded = Base64.getDecoder().decode(blob);
+                    String text = new String(decoded, StandardCharsets.UTF_8);
+                    String uri = blobRes.uri();
+                    String label = Assert.isNotEmpty(uri) ? "File: " + uri + "\n" : "";
+                    contents.addBlock(TextBlock.of(label + "```\n" + text + "\n```"));
+                } catch (Exception e) {
+                    // 二进制内容无法解码为文本
+                    String uri = blobRes.uri();
+                    String name = Assert.isNotEmpty(uri) ? uri : "binary resource";
+                    contents.addBlock(TextBlock.of("[Binary resource: " + name + " ("
+                            + (mimeType != null ? mimeType : "unknown") + ")]"));
+                }
+            }
+        }
     }
 
     public static class AcpSessionContext {
