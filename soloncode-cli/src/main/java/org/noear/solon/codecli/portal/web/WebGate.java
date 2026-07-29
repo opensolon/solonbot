@@ -681,7 +681,11 @@ public class WebGate extends SimpleWebSocketListener {
                 streamBuilder.replyToBoundChannel(session.getSessionId(), text, true);
             }
 
-            emitToClient(session.getSessionId(), WebChunk.ofDone());
+            // ★ 命令有后台异步 agent（如 /goal）时，不发 done，
+            //   等异步 agent 结束后再由执行链路自然发送 done
+            if (!ctx.hasPendingAsyncAgent()) {
+                emitToClient(session.getSessionId(), WebChunk.ofDone());
+            }
         }
 
         return true;
