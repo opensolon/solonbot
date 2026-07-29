@@ -408,7 +408,24 @@ function loadMessages(sess) {
                 var m = msgs[i];
                 if (m.role === 'USER') {
                     resetStreamState(sess);
-                    appendUserMessage(sess, m.content, null, m.attachments, m.createdAt, m.sourceLabel);
+                    // 从附件元数据中分离出图片附件，构造 read-raw URL 实现历史图片预览
+                    var historyImages = null;
+                    var historyFileAttachments = null;
+                    if (m.attachments && m.attachments.length > 0) {
+                        historyImages = [];
+                        historyFileAttachments = [];
+                        for (var ai = 0; ai < m.attachments.length; ai++) {
+                            var att = m.attachments[ai];
+                            if (att.type === 'image') {
+                                historyImages.push('/web/chat/filer/read-raw?path=' + encodeURIComponent(att.name));
+                            } else {
+                                historyFileAttachments.push(att);
+                            }
+                        }
+                        if (historyImages.length === 0) historyImages = null;
+                        if (historyFileAttachments.length === 0) historyFileAttachments = null;
+                    }
+                    appendUserMessage(sess, m.content, historyImages, historyFileAttachments, m.createdAt, m.sourceLabel);
                 } else if (m.role === 'ASSISTANT') {
                     var isConsecutive = (i > 0 && msgs[i - 1].role === 'ASSISTANT');
                     if (!isConsecutive) resetStreamState(sess);
