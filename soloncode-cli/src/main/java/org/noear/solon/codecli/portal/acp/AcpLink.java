@@ -2,9 +2,12 @@ package org.noear.solon.codecli.portal.acp;
 
 import com.agentclientprotocol.sdk.agent.AcpAgent;
 import com.agentclientprotocol.sdk.agent.AcpAsyncAgent;
+import com.agentclientprotocol.sdk.error.AcpErrorCodes;
+import com.agentclientprotocol.sdk.error.AcpProtocolException;
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import com.agentclientprotocol.sdk.spec.AcpSchema;
 import org.noear.solon.ai.agent.AgentSession;
+import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.RunEndEvent;
 import org.noear.solon.ai.agent.react.task.PlanEvent;
@@ -19,6 +22,7 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.TaskTalent;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
@@ -28,6 +32,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -53,11 +58,19 @@ public class AcpLink implements Runnable {
         return AcpAgent.async(transport)
                 .requestTimeout(Duration.ofSeconds(60))
                 .initializeHandler(req -> {
+                    // SessionCapabilities: 参数为 Object，非 null 表示"支持"，null 表示"不支持"。
+                    // 声明 list=false(null), close=true, resume=false(null)。
+                    // 只有声明了 close 能力，客户端才会主动调用 session/close。
+                    AcpSchema.SessionCapabilities sessionCaps =
+                            new AcpSchema.SessionCapabilities(null, Boolean.TRUE, null);
+
                     return Mono.just(new AcpSchema.InitializeResponse(
                             1,
                             new AcpSchema.AgentCapabilities(true,
+                                    sessionCaps,
                                     new AcpSchema.McpCapabilities(true, true),
-                                    new AcpSchema.PromptCapabilities(true, true, true)),
+                                    new AcpSchema.PromptCapabilities(true, true, true),
+                                    null),
                             Arrays.asList()
                     ));
                 })
@@ -81,13 +94,34 @@ public class AcpLink implements Runnable {
                     String sessionId = req.sessionId();
                     AcpSessionContext context = sessionStates.get(sessionId);
                     if (context != null) {
+                        // 设置取消标志，prompt 流中的 takeWhile(!cancelled) 会在下一个 chunk 时中断后端任务
                         context.setCancelled(true);
                     }
                     return Mono.empty();
                 })
+                .closeSessionHandler(req -> {
+                    // 客户端显式关闭 session：正确的清理时机
+                    String sessionId = req.sessionId();
+                    AcpSessionContext context = sessionStates.remove(sessionId);
+                    if (context != null) {
+                        context.setCancelled(true);
+                    }
+                    // 同步清理后端 AgentSession，避免 SessionManager.sessionMap 内存泄漏。
+                    // 注意：仅从内存 map 移除，磁盘上的 FileAgentSession 历史保留，供后续 loadSession 恢复。
+                    removeBackendSession(sessionId);
+                    return Mono.just(new AcpSchema.CloseSessionResponse());
+                })
                 .promptHandler((request, acpContext) -> {
                     String sessionId = acpContext.getSessionId();
-                    AcpSessionContext context = sessionStates.get(sessionId);
+                    final AcpSessionContext context = sessionStates.get(sessionId);
+
+                    // session 不存在时抛出协议异常，SDK 会保留 SESSION_NOT_FOUND(-32002) 错误码，
+                    // 客户端收到语义明确的错误而非 NPE 兵底的 -32603。
+                    if (context == null) {
+                        return Mono.error(new AcpProtocolException(
+                                AcpErrorCodes.SESSION_NOT_FOUND,
+                                "Session not found: " + sessionId));
+                    }
 
                     Prompt userInput = toPrompt(request);
                     AgentSession session = agentRuntime.getSession(sessionId);
@@ -180,16 +214,35 @@ public class AcpLink implements Runnable {
 
                                 return Mono.just(chunk);
                             })
-                            .doFinally(signal -> {
-                                sessionStates.remove(sessionId);
-                            })
                             .onErrorResume(e -> {
+                                // 协议异常透传，保留原错误码；其余异常以消息形式反馈
+                                if (e instanceof AcpProtocolException) {
+                                    return Mono.error(e);
+                                }
                                 return acpContext.sendMessage("Error: " + e.getMessage())
                                         .then(Mono.empty());
+                            })
+                            .doFinally(signal -> {
+                                // 不再删除 sessionStates（session 生命周期由 close/cancel 控制），
+                                // 仅重置本轮取消标志，为下一轮 prompt 准备
+                                context.setCancelled(false);
                             })
                             .then(Mono.just(new AcpSchema.PromptResponse(AcpSchema.StopReason.END_TURN)));
                 })
                 .build();
+    }
+
+    /**
+     * 同步移除后端 AgentSession（仅内存 map，不删除磁盘历史）。
+     *
+     * <p>HarnessEngine.getSessionProvider() 返回 AgentSessionProvider 接口，
+     * removeSession 仅定义在具体实现 SessionManager 上，故需 instanceof 判断。</p>
+     */
+    private void removeBackendSession(String sessionId) {
+        AgentSessionProvider provider = agentRuntime.getSessionProvider();
+        if (provider instanceof SessionManager) {
+            ((SessionManager) provider).removeSession(sessionId);
+        }
     }
 
     /**
@@ -287,15 +340,21 @@ public class AcpLink implements Runnable {
     public static class AcpSessionContext {
         private final String cwd;
         private final List<AcpSchema.McpServer> mcpServers;
+        private final Instant createdAt;
         private volatile boolean cancelled;
 
         public AcpSessionContext(String cwd, List<AcpSchema.McpServer> mcpServers) {
             this.cwd = cwd;
             this.mcpServers = mcpServers;
+            this.createdAt = Instant.now();
         }
 
         public String getCwd() {
             return cwd;
+        }
+
+        public Instant getCreatedAt() {
+            return createdAt;
         }
 
         public List<AcpSchema.McpServer> getMcpServers() {
