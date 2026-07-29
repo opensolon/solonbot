@@ -1192,6 +1192,15 @@ function handleWebGateChunk(chunk) {
         }
     }
 
+    // Loop/Goal 异步 agent 流启动信号：重置流关闭状态，使后续 text/reason chunk 能正常开新气泡
+    if (chunk.type === 'reset_stream') {
+        var sess = getOrCreateSession(sid);
+        sess._streamClosed = false;
+        sess.acceptingStream = true;
+        sess.stopRequested = false;
+        return;
+    }
+
     // Loop/微信 等后端推送的用户提示词
     if (chunk.type === 'user_input') {
         var userSess = getOrCreateSession(sid);

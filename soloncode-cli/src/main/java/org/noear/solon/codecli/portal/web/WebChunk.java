@@ -324,6 +324,20 @@ public class WebChunk {
     }
 
     /**
+     * 创建「流重置」消息块。
+     * <p>type 为 {@code reset_stream}，用于 Loop/Goal 异步 agent 流开始前重置前端的流状态。
+     * 前端收到后应将 {@code _streamClosed} 设为 {@code false}、{@code acceptingStream} 设为 {@code true}，
+     * 使后续 agent 的 text/reason/action chunk 能正常通过流守卫并开新气泡展示。</p>
+     */
+    public static WebChunk ofResetStream() {
+        WebChunk tmp = new WebChunk();
+        tmp.type = "reset_stream";
+        tmp.createdAt = Instant.now().toEpochMilli();
+
+        return tmp;
+    }
+
+    /**
      * 创建「用户输入」消息块。
      * <p>type 为 {@code user_input}，用于后端推送的自动化任务（如 Loop 定时任务）中，
      * 将用户提示词显示到前端对话记录中，避免对话只显示 AI 回复而无用户侧消息的问题。</p>

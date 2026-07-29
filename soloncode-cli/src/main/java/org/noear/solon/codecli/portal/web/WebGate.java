@@ -786,6 +786,8 @@ public class WebGate extends SimpleWebSocketListener {
             return null;
         }
 
+        // Loop/Goal 异步 agent 流开始前重置前端的流状态（_streamClosed → false）
+        emitToClient(sessionId, WebChunk.ofResetStream());
         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
 
         String agentName = null;
