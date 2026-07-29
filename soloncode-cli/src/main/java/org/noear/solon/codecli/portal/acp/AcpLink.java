@@ -70,10 +70,13 @@ public class AcpLink implements Runnable {
                 .requestTimeout(Duration.ofSeconds(60))
                 .initializeHandler(req -> {
                     // SessionCapabilities: 参数为 Object，非 null 表示"支持"，null 表示"不支持"。
-                    // 声明 list=false(null), close=true, resume=false(null)。
+                    // 声明 list=false(null), close={}, resume=false(null)。
                     // 只有声明了 close 能力，客户端才会主动调用 session/close。
+                    // close 用空对象 {} 而非 Boolean.TRUE，因为部分客户端（如 IDEA）
+                    // 的 ACP 模型将 close 定义为 SessionCloseCapabilities 对象类型，
+                    // 传入 true 会序列化为 JSON 字面量导致反序列化失败。
                     AcpSchema.SessionCapabilities sessionCaps =
-                            new AcpSchema.SessionCapabilities(null, Boolean.TRUE, null);
+                            new AcpSchema.SessionCapabilities(null, Collections.emptyMap(), null);
 
                     return Mono.just(new AcpSchema.InitializeResponse(
                             1,
