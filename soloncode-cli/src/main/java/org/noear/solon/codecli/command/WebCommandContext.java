@@ -37,7 +37,6 @@ public class WebCommandContext implements CommandContext {
 
     private final StringBuilder outputBuffer = new StringBuilder();
     private boolean isAgentTask = false;
-    private boolean pendingAsyncAgent = false;
 
     /**
      * Agent 任务回调接口
@@ -104,18 +103,6 @@ public class WebCommandContext implements CommandContext {
 
     public boolean isAgentTask() {
         return isAgentTask;
-    }
-
-    /**
-     * 标记此命令会触发后台异步 agent 执行（如 /goal），isCommand() 将跳过发送 done，
-     * 等异步 agent 真正结束后再由执行链路自然发送 done。
-     */
-    public void setPendingAsyncAgent(boolean v) {
-        this.pendingAsyncAgent = v;
-    }
-
-    public boolean hasPendingAsyncAgent() {
-        return pendingAsyncAgent;
     }
 
     public StringBuilder getOutputBuffer() {

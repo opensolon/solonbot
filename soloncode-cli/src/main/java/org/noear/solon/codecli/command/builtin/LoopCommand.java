@@ -20,7 +20,6 @@ import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.harness.command.CommandContext;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
-import org.noear.solon.codecli.command.WebCommandContext;
 import reactor.core.Disposable;
 
 import java.nio.file.Paths;
@@ -231,11 +230,6 @@ public class LoopCommand implements Command {
             return;
         }
 
-        // ★ 标记有后台异步 agent 将接续输出，isCommand() 不发送 done
-        if (ctx instanceof WebCommandContext) {
-            ((WebCommandContext) ctx).setPendingAsyncAgent(true);
-        }
-
         // 打印注册信息
         ctx.println(ctx.color(GREEN + "Loop task registered:" + RESET));
         ctx.println(ctx.color("  " + BOLD + "ID:" + RESET + " " + task.getId()));
@@ -336,7 +330,7 @@ public class LoopCommand implements Command {
                 ctx.println(ctx.color(DIM + "  Use /loop stop " + t.getId() + " first to replace the goal." + RESET));
                 return;
             }
-            
+
         }
 
         // 创建任务：★ 显式使用 LoopTask.TaskType.GOAL
@@ -366,11 +360,6 @@ public class LoopCommand implements Command {
         } catch (IllegalStateException e) {
             ctx.println(ctx.color(RED + "Failed: " + e.getMessage() + RESET));
             return;
-        }
-
-        // ★ 标记有后台异步 agent 将接续输出，isCommand() 不发送 done
-        if (ctx instanceof WebCommandContext) {
-            ((WebCommandContext) ctx).setPendingAsyncAgent(true);
         }
 
         // 打印注册信息（简洁版）

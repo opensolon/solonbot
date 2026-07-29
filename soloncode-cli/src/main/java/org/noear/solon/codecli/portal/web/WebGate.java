@@ -309,7 +309,7 @@ public class WebGate extends SimpleWebSocketListener {
             }
             // 写入会话级子代理选择（与模型一样的持久化逻辑）
             session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED,
-                selectedAgent != null ? selectedAgent : "");
+                    selectedAgent != null ? selectedAgent : "");
             boolean effortProvided = reasoningEffort != null;
             ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
 
@@ -681,11 +681,7 @@ public class WebGate extends SimpleWebSocketListener {
                 streamBuilder.replyToBoundChannel(session.getSessionId(), text, true);
             }
 
-            // ★ 命令有后台异步 agent（如 /goal）时，不发 done，
-            //   等异步 agent 结束后再由执行链路自然发送 done
-            if (!ctx.hasPendingAsyncAgent()) {
-                emitToClient(session.getSessionId(), WebChunk.ofDone());
-            }
+            emitToClient(session.getSessionId(), WebChunk.ofDone());
         }
 
         return true;
