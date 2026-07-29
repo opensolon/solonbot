@@ -10,6 +10,30 @@
     var studioFlag = "studio";
     var isStudioPageEnabled = false;
     var pendingStudioTheme = "";
+    var cliMessageSource = "soloncode-cli";
+    var studioMessageSource = "soloncode-studio";
+    var studioParentOrigin = "";
+
+    try {
+        studioParentOrigin = window.location.ancestorOrigins && window.location.ancestorOrigins[0];
+        if (!studioParentOrigin && document.referrer) {
+            studioParentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (e) {
+        studioParentOrigin = "";
+    }
+
+    function isStudioParentMessage(event, data) {
+        return (
+            window.parent !== window &&
+            event.source === window.parent &&
+            (!studioParentOrigin || event.origin === studioParentOrigin) &&
+            data &&
+            data.source === studioMessageSource &&
+            typeof data.type === "string" &&
+            data.type.indexOf("studio-") === 0
+        );
+    }
 
     try {
         isStudioPageEnabled = new URL(window.location.href).searchParams.get(studioFlag) === "true";
@@ -51,9 +75,10 @@
                 window.parent.postMessage(
                     {
                         type: eventName,
+                        source: cliMessageSource,
                         payload: payload
                     },
-                    "*"
+                    studioParentOrigin || "*"
                 );
             } catch (e) {
                 // ignore cross-window failures
@@ -74,7 +99,7 @@
         try {
             window.addEventListener("message", function (event) {
                 var data = event && event.data ? event.data : null;
-                if (!data || typeof data.type !== "string" || data.type.indexOf("studio-") !== 0) {
+                if (!isStudioParentMessage(event, data)) {
                     return;
                 }
 
@@ -153,8 +178,7 @@
         }
         pendingStudioTheme = "";
         dispatchStudioMessage("soloncode-theme-change", {
-            theme: normalizedTheme,
-            source: "soloncode-cli"
+            theme: normalizedTheme
         });
     }
 
@@ -162,7 +186,7 @@
         try {
             window.addEventListener("message", function (event) {
                 var data = event && event.data ? event.data : null;
-                if (!data || typeof data.type !== "string" || data.type.indexOf("studio-") !== 0) {
+                if (!isStudioParentMessage(event, data)) {
                     return;
                 }
 
@@ -216,10 +240,10 @@
         return "";
     }
 
-    function dispatchStudioTaskLifecycle(action, source, sess) {
+    function dispatchStudioTaskLifecycle(action, trigger, sess) {
         var payload = {
             action: action,
-            source: source,
+            trigger: trigger,
             taskName: getStudioTaskName(sess),
             sessionId: sess && sess.sessionId ? sess.sessionId : window.SESSION_ID,
             timestamp: Date.now()
@@ -289,7 +313,7 @@
         applyStudioTheme(currentTheme);
 
         studioLog("studio appearance applied with theme:", currentTheme);
-        dispatchStudioMessage("soloncode-theme-ready", { source: "soloncode-cli" });
+        dispatchStudioMessage("soloncode-theme-ready", {});
     }
 
     studioLog("active");
@@ -401,9 +425,9 @@
         }
     }
 
-    function handleBlockedNavigation(url, source) {
+    function handleBlockedNavigation(url, trigger) {
         var payload = {
-            source: source,
+            trigger: trigger,
             url: url,
             timestamp: Date.now()
         };
@@ -411,7 +435,7 @@
         dispatchStudioNavigationBlocked(payload);
 
         if (typeof window.onStudioNavigationBlocked === "function") {
-            window.onStudioNavigationBlocked(url, source);
+            window.onStudioNavigationBlocked(url, trigger);
         }
     }
 
