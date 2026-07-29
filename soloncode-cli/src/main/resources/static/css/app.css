@@ -2295,6 +2295,33 @@ body.memory-active .main-header { display: none; }
     white-space: pre;
 }
 
+/* ===== 文件查看器：媒体文件预览（图片/视频）===== */
+.git-viewer-content .file-view-media {}
+
+.git-viewer-content .file-view-media-preview {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    min-height: 200px;
+    background: var(--bg-secondary);
+    white-space: normal;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.git-viewer-content .file-view-media-img {
+    max-width: 100%;
+    max-height: calc(100vh - 220px);
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+}
+.git-viewer-content .file-view-media-video {
+    max-width: 100%;
+    max-height: calc(100vh - 220px);
+    border-radius: 4px;
+    background: #000;
+}
+
 /* 工作区干净 */
 .git-diff-empty {
     display: flex;

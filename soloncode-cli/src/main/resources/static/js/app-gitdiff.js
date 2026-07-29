@@ -387,16 +387,123 @@
                         + '</div>';
                     return;
                 }
-                renderFileContent(d.content, d.name || name, d.size, path);
+                // 构造原始二进制读取 URL（用于图片/视频）
+                var rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(apiPath);
+                if (fileWorkspace !== 'workspace') {
+                    rawUrl += '&workspace=' + encodeURIComponent(fileWorkspace);
+                }
+                renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
                 if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--color-danger)">加载失败: ' + escapeHtml(e.message) + '</div>';
             });
     }
 
-    // ---- File Viewer：渲染文件内容（语法高亮 + 行号）----
-    function renderFileContent(content, fileName, fileSize, filePath) {
+    // ---- 文件类型检测（根据扩展名）----
+    var MEDIA_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
+    var MEDIA_VIDEO_EXTS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+    var BINARY_EXTS = ['.pdf', '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.dll', '.bin', '.o', '.so', '.dylib'];
+
+    /**
+     * 检测文件是否为图片类型。
+     */
+    function isImageFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return MEDIA_IMAGE_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 检测文件是否为视频类型。
+     */
+    function isVideoFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return MEDIA_VIDEO_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 检测文件是否为已知的二进制类型（无法以文本预览）。
+     */
+    function isBinaryFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return BINARY_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 渲染媒体文件（图片/视频）。
+     */
+    function renderMediaContent(rawUrl, fileName, isImage) {
         if (!gitViewerContent) return;
+
+        // 隐藏不适用的 Header 按钮（防止从文本/MD 文件切换过来时残留）
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        if (_mdToggle) _mdToggle.style.display = 'none';
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        if (_copyBtn) _copyBtn.style.display = 'none';
+        var _fullscreen = document.getElementById('gitViewerFullscreen');
+        if (_fullscreen) _fullscreen.style.display = 'none';
+        var _memNew = document.getElementById('gitViewerMemNew');
+        if (_memNew) _memNew.style.display = 'none';
+
+        var displayName = escapeHtml(fileName || '');
+        var html = '<div class="file-view-media">';
+        html += '<div class="file-view-media-preview">';
+        if (isImage) {
+            html += '<img src="' + escapeHtml(rawUrl) + '" alt="' + displayName + '" class="file-view-media-img" />';
+        } else {
+            html += '<video src="' + escapeHtml(rawUrl) + '" controls class="file-view-media-video" autoplay>';
+            html += '您的浏览器不支持视频播放。</video>';
+        }
+        html += '</div></div>';
+        gitViewerContent.innerHTML = html;
+        gitViewerContent.scrollTop = 0;
+    }
+
+    /**
+     * 渲染二进制文件不可预览提示。
+     */
+    function renderBinaryUnreadable(fileName) {
+        if (!gitViewerContent) return;
+
+        // 隐藏不适用的 Header 按钮（防止从文本/MD 文件切换过来时残留）
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        if (_mdToggle) _mdToggle.style.display = 'none';
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        if (_copyBtn) _copyBtn.style.display = 'none';
+        var _fullscreen = document.getElementById('gitViewerFullscreen');
+        if (_fullscreen) _fullscreen.style.display = 'none';
+        var _memNew = document.getElementById('gitViewerMemNew');
+        if (_memNew) _memNew.style.display = 'none';
+
+        gitViewerContent.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-secondary)">'
+            + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;margin-bottom:16px">'
+            + '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>'
+            + '<polyline points="14 2 14 8 20 8"/>'
+            + '<line x1="9" y1="13" x2="15" y2="13"/>'
+            + '</svg>'
+            + '<div style="font-size:14px;font-weight:500;margin-bottom:6px">该文件为二进制文件</div>'
+            + '<div style="font-size:12px;opacity:0.6">' + escapeHtml(fileName || '') + ' 无法以文本形式预览</div>'
+            + '</div>';
+        gitViewerContent.scrollTop = 0;
+    }
+
+    // ---- File Viewer：渲染文件内容（语法高亮 + 行号 / 媒体预览 / 二进制提示）----
+    function renderFileContent(content, fileName, fileSize, filePath, rawUrl) {
+        if (!gitViewerContent) return;
+
+        // ---- 媒体文件类型检测（优先于文本渲染）----
+        if (rawUrl && isImageFile(filePath || fileName)) {
+            renderMediaContent(rawUrl, fileName || filePath, true);
+            return;
+        }
+        if (rawUrl && isVideoFile(filePath || fileName)) {
+            renderMediaContent(rawUrl, fileName || filePath, false);
+            return;
+        }
+        // 已知的二进制文件类型（非图片/视频）—— 显示不可预览提示
+        if (isBinaryFile(filePath || fileName)) {
+            renderBinaryUnreadable(fileName || filePath);
+            return;
+        }
 
         // 重置 MD 切换按钮为初始状态（源码态），应对切换文件时图标未复位的问题
         var _mdToggleReset = document.getElementById('gitViewerMdToggle');

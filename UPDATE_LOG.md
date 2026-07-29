@@ -1,4 +1,9 @@
 
+### v2026.7.30
+
+* 优化 soloncode acp
+* 添加 soloncode web 文件详情支持图片与视频预览
+
 ### v2026.7.29
 
 * 添加 soloncode web 对话置顶功能

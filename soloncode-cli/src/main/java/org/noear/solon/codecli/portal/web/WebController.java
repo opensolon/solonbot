@@ -1955,4 +1955,60 @@ public class WebController {
                                 @Param("path") String path) throws Exception {
         return fileService.read(workspace, path);
     }
+
+    /**
+     * 读取工作区文件原始二进制内容（用于图片、视频等媒体文件展示）。
+     *
+     * <p>直接以原始字节流输出文件内容，并设置正确的 Content-Type，
+     * 以便浏览器直接渲染图片或视频。</p>
+     */
+    @Get
+    @Mapping("/web/chat/filer/read-raw")
+    public void fileReadRaw(Context ctx,
+                            @Param(value = "workspace", required = false) String workspace,
+                            @Param("path") String path) throws Exception {
+        if (path == null || path.trim().isEmpty()) {
+            ctx.status(400);
+            ctx.output("Path is required");
+            return;
+        }
+        try {
+            Path targetPath = fileService.resolveFilePath(workspace, path);
+            byte[] bytes = Files.readAllBytes(targetPath);
+            String contentType = guessContentType(path);
+            ctx.contentType(contentType);
+            ctx.headerSet("Cache-Control", "private, max-age=3600");
+            ctx.output(bytes);
+        } catch (IllegalArgumentException e) {
+            ctx.status(404);
+            ctx.output(e.getMessage());
+        } catch (SecurityException e) {
+            ctx.status(403);
+            ctx.output(e.getMessage());
+        } catch (Exception e) {
+            ctx.status(500);
+            ctx.output("Failed to read file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据文件扩展名推测 MIME 类型（用于原始文件输出）。
+     */
+    private String guessContentType(String fileName) {
+        String lower = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        if (lower.endsWith(".ico")) return "image/x-icon";
+        if (lower.endsWith(".bmp")) return "image/bmp";
+        if (lower.endsWith(".mp4")) return "video/mp4";
+        if (lower.endsWith(".webm")) return "video/webm";
+        if (lower.endsWith(".mov")) return "video/quicktime";
+        if (lower.endsWith(".avi")) return "video/x-msvideo";
+        if (lower.endsWith(".mkv")) return "video/x-matroska";
+        if (lower.endsWith(".ogg")) return "video/ogg";
+        return "application/octet-stream";
+    }
 }
