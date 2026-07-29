@@ -5,12 +5,12 @@ import com.agentclientprotocol.sdk.agent.AcpAsyncAgent;
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import com.agentclientprotocol.sdk.spec.AcpSchema;
 import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.ReActTrace;
-import org.noear.solon.ai.agent.react.task.ObservationChunk;
-import org.noear.solon.ai.agent.react.task.PlanChunk;
-import org.noear.solon.ai.agent.react.task.ReasonChunk;
-import org.noear.solon.ai.agent.react.task.ThoughtChunk;
+import org.noear.solon.ai.agent.react.RunEndEvent;
+import org.noear.solon.ai.agent.react.task.PlanEvent;
+import org.noear.solon.ai.agent.react.task.ReasonDeltaEvent;
+import org.noear.solon.ai.agent.react.task.ReasonEndEvent;
+import org.noear.solon.ai.agent.react.task.ToolCallEndEvent;
 import org.noear.solon.ai.chat.content.Contents;
 import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
@@ -106,7 +106,7 @@ public class AcpLink implements Runnable {
                             .takeWhile(chunk -> !context.isCancelled())
                             .concatMap(chunk -> {
                                 // === 规划阶段：映射到 ACP Plan 结构化输出 ===
-                                if (chunk instanceof PlanChunk) {
+                                if (chunk instanceof PlanEvent) {
                                     String content = chunk.getContent();
                                     AcpSchema.PlanEntry entry = new AcpSchema.PlanEntry(
                                             content != null ? content : "Planning...",
@@ -118,8 +118,8 @@ public class AcpLink implements Runnable {
                                             .thenReturn(chunk);
                                 }
                                 // === 思考阶段 ===
-                                else if (chunk instanceof ReasonChunk) {
-                                    ReasonChunk reasonChunk = (ReasonChunk) chunk;
+                                else if (chunk instanceof ReasonDeltaEvent) {
+                                    ReasonDeltaEvent reasonChunk = (ReasonDeltaEvent) chunk;
                                     if (chunk.hasContent() && !reasonChunk.isToolCalls()) {
                                         if (agentSettings.getGeneral().isCliThinkPrinted()) {
                                             return acpContext.sendThought(chunk.getContent())
@@ -128,8 +128,8 @@ public class AcpLink implements Runnable {
                                     }
                                 }
                                 // === ThoughtChunk（多任务并行） ===
-                                else if (chunk instanceof ThoughtChunk) {
-                                    ThoughtChunk thoughtChunk = (ThoughtChunk) chunk;
+                                else if (chunk instanceof ReasonEndEvent) {
+                                    ReasonEndEvent thoughtChunk = (ReasonEndEvent) chunk;
                                     if (thoughtChunk.hasMeta(TaskTalent.TOOL_MULTITASK)) {
                                         String content = thoughtChunk.getAssistantMessage().getResultContent();
                                         if (Assert.isNotEmpty(content)) {
@@ -139,8 +139,8 @@ public class AcpLink implements Runnable {
                                     }
                                 }
                                 // === 工具执行阶段：映射到 ACP ToolCall 结构化输出 ===
-                                else if (chunk instanceof ObservationChunk) {
-                                    ObservationChunk observationChunk = (ObservationChunk) chunk;
+                                else if (chunk instanceof ToolCallEndEvent) {
+                                    ToolCallEndEvent observationChunk = (ToolCallEndEvent) chunk;
                                     String toolName = observationChunk.getToolName();
 
                                     // 跳过内部任务分发工具（不向客户端展示）
@@ -168,8 +168,8 @@ public class AcpLink implements Runnable {
                                             .thenReturn(chunk);
                                 }
                                 // === 最终回复阶段 ===
-                                else if (chunk instanceof ReActChunk) {
-                                    String traceInfo = buildTraceInfo(((ReActChunk) chunk).getTrace(), startTime);
+                                else if (chunk instanceof RunEndEvent) {
+                                    String traceInfo = buildTraceInfo(((RunEndEvent) chunk).getTrace(), startTime);
 
                                     String finalContent = chunk.getContent() + traceInfo;
 

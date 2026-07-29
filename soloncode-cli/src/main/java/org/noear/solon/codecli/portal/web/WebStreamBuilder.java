@@ -17,9 +17,9 @@ package org.noear.solon.codecli.portal.web;
 
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.*;
-import org.noear.solon.ai.agent.react.intercept.ContextSizeChunk;
+import org.noear.solon.ai.agent.react.intercept.ContextSizeEvent;
 import org.noear.solon.ai.agent.react.intercept.HITL;
-import org.noear.solon.ai.agent.react.intercept.HITLPendingChunk;
+import org.noear.solon.ai.agent.react.intercept.HITLPendingEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.*;
 import org.noear.solon.ai.chat.ChatConfig;
@@ -27,7 +27,7 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.TaskTalent;
-import org.noear.solon.ai.harness.agent.TaskWrapChuck;
+import org.noear.solon.ai.harness.agent.TaskWrapEvent;
 import org.noear.solon.ai.talents.cli.TerminalTalent;
 import org.noear.solon.ai.talents.cli.TodoTalent;
 import org.noear.solon.ai.talents.memory.MemoryTalent;
@@ -51,13 +51,13 @@ import java.util.*;
  *
  * <p><b>核心机制：</b>
  * <ul>
- *   <li>基于 ReAct 流式 chunk 类型分发：ReasonDeltaChunk → 思维链/文本输出；
+ *   <li>基于 ReAct 流式 chunk 类型分发：ReasonDeltaEvent → 思维链/文本输出；
  *       ReasonCompleteChunk → 思考轮次输出 + IM 通道同步转发；
  *       ActionEndChunk → 工具调用结果；
  *       ReActChunk → 最终汇总（含异常）。</li>
  *   <li>IM 通道同步转发：在处理 ReasonCompleteChunk 和 FinalChunk 时，将内容同步推送到
  *       所有已绑定的 IM 通道（微信、飞书、钉钉等），实现 Web 端与 IM 端双路输出。</li>
- *   <li>HITL（人机交互循环）支持：流内消费 {@link HITLPendingChunk}，一批挂起任务逐个映射为
+ *   <li>HITL（人机交互循环）支持：流内消费 {@link HITLPendingEvent}，一批挂起任务逐个映射为
  *       独立的 HITL WebChunk（各带 callId），暂停流等待人工逐卡审批；
  *       并保留「未主动 push 过则按 pending 列表补发」的降级兜底。</li>
  * </ul></p>
@@ -71,7 +71,7 @@ import java.util.*;
 public class WebStreamBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(WebStreamBuilder.class);
 
-    /** 会话上下文标记：本流是否已主动 push 过 HITLPendingChunk，供尾部 concatWith 判断是否需要降级兜底补发。 */
+    /** 会话上下文标记：本流是否已主动 push 过 HITLPendingEvent，供尾部 concatWith 判断是否需要降级兜底补发。 */
     private static final String HITL_PENDING_PUSHED = "__web_hitl_pending_pushed";
 
     /**
@@ -197,34 +197,35 @@ public class WebStreamBuilder {
                     }
                 })
                 .stream()
-                .flatMap(chunk -> {
-                    // 子代理任务包装解包：TaskWrapChuck 携带 taskAgentName/isMultitask
+                .flatMap(event -> {
+                    // 子代理任务包装解包：TaskWrapEvent 携带 taskAgentName/isMultitask
                     String runId = null;
                     String taskAgentName = null;
                     String taskId = null;
                     String taskDescription = null;
                     boolean isMultitask = false;
-                    if (chunk instanceof TaskWrapChuck) {
-                        TaskWrapChuck twc = (TaskWrapChuck) chunk;
-                        if (twc.getRealChunk() instanceof ContextSizeChunk ||
-                                twc.getRealChunk() instanceof ToolCallStartChunk ||
-                                twc.getRealChunk() instanceof ToolCallEndChunk ||
-                                twc.getRealChunk() instanceof ReasonDeltaChunk ||
-                                twc.getRealChunk() instanceof RunEndChunk) {
+                    if (event instanceof TaskWrapEvent) {
+                        TaskWrapEvent twc = (TaskWrapEvent) event;
+                        if (twc.getRealEvent() instanceof ContextSizeEvent ||
+                                twc.getRealEvent() instanceof ToolCallStartEvent ||
+                                twc.getRealEvent() instanceof ToolCallEndEvent ||
+                                twc.getRealEvent() instanceof ReasonDeltaEvent ||
+                                twc.getRealEvent() instanceof RunEndEvent) {
                             // 解包子代理包装：透传父 run / task 元信息
                             runId = twc.getParentRunId();
                             taskId = twc.getTaskId();
                             taskAgentName = twc.getTaskAgentName();
                             taskDescription = twc.getTaskDescription();
                             isMultitask = twc.isMultitask();
-                            chunk = twc.getRealChunk();
+                            event = twc.getRealEvent();
 
-                            if (chunk instanceof RunEndChunk) {
+                            if (event instanceof RunEndEvent) {
                                 // 子代理 ReAct 结束：发 task_done，让前端立刻结算该 task-group
                                 // （主流转 done 仍会 finalize 兜底，但并行任务不必互相等待）
-                                WebChunk taskDoneChunk = onTaskDoneChunk((RunEndChunk) chunk, runId, taskId,
+                                WebChunk taskDoneEvent = onTaskDoneEvent((RunEndEvent) event, runId, taskId,
                                         taskAgentName, taskDescription);
-                                return Flux.just(taskDoneChunk);
+
+                                return Flux.just(taskDoneEvent);
                             }
 
                         } else {
@@ -233,36 +234,36 @@ public class WebStreamBuilder {
                     }
 
                     WebChunk webChunk = null;
-                    if (chunk instanceof RunStartChunk) {
+                    if (event instanceof RunStartEvent) {
                         //任务运行开始
-                    } else if (chunk instanceof ContextSizeChunk) {
-                        webChunk = onContextSizeChunk(chatModel, (ContextSizeChunk) chunk);
-                    } else if (chunk instanceof ReasonStartChunk) {
+                    } else if (event instanceof ContextSizeEvent) {
+                        webChunk = onContextSizeEvent(chatModel, (ContextSizeEvent) event);
+                    } else if (event instanceof ReasonStartEvent) {
                         //思考开始
-                    } else if (chunk instanceof ReasonDeltaChunk) {
-                        webChunk = onReasonDeltaChunk((ReasonDeltaChunk) chunk, taskAgentName);
-                    } else if (chunk instanceof ReasonEndChunk) {
+                    } else if (event instanceof ReasonDeltaEvent) {
+                        webChunk = onReasonDeltaEvent((ReasonDeltaEvent) event, taskAgentName);
+                    } else if (event instanceof ReasonEndEvent) {
                         //思考结束
-                        webChunk = onReasonEndChunk(session, (ReasonEndChunk) chunk, taskAgentName, isMultitask);
-                    } else if (chunk instanceof HITLPendingChunk) {
+                        webChunk = onReasonEndEvent(session, (ReasonEndEvent) event, taskAgentName, isMultitask);
+                    } else if (event instanceof HITLPendingEvent) {
                         // HITL 挂起：一个上游 chunk 携带整批挂起任务，逐个映射为 hitl WebChunk
                         // （批量多卡，前端按 callId 各自渲染审批卡片）
-                        List<WebChunk> hitlChunks = onHitlPendingChunk(session, (HITLPendingChunk) chunk);
+                        List<WebChunk> hitlChunks = onHITLPendingEvent(session, (HITLPendingEvent) event);
                         if (!hitlChunks.isEmpty()) {
                             // 标记：本流已主动 push 过 pending，尾部 concatWith 不再兜底补发
                             session.getContext().put(HITL_PENDING_PUSHED, Boolean.TRUE);
                         }
                         // 直接返回批量结果，绕开尾部单值收敛逻辑
                         return Flux.fromIterable(hitlChunks);
-                    } else if (chunk instanceof ToolCallStartChunk) {
+                    } else if (event instanceof ToolCallStartEvent) {
                         //工具调用开始
-                        webChunk = onToolCallStartChunk((ToolCallStartChunk) chunk, taskAgentName);
-                    } else if (chunk instanceof ToolCallEndChunk) {
+                        webChunk = onToolCallStartEvent((ToolCallStartEvent) event, taskAgentName);
+                    } else if (event instanceof ToolCallEndEvent) {
                         //工具调用结束
-                        webChunk = onToolCallEndChunk((ToolCallEndChunk) chunk, taskAgentName);
-                    } else if (chunk instanceof RunEndChunk) {
+                        webChunk = onToolCallEndEvent((ToolCallEndEvent) event, taskAgentName);
+                    } else if (event instanceof RunEndEvent) {
                         //运行结束
-                        webChunk = onRunEndChunk(session, (RunEndChunk) chunk);
+                        webChunk = onRunEndEvent(session, (RunEndEvent) event);
                     }
 
                     if (webChunk == null || webChunk == WebChunk.EMPTY) {
@@ -271,7 +272,7 @@ public class WebStreamBuilder {
                         if (runId != null) {
                             webChunk.setRunId(runId);
                         } else {
-                            webChunk.setRunId(chunk.getRunId());
+                            webChunk.setRunId(event.getRunId());
                         }
 
                         if (taskAgentName != null) {
@@ -293,13 +294,13 @@ public class WebStreamBuilder {
                     WebChunk errorChunk = WebChunk.ofError(e);
                     ReActTrace trace = session.getContext().getAs("__main");
                     if (trace != null) {
-                        this.onRunEndChunk(session, trace, true, errorChunk.getText());
+                        this.onRunEndEvent(session, trace, true, errorChunk.getText());
                     }
 
                     return Flux.fromIterable(chunkList);
                 })
                 .concatWith(Flux.defer(() -> {
-                    // 降级兜底：仅当本流从未主动 push 过 HITLPendingChunk（如 trace 无 streamSink 的边界），
+                    // 降级兜底：仅当本流从未主动 push 过 HITLPendingEvent（如 trace 无 streamSink 的边界），
                     // 且仍存在挂起任务时，才按 pending 列表补发，避免与主路径重复弹卡。
                     boolean pushed = Boolean.TRUE.equals(session.getContext().getAs(HITL_PENDING_PUSHED));
                     session.getContext().remove(HITL_PENDING_PUSHED);
@@ -316,7 +317,7 @@ public class WebStreamBuilder {
     }
 
 
-    public WebChunk onContextSizeChunk(ChatModel chatModel, ContextSizeChunk chunk) {
+    public WebChunk onContextSizeEvent(ChatModel chatModel, ContextSizeEvent chunk) {
         WebChunk wc = new WebChunk();
         wc.setType("context_size");
         wc.setSessionId(chunk.getSession().getSessionId());
@@ -349,7 +350,7 @@ public class WebStreamBuilder {
      * @param chunk 推理阶段的 chunk 数据
      * @return 映射后的 WebChunk，或 {@link WebChunk#EMPTY}
      */
-    private WebChunk onReasonDeltaChunk(ReasonDeltaChunk chunk, String taskAgentName) {
+    private WebChunk onReasonDeltaEvent(ReasonDeltaEvent chunk, String taskAgentName) {
         if (!chunk.isToolCalls() && Assert.isNotEmpty(chunk.getContent())) {
             WebChunk wc;
             if (chunk.getMessage().isThinking()) {
@@ -373,7 +374,7 @@ public class WebStreamBuilder {
 
 
     /**
-     * 处理 HITL 挂起 chunk（{@link HITLPendingChunk}）。
+     * 处理 HITL 挂起 chunk（{@link HITLPendingEvent}）。
      *
      * <p>一个上游 chunk 携带整批挂起任务（多个敏感工具同批拦截时），此处逐个
      * 映射为 hitl {@link WebChunk}，每张卡携带独立的 callId（= HITLTask.callUuid），
@@ -383,7 +384,7 @@ public class WebStreamBuilder {
      * @param chunk   HITL 挂起 chunk
      * @return 批量 hitl WebChunk（可能为空列表）
      */
-    private List<WebChunk> onHitlPendingChunk(AgentSession session, HITLPendingChunk chunk) {
+    private List<WebChunk> onHITLPendingEvent(AgentSession session, HITLPendingEvent chunk) {
         List<WebChunk> result = new ArrayList<>();
         if (chunk.getPendingTasks() == null) {
             return result;
@@ -425,13 +426,13 @@ public class WebStreamBuilder {
      * 处理工具调用开始阶段的 chunk（来源引擎 ActionChunk）
      *
      * <p>在工具实际执行前发送 action_start，让前端提前渲染 loading 状态的工具卡片骨架，
-     * 待后续 {@link #onToolCallEndChunk} 的结果到达时复用同一卡片填充并转完成态。
-     * 过滤规则与 {@link #onToolCallEndChunk} 保持一致，避免建卡后无对应结果填充。</p>
+     * 待后续 {@link #onToolCallEndEvent} 的结果到达时复用同一卡片填充并转完成态。
+     * 过滤规则与 {@link #onToolCallEndEvent} 保持一致，避免建卡后无对应结果填充。</p>
      *
      * @param chunk 工具调用开始的 chunk 数据
      * @return 映射后的 WebChunk（含工具名与参数），或 {@link WebChunk#EMPTY}（内部工具或无名称时）
      */
-    private WebChunk onToolCallStartChunk(ToolCallStartChunk chunk, String taskAgentName) {
+    private WebChunk onToolCallStartEvent(ToolCallStartEvent chunk, String taskAgentName) {
         if (Assert.isEmpty(chunk.getToolName())) {
             return WebChunk.EMPTY;
         }
@@ -492,7 +493,7 @@ public class WebStreamBuilder {
      * @param chunk 工具调用结束的 chunk 数据
      * @return 映射后的 WebChunk（含工具信息），或 {@link WebChunk#EMPTY}（内部工具或无名称时）
      */
-    private WebChunk onToolCallEndChunk(ToolCallEndChunk chunk, String taskAgentName) {
+    private WebChunk onToolCallEndEvent(ToolCallEndEvent chunk, String taskAgentName) {
         if (chunk.getError() != null) {
             return WebChunk.EMPTY;
         }
@@ -649,14 +650,14 @@ public class WebStreamBuilder {
      *   <li><b>IM 通道转发</b>：根据本轮是否有工具调用、是否为源代理的最终结果，
      *       以不同的标记（isFinal）将内容推送到所有已绑定的 IM 通道。</li>
      *   <li><b>Web 输出</b>：仅在多任务并行（multitask）标记存在时，才向 Web 端输出文本 chunk；
-     *       普通单轮 Thought 不输出到 Web（避免与 ReasonDeltaChunk 重复）。</li>
+     *       普通单轮 Thought 不输出到 Web（避免与 ReasonDeltaEvent 重复）。</li>
      * </ol></p>
      *
      * @param session Agent 会话，用于获取会话ID和已选择的代理名称
      * @param chunk   思考轮次的 chunk 数据，包含助手消息和追踪信息
      * @return 映射后的 WebChunk（多任务并行时有内容），或 {@link WebChunk#EMPTY}
      */
-    private WebChunk onReasonEndChunk(AgentSession session, ReasonEndChunk chunk, String taskAgentName, boolean isMultitask) {
+    private WebChunk onReasonEndEvent(AgentSession session, ReasonEndEvent chunk, String taskAgentName, boolean isMultitask) {
         ReActTrace trace = chunk.getTrace();
         String sessionId = session.getSessionId();
         String resultContent = chunk.getAssistantMessage().getResultContent();
@@ -691,28 +692,28 @@ public class WebStreamBuilder {
     }
 
     /**
-     * 处理子代理任务结束（TaskWrapChuck 内层为 RunEndChunk）。
+     * 处理子代理任务结束（TaskWrapEvent 内层为 RunEndEvent）。
      *
      * <p>产出 {@code task_done} WebChunk，携带 taskId 与 status（done/error）。
      * 前端据此将对应 task-group 立即标为绿勾/红叉，不必等主会话整流转 done。
      * 异常时附带错误文本，供 task-group 内展示。</p>
      *
-     * @param chunk           子代理最终 RunEndChunk
+     * @param event           子代理最终 RunEndEvent
      * @param runId           父 runId（主会话 run）
      * @param taskId          子任务 id
      * @param taskAgentName   子代理名
      * @param taskDescription 子任务描述（task-group 标题）
      * @return task_done 类型 WebChunk
      */
-    private WebChunk onTaskDoneChunk(RunEndChunk chunk, String runId, String taskId,
+    private WebChunk onTaskDoneEvent(RunEndEvent event, String runId, String taskId,
                                      String taskAgentName, String taskDescription) {
-        boolean abnormal = chunk.isAbnormal();
+        boolean abnormal = event.isAbnormal();
         WebChunk wc = WebChunk.ofTaskDone(abnormal ? "error" : "done");
 
         if (runId != null) {
             wc.setRunId(runId);
-        } else if (chunk.getRunId() != null) {
-            wc.setRunId(chunk.getRunId());
+        } else if (event.getRunId() != null) {
+            wc.setRunId(event.getRunId());
         }
         if (taskId != null) {
             wc.setTaskId(taskId);
@@ -725,7 +726,7 @@ public class WebStreamBuilder {
         // 异常时把内容带给前端，写入 task-group 错误区；正常完成不重复推最终正文
         // （multitask 的结果文本已由 ThoughtChunk 路径输出）
         if (abnormal) {
-            String errText = chunk.getContent();
+            String errText = event.getContent();
             if (Assert.isNotEmpty(errText)) {
                 errText = errText.replaceAll("(?s)<\\s*/?think\\s*>", "");
                 wc.setText(errText);
@@ -734,7 +735,7 @@ public class WebStreamBuilder {
 
         // 附带耗时，便于前端定格 task 总耗时（秒）
         try {
-            ReActTrace trace = chunk.getTrace();
+            ReActTrace trace = event.getTrace();
             if (trace != null) {
                 long startMs = trace.getBeginTimeMs();
                 if (startMs > 0) {
@@ -758,11 +759,11 @@ public class WebStreamBuilder {
      * @param chunk   ReAct 最终汇总 chunk，包含追踪信息和可能的异常内容
      * @return 包含追踪信息的 trace 类型 WebChunk
      */
-    private WebChunk onRunEndChunk(AgentSession session, RunEndChunk chunk) {
-        return onRunEndChunk(session, chunk.getTrace(), chunk.isAbnormal(), chunk.getContent());
+    private WebChunk onRunEndEvent(AgentSession session, RunEndEvent chunk) {
+        return onRunEndEvent(session, chunk.getTrace(), chunk.isAbnormal(), chunk.getContent());
     }
 
-    public WebChunk onRunEndChunk(AgentSession session, ReActTrace trace, boolean isAbnormal, String finalAnswer) {
+    public WebChunk onRunEndEvent(AgentSession session, ReActTrace trace, boolean isAbnormal, String finalAnswer) {
         if (isAbnormal) {
             // 通知 IM 任务完成了
             replyToBoundChannel(session.getSessionId(), finalAnswer, true);
