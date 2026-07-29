@@ -52,10 +52,10 @@ import java.util.*;
  * <p><b>核心机制：</b>
  * <ul>
  *   <li>基于 ReAct 流式 chunk 类型分发：ReasonDeltaEvent → 思维链/文本输出；
- *       ReasonCompleteChunk → 思考轮次输出 + IM 通道同步转发；
- *       ActionEndChunk → 工具调用结果；
- *       ReActChunk → 最终汇总（含异常）。</li>
- *   <li>IM 通道同步转发：在处理 ReasonCompleteChunk 和 FinalChunk 时，将内容同步推送到
+ *       ReasonEndEvent → 思考轮次输出 + IM 通道同步转发；
+ *       ToolCallEndEvent → 工具调用结果；
+ *       RunEndEvent → 最终汇总（含异常）。</li>
+ *   <li>IM 通道同步转发：在处理 ReasonEndEvent 和 RunEndEvent 时，将内容同步推送到
  *       所有已绑定的 IM 通道（微信、飞书、钉钉等），实现 Web 端与 IM 端双路输出。</li>
  *   <li>HITL（人机交互循环）支持：流内消费 {@link HITLPendingEvent}，一批挂起任务逐个映射为
  *       独立的 HITL WebChunk（各带 callId），暂停流等待人工逐卡审批；
@@ -278,6 +278,7 @@ public class WebStreamBuilder {
                         if (taskAgentName != null) {
                             webChunk.setAgentName(taskAgentName);
                         }
+
                         if (taskId != null) {
                             webChunk.setTaskId(taskId);
                             webChunk.setTaskDescription(taskDescription);
@@ -423,53 +424,53 @@ public class WebStreamBuilder {
 
 
     /**
-     * 处理工具调用开始阶段的 chunk（来源引擎 ActionChunk）
+     * 处理工具调用开始阶段的 chunk（来源引擎 ToolCallStartEvent）
      *
      * <p>在工具实际执行前发送 action_start，让前端提前渲染 loading 状态的工具卡片骨架，
      * 待后续 {@link #onToolCallEndEvent} 的结果到达时复用同一卡片填充并转完成态。
      * 过滤规则与 {@link #onToolCallEndEvent} 保持一致，避免建卡后无对应结果填充。</p>
      *
-     * @param chunk 工具调用开始的 chunk 数据
+     * @param event 工具调用开始的 chunk 数据
      * @return 映射后的 WebChunk（含工具名与参数），或 {@link WebChunk#EMPTY}（内部工具或无名称时）
      */
-    private WebChunk onToolCallStartEvent(ToolCallStartEvent chunk, String taskAgentName) {
-        if (Assert.isEmpty(chunk.getToolName())) {
+    private WebChunk onToolCallStartEvent(ToolCallStartEvent event, String taskAgentName) {
+        if (Assert.isEmpty(event.getToolName())) {
             return WebChunk.EMPTY;
         }
 
-        if (TaskTalent.TOOL_MULTITASK.equals(chunk.getToolName()) ||
-                TaskTalent.TOOL_TASK.equals(chunk.getToolName()) ||
-                MemoryTalent.isMemoryTool(chunk.getToolName()) ||
-                GoalTalent.isGoalTool(chunk.getToolName())) {
+        if (TaskTalent.TOOL_MULTITASK.equals(event.getToolName()) ||
+                TaskTalent.TOOL_TASK.equals(event.getToolName()) ||
+                MemoryTalent.isMemoryTool(event.getToolName()) ||
+                GoalTalent.isGoalTool(event.getToolName())) {
             return WebChunk.EMPTY;
         }
 
-        // todowrite 的展示走专用通道，由 ObservationChunk 携带完整 todos 渲染，开始阶段不提前建卡
-        if (TodoTalent.TOOL_TODOWRITE.equals(chunk.getToolName())) {
+        // todowrite 的展示走专用通道，由 ToolCallEndEvent 携带完整 todos 渲染，开始阶段不提前建卡
+        if (TodoTalent.TOOL_TODOWRITE.equals(event.getToolName())) {
             return WebChunk.EMPTY;
         }
 
         // toolName 恒为裸名（供前端识别/查表）；toolTitle 为显示名（子代理时加 agentName 前缀）
-        String toolName = chunk.getToolName();
+        String toolName = event.getToolName();
         String toolTitle;
-        if (engine.getName().equals(chunk.getAgentName())) {
+        if (engine.getName().equals(event.getAgentName())) {
             toolTitle = toolName;
         } else {
-            toolTitle = chunk.getAgentName() + "/" + toolName;
+            toolTitle = event.getAgentName() + "/" + toolName;
         }
 
-        Map<String, Object> args = chunk.getArgs() != null
-                ? new LinkedHashMap<>(chunk.getArgs())
+        Map<String, Object> args = event.getArgs() != null
+                ? new LinkedHashMap<>(event.getArgs())
                 : null;
 
         // edit 开始阶段即重建 diff，让 loading 骨架卡也能预览改动
         fillEditDiff(args);
 
-        WebChunk wc = WebChunk.ofActionStart(toolName, toolTitle, args);
-        wc.setReasonId(chunk.getReasonId());
+        WebChunk wc = WebChunk.ofToolCallStart(toolName, toolTitle, args);
+        wc.setReasonId(event.getReasonId());
 
         // 传入 callId 供前端精确配对工具卡片
-        wc.setCallId(chunk.getCallId());
+        wc.setCallId(event.getCallId());
 
         // 子代理标记
         if (taskAgentName != null) {
@@ -490,39 +491,39 @@ public class WebStreamBuilder {
      *   <li>特殊处理 {@code todowrite} 工具：将 todos 参数内容设为文本</li>
      * </ul></p>
      *
-     * @param chunk 工具调用结束的 chunk 数据
+     * @param event 工具调用结束的 chunk 数据
      * @return 映射后的 WebChunk（含工具信息），或 {@link WebChunk#EMPTY}（内部工具或无名称时）
      */
-    private WebChunk onToolCallEndEvent(ToolCallEndEvent chunk, String taskAgentName) {
-        if (chunk.getError() != null) {
+    private WebChunk onToolCallEndEvent(ToolCallEndEvent event, String taskAgentName) {
+        if (event.getError() != null) {
             return WebChunk.EMPTY;
         }
 
         // todowrite 完成时，前端通过 action chunk 的 toolName='todowrite' 自动刷新任务面板
 
-        if (Assert.isNotEmpty(chunk.getToolName())) {
-            if (TaskTalent.TOOL_MULTITASK.equals(chunk.getToolName()) ||
-                    TaskTalent.TOOL_TASK.equals(chunk.getToolName()) ||
-                    MemoryTalent.isMemoryTool(chunk.getToolName()) ||
-                    GoalTalent.isGoalTool(chunk.getToolName())) {
+        if (Assert.isNotEmpty(event.getToolName())) {
+            if (TaskTalent.TOOL_MULTITASK.equals(event.getToolName()) ||
+                    TaskTalent.TOOL_TASK.equals(event.getToolName()) ||
+                    MemoryTalent.isMemoryTool(event.getToolName()) ||
+                    GoalTalent.isGoalTool(event.getToolName())) {
                 return WebChunk.EMPTY;
             }
 
-            WebChunk webChunk = WebChunk.ofActionEnd(chunk.getContent());
+            WebChunk webChunk = WebChunk.ofToolCallEnd(event.getContent());
 
-            if (Assert.isNotEmpty(chunk.getToolName())) {
-                webChunk.setArgs(new LinkedHashMap<>(chunk.getArgs()));
+            if (Assert.isNotEmpty(event.getToolName())) {
+                webChunk.setArgs(new LinkedHashMap<>(event.getArgs()));
 
                 // toolName 恒为裸名（供前端识别/查表）；toolTitle 为显示名（子代理时加 agentName 前缀）
-                webChunk.setToolName(chunk.getToolName());
-                if (engine.getName().equals(chunk.getAgentName())) {
-                    webChunk.setToolTitle(chunk.getToolName());
+                webChunk.setToolName(event.getToolName());
+                if (engine.getName().equals(event.getAgentName())) {
+                    webChunk.setToolTitle(event.getToolName());
                 } else {
-                    webChunk.setToolTitle(chunk.getAgentName() + "/" + chunk.getToolName());
+                    webChunk.setToolTitle(event.getAgentName() + "/" + event.getToolName());
                 }
 
-                if (TodoTalent.TOOL_TODOWRITE.equals(chunk.getToolName())) {
-                    String todos = (String) chunk.getArgs().get(TodoTalent.PARAM_TODOS);
+                if (TodoTalent.TOOL_TODOWRITE.equals(event.getToolName())) {
+                    String todos = (String) event.getArgs().get(TodoTalent.PARAM_TODOS);
 
                     if (Assert.isNotEmpty(todos)) {
                         webChunk.setText(todos);
@@ -530,8 +531,8 @@ public class WebStreamBuilder {
                     }
                 }
 
-                if (TerminalTalent.TOOL_WRITE.equals(chunk.getToolName())) {
-                    String content = (String) chunk.getArgs().get(TerminalTalent.PARAM_CONTENT);
+                if (TerminalTalent.TOOL_WRITE.equals(event.getToolName())) {
+                    String content = (String) event.getArgs().get(TerminalTalent.PARAM_CONTENT);
 
                     if (Assert.isNotEmpty(content)) {
                         webChunk.setText(content);
@@ -544,10 +545,10 @@ public class WebStreamBuilder {
                 fillEditDiff(webChunk.getArgs());
             }
 
-            webChunk.setReasonId(chunk.getReasonId());
+            webChunk.setReasonId(event.getReasonId());
 
             // 传入 callId 供前端精确配对工具卡片
-            webChunk.setCallId(chunk.getCallId());
+            webChunk.setCallId(event.getCallId());
 
             // 子代理标记
             if (taskAgentName != null) {
@@ -654,25 +655,25 @@ public class WebStreamBuilder {
      * </ol></p>
      *
      * @param session Agent 会话，用于获取会话ID和已选择的代理名称
-     * @param chunk   思考轮次的 chunk 数据，包含助手消息和追踪信息
+     * @param event   思考轮次的 chunk 数据，包含助手消息和追踪信息
      * @return 映射后的 WebChunk（多任务并行时有内容），或 {@link WebChunk#EMPTY}
      */
-    private WebChunk onReasonEndEvent(AgentSession session, ReasonEndEvent chunk, String taskAgentName, boolean isMultitask) {
-        ReActTrace trace = chunk.getTrace();
+    private WebChunk onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
+        ReActTrace trace = event.getTrace();
         String sessionId = session.getSessionId();
-        String resultContent = chunk.getAssistantMessage().getResultContent();
+        String resultContent = event.getAssistantMessage().getResultContent();
         Long totalTokens = trace.getMetrics() != null ? trace.getMetrics().getTotalTokens() : null;
 
         if (Assert.isNotEmpty(resultContent)) {
             // 向所有已绑定的 IM 通道回复
-            if (chunk.isToolCalls()) {
+            if (event.isToolCalls()) {
                 // 说明是过程
                 replyToBoundChannel(sessionId, resultContent, false);
             } else {
                 // 说明是结果
                 String agentSelectedTmp = (String) session.attrs().get("_agent_selected_tmp");
 
-                if (chunk.getTrace().getAgentName().equals(agentSelectedTmp)) {
+                if (event.getTrace().getAgentName().equals(agentSelectedTmp)) {
                     // 说明是源代理（说明是最终结果）
                     //StringBuilder traceInfo = getTraceInfo(thought.getTrace());
                     replyToBoundChannel(sessionId, resultContent, true);//+ traceInfo, true);
@@ -724,7 +725,6 @@ public class WebStreamBuilder {
         }
 
         // 异常时把内容带给前端，写入 task-group 错误区；正常完成不重复推最终正文
-        // （multitask 的结果文本已由 ThoughtChunk 路径输出）
         if (abnormal) {
             String errText = event.getContent();
             if (Assert.isNotEmpty(errText)) {
@@ -756,11 +756,11 @@ public class WebStreamBuilder {
      * （模型名称、token 数、耗时）以结构化 trace 类型输出到 Web 端。</p>
      *
      * @param session Agent 会话，用于获取会话ID以进行 IM 通道转发
-     * @param chunk   ReAct 最终汇总 chunk，包含追踪信息和可能的异常内容
+     * @param event   ReAct 最终汇总 chunk，包含追踪信息和可能的异常内容
      * @return 包含追踪信息的 trace 类型 WebChunk
      */
-    private WebChunk onRunEndEvent(AgentSession session, RunEndEvent chunk) {
-        return onRunEndEvent(session, chunk.getTrace(), chunk.isAbnormal(), chunk.getContent());
+    private WebChunk onRunEndEvent(AgentSession session, RunEndEvent event) {
+        return onRunEndEvent(session, event.getTrace(), event.isAbnormal(), event.getContent());
     }
 
     public WebChunk onRunEndEvent(AgentSession session, ReActTrace trace, boolean isAbnormal, String finalAnswer) {

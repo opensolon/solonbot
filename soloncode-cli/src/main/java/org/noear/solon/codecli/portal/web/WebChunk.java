@@ -259,7 +259,7 @@ public class WebChunk {
      * @param text 工具执行结果文本
      * @return 携带执行结果的动作结束消息块
      */
-    public static WebChunk ofActionEnd(String text) {
+    public static WebChunk ofToolCallEnd(String text) {
         WebChunk tmp = new WebChunk();
         tmp.type = "action_end";
         tmp.text = text;
@@ -279,7 +279,7 @@ public class WebChunk {
      * @param args      工具调用参数
      * @return 携带工具名与参数的动作开始消息块
      */
-    public static WebChunk ofActionStart(String toolName, String toolTitle, Map<String, Object> args) {
+    public static WebChunk ofToolCallStart(String toolName, String toolTitle, Map<String, Object> args) {
         WebChunk tmp = new WebChunk();
         tmp.type = "action_start";
         tmp.toolName = toolName;

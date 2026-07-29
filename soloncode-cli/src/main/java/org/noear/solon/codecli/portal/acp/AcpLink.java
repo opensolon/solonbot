@@ -14,6 +14,8 @@ import org.noear.solon.ai.agent.react.task.PlanEvent;
 import org.noear.solon.ai.agent.react.task.ReasonDeltaEvent;
 import org.noear.solon.ai.agent.react.task.ReasonEndEvent;
 import org.noear.solon.ai.agent.react.task.ToolCallEndEvent;
+import org.noear.solon.ai.agent.react.task.ToolCallStartEvent;
+import org.noear.solon.ai.talents.cli.TerminalTalent;
 import org.noear.solon.ai.chat.content.Contents;
 import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
@@ -21,12 +23,15 @@ import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.TaskTalent;
+import org.noear.solon.ai.talents.memory.MemoryTalent;
+import org.noear.solon.codecli.command.builtin.GoalTalent;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +53,12 @@ public class AcpLink implements Runnable {
     }
 
     private final Map<String, AcpSessionContext> sessionStates = new ConcurrentHashMap<>();
+
+    /**
+     * callId -> toolCallId 映射，用于 ToolCallStart 与 ToolCallEnd 之间精确配对同一张工具卡。
+     * key = sessionId + "#" + callId；end 阶段消费后移除，避免累积。
+     */
+    private final Map<String, String> callIdToToolCallId = new ConcurrentHashMap<>();
 
     public void run() {
         AcpAsyncAgent acpAgent = createAgent(agentTransport);
@@ -172,33 +183,71 @@ public class AcpLink implements Runnable {
                                         }
                                     }
                                 }
-                                // === 工具执行阶段：映射到 ACP ToolCall 结构化输出 ===
+                                // === 工具执行开始阶段：发 pending ToolCall 骨架卡 ===
+                                else if (chunk instanceof ToolCallStartEvent) {
+                                    ToolCallStartEvent startChunk = (ToolCallStartEvent) chunk;
+                                    String toolName = startChunk.getToolName();
+
+                                    if (isInternalTool(toolName)) {
+                                        return Mono.just(chunk);
+                                    }
+
+                                    // 以 callId 作为 toolCallId 的稳定来源，保证 start/end 精确配对；
+                                    // callId 缺失时退化为自增序号。
+                                    String toolCallId = resolveToolCallId(startChunk.getCallId(), toolCallCounter);
+                                    callIdToToolCallId.put(sessionId + "#" + startChunk.getCallId(), toolCallId);
+
+                                    Map<String, Object> args = startChunk.getArgs();
+                                    AcpSchema.ToolCall toolCall = new AcpSchema.ToolCall(
+                                            "tool_call",
+                                            toolCallId,
+                                            buildToolTitle(toolName, startChunk.getAgentName(), args, null, true),
+                                            resolveToolKind(toolName),
+                                            AcpSchema.ToolCallStatus.IN_PROGRESS,
+                                            Collections.emptyList(),
+                                            buildLocations(args),
+                                            args,          // rawInput
+                                            null,          // rawOutput
+                                            null           // meta
+                                    );
+                                    return acpContext.sendUpdate(sessionId, toolCall)
+                                            .thenReturn(chunk);
+                                }
+                                // === 工具执行结束阶段：发 ToolCallUpdate 填充完成/失败态 ===
                                 else if (chunk instanceof ToolCallEndEvent) {
                                     ToolCallEndEvent observationChunk = (ToolCallEndEvent) chunk;
                                     String toolName = observationChunk.getToolName();
 
-                                    // 跳过内部任务分发工具（不向客户端展示）
-                                    if (TaskTalent.TOOL_MULTITASK.equals(toolName) || TaskTalent.TOOL_TASK.equals(toolName)) {
+                                    if (isInternalTool(toolName)) {
                                         return Mono.just(chunk);
                                     }
 
-                                    String toolCallId = "tc-" + toolCallCounter.incrementAndGet();
-                                    String content = chunk.getContent();
+                                    // 复用 start 阶段登记的 toolCallId；未登记（无 start 事件）时新建
+                                    String key = sessionId + "#" + observationChunk.getCallId();
+                                    String toolCallId = callIdToToolCallId.remove(key);
+                                    if (toolCallId == null) {
+                                        toolCallId = resolveToolCallId(observationChunk.getCallId(), toolCallCounter);
+                                    }
 
-                                    // 使用 ACP ToolCall 构建结构化工具调用通知
-                                    AcpSchema.ToolCall toolCall = new AcpSchema.ToolCall(
-                                            "tool_call",
+                                    boolean failed = observationChunk.getError() != null;
+                                    String content = failed
+                                            ? String.valueOf(observationChunk.getError().getMessage())
+                                            : chunk.getContent();
+                                    Map<String, Object> args = observationChunk.getArgs();
+
+                                    AcpSchema.ToolCallUpdateNotification update = new AcpSchema.ToolCallUpdateNotification(
+                                            "tool_call_update",
                                             toolCallId,
-                                            buildToolTitle(toolName, observationChunk.getArgs(), content),
-                                            AcpSchema.ToolKind.EXECUTE,
-                                            AcpSchema.ToolCallStatus.COMPLETED,
-                                            Collections.emptyList(),
-                                            Collections.emptyList(),
-                                            observationChunk.getArgs(),   // rawInput
-                                            content,                 // rawOutput
-                                            null                     // meta
+                                            buildToolTitle(toolName, observationChunk.getAgentName(), args, content, false),
+                                            resolveToolKind(toolName),
+                                            failed ? AcpSchema.ToolCallStatus.FAILED : AcpSchema.ToolCallStatus.COMPLETED,
+                                            buildToolContent(toolName, args, content),
+                                            buildLocations(args),
+                                            args,          // rawInput
+                                            content,       // rawOutput
+                                            null           // meta
                                     );
-                                    return acpContext.sendUpdate(sessionId, toolCall)
+                                    return acpContext.sendUpdate(sessionId, update)
                                             .thenReturn(chunk);
                                 }
                                 // === 最终回复阶段 ===
@@ -226,6 +275,9 @@ public class AcpLink implements Runnable {
                                 // 不再删除 sessionStates（session 生命周期由 close/cancel 控制），
                                 // 仅重置本轮取消标志，为下一轮 prompt 准备
                                 context.setCancelled(false);
+                                // 清理本轮残留的 callId 映射：正常路径下 end 阶段已 remove，
+                                // 但工具 start 后被 cancel/异常中断（未走到 end）时会残留，此处按 sessionId 前缀兜底清理
+                                callIdToToolCallId.keySet().removeIf(k -> k.startsWith(sessionId + "#"));
                             })
                             .then(Mono.just(new AcpSchema.PromptResponse(AcpSchema.StopReason.END_TURN)));
                 })
@@ -246,35 +298,175 @@ public class AcpLink implements Runnable {
     }
 
     /**
-     * 构建工具调用的显示标题
+     * 内部工具（不向 ACP 客户端展示）判定，与 WebStreamBuilder 保持一致：
+     * 任务分发工具（task/multitask）、记忆工具、目标工具。
      */
-    private String buildToolTitle(String toolName, Map<String, Object> args, String content) {
+    private boolean isInternalTool(String toolName) {
+        return TaskTalent.TOOL_MULTITASK.equals(toolName)
+                || TaskTalent.TOOL_TASK.equals(toolName)
+                || MemoryTalent.isMemoryTool(toolName)
+                || GoalTalent.isGoalTool(toolName);
+    }
+
+    /**
+     * 生成稳定的 toolCallId：优先用引擎 callId（保证 start/end 配对），缺失时用自增序号兜底。
+     */
+    private String resolveToolCallId(String callId, AtomicInteger counter) {
+        if (Assert.isNotEmpty(callId)) {
+            return "tc-" + callId;
+        }
+        return "tc-" + counter.incrementAndGet();
+    }
+
+    /**
+     * 按工具名映射 ACP ToolKind，让客户端按类型渲染（读/改/执行/搜索/抓取等）。
+     */
+    private AcpSchema.ToolKind resolveToolKind(String toolName) {
+        if (Assert.isEmpty(toolName)) {
+            return AcpSchema.ToolKind.OTHER;
+        }
+        switch (toolName) {
+            case "read":
+                return AcpSchema.ToolKind.READ;
+            case TerminalTalent.TOOL_WRITE:
+            case TerminalTalent.TOOL_EDIT:
+                return AcpSchema.ToolKind.EDIT;
+            case "grep":
+            case "glob":
+            case "ls":
+                return AcpSchema.ToolKind.SEARCH;
+            case "bash":
+                return AcpSchema.ToolKind.EXECUTE;
+            case "webfetch":
+            case "websearch":
+                return AcpSchema.ToolKind.FETCH;
+            default:
+                return AcpSchema.ToolKind.EXECUTE;
+        }
+    }
+
+    /**
+     * 构建结构化 ToolCallContent：
+     * <ul>
+     *   <li>write：以 ToolCallDiff 呈现新建文件内容（oldText=null, newText=content 参数）</li>
+     *   <li>edit：以 ToolCallDiff 逐条呈现 old_str → new_str 改动</li>
+     *   <li>其余工具：以 ToolCallContentBlock 包裹文本输出</li>
+     * </ul>
+     */
+    private List<AcpSchema.ToolCallContent> buildToolContent(String toolName, Map<String, Object> args, String content) {
+        // write：整文件新增/覆盖，用 diff 展示写入内容
+        if (TerminalTalent.TOOL_WRITE.equals(toolName) && args != null) {
+            String path = firstNonEmpty(args, "file_path", "path");
+            Object body = args.get(TerminalTalent.PARAM_CONTENT);
+            if (path != null && body != null) {
+                return Collections.singletonList(new AcpSchema.ToolCallDiff(
+                        "diff", path, null, String.valueOf(body)));
+            }
+        }
+
+        // edit：结构化 edits 列表，逐条生成 diff
+        if (TerminalTalent.TOOL_EDIT.equals(toolName) && args != null
+                && args.get(TerminalTalent.PARAM_EDITS) instanceof List) {
+            String path = firstNonEmpty(args, "file_path", "path");
+            List<AcpSchema.ToolCallContent> diffs = new ArrayList<>();
+            for (Object item : (List<?>) args.get(TerminalTalent.PARAM_EDITS)) {
+                if (item instanceof Map) {
+                    Map<?, ?> edit = (Map<?, ?>) item;
+                    Object oldStr = edit.get("old_str");
+                    Object newStr = edit.get("new_str");
+                    diffs.add(new AcpSchema.ToolCallDiff(
+                            "diff", path,
+                            oldStr == null ? null : String.valueOf(oldStr),
+                            newStr == null ? null : String.valueOf(newStr)));
+                }
+            }
+            if (!diffs.isEmpty()) {
+                return diffs;
+            }
+        }
+
+        // 其余工具：文本输出
+        if (Assert.isNotEmpty(content)) {
+            return Collections.singletonList(new AcpSchema.ToolCallContentBlock(
+                    "content", new AcpSchema.TextContent(content)));
+        }
+
+        return Collections.emptyList();
+    }
+
+    /**
+     * 从工具参数提取文件位置，生成 ToolCallLocation，供客户端跳转/高亮。
+     */
+    private List<AcpSchema.ToolCallLocation> buildLocations(Map<String, Object> args) {
+        if (args == null) {
+            return Collections.emptyList();
+        }
+        String path = firstNonEmpty(args, "file_path", "path");
+        if (path == null) {
+            return Collections.emptyList();
+        }
+        Integer line = null;
+        Object off = args.get("offset");
+        if (off instanceof Number) {
+            line = ((Number) off).intValue();
+        }
+        return Collections.singletonList(new AcpSchema.ToolCallLocation(path, line));
+    }
+
+    private String firstNonEmpty(Map<String, Object> args, String... keys) {
+        for (String k : keys) {
+            Object v = args.get(k);
+            if (v != null && Assert.isNotEmpty(String.valueOf(v))) {
+                return String.valueOf(v);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 构建工具调用的显示标题（title）。
+     *
+     * <p>title 用于客户端卡片头部展示；子代理执行时加 agentName/ 前缀（对齐 WebStreamBuilder）。</p>
+     *
+     * @param running true=start 阶段（执行中，无结果摘要），false=end 阶段（已完成，可带结果摘要）。
+     *                避免 start 阶段 content 为空时错误地显示“read: completed”（状态却是 IN_PROGRESS）。
+     */
+    private String buildToolTitle(String toolName, String agentName, Map<String, Object> args, String content, boolean running) {
         if (Assert.isEmpty(toolName)) {
             return content;
+        }
+
+        // 子代理前缀：非主引擎执行时标注归属
+        String displayName = toolName;
+        if (Assert.isNotEmpty(agentName) && !agentRuntime.getName().equals(agentName)) {
+            displayName = agentName + "/" + toolName;
         }
 
         String argsStr = buildArgsStr(args);
 
         if (agentSettings.getGeneral().isCliPrintSimplified()) {
-            // 简化模式：只显示工具名 + 结果摘要
+            // 简化模式：只显示工具名 + 状态/结果摘要
             String summary;
-            if (Assert.isEmpty(content)) {
+            if (running) {
+                // start 阶段：优先展示参数（如 file_path），无参数时用 running 占位
+                summary = Assert.isEmpty(argsStr) ? "running" : summary(argsStr);
+            } else if (Assert.isEmpty(content)) {
                 summary = "completed";
             } else {
                 String[] lines = content.split("\n");
                 if (lines.length > 1) {
                     summary = "returned " + lines.length + " lines";
                 } else {
-                    summary = content.length() > 40 ? content.substring(0, 37) + "..." : content;
+                    summary = summary(content);
                 }
             }
-            return toolName + ": " + summary;
+            return displayName + ": " + summary;
         } else {
             // 全量模式：显示工具名 + 参数
             if (argsStr.length() > 100) {
-                return toolName + "(" + argsStr.substring(0, 97) + "...)";
+                return displayName + "(" + argsStr.substring(0, 97) + "...)";
             }
-            return toolName + "(" + argsStr + ")";
+            return displayName + "(" + argsStr + ")";
         }
     }
 
@@ -301,6 +493,11 @@ public class AcpLink implements Runnable {
 
         buf.append(")");
         return buf.toString();
+    }
+
+    /** 截断过长文本作为摘要（超过 40 字符截断并加省略号）。 */
+    private String summary(String text) {
+        return text.length() > 40 ? text.substring(0, 37) + "..." : text;
     }
 
     private String buildArgsStr(Map<String, Object> args) {
