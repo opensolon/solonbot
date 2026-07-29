@@ -41,7 +41,6 @@ import java.util.regex.Pattern;
  * </pre>
  *
  * @author noear
- * @since 2026.7.29
  */
 public class PrintModeOptions {
 

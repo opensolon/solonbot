@@ -1,6 +1,6 @@
 # soloncode run — 无头模式用户指南
 
-> 对齐 Claude Code `claude -p` 无头模式，面向 CI/CD 和自动化场景的非交互执行入口。
+> 面向 CI/CD 和自动化场景的非交互执行入口。
 
 ## 概述
 
@@ -323,7 +323,7 @@ $ soloncode run "什么是依赖注入"
 
 **system/init 事件**（执行开始时）：
 ```json
-{"type":"system","subtype":"init","session_id":"print-a1b2c3d4","model":"sonnet","tools":["Read","Grep","Glob","Write","Edit","Bash"],"mcp_servers":[],"version":"2026.7.29"}
+{"type":"system","subtype":"init","session_id":"print-a1b2c3d4","model":"sonnet","tools":["Read","Grep","Glob","Write","Edit","Bash"],"mcp_servers":[],"version":"2026.7.30"}
 ```
 
 **assistant 事件**（Agent 输出文本）：

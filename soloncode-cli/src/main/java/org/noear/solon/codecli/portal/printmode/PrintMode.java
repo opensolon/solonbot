@@ -79,7 +79,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * </p>
  *
  * @author noear
- * @since 2026.7.29
  */
 public class PrintMode {
     private static final Logger LOG = LoggerFactory.getLogger(PrintMode.class);

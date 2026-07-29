@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * 不涉及 HarnessEngine 的集成测试（需要完整 Solon 容器环境）。</p>
  *
  * @author noear
- * @since 2026.7.29
  */
 public class PrintModeTest {
 

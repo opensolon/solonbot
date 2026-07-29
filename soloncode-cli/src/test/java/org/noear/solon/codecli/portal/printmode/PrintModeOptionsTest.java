@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>覆盖所有选项的解析逻辑、工具规则语法、新增选项、组合参数及边界条件。</p>
  *
  * @author noear
- * @since 2026.7.29
  */
 public class PrintModeOptionsTest {
 
