@@ -15,6 +15,7 @@ import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
+import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -26,9 +27,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.nio.file.Files;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.net.URI;
 import java.time.Instant;
@@ -46,12 +49,15 @@ public class WsController {
     private final ModelsAdapterManager modelsAdapterManager;
     private final WsGate wsGate;
     private final LoopScheduler loopScheduler;
+    private final SessionManager sessionManager;
 
-    public WsController(HarnessEngine engine, AgentSettings settings, WsGate wsGate, LoopScheduler loopScheduler) {
+    public WsController(HarnessEngine engine, AgentSettings settings, WsGate wsGate, LoopScheduler loopScheduler,
+                        SessionManager sessionManager) {
         this.engine = engine;
         this.settings = settings;
         this.wsGate = wsGate;
         this.loopScheduler = loopScheduler;
+        this.sessionManager = sessionManager;
         this.modelsAdapterManager = ModelsAdapterManager.getInstance();
 
         if (loopScheduler != null) {
@@ -123,10 +129,23 @@ public class WsController {
     @Mapping("/desktop/chat/models/fetch")
     public Result<List<Map>> fetchModels(Context ctx) throws Exception {
         ONode root = ONode.ofJson(ctx.body());
-        String apiUrl = root.get("apiUrl").getString();
-        String apiKey = root.get("apiKey").getString();
-        String provider = root.get("provider").getString();
-        String model = root.get("model").getString();
+        return fetchModels(root.get("apiUrl").getString(),
+                root.get("apiKey").getString(),
+                root.get("provider").getString(),
+                root.get("model").getString());
+    }
+
+    /** 兼容只支持 GET 的早期桌面客户端；新版客户端仍优先使用 POST，避免密钥出现在 URL。 */
+    @Get
+    @Mapping("/desktop/chat/models/fetch")
+    public Result<List<Map>> fetchModelsLegacy(@Param("apiUrl") String apiUrl,
+                                                @Param(value = "apiKey", required = false) String apiKey,
+                                                @Param(value = "provider", required = false) String provider,
+                                                @Param(value = "model", required = false) String model) throws Exception {
+        return fetchModels(apiUrl, apiKey, provider, model);
+    }
+
+    private Result<List<Map>> fetchModels(String apiUrl, String apiKey, String provider, String model) throws Exception {
         if (Assert.isEmpty(apiUrl)) {
             return Result.failure("apiUrl is required");
         }
@@ -256,6 +275,104 @@ public class WsController {
 
     private boolean isDesktopSessionId(String value) {
         return value != null && value.matches("[0-9]{1,18}");
+    }
+
+    /** 获取桌面会话的服务端消息，用于可靠定位回退位置。 */
+    @Get
+    @Mapping("/desktop/chat/messages")
+    public Result<List<Map>> messages(@Param("sessionId") String sessionId) {
+        if (!isDesktopSessionId(sessionId)) {
+            return Result.failure(400, "Invalid session id");
+        }
+
+        List<Map> data = new ArrayList<>();
+        Path messageFile = resolveSessionMessageFile(sessionId);
+        if (!Files.isRegularFile(messageFile)) {
+            return Result.succeed(data);
+        }
+
+        try {
+            for (String line : Files.readAllLines(messageFile, StandardCharsets.UTF_8)) {
+                if (Assert.isEmpty(line)) {
+                    continue;
+                }
+                ONode node = ONode.ofJson(line);
+                String role = node.get("role").getString();
+                String content = node.get("content").getString();
+                if (role == null || content == null) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("role", role);
+                item.put("content", content);
+                item.put("createdAt", node.get("createdAt").getString());
+                data.add(item);
+            }
+            return Result.succeed(data);
+        } catch (Exception e) {
+            LOG.warn("[Desktop] Failed to read messages for {}: {}", sessionId, e.getMessage());
+            return Result.failure(500, "Failed to read session messages");
+        }
+    }
+
+    /** 原子删除桌面会话最近 N 条服务端消息，并清除内存会话以便下次重建上下文。 */
+    @Post
+    @Mapping("/desktop/chat/rewind")
+    public Result rewind(Context ctx) throws Exception {
+        ONode root = ONode.ofJson(ctx.body());
+        String sessionId = root.get("sessionId").getString();
+        int count = root.get("count").getInt();
+        if (!isDesktopSessionId(sessionId) || count <= 0 || count > 100_000) {
+            return Result.failure(400, "Invalid rewind request");
+        }
+        if (wsGate.isSessionBusy(sessionId)) {
+            return Result.failure(409, "Session is running");
+        }
+
+        Path messageFile = resolveSessionMessageFile(sessionId);
+        if (!Files.isRegularFile(messageFile)) {
+            sessionManager.removeSession(sessionId);
+            return Result.succeed();
+        }
+
+        Path tempFile = messageFile.resolveSibling(messageFile.getFileName() + ".rewind.tmp");
+        try {
+            List<String> lines = new ArrayList<>();
+            for (String line : Files.readAllLines(messageFile, StandardCharsets.UTF_8)) {
+                if (Assert.isNotEmpty(line)) {
+                    lines.add(line);
+                }
+            }
+            int keepCount = Math.max(0, lines.size() - count);
+            StringBuilder content = new StringBuilder();
+            for (int index = 0; index < keepCount; index++) {
+                content.append(lines.get(index)).append('\n');
+            }
+            Files.write(tempFile, content.toString().getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tempFile, messageFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(tempFile, messageFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+            sessionManager.removeSession(sessionId);
+            return Result.succeed();
+        } catch (Exception e) {
+            try {
+                Files.deleteIfExists(tempFile);
+            } catch (Exception ignored) {
+            }
+            LOG.warn("[Desktop] Failed to rewind session {}: {}", sessionId, e.getMessage());
+            return Result.failure(500, "Failed to rewind session");
+        }
+    }
+
+    private Path resolveSessionMessageFile(String sessionId) {
+        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionDir = sessionsRoot.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(sessionsRoot)) {
+            throw new IllegalArgumentException("Invalid session path");
+        }
+        return sessionDir.resolve(sessionId + ".messages.ndjson");
     }
 
     /** 删除桌面会话的服务端历史；仅允许数字 ID 和已存在的绝对工作区。 */
