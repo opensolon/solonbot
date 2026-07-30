@@ -34,6 +34,7 @@ import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningEffortSupport;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
@@ -308,7 +309,7 @@ public class WebGate extends SimpleWebSocketListener {
             }
             // 写入会话级子代理选择（与模型一样的持久化逻辑）
             session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED,
-                selectedAgent != null ? selectedAgent : "");
+                    selectedAgent != null ? selectedAgent : "");
             boolean effortProvided = reasoningEffort != null;
             ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
 
@@ -453,14 +454,15 @@ public class WebGate extends SimpleWebSocketListener {
                     //如果是空，可能发的是 command（还没有对话记录）
                     try {
                         Path sessionPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-                        File labelFile = new File(sessionPath.toFile(), "label.txt");
-                        if (labelFile.exists() == false) {
+                        SessionMeta meta = SessionMeta.load(sessionPath);
+                        if (Assert.isEmpty(meta.getLabel())) {
                             // 从用户输入生成 label（空会话场景，如纯命令输入）
                             String label = input.trim();
                             if (label.length() > 50) {
                                 label = label.substring(0, 50);
                             }
-                            java.nio.file.Files.write(labelFile.toPath(), label.getBytes("UTF-8"));
+                            meta.setLabel(label);
+                            meta.save(sessionPath);
                         }
                     } catch (Throwable e) {
                         LOG.warn("[WebGate] Failed to generate label for session {}: {}", sessionId, e.getMessage());
@@ -784,6 +786,8 @@ public class WebGate extends SimpleWebSocketListener {
             return null;
         }
 
+        // Loop/Goal 异步 agent 流开始前重置前端的流状态（_streamClosed → false）
+        emitToClient(sessionId, WebChunk.ofResetStream());
         emitToClient(sessionId, WebChunk.ofUserInput(input, source));
 
         String agentName = null;
@@ -908,7 +912,7 @@ public class WebGate extends SimpleWebSocketListener {
 
             ReActTrace trace = session.getContext().getAs("__main");
             if (trace != null) {
-                emitToClient(sessionId, streamBuilder.onRunEndChunk(session, trace, true, "用户已取消任务."));
+                emitToClient(sessionId, streamBuilder.onRunEndEvent(session, trace, true, "用户已取消任务."));
             }
 
             // 2) 同线程先发 done，再 dispose；doFinally 中 emitDoneOnce 因 CAS 跳过

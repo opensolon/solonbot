@@ -30,6 +30,8 @@ import org.noear.solon.codecli.portal.*;
 import org.noear.solon.codecli.portal.acp.AcpLink;
 import org.noear.solon.codecli.portal.cli.CliShell;
 import org.noear.solon.codecli.portal.desktop.WsController;
+import org.noear.solon.codecli.portal.printmode.PrintMode;
+import org.noear.solon.codecli.portal.printmode.PrintModeOptions;
 import org.noear.solon.codecli.portal.desktop.WsGate;
 import org.noear.solon.codecli.portal.web.WebChannel;
 import org.noear.solon.codecli.portal.web.WebController;
@@ -234,11 +236,16 @@ public class Configurator {
 
         //flag
         if (Solon.cfg().argx().flags().size() > 0) {
-            if (AgentFlags.FLAG_RUN.equals(flag)) { // java -jar soloncode.jar run '你好' // soloncode run '你好'
-                //单次任务态
-                String prompt = Solon.cfg().argx().flagAt(1);
-                new CliShell(agentRuntime, agentSettings, null).call(prompt);
+            if (AgentFlags.FLAG_RUN.equals(flag)) { // soloncode run 'prompt' --output-format json --model sonnet --max-turns 10
+                // Print / Headless 模式（对齐 claude -p）
+                PrintModeOptions printOpts = PrintModeOptions.parse(Solon.cfg().argx());
+                PrintMode printMode = new PrintMode(agentRuntime, agentSettings, printOpts);
+                int exitCode = printMode.execute();
                 Solon.stop();
+                if (exitCode != 0) {
+                    // 非零退出码通过 Runtime.halt 强制退出（Solon.stop 可能被拦截）
+                    Runtime.getRuntime().halt(exitCode);
+                }
                 return;
             }
 

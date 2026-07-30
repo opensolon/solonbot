@@ -184,6 +184,13 @@
             if (cb.checked) prevChecked[cb.getAttribute('data-path')] = true;
         });
 
+        // 记录当前已展开的目录路径，以便刷新后恢复
+        var prevExpandedDirs = {};
+        gitDiffFileList.querySelectorAll('.git-file-item-dir.expanded').forEach(function(item) {
+            var p = item.getAttribute('data-path');
+            if (p) prevExpandedDirs[p] = true;
+        });
+
         gitDiffFileList.innerHTML = '';
 
         var files = [];
@@ -212,8 +219,11 @@
         if (gitCommitBar) gitCommitBar.style.display = '';
 
         files.forEach(function(file) {
+            // 判断是否为目录：untracked 目录路径以 / 结尾
+            var isDir = file.path.endsWith('/');
+
             var item = document.createElement('div');
-            item.className = 'git-file-item';
+            item.className = 'git-file-item' + (isDir ? ' git-file-item-dir' : '');
 
             // checkbox：如果之前有选中状态则恢复，否则默认全选
             var cb = document.createElement('input');
@@ -231,27 +241,122 @@
             statusSpan.className = 'git-status-letter ' + file.status;
             statusSpan.textContent = file.status;
 
-            // 文件路径
+            // 文件/文件夹图标 + 路径
             var pathSpan = document.createElement('span');
             pathSpan.className = 'git-file-path';
+            var displayPath = isDir ? file.path.slice(0, -1) : file.path;
             pathSpan.title = file.path;
-            pathSpan.textContent = file.path;
+            if (isDir) {
+                pathSpan.innerHTML = escapeHtml(displayPath);
+            } else {
+                pathSpan.textContent = displayPath;
+            }
 
             item.appendChild(cb);
             item.appendChild(statusSpan);
             item.appendChild(pathSpan);
 
             item.setAttribute('data-status', file.status);
+            item.setAttribute('data-path', file.path);
 
-            // 点击文件行打开 diff viewer
+            // 点击文件行：目录展开/折叠，文件打开 diff viewer
             item.addEventListener('click', function(e) {
                 // 避免点 checkbox 时也触发
                 if (e.target === cb) return;
-                openDiffViewer(file.path, file.status);
+                if (isDir) {
+                    toggleDirExpand(item, file.path);
+                } else {
+                    openDiffViewer(file.path, file.status);
+                }
             });
 
             gitDiffFileList.appendChild(item);
         });
+
+        // 恢复之前已展开的目录状态
+        Object.keys(prevExpandedDirs).forEach(function(dirPath) {
+            gitDiffFileList.querySelectorAll('.git-file-item-dir').forEach(function(item) {
+                if (item.getAttribute('data-path') === dirPath && !item.classList.contains('expanded')) {
+                    toggleDirExpand(item, dirPath);
+                }
+            });
+        });
+    }
+
+    // ---- 目录展开/折叠：列出目录下文件列表 ----
+    function toggleDirExpand(item, dirPath) {
+        var subList = item.nextElementSibling;
+        if (subList && subList.classList.contains('git-dir-sublist')) {
+            // 已展开，折叠
+            subList.remove();
+            item.classList.remove('expanded');
+            return;
+        }
+
+        // 展开：调用 filer/tree API 获取目录内容
+        item.classList.add('expanded');
+
+        var subListEl = document.createElement('div');
+        subListEl.className = 'git-dir-sublist';
+        subListEl.innerHTML = '<div class="git-dir-loading" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">加载中...</div>';
+
+        // 在 item 后面插入子列表
+        item.parentNode.insertBefore(subListEl, item.nextSibling);
+
+        var treeUrl = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath.replace(/\/$/, '')) + '&depth=1';
+        if (gitWorkspace !== 'workspace') {
+            treeUrl += '&workspace=' + encodeURIComponent(gitWorkspace);
+        }
+
+        fetch(treeUrl)
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                var children = (res && res.data) ? res.data : [];
+                if (children.length === 0) {
+                    subListEl.innerHTML = '<div class="git-dir-empty" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">空目录</div>';
+                    return;
+                }
+
+                subListEl.innerHTML = '';
+                children.forEach(function(child) {
+                    var childItem = document.createElement('div');
+                    childItem.className = 'git-file-item git-file-item-child' + (child.type === 'directory' ? ' git-file-item-dir' : '');
+
+                    // 子项图标
+                    var childIconSpan = document.createElement('span');
+                    childIconSpan.className = 'git-file-child-icon';
+                    if (child.type === 'directory') {
+                        childIconSpan.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+                    } else {
+                        childIconSpan.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+                    }
+
+                    // 子项路径
+                    var childPathSpan = document.createElement('span');
+                    childPathSpan.className = 'git-file-path';
+                    childPathSpan.title = child.path;
+                    childPathSpan.textContent = child.name;
+
+                    childItem.appendChild(childIconSpan);
+                    childItem.appendChild(childPathSpan);
+
+                    // 子项点击：文件打开查看，目录递归展开
+                    childItem.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (child.type === 'directory') {
+                            toggleDirExpand(childItem, child.path + '/');
+                        } else {
+                             // 未跟踪目录下的文件：用 openFileViewer 打开（status='?' 未跟踪）
+                             openFileViewer(child.path, child.name, '?');
+                        }
+                    });
+
+                    subListEl.appendChild(childItem);
+                });
+            })
+            .catch(function(e) {
+                subListEl.innerHTML = '<div class="git-dir-error" style="padding:6px 12px 6px 40px;color:var(--color-danger);font-size:11px;">加载失败: ' + escapeHtml(e.message) + '</div>';
+            });
     }
 
     // ---- 同步全选 checkbox 状态 ----
@@ -328,7 +433,7 @@
     // ---- File Viewer：打开文件内容（在 main-area 内）----
     var diffViewerActive = false;
 
-    function openFileViewer(path, name) {
+    function openFileViewer(path, name, status) {
         if (!gitDiffViewer) return;
 
         viewerMode = 'file';
@@ -387,16 +492,127 @@
                         + '</div>';
                     return;
                 }
-                renderFileContent(d.content, d.name || name, d.size, path);
+                // 构造原始二进制读取 URL（用于图片/视频）
+                var rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(apiPath);
+                if (fileWorkspace !== 'workspace') {
+                    rawUrl += '&workspace=' + encodeURIComponent(fileWorkspace);
+                }
+                renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
                 if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--color-danger)">加载失败: ' + escapeHtml(e.message) + '</div>';
+            })
+            .finally(function() {
+                // 渲染操作按钮（添加到Git / 回滚），status 默认按未跟踪处理
+                renderViewerActions(path, status || '?');
             });
     }
 
-    // ---- File Viewer：渲染文件内容（语法高亮 + 行号）----
-    function renderFileContent(content, fileName, fileSize, filePath) {
+    // ---- 文件类型检测（根据扩展名）----
+    var MEDIA_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
+    var MEDIA_VIDEO_EXTS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+    var BINARY_EXTS = ['.pdf', '.zip', '.rar', '.7z', '.tar', '.gz', '.exe', '.dll', '.bin', '.o', '.so', '.dylib'];
+
+    /**
+     * 检测文件是否为图片类型。
+     */
+    function isImageFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return MEDIA_IMAGE_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 检测文件是否为视频类型。
+     */
+    function isVideoFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return MEDIA_VIDEO_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 检测文件是否为已知的二进制类型（无法以文本预览）。
+     */
+    function isBinaryFile(filePath) {
+        var lower = (filePath || '').toLowerCase();
+        return BINARY_EXTS.some(function(ext) { return lower.endsWith(ext); });
+    }
+
+    /**
+     * 渲染媒体文件（图片/视频）。
+     */
+    function renderMediaContent(rawUrl, fileName, isImage) {
         if (!gitViewerContent) return;
+
+        // 隐藏不适用的 Header 按钮（防止从文本/MD 文件切换过来时残留）
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        if (_mdToggle) _mdToggle.style.display = 'none';
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        if (_copyBtn) _copyBtn.style.display = 'none';
+        var _fullscreen = document.getElementById('gitViewerFullscreen');
+        if (_fullscreen) _fullscreen.style.display = 'none';
+        var _memNew = document.getElementById('gitViewerMemNew');
+        if (_memNew) _memNew.style.display = 'none';
+
+        var displayName = escapeHtml(fileName || '');
+        var html = '<div class="file-view-media">';
+        html += '<div class="file-view-media-preview">';
+        if (isImage) {
+            html += '<img src="' + escapeHtml(rawUrl) + '" alt="' + displayName + '" class="file-view-media-img" />';
+        } else {
+            html += '<video src="' + escapeHtml(rawUrl) + '" controls class="file-view-media-video" autoplay>';
+            html += '您的浏览器不支持视频播放。</video>';
+        }
+        html += '</div></div>';
+        gitViewerContent.innerHTML = html;
+        gitViewerContent.scrollTop = 0;
+    }
+
+    /**
+     * 渲染二进制文件不可预览提示。
+     */
+    function renderBinaryUnreadable(fileName) {
+        if (!gitViewerContent) return;
+
+        // 隐藏不适用的 Header 按钮（防止从文本/MD 文件切换过来时残留）
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        if (_mdToggle) _mdToggle.style.display = 'none';
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        if (_copyBtn) _copyBtn.style.display = 'none';
+        var _fullscreen = document.getElementById('gitViewerFullscreen');
+        if (_fullscreen) _fullscreen.style.display = 'none';
+        var _memNew = document.getElementById('gitViewerMemNew');
+        if (_memNew) _memNew.style.display = 'none';
+
+        gitViewerContent.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-secondary)">'
+            + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;margin-bottom:16px">'
+            + '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>'
+            + '<polyline points="14 2 14 8 20 8"/>'
+            + '<line x1="9" y1="13" x2="15" y2="13"/>'
+            + '</svg>'
+            + '<div style="font-size:14px;font-weight:500;margin-bottom:6px">该文件为二进制文件</div>'
+            + '<div style="font-size:12px;opacity:0.6">' + escapeHtml(fileName || '') + ' 无法以文本形式预览</div>'
+            + '</div>';
+        gitViewerContent.scrollTop = 0;
+    }
+
+    // ---- File Viewer：渲染文件内容（语法高亮 + 行号 / 媒体预览 / 二进制提示）----
+    function renderFileContent(content, fileName, fileSize, filePath, rawUrl) {
+        if (!gitViewerContent) return;
+
+        // ---- 媒体文件类型检测（优先于文本渲染）----
+        if (rawUrl && isImageFile(filePath || fileName)) {
+            renderMediaContent(rawUrl, fileName || filePath, true);
+            return;
+        }
+        if (rawUrl && isVideoFile(filePath || fileName)) {
+            renderMediaContent(rawUrl, fileName || filePath, false);
+            return;
+        }
+        // 已知的二进制文件类型（非图片/视频）—— 显示不可预览提示
+        if (isBinaryFile(filePath || fileName)) {
+            renderBinaryUnreadable(fileName || filePath);
+            return;
+        }
 
         // 重置 MD 切换按钮为初始状态（源码态），应对切换文件时图标未复位的问题
         var _mdToggleReset = document.getElementById('gitViewerMdToggle');
@@ -732,14 +948,60 @@
         var isDir = path.endsWith('/');
 
         if (isDir) {
-            // 目录：显示提示信息，不调用 diff 接口
+            // 目录：列出目录下文件列表
             if (gitViewerContent) {
                 gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">'
                     + '<div style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> ' + escapeHtml(displayDiffPath) + '</div>'
-                    + '<div>这是一个目录，暂无可查看的文本差异。</div>'
+                    + '<div id="gitDirFileList" style="margin-top:12px">加载中...</div>'
                     + '</div>';
             }
             renderViewerActions(path, status);
+
+            // 加载目录内容
+            var dirTreeUrl = '/web/chat/filer/tree?path=' + encodeURIComponent(path.replace(/\/$/, '')) + '&depth=1';
+            if (gitWorkspace !== 'workspace') {
+                dirTreeUrl += '&workspace=' + encodeURIComponent(gitWorkspace);
+            }
+            fetch(dirTreeUrl)
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    var dirListEl = document.getElementById('gitDirFileList');
+                    if (!dirListEl) return;
+                    var children = (res && res.data) ? res.data : [];
+                    if (children.length === 0) {
+                        dirListEl.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px 0">空目录</div>';
+                        return;
+                    }
+                    var html = '<div style="font-size:12px;">';
+                    children.forEach(function(child) {
+                        var icon = child.type === 'directory'
+                            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+                            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+                        html += '<div class="git-dir-viewer-child" data-path="' + escapeHtml(child.path) + '" data-type="' + child.type + '" style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;border-radius:4px;transition:background 0.15s">'
+                            + icon + '<span style="font-family:SFMono-Regular,Consolas,Menlo,monospace;font-size:11px">' + escapeHtml(child.name) + '</span></div>';
+                    });
+                    html += '</div>';
+                    dirListEl.innerHTML = html;
+
+                    // 绑定点击事件
+                    dirListEl.querySelectorAll('.git-dir-viewer-child').forEach(function(childEl) {
+                        childEl.addEventListener('mouseenter', function() { this.style.background = 'var(--bg-hover)'; });
+                        childEl.addEventListener('mouseleave', function() { this.style.background = ''; });
+                        childEl.addEventListener('click', function() {
+                            var cp = this.getAttribute('data-path');
+                            var ct = this.getAttribute('data-type');
+                            if (ct === 'directory') {
+                                openDiffViewer(cp + '/', '?');
+                            } else {
+                                openFileViewer(cp, cp.replace(/.*\//, ''), '?');
+                            }
+                        });
+                    });
+                })
+                .catch(function(e) {
+                    var dirListEl = document.getElementById('gitDirFileList');
+                    if (dirListEl) dirListEl.innerHTML = '<div style="color:var(--color-danger);font-size:12px">加载失败: ' + escapeHtml(e.message) + '</div>';
+                });
             return;
         }
 

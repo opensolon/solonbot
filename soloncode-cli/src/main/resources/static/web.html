@@ -494,7 +494,7 @@
 
                 <button class="settings-tab" data-tab="agents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg> 智能体</button>
                 <button class="settings-tab" data-tab="mounts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 挂载</button>
-                <button class="settings-tab" data-tab="skills"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 技能市场</button>
+                <button class="settings-tab" data-tab="skills"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 技能管理</button>
 
                 <div class="sidebar-title" style="padding:16px 16px 8px;font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;">大语言模型</div>
                 <button class="settings-tab" data-tab="providers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> 供应商</button>
@@ -885,7 +885,7 @@
                                     <div class="settings-section-desc">管理用户全局与当前工作区的子代理定义</div>
                                 </div>
                                 <div class="settings-header-icon-actions">
-                                    <button class="mcp-action-btn" id="agentsRefreshBtn" title="从目录刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                    <button class="settings-action-btn" id="agentsRefreshBtn" title="从目录刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                                     <button class="settings-add-btn" id="agentsAddBtn">+ 添加智能体</button>
                                 </div>
                             </div>
@@ -1075,32 +1075,66 @@
                 <!-- Skills Tab -->
                 <div class="settings-tab-content" id="settingsTabSkills">
                     <div class="settings-section">
-                        <div class="settings-section-header">
-                            <div>
-                                <span class="settings-section-title">技能市场</span>
-                                <div class="settings-section-desc">浏览和安装技能包，扩展 AI 的能力边界</div>
-                            </div>
-                        </div>
-                        <div class="skills-search-bar">
-                            <div class="skills-market-wrap">
-                                <svg class="skills-market-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                                <select id="skillsMarketSelect" class="skills-market-select" title="选择技能市场"></select>
+                            <div class="settings-section-header">
+                                <div>
+                                    <span class="settings-section-title">技能管理</span>
+                                    <div class="settings-section-desc">管理已安装的技能包，或从技能市场获取更多能力</div>
+                                </div>
+                                <button class="settings-reload-icon-btn" id="skillsRefreshBtn" title="刷新技能列表"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                             </div>
 
-                            <div class="skills-search-input-wrap">
-                                <svg class="skills-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                <input type="text" id="skillsSearchInput" placeholder="搜索技能..." autocomplete="off"/>
-                                <button class="skills-search-clear" id="skillsSearchClear" style="display:none" title="清除">&times;</button>
-                            </div>
+                        <div class="mcp-type-toggle" id="skillsViewToggle" style="margin-bottom:12px">
+                            <button type="button" class="mcp-type-btn active" data-view="installed">已安装<span id="skillsInstalledCount" class="skills-view-count"></span></button>
+                            <button type="button" class="mcp-type-btn" data-view="market">技能市场</button>
                         </div>
-                        <div class="skills-status" id="skillsStatus" style="display:none">
-                            <div class="skills-loading" id="skillsLoading" style="display:none">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                <span>加载中...</span>
+
+                        <!-- 视图 A：已安装 -->
+                        <div class="skills-view" id="skillsViewInstalled">
+                            <div class="skills-search-bar">
+                                <div class="skills-market-wrap">
+                                    <svg class="skills-market-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                                    <select id="skillsMountFilter" class="skills-market-select" title="按挂载筛选"></select>
+                                </div>
+
+                                <div class="skills-search-input-wrap">
+                                    <svg class="skills-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="skillsInstalledFilter" placeholder="过滤已安装技能..." autocomplete="off"/>
+                                    <button class="skills-search-clear" id="skillsInstalledFilterClear" style="display:none" title="清除">&times;</button>
+                                </div>
                             </div>
-                            <div class="skills-error" id="skillsError" style="display:none"></div>
+                            <div class="skills-status" id="skillsInstalledStatus" style="display:none">
+                                <div class="skills-loading" id="skillsInstalledLoading" style="display:none">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                    <span>加载中...</span>
+                                </div>
+                                <div class="skills-error" id="skillsInstalledError" style="display:none"></div>
+                            </div>
+                            <div class="skills-list" id="skillsInstalledList"></div>
                         </div>
-                        <div class="skills-list" id="skillsList"></div>
+
+                        <!-- 视图 B：技能市场 -->
+                        <div class="skills-view" id="skillsViewMarket" style="display:none">
+                            <div class="skills-search-bar">
+                                <div class="skills-market-wrap">
+                                    <svg class="skills-market-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                                    <select id="skillsMarketSelect" class="skills-market-select" title="选择技能市场"></select>
+                                </div>
+
+                                <div class="skills-search-input-wrap">
+                                    <svg class="skills-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="skillsSearchInput" placeholder="搜索技能..." autocomplete="off"/>
+                                    <button class="skills-search-clear" id="skillsSearchClear" style="display:none" title="清除">&times;</button>
+                                </div>
+                            </div>
+                            <div class="skills-status" id="skillsStatus" style="display:none">
+                                <div class="skills-loading" id="skillsLoading" style="display:none">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                    <span>加载中...</span>
+                                </div>
+                                <div class="skills-error" id="skillsError" style="display:none"></div>
+                            </div>
+                            <div class="skills-list" id="skillsList"></div>
+                        </div>
                     </div>
                 </div>
                 <!-- MountPools Tab -->
@@ -1193,8 +1227,8 @@
                                     <span class="settings-section-title" id="mountsSkillsTitle">技能包列表</span>
                                 </div>
                                 <div class="settings-header-icon-actions">
-                                    <button class="mcp-action-btn" id="mountsOpenDirBtn" title="打开目录"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-                                    <button class="mcp-action-btn" id="mountsRefreshBtn" title="刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                    <button class="settings-action-btn" id="mountsOpenDirBtn" title="打开目录"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+                                    <button class="settings-action-btn" id="mountsRefreshBtn" title="刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                                 </div>
                             </div>
                             <div class="mounts-skills-list" id="mountsSkillsList"></div>
@@ -1551,7 +1585,7 @@
                                     <input type="hidden" id="providerScope" value="user"/>
                                     <div class="settings-scope-toggle" data-target="providerScope">
                                         <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="local" type="button">工作区（本地）</button>
+                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
                                     </div>
                                 </div>
                                 <div class="form-group">

@@ -148,7 +148,8 @@ public class ClawhubMarket implements Market {
         try {
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
-                return Result.failure("技能不存在: " + detailResult.getDescription());
+                // detail() 已经返回了具体的错误描述，直接透传，不要再次包装
+                return Result.failure(detailResult.getDescription());
             }
 
             String displayName = detailResult.getData().getDisplayName();
@@ -237,9 +238,28 @@ public class ClawhubMarket implements Market {
                 item.stars(getLongValue(statsNode, "stars"));
             }
 
+            item.version(parseVersion(node));
+
             result.add(item);
         }
         return result;
+    }
+
+    /**
+     * 解析版本号：兼容平铺字段（version / latestVersion）与嵌套对象（latestVersion.version）。
+     * 取不到时返回 null，前端据此决定是否显示。
+     */
+    private String parseVersion(ONode node) {
+        String v = getStringValue(node, "version");
+        if (v != null && !v.isEmpty()) return v;
+        ONode latest = node.get("latestVersion");
+        if (latest != null && !latest.isNull()) {
+            if (latest.isObject()) {
+                return getStringValue(latest, "version");
+            }
+            return latest.getString();
+        }
+        return null;
     }
 
     private String getStringValue(ONode node, String key) {

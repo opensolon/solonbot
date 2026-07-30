@@ -176,7 +176,7 @@ public class SkillhubMarket implements Market {
         try {
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
-                return Result.failure("技能不存在: " + detailResult.getDescription());
+                return Result.failure(detailResult.getDescription());
             }
 
             String displayName = detailResult.getData().getDisplayName();
@@ -264,11 +264,29 @@ public class SkillhubMarket implements Market {
                             getStringValue(node, "url"),
                             "https://skillhub.cn/skills/" + getStringValue(node, "slug")))
                     .installs(getLongValue(node, "installs"))
-                    .stars(getLongValue(node, "stars"));
+                    .stars(getLongValue(node, "stars"))
+                    .version(parseVersion(node));
 
             result.add(item);
         }
         return result;
+    }
+
+    /**
+     * 解析版本号：兼容平铺字段（version / latestVersion）与嵌套对象（latestVersion.version）。
+     * 取不到时返回 null，前端据此决定是否显示。
+     */
+    private String parseVersion(ONode node) {
+        String v = getStringValue(node, "version");
+        if (v != null && !v.isEmpty()) return v;
+        ONode latest = node.get("latestVersion");
+        if (latest != null && !latest.isNull()) {
+            if (latest.isObject()) {
+                return getStringValue(latest, "version");
+            }
+            return latest.getString();
+        }
+        return null;
     }
 
     private String getStringValue(ONode node, String key) {

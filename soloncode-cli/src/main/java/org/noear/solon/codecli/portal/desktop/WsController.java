@@ -15,6 +15,7 @@ import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
+import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -237,15 +238,13 @@ public class WsController {
         Files.createDirectories(targetDir);
         try {
             Files.copy(sourceMessages, targetDir.resolve(targetId + ".messages.ndjson"), StandardCopyOption.COPY_ATTRIBUTES);
-            Path sourceLabel = sourceDir.resolve("label.txt");
-            if (Files.isRegularFile(sourceLabel)) {
-                Files.copy(sourceLabel, targetDir.resolve("label.txt"), StandardCopyOption.COPY_ATTRIBUTES);
-            }
+            // 复制会话 meta（label/pinned），并刷新 createdAt
+            SessionMeta.copy(sourceDir, targetDir);
             return Result.succeed(targetId);
         } catch (Exception e) {
             try {
                 Files.deleteIfExists(targetDir.resolve(targetId + ".messages.ndjson"));
-                Files.deleteIfExists(targetDir.resolve("label.txt"));
+                Files.deleteIfExists(targetDir.resolve(SessionMeta.FILE_NAME));
                 Files.deleteIfExists(targetDir);
             } catch (Exception ignored) {
             }

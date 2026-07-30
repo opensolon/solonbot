@@ -258,6 +258,7 @@ public class MountSettingsController extends BaseSettingsController {
             skillItem.put("name", subDir.getName());
             skillItem.put("description", subDir.getDescription());
             skillItem.put("realPath", subDir.getRealPath() != null ? subDir.getRealPath().toString() : "");
+            skillItem.put("version", subDir.getVersion());
             skills.add(skillItem);
         }
 

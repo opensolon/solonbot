@@ -259,7 +259,7 @@ public class WebChunk {
      * @param text 工具执行结果文本
      * @return 携带执行结果的动作结束消息块
      */
-    public static WebChunk ofActionEnd(String text) {
+    public static WebChunk ofToolCallEnd(String text) {
         WebChunk tmp = new WebChunk();
         tmp.type = "action_end";
         tmp.text = text;
@@ -279,7 +279,7 @@ public class WebChunk {
      * @param args      工具调用参数
      * @return 携带工具名与参数的动作开始消息块
      */
-    public static WebChunk ofActionStart(String toolName, String toolTitle, Map<String, Object> args) {
+    public static WebChunk ofToolCallStart(String toolName, String toolTitle, Map<String, Object> args) {
         WebChunk tmp = new WebChunk();
         tmp.type = "action_start";
         tmp.toolName = toolName;
@@ -318,6 +318,20 @@ public class WebChunk {
         WebChunk tmp = new WebChunk();
         tmp.type = "rewind";
         tmp.text = String.valueOf(count);
+        tmp.createdAt = Instant.now().toEpochMilli();
+
+        return tmp;
+    }
+
+    /**
+     * 创建「流重置」消息块。
+     * <p>type 为 {@code reset_stream}，用于 Loop/Goal 异步 agent 流开始前重置前端的流状态。
+     * 前端收到后应将 {@code _streamClosed} 设为 {@code false}、{@code acceptingStream} 设为 {@code true}，
+     * 使后续 agent 的 text/reason/action chunk 能正常通过流守卫并开新气泡展示。</p>
+     */
+    public static WebChunk ofResetStream() {
+        WebChunk tmp = new WebChunk();
+        tmp.type = "reset_stream";
         tmp.createdAt = Instant.now().toEpochMilli();
 
         return tmp;

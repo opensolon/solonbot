@@ -162,7 +162,7 @@
         var head =
             '<div class="mem-row-head" data-key="' + dataKey + '">' +
             '  <span class="mem-caret">' + caret + '</span>' +
-            '  <span class="mem-row-star">★' + imp + '</span>' +
+            '  <span class="mem-row-star"><svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="M8 1.5l1.84 3.73 4.12.6-2.98 2.9.7 4.1L8 12.9l-3.68 1.93.7-4.1L2.04 6.83l4.12-.6L8 1.5z"/></svg>' + imp + '</span>' +
             '  <span class="mem-row-key">' + keyText + '</span>' +
             '  <span class="mem-scope-badge ' + scopeCls + '">' + scopeLabel + '</span>' +
             '  <span class="mem-row-time">' + escapeHtml(it.time || '') + '</span>' +

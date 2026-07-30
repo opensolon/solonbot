@@ -330,7 +330,7 @@ public class LoopCommand implements Command {
                 ctx.println(ctx.color(DIM + "  Use /loop stop " + t.getId() + " first to replace the goal." + RESET));
                 return;
             }
-            
+
         }
 
         // 创建任务：★ 显式使用 LoopTask.TaskType.GOAL

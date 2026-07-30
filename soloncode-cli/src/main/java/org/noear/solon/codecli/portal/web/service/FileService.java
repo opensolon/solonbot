@@ -335,6 +335,54 @@ public class FileService {
         return Result.succeed(data);
     }
 
+    /**
+     * 验证并解析文件路径，返回解析后的 Path 对象（用于原始二进制读取）。
+     *
+     * <p>安全校验与 {@link #read(String, String)} 一致，但读取上限放宽至 10MB
+     * （图片、视频等媒体文件可能较大），返回 Path 而非文本内容。
+     * 配合 {@code /web/chat/filer/read-raw} 接口使用，以便输出原始二进制流。</p>
+     *
+     * @param workspaceId 工作区标识（"workspace" 或挂载别名如 "@solon-ai"）
+     * @param path        相对路径
+     * @return 解析后的文件 Path
+     * @throws IllegalArgumentException 参数校验失败或文件不存在时抛出
+     * @throws SecurityException       路径越权时抛出
+     */
+    public Path resolveFilePath(String workspaceId, String path) {
+        if (path == null || path.trim().isEmpty()) {
+            throw new IllegalArgumentException("Path is required");
+        }
+        if (path.contains("..")) {
+            throw new SecurityException("Invalid path");
+        }
+
+        if (workspaceId == null || workspaceId.isEmpty()) {
+            String[] parsed = parseWorkspaceFromPath(path);
+            workspaceId = parsed[0];
+            path = parsed[1];
+        }
+
+        Path rootPath = resolveRoot(workspaceId);
+        Path target = rootPath.resolve(path).toAbsolutePath().normalize();
+
+        if (!target.startsWith(rootPath)) {
+            throw new SecurityException("Access denied");
+        }
+        if (Files.isSymbolicLink(target)) {
+            throw new SecurityException("Access denied: symlink");
+        }
+        File file = target.toFile();
+        if (!file.exists() || file.isDirectory()) {
+            throw new IllegalArgumentException("File not found");
+        }
+        // 原始读取放宽至 10MB（图片/视频可能较大）
+        if (file.length() > 10 * 1024 * 1024) {
+            throw new IllegalArgumentException("File too large (max 10MB)");
+        }
+
+        return target;
+    }
+
     // ==================== 内部方法 ====================
 
     /**

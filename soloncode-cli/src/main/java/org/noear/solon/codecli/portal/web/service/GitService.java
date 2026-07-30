@@ -265,14 +265,14 @@ public class GitService {
             String y = line.substring(1, 2);
             String filePath = line.substring(3);
 
-            // 规范化：去除尾部斜杠
-            if (filePath.endsWith("/")) {
-                filePath = filePath.substring(0, filePath.length() - 1);
-            }
-
+            // 未跟踪的目录：保留尾部斜杠，使前端可区分文件与文件夹
             if ("?".equals(x) && "?".equals(y)) {
                 untracked.add(filePath);
             } else {
+                // 已跟踪的路径：去除尾部斜杠（git 不会对已跟踪目录加斜杠，仅做安全处理）
+                if (filePath.endsWith("/")) {
+                    filePath = filePath.substring(0, filePath.length() - 1);
+                }
                 if (!" ".equals(x) && "?".equals(x) == false) staged.add(filePath);
                 if (!" ".equals(y) && "?".equals(y) == false) changed.add(filePath);
             }

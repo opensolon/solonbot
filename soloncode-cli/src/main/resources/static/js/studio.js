@@ -9,6 +9,31 @@
     var allowedSchemes = ["http:", "https:", "mailto:", "tel:"];
     var studioFlag = "studio";
     var isStudioPageEnabled = false;
+    var pendingStudioTheme = "";
+    var cliMessageSource = "soloncode-cli";
+    var studioMessageSource = "soloncode-studio";
+    var studioParentOrigin = "";
+
+    try {
+        studioParentOrigin = window.location.ancestorOrigins && window.location.ancestorOrigins[0];
+        if (!studioParentOrigin && document.referrer) {
+            studioParentOrigin = new URL(document.referrer).origin;
+        }
+    } catch (e) {
+        studioParentOrigin = "";
+    }
+
+    function isStudioParentMessage(event, data) {
+        return (
+            window.parent !== window &&
+            event.source === window.parent &&
+            (!studioParentOrigin || event.origin === studioParentOrigin) &&
+            data &&
+            data.source === studioMessageSource &&
+            typeof data.type === "string" &&
+            data.type.indexOf("studio-") === 0
+        );
+    }
 
     try {
         isStudioPageEnabled = new URL(window.location.href).searchParams.get(studioFlag) === "true";
@@ -50,9 +75,10 @@
                 window.parent.postMessage(
                     {
                         type: eventName,
+                        source: cliMessageSource,
                         payload: payload
                     },
-                    "*"
+                    studioParentOrigin || "*"
                 );
             } catch (e) {
                 // ignore cross-window failures
@@ -73,7 +99,7 @@
         try {
             window.addEventListener("message", function (event) {
                 var data = event && event.data ? event.data : null;
-                if (!data || typeof data.type !== "string" || data.type.indexOf("studio-") !== 0) {
+                if (!isStudioParentMessage(event, data)) {
                     return;
                 }
 
@@ -97,6 +123,93 @@
             });
         } catch (e) {
             // ignore listener setup failures
+        }
+    }
+
+    function normalizeStudioTheme(theme) {
+        return theme === "dark" ? "dark" : theme === "light" ? "light" : "";
+    }
+
+    function applyStudioTheme(theme) {
+        var normalizedTheme = normalizeStudioTheme(theme);
+        if (!normalizedTheme) {
+            return;
+        }
+
+        var currentTheme = normalizeStudioTheme(document.body.getAttribute("data-theme") || window.currentTheme);
+        if (currentTheme === normalizedTheme) {
+            pendingStudioTheme = "";
+            return;
+        }
+
+        pendingStudioTheme = normalizedTheme;
+        var themeButton = document.getElementById("themeBtn");
+        if (themeButton && typeof themeButton.click === "function") {
+            themeButton.click();
+            return;
+        }
+
+        document.body.setAttribute("data-theme", normalizedTheme);
+        window.currentTheme = normalizedTheme;
+        try {
+            window.localStorage.setItem("chat-theme", normalizedTheme);
+        } catch (e) {
+            // ignore theme persistence failures
+        }
+        if (typeof window.applyHljsTheme === "function") {
+            window.applyHljsTheme(normalizedTheme);
+        }
+        if (typeof window.updateThemeIcon === "function") {
+            window.updateThemeIcon();
+        }
+        if (typeof window.mermaid !== "undefined") {
+            window.mermaid.initialize({ theme: normalizedTheme === "dark" ? "dark" : "default" });
+        }
+    }
+
+    function reportWorkspaceTheme(theme) {
+        var normalizedTheme = normalizeStudioTheme(theme);
+        if (!normalizedTheme) {
+            return;
+        }
+        if (pendingStudioTheme === normalizedTheme) {
+            pendingStudioTheme = "";
+            return;
+        }
+        pendingStudioTheme = "";
+        dispatchStudioMessage("soloncode-theme-change", {
+            theme: normalizedTheme
+        });
+    }
+
+    function bindStudioThemeBridge() {
+        try {
+            window.addEventListener("message", function (event) {
+                var data = event && event.data ? event.data : null;
+                if (!isStudioParentMessage(event, data)) {
+                    return;
+                }
+
+                if (data.type === "studio-theme-sync") {
+                    var theme = data.payload && data.payload.theme ? data.payload.theme : data.theme;
+                    studioLog("theme synchronized from studio", theme);
+                    applyStudioTheme(theme);
+                }
+            });
+
+            if (window.MutationObserver && document.body) {
+                var themeObserver = new MutationObserver(function (mutations) {
+                    for (var i = 0; i < mutations.length; i += 1) {
+                        if (mutations[i].attributeName === "data-theme") {
+                            reportWorkspaceTheme(document.body.getAttribute("data-theme"));
+                            return;
+                        }
+                    }
+                });
+                themeObserver.observe(document.body, { attributes: true, attributeFilter: ["data-theme"] });
+            }
+        } catch (e) {
+            // ignore theme listener setup failures
         }
     }
 
@@ -127,10 +240,10 @@
         return "";
     }
 
-    function dispatchStudioTaskLifecycle(action, source, sess) {
+    function dispatchStudioTaskLifecycle(action, trigger, sess) {
         var payload = {
             action: action,
-            source: source,
+            trigger: trigger,
             taskName: getStudioTaskName(sess),
             sessionId: sess && sess.sessionId ? sess.sessionId : window.SESSION_ID,
             timestamp: Date.now()
@@ -170,6 +283,7 @@
     }
 
     bindStudioNavigationBlockedListener();
+    bindStudioThemeBridge();
 
     if (!isStudioPageEnabled) {
         studioLog("inactive, missing studio=true");
@@ -177,7 +291,7 @@
     }
 
     function applyStudioAppearance() {
-        var hiddenControlIds = ["themeBtn", "welcomeVoiceBtn", "chatVoiceBtn"];
+        var hiddenControlIds = ["welcomeVoiceBtn", "chatVoiceBtn"];
         for (var i = 0; i < hiddenControlIds.length; i += 1) {
             var control = document.getElementById(hiddenControlIds[i]);
             if (control) {
@@ -185,20 +299,21 @@
             }
         }
 
-        document.body.setAttribute("data-theme", "light");
+        var themeButton = document.getElementById("themeBtn");
+        if (themeButton) {
+            themeButton.hidden = false;
+            themeButton.classList.remove("layui-hide");
+            themeButton.style.setProperty("display", "flex", "important");
+        }
 
-        if (typeof window.currentTheme !== "undefined") {
-            window.currentTheme = "light";
+        var currentTheme = document.body.getAttribute("data-theme") || window.currentTheme || "light";
+        if (currentTheme !== "light" && currentTheme !== "dark") {
+            currentTheme = "light";
         }
-        if (typeof window.applyHljsTheme === "function") {
-            window.applyHljsTheme("light");
-        }
-        if (typeof window.updateThemeIcon === "function") {
-            window.updateThemeIcon();
-        }
-        if (typeof window.mermaid !== "undefined") {
-            window.mermaid.initialize({ theme: "default" });
-        }
+        applyStudioTheme(currentTheme);
+
+        studioLog("studio appearance applied with theme:", currentTheme);
+        dispatchStudioMessage("soloncode-theme-ready", {});
     }
 
     studioLog("active");
@@ -310,9 +425,9 @@
         }
     }
 
-    function handleBlockedNavigation(url, source) {
+    function handleBlockedNavigation(url, trigger) {
         var payload = {
-            source: source,
+            trigger: trigger,
             url: url,
             timestamp: Date.now()
         };
@@ -320,7 +435,7 @@
         dispatchStudioNavigationBlocked(payload);
 
         if (typeof window.onStudioNavigationBlocked === "function") {
-            window.onStudioNavigationBlocked(url, source);
+            window.onStudioNavigationBlocked(url, trigger);
         }
     }
 

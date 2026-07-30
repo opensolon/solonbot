@@ -54,9 +54,33 @@ body {
     display: none;
     flex-shrink: 0;
     margin-left: 4px;
+    width: 26px;
+    height: 26px;
 }
 .sidebar-item:hover .sidebar-item-menu-wrap,
-.sidebar-item-menu-wrap:focus-within { display: block; }
+.sidebar-item-menu-wrap:focus-within,
+.sidebar-item-menu-wrap.open { display: block; }
+/* pinned：未 hover 时在 ⋯ 槽位显示 pin 标识 */
+.sidebar-item.pinned .sidebar-item-menu-wrap { display: block; }
+.sidebar-item-pin-mark {
+    position: absolute;
+    inset: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit; /* 跟随会话项标题色：普通项 secondary，active 为 accent */
+    pointer-events: none;
+}
+.sidebar-item-pin-mark svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.9;
+}
+.sidebar-item:hover .sidebar-item-pin-mark,
+.sidebar-item-menu-wrap:focus-within .sidebar-item-pin-mark,
+.sidebar-item-menu-wrap.open .sidebar-item-pin-mark { display: none; }
 .sidebar-item-menu-trigger {
     width: 26px;
     height: 26px;
@@ -66,16 +90,19 @@ body {
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     transition: background 0.15s, color 0.15s;
 }
+/* 未置顶：hover/focus/open 时显示 ⋯；已置顶：同样在 hover/focus/open 时替换 pin */
+.sidebar-item:hover .sidebar-item-menu-trigger,
+.sidebar-item-menu-wrap:focus-within .sidebar-item-menu-trigger,
+.sidebar-item-menu-wrap.open .sidebar-item-menu-trigger { display: flex; }
 .sidebar-item-menu-trigger svg {
     width: 16px;
     height: 16px;
 }
-.sidebar-item-menu-wrap.open { display: block; }
 .sidebar-item-menu-trigger:hover,
 .sidebar-item-menu-trigger:focus-visible {
     background: rgba(127, 127, 127, 0.15);
@@ -196,6 +223,7 @@ body {
     color: #4caf50;
     background: rgba(76,175,80,0.1);
 }
+
 .sidebar-item-spinner {
     flex-shrink: 0;
     width: 16px;
@@ -1690,6 +1718,37 @@ body {
     text-overflow: ellipsis;
     font-family: 'SFMono-Regular', 'Consolas', 'Menlo', monospace;
     font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.git-file-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+.git-file-item-dir .git-file-path {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.git-file-item-dir.expanded {
+    background: var(--bg-hover);
+}
+
+/* 目录子列表 */
+.git-dir-sublist {
+    border-left: 2px solid var(--border-color);
+    margin-left: 22px;
+}
+.git-file-item-child {
+    padding-left: 28px !important;
+    font-size: 11px !important;
+}
+.git-file-child-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+    color: var(--text-secondary);
 }
 
 /* Diff Viewer */
@@ -2265,6 +2324,33 @@ body.memory-active .main-header { display: none; }
     flex: 1;
     min-width: 0;
     white-space: pre;
+}
+
+/* ===== 文件查看器：媒体文件预览（图片/视频）===== */
+.git-viewer-content .file-view-media {}
+
+.git-viewer-content .file-view-media-preview {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    min-height: 200px;
+    background: var(--bg-secondary);
+    white-space: normal;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.git-viewer-content .file-view-media-img {
+    max-width: 100%;
+    max-height: calc(100vh - 220px);
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+}
+.git-viewer-content .file-view-media-video {
+    max-width: 100%;
+    max-height: calc(100vh - 220px);
+    border-radius: 4px;
+    background: #000;
 }
 
 /* 工作区干净 */
@@ -2960,7 +3046,8 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-caret { color: var(--text-secondary); width: 12px; height: 12px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
     .mem-caret svg { display: block; transition: transform 0.15s ease; }
     .mem-row.open .mem-caret svg { transform: rotate(90deg); }
-    .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; }
+    .mem-row-star { color: var(--accent); font-size: 12px; font-weight: 600; flex-shrink: 0; min-width: 34px; display: inline-flex; align-items: center; gap: 2px; }
+    .mem-row-star svg { display: block; flex-shrink: 0; }
     .mem-row-key { flex: 1; font-weight: 400; color: var(--text-primary); word-break: break-all; }
     .mem-row-time { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
     /* 展开体：靠留白与 head 分区，不再画分隔线 */

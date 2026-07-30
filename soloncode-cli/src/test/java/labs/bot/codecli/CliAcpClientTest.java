@@ -21,8 +21,7 @@ import java.util.Collections;
 public class CliAcpClientTest {
     public static void main(String[] args) {
         StdioAcpClientTransport transport = new StdioAcpClientTransport(
-                AgentParameters.builder("soloncode").arg("acp").build(),
-                McpJsonDefaults.getMapper());
+                AgentParameters.builder("soloncode").arg("acp").build());
 
         AcpSyncClient client = AcpClient.sync(transport)
                 .requestTimeout(Duration.ofSeconds(60))
