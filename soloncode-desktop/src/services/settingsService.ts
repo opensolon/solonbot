@@ -5,6 +5,7 @@ import { db, getSetting, setSetting } from '../db';
 import { fileService } from './fileService';
 import { mergeFetchedModelsIntoLatest } from '../utils/providerMerge';
 import { credentialService } from './credentialService';
+import { requestDesktopModels } from './modelDiscoveryService';
 
 // ==================== 类型定义 ====================
 
@@ -931,11 +932,7 @@ export const settingsService = {
     model: string = '',
   ): Promise<ModelProvider['availableModels'] | null> {
     try {
-      const resp = await fetch(`http://localhost:${backendPort}/desktop/chat/models/fetch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiUrl, apiKey, provider, model }),
-      });
+      const resp = await requestDesktopModels({ backendPort, apiUrl, apiKey, provider, model });
       if (!resp.ok) return null;
 
       const result = await resp.json();

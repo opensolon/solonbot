@@ -1624,6 +1624,7 @@ function App() {
               }
             }}
             onSessionMessageSaved={incrementSessionMessageCount}
+            onNotify={showToast}
           />
         </div>
       );

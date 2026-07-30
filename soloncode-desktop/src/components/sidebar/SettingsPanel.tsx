@@ -18,6 +18,7 @@ import {
 } from '../../services/settingsService';
 import { fileService } from '../../services/fileService';
 import { updateService, type UpdateInfo } from '../../services/updateService';
+import { requestDesktopModels } from '../../services/modelDiscoveryService';
 import { ChannelQrBind } from './ChannelQrBind';
 import './SettingsPanel.css';
 import './ChannelPanel.css';
@@ -826,15 +827,12 @@ function ProviderModelSelect({ provider, onChange, onModelsLoaded, backendPort }
     setError('');
 
     try {
-      const resp = await fetch(`http://localhost:${port}/desktop/chat/models/fetch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiUrl: provider.apiUrl,
-          apiKey: provider.apiKey,
-          provider: provider.type,
-          model: provider.model || '',
-        }),
+      const resp = await requestDesktopModels({
+        backendPort: port,
+        apiUrl: provider.apiUrl,
+        apiKey: provider.apiKey,
+        provider: provider.type,
+        model: provider.model || '',
       });
       if (!resp.ok) {
         setError('API地址或密钥不正确');

@@ -815,15 +815,15 @@
   border-radius: 8px;
 }
 
-/* 对话输入区固定使用白色表面，避免深色主题下弹层颜色不一致。 */
+/* 对话输入区跟随当前主题，输入框与相关弹层共用同一组主题色。 */
 .chat-input-wrapper {
-  --chat-input-surface: #ffffff;
-  --chat-input-text: #1f2937;
-  --chat-input-muted: #64748b;
-  --chat-input-border: #e2e8f0;
-  --chat-input-hover: #f3f4f6;
-  --chat-input-active: #eef2ff;
-  background-color: var(--chat-input-surface);
+  --chat-input-surface: var(--cb-vscode-input-background);
+  --chat-input-text: var(--cb-text-primary);
+  --chat-input-muted: var(--cb-text-secondary);
+  --chat-input-border: var(--cb-vscode-panel-border);
+  --chat-input-hover: var(--cb-vscode-list-hoverBackground);
+  --chat-input-active: var(--cb-vscode-list-activeSelectionBackground);
+  background-color: var(--cb-vscode-editor-background);
 }
 
 .chat-input-wrapper .context-tag,
@@ -871,7 +871,7 @@
 }
 
 .chat-input-wrapper .message-input::placeholder {
-  color: #94a3b8;
+  color: var(--chat-input-muted);
 }
 
 .chat-input-wrapper .input-picker-header,
@@ -903,7 +903,7 @@
 .chat-input-wrapper .agent-picker-footer span,
 .chat-input-wrapper .autocomplete-footer span,
 .chat-input-wrapper .autocomplete-item .item-icon {
-  background-color: #f8fafc;
+  background-color: var(--chat-input-hover);
 }
 
 .chat-input-wrapper .toolbar-divider {

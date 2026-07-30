@@ -202,6 +202,7 @@ interface ChatViewProps {
   newSessionFromProject?: boolean;
   onSessionRunStateChange?: (sessionId: string, status: 'running' | 'completed' | 'error', error?: string) => void;
   onSessionMessageSaved?: (sessionId: string, count?: number) => void;
+  onNotify?: (message: string) => void;
 }
 
 // 全局 WebSocket 连接管理器（每次请求独立连接�?
@@ -830,7 +831,7 @@ async function sendHitlDecision(sessionId: string, action: 'approve' | 'reject')
   connection.send(payload);
 }
 
-export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, goalDefaultMaxTokens = 0, goalDefaultMaxDuration = 0, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], skills = [], agentRefreshKey, activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved }: ChatViewProps) {
+export function ChatView({ currentConversation, plugins, workspacePath, projectName, theme = 'dark', backendPort, sessions = [], sessionRunStates = {}, maxSteps = 30, goalDefaultMaxTokens = 0, goalDefaultMaxDuration = 0, onUpdateSessionTitle, onNewSession, onSelectSession, providers = [], agents = [], skills = [], agentRefreshKey, activeProviderId, onActiveProviderChange, activeFileName, activeFilePath, onNewProject, onOpenFolder, onFileSelect, reviewFiles = [], onReviewFileSelect, onReviewFileDiscard, promptCreation, onCreateAutomationFromPrompt, automationPrompt, onAutomationPromptConsumed, onAiCreateComplete, newSessionFromProject, onSessionRunStateChange, onSessionMessageSaved, onNotify }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [planApproval, setPlanApproval] = useState<{ sessionId: string; options: SendOptions } | null>(null);
@@ -2387,11 +2388,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     if (!backendPort || !sessionId || messageIndex < 0 || isCurrentConversationLoading) return;
     const selected = messages[messageIndex];
     if (selected.role !== 'USER') return;
-    const action = rerun ? '从此消息重做' : '回退并删除此消息及之后的所有内容';
-    if (!window.confirm(`确定${action}吗？`)) return;
+    if (!rerun && !window.confirm('确定回退并删除此消息及之后的所有内容吗？')) return;
 
     try {
-      const historyResponse = await fetch(`http://localhost:${backendPort}/web/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
+      const historyResponse = await fetch(`http://localhost:${backendPort}/desktop/chat/messages?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
       if (!historyResponse.ok) throw new Error('历史记录读取失败');
       const historyPayload = await historyResponse.json();
       const history: Array<{ role?: string; content?: unknown }> = Array.isArray(historyPayload?.data) ? historyPayload.data : [];
@@ -2404,11 +2404,10 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       });
       if (serverIndex < 0) throw new Error('无法匹配后端历史');
 
-      const rewindBody = new URLSearchParams({ sessionId, count: String(history.length - serverIndex) });
-      const rewindResponse = await fetch(`http://localhost:${backendPort}/web/chat/rewind`, {
+      const rewindResponse = await fetch(`http://localhost:${backendPort}/desktop/chat/rewind`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: rewindBody,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, count: history.length - serverIndex }),
       });
       if (!rewindResponse.ok) throw new Error('后端回退失败');
       const rewindPayload = await rewindResponse.json();
@@ -2458,9 +2457,9 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       }
     } catch (error) {
       console.warn('[ChatView] 会话回退失败，本地记录保持不变:', error);
-      window.alert('操作失败，消息未删除。请检查后端连接后重试。');
+      onNotify?.(rerun ? '重新生成失败，请检查后端连接后重试' : '删除失败，请检查后端连接后重试');
     }
-  }, [activeProviderId, backendPort, currentConversation.id, isCurrentConversationLoading, messages, providers, sendMessage]);
+  }, [activeProviderId, backendPort, currentConversation.id, isCurrentConversationLoading, messages, onNotify, providers, sendMessage]);
 
   const handleDeleteMessage = useCallback((id: number) => { void rewindFromMessage(id, false); }, [rewindFromMessage]);
   const handleRerunMessage = useCallback((id: number) => { void rewindFromMessage(id, true); }, [rewindFromMessage]);
