@@ -14,7 +14,7 @@ import java.io.Serializable;
 @Setter
 public class GeneralGroupDo implements Serializable {
     //会话历史窗口大小（即，新指令时使用几条历史消息）
-    private int sessionWindowSize = 8;
+    private int sessionWindowSize = 12;
     //上下文压缩触发消息数（达到这个数，就开始触发）
     private int compressionThresholdMessages = 100;
     //上下文压缩触发上下文比例（百分比，达到这个比例，就开始触发）

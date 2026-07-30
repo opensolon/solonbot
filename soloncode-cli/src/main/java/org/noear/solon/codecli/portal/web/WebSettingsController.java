@@ -280,7 +280,7 @@ public class WebSettingsController extends BaseSettingsController {
      */
     private void applyGeneralToEngine(GeneralGroupDo g, List<String> applied, List<String> warnings) {
         try {
-            engine.setCompressionThreshold(g.getSummaryWindowSize(), g.getCompressionThresholdPercent() / 100.0D);
+            engine.setCompressionThreshold(g.getCompressionThresholdMessages(), g.getCompressionThresholdPercent() / 100.0D);
             engine.setSessionWindowSize(g.getSessionWindowSize());
             engine.setModelRetries(g.getModelRetries());
             engine.setMcpRetries(g.getMcpRetries());
@@ -547,7 +547,7 @@ public class WebSettingsController extends BaseSettingsController {
                 settings.getGeneral().setWebAuthPass(null);
             }
 
-            engine.setCompressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D);
+            engine.setCompressionThreshold(settings.getGeneral().getCompressionThresholdMessages(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D);
             engine.setSessionWindowSize(settings.getGeneral().getSessionWindowSize());
 
             engine.setModelRetries(settings.getGeneral().getModelRetries());

@@ -100,7 +100,7 @@ public class Configurator {
                 .autoRethink(settings.getGeneral().isAutoRethink())
                 .sessionWindowSize(settings.getGeneral().getSessionWindowSize())
                 .sessionProvider(sessionManager)
-                .compressionThreshold(settings.getGeneral().getSummaryWindowSize(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D)
+                .compressionThreshold(settings.getGeneral().getCompressionThresholdMessages(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D)
                 .memoryEnabled(settings.getGeneral().isMemoryEnabled())
                 .memoryRelevanceCount(settings.getGeneral().getMemoryRelevanceCount())
                 .memoryPriorityCount(settings.getGeneral().getMemoryPriorityCount())
