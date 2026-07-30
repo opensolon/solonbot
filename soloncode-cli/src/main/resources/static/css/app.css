@@ -1718,6 +1718,37 @@ body {
     text-overflow: ellipsis;
     font-family: 'SFMono-Regular', 'Consolas', 'Menlo', monospace;
     font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.git-file-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+.git-file-item-dir .git-file-path {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.git-file-item-dir.expanded {
+    background: var(--bg-hover);
+}
+
+/* 目录子列表 */
+.git-dir-sublist {
+    border-left: 2px solid var(--border-color);
+    margin-left: 22px;
+}
+.git-file-item-child {
+    padding-left: 28px !important;
+    font-size: 11px !important;
+}
+.git-file-child-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+    color: var(--text-secondary);
 }
 
 /* Diff Viewer */

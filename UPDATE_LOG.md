@@ -2,9 +2,10 @@
 ### v2026.7.30
 
 * 优化 soloncode acp 模式
-* 优化 soloncode run 模式
+* 优化 soloncode run 模式（参考 run-headless-mode.md）
 * 添加 soloncode web 文件详情支持图片与视频预览
 * 添加 soloncode web 历史消息中的图片附件支持预览
+* 添加 soloncode web 审查面板对目录的识别
 * 修复 soloncode web 新对话下发 `/goal xx` 可能收不到流消息的问题
 * 细节优化
 
