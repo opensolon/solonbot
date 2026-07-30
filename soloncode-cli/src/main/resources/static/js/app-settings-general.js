@@ -47,7 +47,7 @@
             if (resp.code === 200 && resp.data) {
                 var d = resp.data;
                 $('#generalSessionWindowSize').val(d.sessionWindowSize != null ? formatNum(d.sessionWindowSize) : '');
-                $('#generalSummaryWindowSize').val(d.summaryWindowSize != null ? formatNum(d.summaryWindowSize) : '');
+                $('#generalCompressionThresholdMessages').val((d.compressionThresholdMessages ?? d.summaryWindowSize) != null ? formatNum(d.compressionThresholdMessages ?? d.summaryWindowSize) : '');
                 $('#generalCompressionThresholdPercent').val(d.compressionThresholdPercent != null ? formatNum(d.compressionThresholdPercent) : '');
                 $('#generalSandboxMode').prop('checked', !!d.sandboxMode);
                 $('#generalSandboxAllowUserHome').prop('checked', d.sandboxAllowUserHome !== false);
@@ -99,7 +99,7 @@
         var $generalSaveBtn = $('#generalSaveBtn');
         var bodyObj = {
             sessionWindowSize: parseNumStr($('#generalSessionWindowSize').val().trim()),
-            summaryWindowSize: parseNumStr($('#generalSummaryWindowSize').val().trim()),
+            compressionThresholdMessages: parseNumStr($('#generalCompressionThresholdMessages').val().trim()),
             compressionThresholdPercent: parseNumStr($('#generalCompressionThresholdPercent').val().trim()),
             sandboxMode: $('#generalSandboxMode').is(':checked'),
             sandboxAllowUserHome: $('#generalSandboxAllowUserHome').is(':checked'),
