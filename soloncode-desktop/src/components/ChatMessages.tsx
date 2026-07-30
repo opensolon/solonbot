@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useState, useRef, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
+import { lazy, memo, Suspense, useState, useRef, forwardRef, useImperativeHandle, useCallback, useMemo, type FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
@@ -21,9 +21,11 @@ interface ChatMessagesProps {
   projectName?: string;
   onDeleteMessage?: (id: number) => void;
   onRerunMessage?: (id: number) => void;
-  onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void;
+  onHitlAction?: (action: HitlAction, item: ContentItem, output?: string) => void;
   onFileSelect?: (path: string) => void;
 }
+
+type HitlAction = 'approve' | 'approve_always' | 'reject';
 
 export interface ChatMessagesRef {
   scrollToBottom: () => void;
@@ -301,22 +303,24 @@ function CollapsibleBlock({ label, text, theme }: { label: string; text: string;
   );
 }
 
-// 内容项分组：将连续相同 toolName 的 ACTION 合并为一组
+// 内容项分组：连续 ACTION 过多时收束成一组；否则将连续相同 toolName 的 ACTION 合并。
 type GroupedItem =
   | { kind: 'single'; item: ContentItem }
-  | { kind: 'group'; toolName: string; items: ContentItem[] };
+  | { kind: 'group'; toolName: string; items: ContentItem[]; title?: string };
 
-function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
+const MULTI_ACTION_GROUP_THRESHOLD = 3;
+
+function groupSmallActionRun(actions: ContentItem[]): GroupedItem[] {
   const result: GroupedItem[] = [];
   let i = 0;
-  while (i < items.length) {
-    const item = items[i];
-    if (item.type === 'ACTION' && item.toolName) {
+  while (i < actions.length) {
+    const item = actions[i];
+    if (item.toolName) {
       const toolName = item.toolName;
       const group: ContentItem[] = [item];
       let j = i + 1;
-      while (j < items.length && items[j].type === 'ACTION' && items[j].toolName === toolName) {
-        group.push(items[j]);
+      while (j < actions.length && actions[j].toolName === toolName) {
+        group.push(actions[j]);
         j++;
       }
       if (group.length > 1) {
@@ -333,8 +337,123 @@ function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
   return result;
 }
 
+function groupConsecutiveActions(items: ContentItem[]): GroupedItem[] {
+  const result: GroupedItem[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const item = items[i];
+    if (item.type === 'ACTION') {
+      const group: ContentItem[] = [item];
+      let j = i + 1;
+      while (j < items.length && items[j].type === 'ACTION') {
+        group.push(items[j]);
+        j++;
+      }
+      if (group.length > MULTI_ACTION_GROUP_THRESHOLD) {
+        result.push({ kind: 'group', toolName: 'tools', items: group, title: '运行了多个命令' });
+      } else {
+        result.push(...groupSmallActionRun(group));
+      }
+      i = j;
+    } else {
+      result.push({ kind: 'single', item });
+      i++;
+    }
+  }
+  return result;
+}
+
 // 内容项渲染组件 — memo 化，避免消息不变时重渲染
-const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded, activeThinking }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean; activeThinking?: boolean }) {
+const HitlApproval = memo(function HitlApproval({ item, onHitlAction }: { item: ContentItem; onHitlAction?: (action: HitlAction, item: ContentItem, output?: string) => void }) {
+  const canRemember = Boolean(item.toolName && permissionService.canRemember(item.toolName));
+  const [open, setOpen] = useState(true);
+  const [selectedAction, setSelectedAction] = useState<HitlAction>('approve');
+  const [output, setOutput] = useState('');
+  const instanceIdRef = useRef(`hitl-${Math.random().toString(36).slice(2)}`);
+  const outputId = `${instanceIdRef.current}-output`;
+  const actionName = `${instanceIdRef.current}-action`;
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    onHitlAction?.(selectedAction, item, output.trim() || undefined);
+  };
+
+  return (
+    <div className="content-item hitl-item">
+      <button className="hitl-trigger" type="button" onClick={() => setOpen(true)}>
+        <span className="hitl-trigger-title">需要人工确认</span>
+        {item.toolName && <span className="hitl-trigger-tool">{item.toolName}</span>}
+      </button>
+      {open && (
+        <form className="hitl-popover" onSubmit={handleSubmit}>
+          <div className="hitl-popover-header">
+            <span className="hitl-label">人机交互</span>
+            {item.toolName && <span className="hitl-tool">{item.toolName}</span>}
+          </div>
+          {item.text && <div className="hitl-comment">{item.text}</div>}
+          {item.command && <div className="hitl-command"><code>{item.command}</code></div>}
+          <div className="hitl-options" role="radiogroup" aria-label="审批选项">
+            <label className="hitl-option">
+              <input
+                type="radio"
+                name={actionName}
+                value="approve"
+                checked={selectedAction === 'approve'}
+                onChange={() => setSelectedAction('approve')}
+              />
+              <span>允许本次</span>
+            </label>
+            <label className={`hitl-option${canRemember ? '' : ' disabled'}`}>
+              <input
+                type="radio"
+                name={actionName}
+                value="approve_always"
+                disabled={!canRemember}
+                checked={selectedAction === 'approve_always'}
+                onChange={() => setSelectedAction('approve_always')}
+              />
+              <span>项目内总是允许</span>
+            </label>
+            <label className="hitl-option">
+              <input
+                type="radio"
+                name={actionName}
+                value="reject"
+                checked={selectedAction === 'reject'}
+                onChange={() => setSelectedAction('reject')}
+              />
+              <span>拒绝</span>
+            </label>
+          </div>
+          <label className="hitl-output-label" htmlFor={outputId}>其他（输出）</label>
+          <textarea
+            id={outputId}
+            className="hitl-output"
+            value={output}
+            onChange={event => setOutput(event.target.value)}
+            placeholder="可填写人工输出、说明或拒绝原因"
+            rows={3}
+          />
+          <div className="hitl-actions">
+            <button className="hitl-btn approve" type="submit">提交</button>
+            <button className="hitl-btn neutral" type="button" onClick={() => setOpen(false)}>取消</button>
+          </div>
+        </form>
+      )}
+      {!canRemember && open && (
+        <div className="hitl-hint">当前工具不能记住为“项目内总是允许”。</div>
+      )}
+      {!open && (
+        <button
+          className="hitl-btn approve"
+          type="button"
+          onClick={() => setOpen(true)}
+        >处理</button>
+      )}
+    </div>
+  );
+});
+
+const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onHitlAction, onFileSelect, autoExpanded, activeThinking }: { item: ContentItem; theme?: Theme; onHitlAction?: (action: HitlAction, item: ContentItem, output?: string) => void; onFileSelect?: (path: string) => void; autoExpanded?: boolean; activeThinking?: boolean }) {
   if (item.type === 'FILE') {
     const sizeLabel = item.size == null
       ? ''
@@ -378,27 +497,7 @@ const ContentItemRenderer = memo(function ContentItemRenderer({ item, theme, onH
   }
 
   if (item.type === 'HITL') {
-    return (
-      <div className="content-item hitl-item">
-        <div className="hitl-header">
-          <span className="hitl-label">审批</span>
-        </div>
-        <div className="hitl-body">
-          {item.toolName && <div className="hitl-tool">{item.toolName}</div>}
-          {item.command && <div className="hitl-command"><code>{item.command}</code></div>}
-        </div>
-        <div className="hitl-actions">
-          <button className="hitl-btn approve" onClick={() => onHitlAction?.('approve', item)}>允许本次</button>
-          <button
-            className="hitl-btn approve"
-            disabled={!item.toolName || !permissionService.canRemember(item.toolName)}
-            title={item.toolName && permissionService.canRemember(item.toolName) ? '在当前项目中记住此工具' : '命令执行类工具不能永久放行'}
-            onClick={() => onHitlAction?.('approve_always', item)}
-          >项目内总是允许</button>
-          <button className="hitl-btn reject" onClick={() => onHitlAction?.('reject', item)}>拒绝</button>
-        </div>
-      </div>
-    );
+    return <HitlApproval item={item} onHitlAction={onHitlAction} />;
   }
 
   if (item.type === 'REASON') {
@@ -460,12 +559,12 @@ const MessageMetadata = memo(function MessageMetadata({ metadata }: { metadata: 
 const ThinkingRow = memo(function ThinkingRow({ elapsedSeconds }: { elapsedSeconds: number }) {
   return (
     <div className="message thinking-row" role="status" aria-live="polite" aria-label={`正在思考，已处理 ${elapsedSeconds} 秒`}>
-      <div className="thinking-text">正在思考</div>
+      <div className="thinking-text">正在思考 {elapsedSeconds}s</div>
     </div>
   );
 });
 
-const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
+const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun, onHitlAction, onFileSelect, isStreaming }: { message: Message; theme?: Theme; onDelete?: (id: number) => void; onRerun?: (id: number) => void; onHitlAction?: (action: HitlAction, item: ContentItem, output?: string) => void; onFileSelect?: (path: string) => void; isStreaming?: boolean }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     const text = message.contents
@@ -494,7 +593,7 @@ const MessageRow = memo(function MessageRow({ message, theme, onDelete, onRerun,
         <div className="message-text">
           {grouped.map((g, index) =>
             g.kind === 'group' ? (
-              <ActionGroupBlock key={index} toolName={g.toolName} items={g.items} theme={theme} onFileClick={onFileSelect} autoExpanded={index === activeActionIndex} />
+              <ActionGroupBlock key={index} toolName={g.toolName} items={g.items} title={g.title} theme={theme} onFileClick={onFileSelect} autoExpanded={index === activeActionIndex && !g.title} />
             ) : (
               <ContentItemRenderer
                 key={index}
@@ -539,7 +638,7 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
     const visibleMessages = useMemo(() => {
       return messages.reduce<Message[]>((result, message) => {
         const contents = message.contents
-          .filter(item => !isTodoToolName(item.toolName))
+          .filter(item => item.type !== 'HITL' && !isTodoToolName(item.toolName))
           .reduce<ContentItem[]>((items, item) => {
             const previous = items[items.length - 1];
             if (item.type === 'THINK' && previous?.type === 'THINK') {
@@ -565,12 +664,8 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
       }
     }));
 
-    const lastVisibleMessage = visibleMessages[visibleMessages.length - 1];
-    const hasStreamingAssistantContent = lastVisibleMessage?.role === 'ASSISTANT'
-      && lastVisibleMessage.contents.length > 0;
-    // 模型已经开始输出 THINK/TEXT/ACTION 时，由对应内容块表达运行状态，
-    // 不再额外追加“正在思考”占位，避免出现两条思考提示。
-    const showThinkingRow = isLoading && !hasStreamingAssistantContent;
+    // 运行期间始终保留底部状态，避免工具调用结果出现后看不到仍在执行。
+    const showThinkingRow = isLoading;
 
     const itemContent = useCallback((index: number) => {
       if (showThinkingRow && index === visibleMessages.length) {
@@ -605,7 +700,7 @@ export const ChatMessages = forwardRef<ChatMessagesRef, ChatMessagesProps>(
           atBottomStateChange={(atBottom) => {
             autoFollowRef.current = atBottom;
           }}
-          initialTopMostItemIndex={Math.max(0, visibleMessages.length - 1)}
+          initialTopMostItemIndex={Math.max(0, visibleMessages.length + (showThinkingRow ? 1 : 0) - 1)}
           computeItemKey={(index) => showThinkingRow && index === visibleMessages.length ? 'thinking' : (visibleMessages[index]?.id ?? index)}
           style={{ height: '100%' }}
         />

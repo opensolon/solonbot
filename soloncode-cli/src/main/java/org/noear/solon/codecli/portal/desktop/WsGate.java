@@ -787,8 +787,10 @@ public class WsGate extends SimpleWebSocketListener {
                         : null;
                 streamHub.emit(finalSessionId, new ONode().set("type", "hitl")
                         .set("sessionId", finalSessionId)
+                        .set("callId", task.getCallUuid())
                         .set("toolName", task.getToolName())
                         .set("command", command)
+                        .set("comment", task.getComment())
                         .toJson());
             }
             return;
@@ -948,6 +950,8 @@ public class WsGate extends SimpleWebSocketListener {
         try {
             String sessionId = root.get("sessionId") != null ? root.get("sessionId").getString() : null;
             String action = root.get("action") != null ? root.get("action").getString() : null;
+            String callId = root.get("callId") != null ? root.get("callId").getString() : null;
+            String output = root.get("output") != null ? root.get("output").getString() : null;
 
             if (sessionId == null || action == null) {
                 socket.send(new ONode().set("type", "error").set("text", "sessionId and action required").toJson());
@@ -955,16 +959,26 @@ public class WsGate extends SimpleWebSocketListener {
             }
 
             AgentSession session = engine.getSession(sessionId);
-            HITLTask task = HITL.getPendingTask(session);
+            HITLTask task = Assert.isNotEmpty(callId)
+                    ? HITL.getPendingTaskByCallUuid(session, callId)
+                    : HITL.getPendingTask(session);
             if (task == null) {
                 socket.send(new ONode().set("type", "error").set("text", "No pending HITL task").toJson());
                 return;
             }
 
             if ("approve".equals(action)) {
-                HITL.approve(session, task.getToolName());
+                if (Assert.isNotEmpty(output)) {
+                    HITL.approve(session, task, output);
+                } else {
+                    HITL.approve(session, task);
+                }
             } else {
-                HITL.reject(session, task.getToolName());
+                if (Assert.isNotEmpty(output)) {
+                    HITL.reject(session, task, output);
+                } else {
+                    HITL.reject(session, task);
+                }
             }
 
             // 审批后恢复流执行

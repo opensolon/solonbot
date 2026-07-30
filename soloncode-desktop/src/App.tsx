@@ -1,5 +1,7 @@
 import { lazy, Suspense, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ActivityBar, type ActivityType } from './components/layout/ActivityBar';
 import { TitleBar } from './components/layout/TitleBar';
 import { SidePanel } from './components/layout/SidePanel';
@@ -16,6 +18,7 @@ import {
 } from './components/sidebar/AutomationPanel';
 import { SkillsPanel } from './components/sidebar/SkillsPanel';
 import { AgentsPanel } from './components/sidebar/AgentsPanel';
+import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { MemoryPanel } from './components/sidebar/MemoryPanel';
 import { AgentDetail } from './components/sidebar/AgentDetail';
 import type { Settings } from './components/sidebar/SettingsPanel';
@@ -77,7 +80,6 @@ const plugins: Plugin[] = [];
 const defaultSettings: Settings = {
   theme: 'dark', skin: 'default', fontSize: 14, language: 'zh-CN',
   autoCheckUpdates: false,
-  keepBackendAlive: true,
   lastUpdateCheckAt: '',
   editorTheme: 'auto',
   tabSize: 2, autoSave: true, formatOnSave: true,
@@ -414,13 +416,6 @@ function App() {
       });
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    invoke('set_background_mode', { enabled: settings.keepBackendAlive }).catch(() => {
-      // 浏览器开发模式下没有 Tauri 命令。
-    });
-  }, [settings.keepBackendAlive, settingsLoaded]);
 
   const handleSettingsChange = useCallback((newSettings: Settings, baseSettings: Settings) => {
     const providers = mergeEditedProvidersWithLatest(
@@ -899,6 +894,7 @@ function App() {
   const [terminalVisible, setTerminalVisible] = useState(false);
   const [terminalMounted, setTerminalMounted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const autoUpdateCheckedRef = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((msg: string) => {
@@ -906,6 +902,31 @@ function App() {
     setToast(msg);
     toastTimer.current = setTimeout(() => setToast(null), 5000);
   }, []);
+
+  useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+    void listen('app-close-requested', () => setCloseDialogOpen(true))
+      .then(dispose => { unlisten = dispose; })
+      .catch(() => {
+        // 浏览器开发模式下没有 Tauri 事件通道。
+      });
+    return () => unlisten?.();
+  }, []);
+
+  const handleMinimizeFromClose = useCallback(() => {
+    setCloseDialogOpen(false);
+    void getCurrentWindow().minimize().catch(error => {
+      console.warn('[App] minimize from close dialog failed:', error);
+    });
+  }, []);
+
+  const handleDirectClose = useCallback(() => {
+    setCloseDialogOpen(false);
+    void invoke('close_application').catch(error => {
+      console.error('[App] direct close failed:', error);
+      showToast('关闭程序失败，请重试');
+    });
+  }, [showToast]);
 
   const handleOpenAgentSettings = useCallback((agent: AgentConfig) => {
     setSelectedAutomation(null);
@@ -1764,6 +1785,17 @@ function App() {
         onReconnect={() => reconnectBackend((updater) => setSettings(updater))}
       />
       {toast && <div className="toast-message">{toast}</div>}
+      {closeDialogOpen && (
+        <ConfirmDialog
+          title="关闭 SolonCode"
+          message="请选择最小化到任务栏，或直接关闭程序并停止后端进程。"
+          cancelLabel="最小化"
+          confirmLabel="直接关闭"
+          danger
+          onCancel={handleMinimizeFromClose}
+          onConfirm={handleDirectClose}
+        />
+      )}
       {settingsVisible && (
         <Suspense fallback={null}>
           <SettingsPanel visible settings={settings} onSettingsChange={handleSettingsChange} onClose={() => setSettingsVisible(false)} onSkillInstalled={handleSkillInstalled} backendPort={backendPort} workspacePath={activeProjectPath} sessionId={currentSessionId} />

@@ -141,7 +141,6 @@ export interface GeneralSettings {
   fontSize: number;
   language: string;
   autoCheckUpdates: boolean;
-  keepBackendAlive: boolean;
   lastUpdateCheckAt: string;
   tabSize: number;
   autoSave: boolean;
@@ -430,7 +429,6 @@ const defaultGeneral: GeneralSettings = {
   fontSize: 14,
   language: 'zh-CN',
   autoCheckUpdates: false,
-  keepBackendAlive: true,
   lastUpdateCheckAt: '',
   tabSize: 2,
   autoSave: true,

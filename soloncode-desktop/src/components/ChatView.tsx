@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Message, Conversation, Theme, Plugin, ContentType, ContentItem } from '../types';
 import { normalizeProviderType, type ModelProvider } from '../services/settingsService';
@@ -31,6 +31,13 @@ import { permissionService } from '../services/permissionService';
 import './ChatView.css';
 
 export type PromptCreationType = 'skill' | 'agent' | 'automation';
+type HitlAction = 'approve' | 'approve_always' | 'reject';
+
+interface PendingHitlItem {
+  id: string;
+  sessionId: string;
+  item: ContentItem;
+}
 
 export interface PromptCreationMode {
   id: string;
@@ -222,6 +229,7 @@ class WebSocketManager {
   private reconnectAttempts = new Map<string, number>();
   private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private terminalSessions = new Set<string>();
+  private reconnectingSessions = new Set<string>();
   private messageCallback: ((data: any) => void | Promise<void>) | null = null;
   private statusCallback: ((sessionId: string, status: 'running' | 'completed' | 'error', error?: string) => void) | null = null;
   private backendPort: number | null = null;
@@ -321,13 +329,17 @@ class WebSocketManager {
     let lastError: unknown;
     for (let attempt = 0; attempt <= WS_CONNECT_RETRY_DELAYS_MS.length; attempt++) {
       try {
-        return await this.createConnection(sessionId);
+        const ws = await this.createConnection(sessionId);
+        if (attempt > 0) this.dispatchReconnected(sessionId);
+        return ws;
       } catch (error) {
         lastError = error;
         if (attempt >= WS_CONNECT_RETRY_DELAYS_MS.length) break;
+        this.dispatchReconnecting(sessionId, attempt + 1, WS_CONNECT_RETRY_DELAYS_MS.length);
         await new Promise(resolve => setTimeout(resolve, WS_CONNECT_RETRY_DELAYS_MS[attempt]));
       }
     }
+    this.reconnectingSessions.delete(sessionId);
     throw lastError instanceof Error ? lastError : new Error('WebSocket connection failed');
   }
 
@@ -428,6 +440,7 @@ class WebSocketManager {
   private finishSession(sessionId: string, ws: WebSocket, message: Record<string, any>) {
     if (this.terminalSessions.has(sessionId)) return;
     this.terminalSessions.add(sessionId);
+    this.reconnectingSessions.delete(sessionId);
     this.clearReconnectTimer(sessionId);
     const messageType = String(message.type || '').toLowerCase();
     if (messageType === 'done') this.statusCallback?.(sessionId, 'completed');
@@ -441,12 +454,14 @@ class WebSocketManager {
     const attempt = this.reconnectAttempts.get(sessionId) || 0;
     if (attempt >= WS_RECONNECT_DELAYS_MS.length) {
       this.terminalSessions.add(sessionId);
+      this.reconnectingSessions.delete(sessionId);
       const text = '连接恢复失败，请重试';
       this.statusCallback?.(sessionId, 'error', text);
       this.dispatchMessage({ type: 'error', sessionId, text });
       return;
     }
 
+    this.dispatchReconnecting(sessionId, attempt + 1, WS_RECONNECT_DELAYS_MS.length);
     const timer = setTimeout(async () => {
       this.reconnectTimers.delete(sessionId);
       if (this.terminalSessions.has(sessionId)) return;
@@ -460,6 +475,7 @@ class WebSocketManager {
         }
         this.activeWs.set(sessionId, ws);
         this.bindSessionSocket(sessionId, ws);
+        this.dispatchReconnected(sessionId);
         this.statusCallback?.(sessionId, 'running');
       } catch (error) {
         console.warn(`[WS] Reconnect attempt ${attempt + 1} failed:`, error);
@@ -480,6 +496,27 @@ class WebSocketManager {
     }
   }
 
+  private dispatchReconnecting(sessionId: string, attempt: number, maxAttempts: number) {
+    this.reconnectingSessions.add(sessionId);
+    this.dispatchMessage({
+      type: 'reconnecting',
+      sessionId,
+      attempt,
+      maxAttempts,
+      text: `正在重连 ${attempt}/${maxAttempts}...`,
+    });
+  }
+
+  private dispatchReconnected(sessionId: string) {
+    if (!this.reconnectingSessions.delete(sessionId)) return;
+    this.dispatchMessage({ type: 'reconnected', sessionId });
+  }
+
+  private dispatchReconnectCleared(sessionId: string) {
+    if (!this.reconnectingSessions.delete(sessionId)) return;
+    this.dispatchMessage({ type: 'reconnect_cleared', sessionId });
+  }
+
   private clearReconnectTimer(sessionId: string) {
     const timer = this.reconnectTimers.get(sessionId);
     if (timer) clearTimeout(timer);
@@ -493,6 +530,7 @@ class WebSocketManager {
 
   cancelSession(sessionId: string) {
     this.terminalSessions.add(sessionId);
+    this.dispatchReconnectCleared(sessionId);
     this.clearReconnectTimer(sessionId);
     const ws = this.activeWs.get(sessionId);
     if (ws?.readyState === WebSocket.OPEN) {
@@ -543,6 +581,7 @@ class WebSocketManager {
 
   private closeActive() {
     for (const sessionId of this.reconnectTimers.keys()) this.clearReconnectTimer(sessionId);
+    for (const sessionId of Array.from(this.reconnectingSessions)) this.dispatchReconnectCleared(sessionId);
     for (const ws of this.activeWs.values()) {
       this.intentionallyClosedWs.add(ws);
       ws.close();
@@ -819,10 +858,102 @@ function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[
   );
 }
 
-async function sendHitlDecision(sessionId: string, action: 'approve' | 'reject'): Promise<void> {
+function HitlInputCard({ pending, onAction }: { pending: PendingHitlItem; onAction: (pending: PendingHitlItem, action: HitlAction, output?: string) => void }) {
+  const [open, setOpen] = useState(true);
+  const [selectedAction, setSelectedAction] = useState<HitlAction>('approve');
+  const [output, setOutput] = useState('');
+  const canRemember = Boolean(pending.item.toolName && permissionService.canRemember(pending.item.toolName));
+  const radioName = `${pending.id}-action`;
+  const outputId = `${pending.id}-output`;
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    onAction(pending, selectedAction, output.trim() || undefined);
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="hitl-dock-collapsed" onClick={() => setOpen(true)}>
+        <span>人机交互待确认</span>
+        {pending.item.toolName && <span>{pending.item.toolName}</span>}
+      </button>
+    );
+  }
+
+  return (
+    <form className="hitl-dock-card" onSubmit={handleSubmit}>
+      <div className="hitl-dock-header">
+        <span>人机交互</span>
+        {pending.item.toolName && <span className="hitl-dock-tool">{pending.item.toolName}</span>}
+      </div>
+      {pending.item.text && <div className="hitl-dock-comment">{pending.item.text}</div>}
+      {pending.item.command && <div className="hitl-dock-command"><code>{pending.item.command}</code></div>}
+      <div className="hitl-dock-options" role="radiogroup" aria-label="人机交互选项">
+        <label className="hitl-dock-option">
+          <input
+            type="radio"
+            name={radioName}
+            checked={selectedAction === 'approve'}
+            onChange={() => setSelectedAction('approve')}
+          />
+          <span>允许本次</span>
+        </label>
+        <label className={`hitl-dock-option${canRemember ? '' : ' disabled'}`}>
+          <input
+            type="radio"
+            name={radioName}
+            disabled={!canRemember}
+            checked={selectedAction === 'approve_always'}
+            onChange={() => setSelectedAction('approve_always')}
+          />
+          <span>项目内总是允许</span>
+        </label>
+        <label className="hitl-dock-option">
+          <input
+            type="radio"
+            name={radioName}
+            checked={selectedAction === 'reject'}
+            onChange={() => setSelectedAction('reject')}
+          />
+          <span>拒绝</span>
+        </label>
+      </div>
+      <label className="hitl-dock-output-label" htmlFor={outputId}>其他（输出）</label>
+      <textarea
+        id={outputId}
+        className="hitl-dock-output"
+        value={output}
+        onChange={event => setOutput(event.target.value)}
+        placeholder="可填写人工输出、说明或拒绝原因"
+        rows={3}
+      />
+      <div className="hitl-dock-actions">
+        <button type="submit" className="hitl-dock-submit">提交</button>
+        <button type="button" className="hitl-dock-cancel" onClick={() => setOpen(false)}>取消</button>
+      </div>
+    </form>
+  );
+}
+
+function HitlInputDock({ items, onAction }: { items: PendingHitlItem[]; onAction: (pending: PendingHitlItem, action: HitlAction, output?: string) => void }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="hitl-input-dock" role="region" aria-label="待处理人机交互">
+      <div className="hitl-input-popover">
+        <div className="hitl-input-list">
+          {items.map(item => (
+            <HitlInputCard key={item.id} pending={item} onAction={onAction} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function sendHitlDecision(sessionId: string, action: 'approve' | 'reject', output?: string, callId?: string): Promise<void> {
   const manager = WebSocketManager.getInstance();
   const activeSocket = manager.getSessionSocket(sessionId);
-  const payload = JSON.stringify({ type: 'hitl_action', action, sessionId });
+  const payload = JSON.stringify({ type: 'hitl_action', action, sessionId, output, callId });
   if (activeSocket && activeSocket.readyState === WebSocket.OPEN) {
     activeSocket.send(payload);
     return;
@@ -839,6 +970,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const [thinkingElapsedSeconds, setThinkingElapsedSeconds] = useState(0);
   const [sessionTodoTasks, setSessionTodoTasks] = useState<Record<string, ChatTask[]>>({});
   const [sessionQueues, setSessionQueues] = useState<Record<string, QueuedChatMessage[]>>({});
+  const [pendingHitlItems, setPendingHitlItems] = useState<PendingHitlItem[]>([]);
   const sessionQueuesRef = useRef<Record<string, QueuedChatMessage[]>>({});
   const queueArmedSessionsRef = useRef(new Set<string>());
   const queueDrainingRef = useRef(false);
@@ -1185,8 +1317,54 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   const pendingPersistRef = useRef<PendingPersist | null>(null);
   const pendingPersistBySessionRef = useRef(new Map<string, PendingPersist>());
   const assistantDraftsBySessionRef = useRef(new Map<string, AssistantDraftPersistence>());
+  const reconnectMessageIdsBySessionRef = useRef(new Map<string, number>());
+
+  const clearReconnectMessage = useCallback((sessionId: string) => {
+    const messageId = reconnectMessageIdsBySessionRef.current.get(sessionId);
+    if (!messageId) return;
+    reconnectMessageIdsBySessionRef.current.delete(sessionId);
+
+    const liveMessages = liveMessagesBySessionRef.current.get(sessionId);
+    if (liveMessages) {
+      liveMessagesBySessionRef.current.set(
+        sessionId,
+        liveMessages.filter(message => message.id !== messageId),
+      );
+    }
+
+    if (isSessionVisible(sessionId)) {
+      setMessages(prev => prev.filter(message => message.id !== messageId));
+    }
+  }, []);
+
+  const upsertReconnectMessage = useCallback((sessionId: string, text: string) => {
+    const messageId = reconnectMessageIdsBySessionRef.current.get(sessionId)
+      || Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    reconnectMessageIdsBySessionRef.current.set(sessionId, messageId);
+
+    const reconnectMessage: Message = {
+      id: messageId,
+      role: 'ASSISTANT',
+      timestamp: new Date().toLocaleTimeString(),
+      contents: [{ type: 'ERROR', text }],
+    };
+
+    const liveMessages = liveMessagesBySessionRef.current.get(sessionId);
+    if (liveMessages) {
+      liveMessagesBySessionRef.current.set(
+        sessionId,
+        [...liveMessages.filter(message => message.id !== messageId), reconnectMessage],
+      );
+    }
+
+    if (isSessionVisible(sessionId)) {
+      setMessages(prev => [...prev.filter(message => message.id !== messageId), reconnectMessage]);
+      requestAnimationFrame(() => chatMessagesRef.current?.scrollToBottom());
+    }
+  }, []);
 
   const appendResponseError = useCallback(async (sessionId: string, reason?: unknown) => {
+    clearReconnectMessage(sessionId);
     const errorText = formatResponseErrorText(reason);
     const errorMsg: Message = {
       id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
@@ -1220,7 +1398,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     }
 
     return errorMsg;
-  }, []);
+  }, [clearReconnectMessage]);
 
   // 当前 assistant 消息 ID
   const assistantMsgIdRef = useRef<number>(0);
@@ -1458,11 +1636,32 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     const handleMessage = async (data: any) => {
       const msgSessionId = (data.sessionId || conversationIdRef.current.toString()).toString();
       const isCurrentSession = msgSessionId === conversationIdRef.current.toString() || msgSessionId === sessionIdRef.current;
+
+      if (data.type === 'reconnecting') {
+        const attempt = Number(data.attempt) || 1;
+        const maxAttempts = Number(data.maxAttempts) || WS_RECONNECT_DELAYS_MS.length;
+        upsertReconnectMessage(msgSessionId, data.text || `正在重连 ${attempt}/${maxAttempts}...`);
+        return;
+      }
+
+      if (data.type === 'reconnected') {
+        clearReconnectMessage(msgSessionId);
+        if (isCurrentSession) startLoadingTimer();
+        return;
+      }
+
+      if (data.type === 'reconnect_cleared') {
+        clearReconnectMessage(msgSessionId);
+        return;
+      }
+
+      clearReconnectMessage(msgSessionId);
       // 任意有效消息都说明回答流已经恢复；下一次连续无响应重新计算 3 次机会。
       responseTimeoutRetriesRef.current.delete(msgSessionId);
 
       // done / error 类型必须处理，不�?session 校验限制（保�?loading 状态正确）
       if (data.type === 'done') {
+        setPendingHitlItems(prev => prev.filter(item => item.sessionId !== msgSessionId));
         void refreshSessionTodos(msgSessionId);
         if (!isCurrentSession) {
           await waitForStreamQueueIdle(msgSessionId);
@@ -1597,6 +1796,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       }
 
       if (data.type === 'error') {
+        setPendingHitlItems(prev => prev.filter(item => item.sessionId !== msgSessionId));
         void refreshSessionTodos(msgSessionId);
         if (aiCreateRef.current) {
           const creation = aiCreateRef.current;
@@ -1684,12 +1884,13 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       }
 
       // 其他消息类型检查是否属于当前会话（同时接受 temp ID 和重分配后的真实 ID�?
-      // HITL 审批请求 �?直接追加到当前消�?
+      // HITL 审批请求：显示在输入框上方，避免混入消息正文。
       if (data.type === 'hitl') {
         if (!isCurrentSession) return;
         clearLoadingTimer();
         const toolName = String(data.toolName || '');
         const workspace = workspacePathRef.current || '';
+        const callId = data.callId ? String(data.callId) : undefined;
         if (await permissionService.isAlwaysAllowed(workspace, toolName)) {
           await permissionService.audit({
             sessionId: msgSessionId,
@@ -1698,34 +1899,23 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             action: 'auto_approve',
             command: data.command,
           }).catch(() => undefined);
-          await sendHitlDecision(msgSessionId, 'approve');
+          await sendHitlDecision(msgSessionId, 'approve', undefined, callId);
           startLoadingTimer();
           return;
         }
         const hitlItem: ContentItem = {
           type: 'HITL',
-          text: '',
+          text: data.comment || data.text || '',
           toolName: data.toolName,
           command: data.command,
+          callId,
         };
-        setMessages(prev => {
-          const contentItems = buildContentItems();
-          contentItems.push(hitlItem);
-          const tempMsg: Message = {
-            id: assistantMsgIdRef.current,
-            role: 'ASSISTANT',
-            timestamp: new Date().toLocaleTimeString(),
-            contents: contentItems
-          };
-          const existingIndex = prev.findIndex(m => m.id === assistantMsgIdRef.current);
-          if (existingIndex >= 0) {
-            const updated = [...prev];
-            updated[existingIndex] = tempMsg;
-            return updated;
-          }
-          return [...prev, tempMsg];
+        const id = callId || `${msgSessionId}:${toolName}:${data.command || ''}`;
+        setPendingHitlItems(prev => {
+          const next = prev.filter(pending => pending.id !== id);
+          next.push({ id, sessionId: msgSessionId, item: hitlItem });
+          return next;
         });
-        chatMessagesRef.current?.scrollToBottom();
         return;
       }
 
@@ -2210,9 +2400,9 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     return () => window.clearInterval(timer);
   }, [backendPort, currentConversationId, isLoading, refreshSessionTodos, sessionRunStates]);
 
-  // 停止当前请求
-  const handleHitlAction = useCallback(async (action: 'approve' | 'approve_always' | 'reject', item: ContentItem) => {
-    const sessionId = sessionIdRef.current;
+  const handleHitlAction = useCallback(async (pending: PendingHitlItem, action: HitlAction, output?: string) => {
+    const sessionId = pending.sessionId;
+    const item = pending.item;
     const toolName = item.toolName || '';
     const workspace = workspacePathRef.current || '';
     if (action === 'approve_always') {
@@ -2225,20 +2415,19 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       action: action === 'approve' ? 'approve_once' : action,
       command: item.command,
     }).catch(() => undefined);
-    setMessages(previous => previous.map(message => ({
-      ...message,
-      contents: message.contents.filter(content => content.type !== 'HITL'),
-    })));
-    await sendHitlDecision(sessionId, action === 'reject' ? 'reject' : 'approve');
+    await sendHitlDecision(sessionId, action === 'reject' ? 'reject' : 'approve', output, item.callId);
+    setPendingHitlItems(prev => prev.filter(hitl => hitl.id !== pending.id));
     startLoadingTimer();
   }, []);
 
+  // 停止当前请求
   const handleStop = useCallback(async () => {
     const stoppedSessionId = sessionIdRef.current;
     WebSocketManager.getInstance().cancelSession(stoppedSessionId);
     responseTimeoutRetriesRef.current.delete(stoppedSessionId);
     clearLoadingTimer();
     clearStreamQueue(stoppedSessionId);
+    setPendingHitlItems(prev => prev.filter(item => item.sessionId !== stoppedSessionId));
     setIsLoading(false);
     if (streamingSessionIdRef.current === stoppedSessionId) {
       streamingSessionIdRef.current = null;
@@ -2296,6 +2485,11 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
   }, [providers, onActiveProviderChange]);
 
   const currentConversationIdString = currentConversation.id?.toString();
+  const currentPendingHitlItems = useMemo(() => (
+    currentConversationIdString
+      ? pendingHitlItems.filter(item => item.sessionId === currentConversationIdString)
+      : []
+  ), [currentConversationIdString, pendingHitlItems]);
   const activePromptCreation = promptCreation?.sessionId === currentConversationIdString
     ? promptCreation
     : null;
@@ -2489,7 +2683,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           openInfoSignal={reviewInfoSignal}
         />
       )}
-      <ChatMessages ref={chatMessagesRef} messages={messages} isLoading={isCurrentConversationLoading} thinkingElapsedSeconds={thinkingElapsedSeconds} theme={theme} projectName={projectName} onDeleteMessage={handleDeleteMessage} onRerunMessage={handleRerunMessage} onHitlAction={handleHitlAction} onFileSelect={onFileSelect} />
+      <ChatMessages ref={chatMessagesRef} messages={messages} isLoading={isCurrentConversationLoading} thinkingElapsedSeconds={thinkingElapsedSeconds} theme={theme} projectName={projectName} onDeleteMessage={handleDeleteMessage} onRerunMessage={handleRerunMessage} onFileSelect={onFileSelect} />
 
       {visiblePlanApproval && (
         <div className="plan-approval-bar">
@@ -2517,6 +2711,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           )}
           <ChatTaskList key={currentConversationIdString || 'new'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
+          <HitlInputDock items={currentPendingHitlItems} onAction={handleHitlAction} />
           <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={showStartWorkEntry} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
         </div>
       ) : (
@@ -2526,6 +2721,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
           )}
           <ChatTaskList key={currentConversationIdString || 'current'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
+          <HitlInputDock items={currentPendingHitlItems} onAction={handleHitlAction} />
           <ChatInput onSend={handleChatInputSend} isLoading={isCurrentConversationLoading} onStop={handleStop} providers={providers} agents={agents} skills={skills} agentRefreshKey={agentRefreshKey} activeProviderId={activeProviderId} onModelChange={handleModelChange} activeFileName={promptCreationUi?.fileName || activeFileName} backendPort={backendPort} showStartWork={showStartWorkEntry} onNewProject={onNewProject} onOpenFolder={onOpenFolder} workspacePath={workspacePath} baseContextTokens={baseContextTokens} currentSessionId={currentConversation.id?.toString()} goalDefaultMaxTokens={goalDefaultMaxTokens} goalDefaultMaxDuration={goalDefaultMaxDuration} />
         </>
       )}

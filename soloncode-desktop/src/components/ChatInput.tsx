@@ -1406,8 +1406,10 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         )}
 
         {showModelPicker && (
-          <div className="input-picker-dropdown model-picker-dropdown" ref={modelPickerPanelRef}>
-            <div className="input-picker-header">选择模型</div>
+          <div
+            className="input-picker-dropdown model-picker-dropdown compact-picker-dropdown"
+            ref={modelPickerPanelRef}
+          >
             <div className="input-picker-list">
               {allModels.length === 0 ? (
                 <div className="model-picker-empty">暂无可用模型</div>
@@ -1438,8 +1440,10 @@ export function ChatInput({ onSend, isLoading, onStop, availableFiles = [], agen
         )}
 
         {showReasoningPicker && (
-          <div className="input-picker-dropdown model-picker-dropdown" ref={reasoningPickerPanelRef}>
-            <div className="input-picker-header">选择推理强度</div>
+          <div
+            className="input-picker-dropdown model-picker-dropdown compact-picker-dropdown reasoning-picker-dropdown"
+            ref={reasoningPickerPanelRef}
+          >
             <div className="input-picker-list">
               {REASONING_OPTIONS.map(item => (
                 <button

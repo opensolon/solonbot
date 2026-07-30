@@ -160,6 +160,30 @@
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
 }
 
+/* 参考命令面板：与输入框同宽，靠左展开，通过紧凑行距提升信息密度。 */
+.compact-picker-dropdown {
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.reasoning-picker-dropdown {
+  width: 100%;
+}
+
+.compact-picker-dropdown .input-picker-list {
+  padding: 6px;
+}
+
+.compact-picker-dropdown .model-picker-item {
+  min-height: 36px;
+  padding: 5px 10px;
+  border-radius: 10px;
+}
+
 .model-picker-icon {
   display: none;
   flex: 0 0 auto;
@@ -824,6 +848,11 @@
   --chat-input-hover: var(--cb-vscode-list-hoverBackground);
   --chat-input-active: var(--cb-vscode-list-activeSelectionBackground);
   background-color: var(--cb-vscode-editor-background);
+}
+
+/* 浅色主题使用参考输入框的暖白表面，避免默认输入色呈现明显灰底。 */
+[data-theme="light"] .chat-input-wrapper {
+  --chat-input-surface: #fffeff;
 }
 
 .chat-input-wrapper .context-tag,

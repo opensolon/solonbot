@@ -499,11 +499,6 @@ function GeneralSettings({ settings, updateSetting, backendPort }: {
           min={1024} max={65535} />
       </SettingRow>
 
-      <div className="settings-section-title">后台执行</div>
-      <SettingRow label="关闭窗口后继续运行 Agent / Goal">
-        <input type="checkbox" checked={settings.keepBackendAlive}
-          onChange={e => updateSetting('keepBackendAlive', e.target.checked)} />
-      </SettingRow>
       <SettingRow label="皮肤">
         <select className="setting-select" value={settings.skin}
           onChange={e => updateSetting('skin', e.target.value as Settings['skin'])}>

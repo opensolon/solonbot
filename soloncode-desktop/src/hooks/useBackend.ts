@@ -9,7 +9,6 @@ export function useBackend() {
   const backendPortRef = useRef<number>(4808);
   const [backendPort, setBackendPortState] = useState<number | null>(null);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('connecting');
-  const wsRef = useRef<WebSocket | null>(null);
   const startPromiseRef = useRef<Promise<void> | null>(null);
   const startPortRef = useRef<number | null>(null);
   const startWorkspaceRef = useRef<string>('');
@@ -63,39 +62,9 @@ export function useBackend() {
       }
     };
 
-    const checkViaWs = (port: number): boolean => {
-      const ws = wsRef.current;
-      if (ws?.readyState === WebSocket.OPEN) {
-        markConnected(port);
-        return true;
-      }
-      return ws?.readyState === WebSocket.CONNECTING;
-    };
-
-    const connectWs = (port: number) => {
-      if (disposed) return;
-      const current = wsRef.current;
-      if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
-        return;
-      }
-
-      try {
-        const ws = new WebSocket(`ws://localhost:${port}/desktop/ws`);
-        wsRef.current = ws;
-        ws.onopen = () => { if (!disposed) markConnected(port); };
-        ws.onclose = () => { if (wsRef.current === ws) wsRef.current = null; };
-        ws.onerror = () => { if (wsRef.current === ws) wsRef.current = null; };
-      } catch {
-        wsRef.current = null;
-      }
-    };
-
     const heartbeat = () => {
       const port = backendPortRef.current;
-      if (!checkViaWs(port)) {
-        connectWs(port);
-        checkViaHttp(port);
-      }
+      checkViaHttp(port);
     };
 
     heartbeat();
@@ -104,8 +73,6 @@ export function useBackend() {
     return () => {
       disposed = true;
       clearInterval(timer);
-      wsRef.current?.close();
-      wsRef.current = null;
     };
   }, [markConnected, markProbeFailed]);
 
@@ -197,8 +164,6 @@ export function useBackend() {
   }, []);
 
   const reconnectBackend = useCallback(async (onSettingsUpdate?: (updater: (prev: any) => any) => void) => {
-    wsRef.current?.close();
-    wsRef.current = null;
     const port = backendPortRef.current;
     await startBackend(port, onSettingsUpdate, lastWorkspaceRef.current);
   }, [startBackend]);
