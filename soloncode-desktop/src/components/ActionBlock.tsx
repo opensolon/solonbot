@@ -54,6 +54,44 @@ function extractCommand(args?: Record<string, unknown>): string | null {
   return (args.command || args.cmd || null) as string | null;
 }
 
+interface ToolTarget {
+  kind: 'url' | 'text';
+  value: string;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text || null;
+}
+
+function normalizeToolName(toolName?: string): string {
+  return (toolName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function extractToolTarget(toolName?: string, args?: Record<string, unknown>): ToolTarget | null {
+  if (!args) return null;
+
+  const normalizedToolName = normalizeToolName(toolName);
+  const url = asNonEmptyString(args.url) || asNonEmptyString(args.href) || asNonEmptyString(args.uri);
+  const name = asNonEmptyString(args.name) || asNonEmptyString(args.skillName) || asNonEmptyString(args.skill);
+
+  if (normalizedToolName.includes('webfetch') && url) {
+    return { kind: 'url', value: url };
+  }
+  if (normalizedToolName.includes('skillread') && name) {
+    return { kind: 'text', value: name };
+  }
+  if (url) {
+    return { kind: 'url', value: url };
+  }
+  if (name) {
+    return { kind: 'text', value: name };
+  }
+
+  return null;
+}
+
 function extractDiffStats(toolName?: string, args?: Record<string, unknown>): { added: number; removed: number } | null {
   if (!args || !toolName) return null;
   const t = toolName.toLowerCase();
@@ -180,6 +218,7 @@ export function ActionBlock({ text, toolName, args, theme, onFileClick, autoExpa
   const filePath = extractFileArg(args);
   const lineInfo = extractLineInfo(args);
   const cmd = extractCommand(args);
+  const toolTarget = extractToolTarget(toolName, args);
   const dirEntries = parseDirListing(text || '');
   const diffStats = extractDiffStats(toolName, args);
   const readFileResult = parseReadFileResult(text || '', toolName);
@@ -226,6 +265,11 @@ export function ActionBlock({ text, toolName, args, theme, onFileClick, autoExpa
           <span className="action-block-diff">
             {diffStats.added > 0 && <span className="diff-added">+{diffStats.added}</span>}
             {diffStats.removed > 0 && <span className="diff-removed">-{diffStats.removed}</span>}
+          </span>
+        )}
+        {!displayFilePath && toolTarget && (
+          <span className={`action-block-target action-block-target-${toolTarget.kind}`} title={toolTarget.value}>
+            {toolTarget.value}
           </span>
         )}
         {!displayFilePath && cmd && <span className="action-block-cmd">{(cmd as string).length > 50 ? (cmd as string).slice(0, 50) + '...' : cmd}</span>}

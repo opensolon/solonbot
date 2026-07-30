@@ -104,7 +104,7 @@
 }
 
 .thinking-row {
-  padding: 34px 0 94px;
+  padding: 4px 0;
   align-items: flex-start;
 }
 
@@ -112,6 +112,7 @@
   color: color-mix(in srgb, var(--cb-text-secondary) 72%, transparent);
   font-size: 13px;
   font-weight: 400;
+  line-height: 1.5;
 }
 
 .message-bubble {
@@ -527,33 +528,105 @@
 
 /* HITL 审批卡片 */
 .hitl-item {
-  padding: 8px 0 8px 12px;
-  margin: 4px 0;
-  border-left: 2px solid rgba(245, 158, 11, 0.4);
-}
-
-.hitl-header {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  padding: 8px 0;
+  margin: 4px 0 12px;
+  overflow: visible;
 }
 
 .hitl-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--cb-text-secondary);
-  opacity: 0.7;
+  opacity: 0.9;
 }
 
-.hitl-body {
-  margin-bottom: 12px;
+.hitl-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.34);
+  border-radius: 7px;
+  background: rgba(245, 158, 11, 0.09);
+  color: var(--cb-text-primary);
+  cursor: pointer;
+}
+
+.hitl-trigger:hover {
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
+.hitl-trigger-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hitl-trigger-tool {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--cb-text-secondary);
+}
+
+.hitl-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  width: min(440px, calc(100vw - 64px));
+  padding: 12px;
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 8px;
+  background: var(--cb-vscode-editor-background);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+}
+
+.hitl-popover::after {
+  content: "";
+  position: absolute;
+  left: 24px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  border-right: 1px solid var(--cb-vscode-panel-border);
+  border-bottom: 1px solid var(--cb-vscode-panel-border);
+  background: var(--cb-vscode-editor-background);
+  transform: rotate(45deg);
+}
+
+.hitl-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .hitl-tool {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--cb-text-secondary);
-  margin-bottom: 4px;
+}
+
+.hitl-comment {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--cb-text-primary);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .hitl-command {
@@ -569,9 +642,65 @@
   color: var(--cb-text-primary);
 }
 
+.hitl-options {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.hitl-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 8px;
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 6px;
+  color: var(--cb-text-primary);
+  cursor: pointer;
+}
+
+.hitl-option:hover {
+  background: var(--cb-vscode-list-hoverBackground);
+}
+
+.hitl-option.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hitl-output-label {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cb-text-secondary);
+}
+
+.hitl-output {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 6px;
+  background: var(--cb-vscode-input-background, var(--cb-vscode-sideBar-background));
+  color: var(--cb-text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.hitl-output:focus {
+  border-color: var(--cb-accent);
+}
+
 .hitl-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
+  margin-top: 10px;
 }
 
 .hitl-btn {
@@ -593,9 +722,21 @@
   color: white;
 }
 
+.hitl-btn.neutral {
+  background: var(--cb-vscode-button-secondaryBackground, var(--cb-vscode-sideBar-background));
+  color: var(--cb-text-primary);
+  border: 1px solid var(--cb-vscode-panel-border);
+}
+
 .hitl-btn.reject {
   background-color: #ef4444;
   color: white;
+}
+
+.hitl-hint {
+  font-size: 12px;
+  color: var(--cb-text-secondary);
+  opacity: 0.8;
 }
 
 /* 消息时间 */

@@ -250,7 +250,7 @@ public class Configurator {
             }
 
             if (AgentFlags.FLAG_SERVE.equals(flag)) { // java -jar soloncode.jar server // soloncode server
-                runDesktopServe(agentRuntime, agentSettings, cliShell);
+                runDesktopServe(agentRuntime, agentSettings, cliShell, sessionManager);
                 runWebServe(agentRuntime, agentSettings, null, sessionManager);
                 return;
             }
@@ -287,13 +287,15 @@ public class Configurator {
         }
     }
 
-    private void runDesktopServe(HarnessEngine agentRuntime, AgentSettings settings, CliShell cliShell) {
+    private void runDesktopServe(HarnessEngine agentRuntime, AgentSettings settings, CliShell cliShell,
+                                 SessionManager sessionManager) {
         //serve ws gate
         WsGate wsGate = new WsGate(agentRuntime, settings, loopScheduler);
         WebSocketRouter.getInstance().of("/desktop/ws", wsGate);
 
         //serve desktop controller
-        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class, new WsController(agentRuntime, settings, wsGate, loopScheduler));
+        BeanWrap desktopBean = Solon.context().wrapAndPut(WsController.class,
+                new WsController(agentRuntime, settings, wsGate, loopScheduler, sessionManager));
         Solon.app().router().add(desktopBean);
 
         cliShell.printWelcome("Server port: " + Solon.cfg().serverPort());

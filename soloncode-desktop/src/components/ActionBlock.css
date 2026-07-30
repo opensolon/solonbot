@@ -41,6 +41,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .action-block-file:hover {
@@ -70,6 +71,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.action-block-target {
+  color: var(--cb-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.action-block-target-url {
+  color: var(--cb-accent);
 }
 
 .action-block-diff {
