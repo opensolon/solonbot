@@ -41,6 +41,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .action-group-file:hover {
@@ -53,6 +54,20 @@
   font-size: 10px;
   flex-shrink: 0;
   opacity: 0.8;
+}
+
+.action-group-target {
+  color: var(--cb-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.action-group-target-url {
+  color: var(--cb-accent);
 }
 
 .action-group-badge {
@@ -121,6 +136,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .action-group-item-file:hover {
@@ -130,6 +146,25 @@
 .action-group-item-idx {
   color: var(--cb-text-secondary);
   font-family: var(--font-mono);
+}
+
+.action-group-item-tool {
+  color: var(--cb-text-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.action-group-item-target {
+  color: var(--cb-text-secondary);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.action-group-item-target-url {
+  color: var(--cb-accent);
 }
 
 .action-group-item-lines {

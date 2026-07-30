@@ -13,11 +13,20 @@ interface ActionGroupBlockProps {
   theme?: Theme;
   onFileClick?: (filePath: string) => void;
   autoExpanded?: boolean;
+  title?: string;
 }
 
 function capitalize(s: string): string {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatToolName(toolName?: string): string {
+  if (!toolName) return 'Tool';
+  return toolName
+    .split('/')
+    .map(part => capitalize(part))
+    .join('/');
 }
 
 function isDirectoryPath(p: string): boolean {
@@ -45,6 +54,44 @@ function extractLineInfo(args?: Record<string, unknown>): string | null {
   const end = args.end_line || args.endLine || args.limit;
   if (start && end) return `L${start}-${end}`;
   if (start) return `L${start}`;
+  return null;
+}
+
+interface ToolTarget {
+  kind: 'url' | 'text';
+  value: string;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text || null;
+}
+
+function normalizeToolName(toolName?: string): string {
+  return (toolName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function extractToolTarget(toolName?: string, args?: Record<string, unknown>): ToolTarget | null {
+  if (!args) return null;
+
+  const normalizedToolName = normalizeToolName(toolName);
+  const url = asNonEmptyString(args.url) || asNonEmptyString(args.href) || asNonEmptyString(args.uri);
+  const name = asNonEmptyString(args.name) || asNonEmptyString(args.skillName) || asNonEmptyString(args.skill);
+
+  if (normalizedToolName.includes('webfetch') && url) {
+    return { kind: 'url', value: url };
+  }
+  if (normalizedToolName.includes('skillread') && name) {
+    return { kind: 'text', value: name };
+  }
+  if (url) {
+    return { kind: 'url', value: url };
+  }
+  if (name) {
+    return { kind: 'text', value: name };
+  }
+
   return null;
 }
 
@@ -115,7 +162,7 @@ function AutoScrollContent({ children, watchKey, autoFollow }: { children: React
   );
 }
 
-export function ActionGroupBlock({ toolName, items, theme, onFileClick, autoExpanded = false }: ActionGroupBlockProps) {
+export function ActionGroupBlock({ toolName, items, theme, onFileClick, autoExpanded = false, title }: ActionGroupBlockProps) {
   const [groupExpanded, setGroupExpanded] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
@@ -124,16 +171,19 @@ export function ActionGroupBlock({ toolName, items, theme, onFileClick, autoExpa
     setExpandedIndex(autoExpanded ? Math.max(0, items.length - 1) : null);
   }, [autoExpanded, items.length]);
 
-  const name = capitalize(toolName || 'Tool');
+  const name = title || formatToolName(toolName);
+  const mixedTools = new Set(items.map(item => item.toolName || '').filter(Boolean)).size > 1;
+  const showItemToolName = Boolean(title) || mixedTools;
 
   // 从第一个 item 提取文件路径（同组工具通常操作同一文件）
-  const firstFilePath = extractFileArg(items[0]?.args);
-  const firstLineInfo = extractLineInfo(items[0]?.args);
+  const firstFilePath = title ? null : extractFileArg(items[0]?.args);
+  const firstLineInfo = title ? null : extractLineInfo(items[0]?.args);
+  const firstToolTarget = title ? null : extractToolTarget(items[0]?.toolName || toolName, items[0]?.args);
 
   const totalDiffStats = useMemo(() => {
     let added = 0, removed = 0;
     for (const item of items) {
-      const s = extractDiffStats(toolName, item.args);
+      const s = extractDiffStats(item.toolName || toolName, item.args);
       if (s) { added += s.added; removed += s.removed; }
     }
     return (added || removed) ? { added, removed } : null;
@@ -169,6 +219,14 @@ export function ActionGroupBlock({ toolName, items, theme, onFileClick, autoExpa
             {toRelativePath(firstFilePath)}
           </span>
         )}
+        {!firstFilePath && firstToolTarget && (
+          <span
+            className={`action-group-target action-group-target-${firstToolTarget.kind}`}
+            title={firstToolTarget.value}
+          >
+            {firstToolTarget.value}
+          </span>
+        )}
         {firstLineInfo && <span className="action-group-lines">{firstLineInfo}</span>}
         {totalDiffStats && (
           <span className="action-block-diff">
@@ -185,16 +243,26 @@ export function ActionGroupBlock({ toolName, items, theme, onFileClick, autoExpa
             const isOpen = expandedIndex === idx;
             const itemFile = extractFileArg(item.args);
             const itemLine = extractLineInfo(item.args);
+            const itemToolName = formatToolName(item.toolName || (title ? undefined : toolName));
+            const itemToolTarget = extractToolTarget(item.toolName || toolName, item.args);
             return (
               <div key={idx} className="action-group-item">
                 <div className="action-group-item-header" onClick={() => setExpandedIndex(isOpen ? null : idx)}>
                   <span className="action-group-item-icon">{isOpen ? '▾' : '▸'}</span>
+                  {showItemToolName && <span className="action-group-item-tool">{itemToolName}</span>}
                   {itemFile ? (
                     <span
                       className="action-group-item-file"
                       onClick={e => { e.stopPropagation(); onFileClick?.(itemFile!); }}
                     >
                       {toRelativePath(itemFile)}
+                    </span>
+                  ) : itemToolTarget ? (
+                    <span
+                      className={`action-group-item-target action-group-item-target-${itemToolTarget.kind}`}
+                      title={itemToolTarget.value}
+                    >
+                      {itemToolTarget.value}
                     </span>
                   ) : (
                     <span className="action-group-item-idx">#{idx + 1}</span>
