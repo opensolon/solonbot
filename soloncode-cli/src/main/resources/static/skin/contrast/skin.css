@@ -7,6 +7,7 @@
 [data-skin="contrast"][data-theme="light"] {
     --accent: #1a1a1a;
     --accent-hover: #333333;
+    --accent-rgb: 26, 26, 26;
     --accent-light: #f0f0f0;
     --bg-user-msg: #efefef;
     --text-primary: #0a0a0a;
@@ -47,14 +48,16 @@
 [data-skin="contrast"][data-theme="dark"] {
     --accent: #e0e0e0;
     --accent-hover: #ffffff;
-    --accent-light: #282828;
-    --bg-user-msg: #1a3060;
+    --accent-rgb: 224, 224, 224;
+    --accent-fill: #3a3a3a;
+    --accent-light: #333333;
+    --bg-user-msg: #3a3a3a;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-sidebar: #e2e8f0;
     --text-user-msg: #ffffff;
-    --text-user-msg-link: #1a1a1a;
-    --text-user-msg-link-hover: #555555;
+    --text-user-msg-link: #ffffff;
+    --text-user-msg-link-hover: #d1d1d1;
     --text-ai-msg: #f8fafc;
     --border-color: #64748b;
     --border-input: #94a3b8;
@@ -62,7 +65,7 @@
     --bg-body: #0a0a0a;
     --bg-main: #161616;
     --bg-sidebar: #111111;
-    --bg-hover: #222222;
+    --bg-hover: #2e2e2e;
     --bg-input-box: #1c1c1c;
     --bg-primary: #161616;
     --bg-secondary: #111111;
@@ -70,6 +73,10 @@
     --tag-border: #444444;
     --reason-group-think-bg: #1a1a1a;
     --reason-group-think-border: #444444;
+    --bg-code: #242424;
+    --bg-code-block: #101010;
+    --text-code: #e6e6e6;
+    --text-tertiary: #9ca3af;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.45);
 

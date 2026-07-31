@@ -341,7 +341,7 @@ body {
 .welcome-input-box textarea { border: none; outline: none; resize: none; background: transparent; padding: 18px 20px 8px; font-family: var(--font-sans); font-size: 15px; color: var(--text-primary); min-height: 54px; max-height: 140px; line-height: 1.6; }
 .welcome-input-box textarea::placeholder { color: var(--text-secondary); }
 .welcome-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; gap: 8px; }
-.welcome-send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s; }
+ .welcome-send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent-fill, var(--accent)); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s; }
 .welcome-send-btn:hover { background: var(--accent-hover); transform: scale(1.06); }
 
 /* ===== Chat View ===== */
@@ -607,7 +607,7 @@ body {
 /* Agent identity is expressed by the badge, avoiding another nested border. */
 
 /* Agent badge: small pill/tag next to label or tool name */
-.agent-badge { display: inline-flex; align-items: center; padding: 0 6px; margin-left: 6px; font-size: 10px; font-weight: 600; line-height: 18px; border-radius: 4px; background: var(--accent); color: #fff; vertical-align: middle; white-space: nowrap; }
+ .agent-badge { display: inline-flex; align-items: center; padding: 0 6px; margin-left: 6px; font-size: 10px; font-weight: 600; line-height: 18px; border-radius: 4px; background: var(--accent-fill, var(--accent)); color: #fff; vertical-align: middle; white-space: nowrap; }
 .reason-group-think-header .agent-badge { font-size: 9px; line-height: 15px; padding: 0 5px; }
 
 /* Task group: wraps reason-group + tool-cards for multitask subagent output */
@@ -681,7 +681,7 @@ body {
 .input-box textarea { border: none; outline: none; resize: none; background: transparent; padding: 14px 16px 6px; font-family: var(--font-sans); font-size: 14px; color: var(--text-primary); min-height: 44px; max-height: 140px; line-height: 1.6; }
 .input-box textarea::placeholder { color: var(--text-secondary); }
 .input-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; gap: 8px; }
-.send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s; }
+ .send-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent-fill, var(--accent)); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s; }
 .send-btn:hover { background: var(--accent-hover); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .send-btn.stop-mode { background: var(--color-danger); }
@@ -778,7 +778,7 @@ body {
 .model-option-pills { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .model-option-pills button { border: 1px solid var(--border-color); background: var(--bg-input-box); color: var(--text-secondary); font-size: 11px; padding: 3px 8px; border-radius: 999px; cursor: pointer; transition: all 0.15s; line-height: 1.3; }
 .model-option-pills button:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
-.model-option-pills button.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+ .model-option-pills button.active { background: var(--accent-fill, var(--accent)); color: #fff; border-color: var(--accent); font-weight: 600; }
 .model-option-pills button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .model-option-hint { font-size: 10px; color: var(--text-secondary); opacity: 0.78; line-height: 1.35; }
 .model-name-badge { font-size: 11px; color: var(--text-secondary); opacity: 0.85; margin-left: 2px; }
@@ -854,7 +854,7 @@ body {
 .msg-wrap::-webkit-scrollbar-track, .sidebar-list::-webkit-scrollbar-track, .reason-group-think-body::-webkit-scrollbar-track { background: transparent; }
 
 /* Voice Input */
-.voice-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+ .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent-fill, var(--accent)); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
 .voice-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
 .voice-btn svg { width: 20px; height: 20px; fill: #fff; }
 .voice-btn.recording { background: var(--color-danger); color: #fff; animation: voice-pulse 1.2s ease-in-out infinite; }
@@ -918,7 +918,7 @@ body {
 .loop-item:last-child { border-bottom: none; }
 .loop-item-row { display: flex; align-items: center; gap: 6px; }
 .loop-item-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.loop-item-dot.ready { background: var(--accent); box-shadow: 0 0 0 2px rgba(79,110,247,0.2); }
+ .loop-item-dot.ready { background: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 79,110,247), 0.2); }
 .loop-item-dot.running { background: #f0ad4e; animation: pulse 1.5s infinite; }
 .loop-item-dot.disabled { background: var(--text-secondary); opacity: 0.4; }
 .loop-item-dot.cancelled { background: var(--color-danger); opacity: 0.4; }
@@ -1022,7 +1022,7 @@ body {
 .loop-form-advanced-toggle.collapsed svg { transform: rotate(-90deg); }
 .loop-form-advanced { border-top: 1px solid var(--border-color); padding: 10px 10px 4px; margin-top: 4px; background: var(--bg-hover); border-radius: 6px; display: none; }
 .loop-form-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px 12px; background: var(--bg-input-box); flex-shrink: 0; }
-.loop-btn-primary { background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 13px; padding: 6px 16px; border-radius: 6px; transition: opacity 0.15s; }
+ .loop-btn-primary { background: var(--accent-fill, var(--accent)); color: #fff; border: none; cursor: pointer; font-size: 13px; padding: 6px 16px; border-radius: 6px; transition: opacity 0.15s; }
 .loop-btn-primary:hover { opacity: 0.9; }
 .loop-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .loop-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); cursor: pointer; font-size: 13px; padding: 6px 16px; border-radius: 6px; }
@@ -1396,7 +1396,7 @@ body {
     height: 16px;
     padding: 0 4px;
     border-radius: 8px;
-    background: var(--accent);
+    background: var(--accent-fill, var(--accent));
     color: #fff;
     font-size: 10px;
     font-weight: 600;
@@ -1520,7 +1520,7 @@ body {
 
 /* Badge */
 .git-badge {
-    background: var(--accent);
+    background: var(--accent-fill, var(--accent));
     color: #fff;
     font-size: 10px;
     padding: 1px 5px;
@@ -1599,7 +1599,7 @@ body {
     padding: 10px 0;
     border: none;
     border-radius: 8px;
-    background: var(--accent);
+    background: var(--accent-fill, var(--accent));
     color: #fff;
     font-size: 13px;
     font-weight: 500;
@@ -1989,7 +1989,7 @@ body {
     padding: 0 12px;
     border: none;
     border-radius: 6px;
-    background: var(--accent);
+    background: var(--accent-fill, var(--accent));
     color: #fff;
     font-size: 12px;
     font-weight: 500;
@@ -2881,7 +2881,7 @@ pre:hover .code-copy-btn { opacity: 1; }
 /* ========== 任务面板 ========== */
 
 .todo-badge {
-    background: var(--accent);
+    background: var(--accent-fill, var(--accent));
     color: #fff;
     font-size: 10px;
     padding: 1px 5px;
@@ -3049,8 +3049,8 @@ pre:hover .code-copy-btn { opacity: 1; }
 .memory-btn { height: 32px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; transition: all 0.15s; }
 .memory-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 /* 保存：唯一强调点，实心主色无边框 */
-.memory-btn-primary { background: var(--accent); color: #fff; font-weight: 500; }
-.memory-btn-primary:hover { background: var(--accent); color: #fff; filter: brightness(1.08); }
+ .memory-btn-primary { background: var(--accent-fill, var(--accent)); color: #fff; font-weight: 500; }
+ .memory-btn-primary:hover { background: var(--accent-fill, var(--accent)); color: #fff; filter: brightness(1.08); }
 /* 删除：纯文字按钮，hover 才现浅危险底 */
 .memory-btn-danger { color: var(--color-danger); }
 .memory-btn-danger:hover { background: rgba(220,53,69,0.1); color: var(--color-danger); }
@@ -3095,5 +3095,5 @@ pre:hover .code-copy-btn { opacity: 1; }
     .mem-scope-toggle { display: inline-flex; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; height: 34px; width: fit-content; }
     .mem-scope-btn { padding: 0 10px; border: none; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all 0.15s; font-family: inherit; line-height: 34px; }
     .mem-scope-btn:not(:last-child) { border-right: 1px solid var(--border-color); }
-    .mem-scope-btn.active { background: var(--accent); color: #fff; }
+ .mem-scope-btn.active { background: var(--accent-fill, var(--accent)); color: #fff; }
     .mem-scope-btn.active + .mem-scope-btn { border-left-color: transparent; }
