@@ -85,6 +85,7 @@
             return;
         }
         todoEmpty.style.display = 'none';
+        var STATUS_CSS = { pending: 'pending', in_progress: 'in-progress', done: 'done' };
         var html = '';
         var lastGroup = '';
         for (var i = 0; i < items.length; i++) {
@@ -93,7 +94,7 @@
                 html += '<div class="todo-group">' + escapeHtml(item.group) + '</div>';
                 lastGroup = item.group;
             }
-            html += '<div class="todo-item todo-' + item.status + '">' +
+            html += '<div class="todo-item todo-' + (STATUS_CSS[item.status] || item.status) + '">' +
                 '<span class="todo-check">' + statusIcon(item.status) + '</span>' +
                 '<span class="todo-text">' + escapeHtml(item.text) + '</span>' +
                 '</div>';

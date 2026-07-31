@@ -1562,10 +1562,10 @@ function rebuildMsgNav() {
     var $rows = $(sess.container).find('.msg-row.user');
     if ($rows.length === 0) { $nav.hide().empty(); return; }
 
-    var wrap = document.getElementById('messagesWrap');
+    var wrap = document.getElementById('msgWrap');
     if (!wrap) return;
 
-    // 导航条对齐 messagesWrap
+    // 导航条对齐 msgWrap
     $nav.css({
         top: wrap.offsetTop + 'px',
         height: wrap.offsetHeight + 'px'
@@ -1590,7 +1590,7 @@ function rebuildMsgNav() {
 function updateMsgNavActive() {
     var $nav = $('#msgNav');
     if (!$nav.is(':visible')) return;
-    var wrap = document.getElementById('messagesWrap');
+    var wrap = document.getElementById('msgWrap');
     if (!wrap) return;
     var sess = activeSessionId ? sessionMap[activeSessionId] : null;
     if (!sess || !sess.container) return;
@@ -1708,7 +1708,7 @@ $(document).on('click', '.msg-nav-panel-item', function() {
 });
 
 // 滚动时更新 active 态
-$('#messagesWrap').on('scroll.msgnav', function() {
+$('#msgWrap').on('scroll.msgnav', function() {
     updateMsgNavActive();
 });
 

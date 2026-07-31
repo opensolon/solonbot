@@ -456,7 +456,7 @@
         var providerName = $('#providerName').val() || '';
         var providerStandard = $('#providerStandard').val();
         var providerStandardAbbr = getStandardAbbr(providerStandard) || 'F';
-        var providerEnabled = $('#providerEnabled').val() === 'true' || currentProvider && currentProvider.enabled !== false;
+        var providerEnabled = currentProvider ? currentProvider.enabled !== false : true;
         var html = '';
         fetchedModels.forEach(function (model) {
             // 检查是否已同步到 LLM

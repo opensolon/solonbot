@@ -21,7 +21,7 @@
     var gitRefreshBtn = document.getElementById('gitRefreshBtn');
 
     // Diff Viewer / File Viewer 元素（内联在 main-area 内）
-    var gitDiffViewer = document.getElementById('gitDiffViewer');
+    var gitViewer = document.getElementById('gitViewer');
     var gitViewerLabel = document.getElementById('gitViewerLabel');
     var gitViewerFile = document.getElementById('gitViewerFile');
     var gitViewerContent = document.getElementById('gitViewerContent');
@@ -99,16 +99,18 @@
             if (contentEl) contentEl.classList.add('active');
 
             // 切到 Git tab 时刷新
-            if (targetTab === 'gitdiff') loadGitStatus();
+            if (targetTab === 'gitDiff') loadGitStatus();
             // 切到任务 tab 时刷新
             if (targetTab === 'tasks' && window.loadTodos) window.loadTodos();
             // 持久化
-            localStorage.setItem('filer-active-tab', targetTab);
+            localStorage.setItem('workspace-active-tab', targetTab);
         });
     });
 
     // 恢复 Tab 状态
-    var savedTab = localStorage.getItem('filer-active-tab');
+    var savedTab = localStorage.getItem('workspace-active-tab') || localStorage.getItem('filer-active-tab');
+    if (savedTab === 'gitdiff') savedTab = 'gitDiff';
+    localStorage.removeItem('filer-active-tab'); // 迁移后清理旧 key，避免遗留 filer 前缀
     if (savedTab && savedTab !== 'files') {
         var savedContentId = 'tabContent' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1);
         var savedTabEl = document.querySelector('.workspace-tab[data-tab="' + savedTab + '"]');
@@ -118,7 +120,7 @@
             tabContents.forEach(function(tc) { tc.classList.remove('active'); });
             savedTabEl.classList.add('active');
             savedContentEl.classList.add('active');
-            if (savedTab === 'gitdiff') loadGitStatus();
+            if (savedTab === 'gitDiff') loadGitStatus();
             if (savedTab === 'tasks' && window.loadTodos) window.loadTodos();
         }
     }
@@ -237,8 +239,9 @@
             });
 
             // 状态字母
+            var GIT_STATUS_CLASS = { S: 'staged', M: 'modified', A: 'added', D: 'deleted', '?': 'untracked', R: 'renamed', U: 'conflict', C: 'copied' };
             var statusSpan = document.createElement('span');
-            statusSpan.className = 'git-status-letter ' + file.status;
+            statusSpan.className = 'git-status-letter ' + (GIT_STATUS_CLASS[file.status] || 'other');
             statusSpan.textContent = file.status;
 
             // 文件/文件夹图标 + 路径
@@ -434,7 +437,7 @@
     var diffViewerActive = false;
 
     function openFileViewer(path, name, status) {
-        if (!gitDiffViewer) return;
+        if (!gitViewer) return;
 
         viewerMode = 'file';
 
@@ -444,8 +447,8 @@
 
         // 显示 viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
         document.body.classList.add('memory-active');
-        gitDiffViewer.classList.remove('mem-overlay');
-        gitDiffViewer.style.display = 'flex';
+        gitViewer.classList.remove('mem-overlay');
+        gitViewer.style.display = 'flex';
         diffViewerActive = true;
 
         // 从路径中解析工作区前缀：@xxx/xxx
@@ -473,7 +476,7 @@
         if (gitViewerFile) gitViewerFile.textContent = displayPath;
 
         // 清理操作栏
-        var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
+        var oldActions = gitViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
 
         if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">加载中...</div>';
@@ -919,7 +922,7 @@
     // ---- Diff Viewer：打开内联 diff（在 main-area 内）----
 
     function openDiffViewer(path, status) {
-        if (!gitDiffViewer) return;
+        if (!gitViewer) return;
 
         viewerMode = 'diff';
 
@@ -929,8 +932,8 @@
 
         // 显示 diff viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
         document.body.classList.add('memory-active');
-        gitDiffViewer.classList.remove('mem-overlay');
-        gitDiffViewer.style.display = 'flex';
+        gitViewer.classList.remove('mem-overlay');
+        gitViewer.style.display = 'flex';
         diffViewerActive = true;
 
         // 审查详情模式：隐藏"视图"和"复制"按钮（全屏按钮保留）
@@ -1041,7 +1044,7 @@
     // ---- Diff Viewer：渲染操作按钮（添加到Git / 移出暂存 / 回滚）----
     function renderViewerActions(path, status) {
         // 移除旧的操作栏（如有）
-        var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
+        var oldActions = gitViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
 
         var actionBar = document.createElement('div');
@@ -1190,9 +1193,9 @@
         if (!hasAction) return;
 
         // 插入到 header 后面、content 前面
-        var content = gitDiffViewer.querySelector('.git-viewer-content');
+        var content = gitViewer.querySelector('.git-viewer-content');
         if (content) {
-            gitDiffViewer.insertBefore(actionBar, content);
+            gitViewer.insertBefore(actionBar, content);
         }
     }
 
@@ -1263,22 +1266,22 @@
 
     // ---- Diff Viewer：关闭，恢复原始视图 ----
     function closeCenterViewer() {
-        if (!gitDiffViewer) return;
+        if (!gitViewer) return;
 
         // 如果当前在全屏状态，退出全屏
-        if (document.fullscreenElement === gitDiffViewer && document.exitFullscreen) {
+        if (document.fullscreenElement === gitViewer && document.exitFullscreen) {
             document.exitFullscreen().catch(function(e){});
         }
 
-        gitDiffViewer.style.display = 'none';
+        gitViewer.style.display = 'none';
         diffViewerActive = false;
 
         // 恢复主区顶部条（审查/文件详情/记忆面板均在打开时将其隐藏）
         document.body.classList.remove('memory-active');
-        gitDiffViewer.classList.remove('mem-overlay');
+        gitViewer.classList.remove('mem-overlay');
 
         // 清理操作栏
-        var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
+        var oldActions = gitViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
 
         // 关键：必须先清除两个视图的内联 display 样式
@@ -1304,8 +1307,8 @@
     if (gitViewerFullscreen) {
         gitViewerFullscreen.addEventListener('click', function() {
             if (!document.fullscreenElement) {
-                if (gitDiffViewer.requestFullscreen) {
-                    gitDiffViewer.requestFullscreen().catch(function(e) {
+                if (gitViewer.requestFullscreen) {
+                    gitViewer.requestFullscreen().catch(function(e) {
                         console.warn('[gitdiff] fullscreen error', e);
                     });
                 }
@@ -1320,7 +1323,7 @@
 
         // 监听全屏状态变化，更新图标
         document.addEventListener('fullscreenchange', function() {
-            if (document.fullscreenElement === gitDiffViewer) {
+            if (document.fullscreenElement === gitViewer) {
                 gitViewerFullscreen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6m10-10h-6V4M4 10h6V4m10 10h-6v6"/></svg>';
                 gitViewerFullscreen.title = '退出全屏';
             } else {
@@ -1518,7 +1521,7 @@
         if (origOnFilerChange) origOnFilerChange(chunk);
 
         // 如果当前在 Git tab 上且面板可见，debounce 后刷新
-        var gitTab = document.querySelector('.workspace-tab[data-tab="gitdiff"]');
+        var gitTab = document.querySelector('.workspace-tab[data-tab="gitDiff"]');
         if (gitTab && gitTab.classList.contains('active') && gitDiffPanel && gitDiffPanel.style.display !== 'none') {
             clearTimeout(window._gitDiffRefreshTimer);
             window._gitDiffRefreshTimer = setTimeout(loadGitStatus, 1500);

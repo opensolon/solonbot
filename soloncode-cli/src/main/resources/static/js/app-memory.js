@@ -1,12 +1,12 @@
 /**
  * 心智记忆管理面板
- * 复用 gitDiffViewer 容器在中间大面板展示：左侧条目列表 + 右侧编辑区。
+ * 复用 gitViewer 容器在中间大面板展示：左侧条目列表 + 右侧编辑区。
  * 后端接口：/web/chat/memory/{list,get,save,remove}
  */
 (function () {
     'use strict';
 
-    var gitDiffViewer = document.getElementById('gitDiffViewer');
+    var gitViewer = document.getElementById('gitViewer');
     var gitViewerContent = document.getElementById('gitViewerContent');
     var gitViewerLabel = document.getElementById('gitViewerLabel');
     var gitViewerFile = document.getElementById('gitViewerFile');
@@ -32,12 +32,12 @@
 
     // ---- 中间面板显隐（参与 flex 布局：占据左侧边栏之后的整个区域，随边栏收起响应式变宽）----
     function showViewer() {
-        if (!gitDiffViewer) return;
+        if (!gitViewer) return;
         if (welcomeView) welcomeView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
         document.body.classList.add('memory-active');
-        gitDiffViewer.classList.add('mem-overlay');
-        gitDiffViewer.style.display = 'flex';
+        gitViewer.classList.add('mem-overlay');
+        gitViewer.style.display = 'flex';
 
         if (gitViewerLabel) gitViewerLabel.textContent = '心智记忆';
         if (gitViewerFile) gitViewerFile.textContent = '';
@@ -54,15 +54,15 @@
         if (_memNewBtn) _memNewBtn.style.display = '';
 
         // 清理 git 模块可能残留的操作栏
-        var oldActions = gitDiffViewer.querySelector('.git-viewer-actions');
+        var oldActions = gitViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
     }
 
     // ---- 关闭：移除状态类，恢复顶部条与右侧任务面板，避免残留影响 git diff 内嵌视图 ----
     function closeOverlay() {
-        if (!gitDiffViewer) return;
+        if (!gitViewer) return;
         document.body.classList.remove('memory-active');
-        gitDiffViewer.classList.remove('mem-overlay');
+        gitViewer.classList.remove('mem-overlay');
     }
 
     // ---- 打开面板 ----
@@ -77,8 +77,8 @@
     function renderShell() {
         if (!gitViewerContent) return;
         gitViewerContent.innerHTML =
-            '<div class="mem-panel">' +
-            '  <div class="mem-list" id="memList"></div>' +
+            '<div class="memory-panel">' +
+            '  <div class="memory-list" id="memoryList"></div>' +
             '</div>';
     }
 
@@ -115,7 +115,7 @@
 
     // ---- 渲染列表（手风琴，单栏全宽）----
     function renderList(filter) {
-        var listEl = document.getElementById('memList');
+        var listEl = document.getElementById('memoryList');
         if (!listEl) return;
 
         var items = memoryList;
@@ -208,8 +208,8 @@
             '    <label class="mem-field"><span>内容</span>' +
             '      <textarea class="mem-content" placeholder="记忆内容（支持 markdown，建议 200 字以内）">' + escapeHtml(content) + '</textarea></label>' +
             '    <div class="mem-actions">' +
-            '      <button class="mem-btn mem-btn-primary mem-save">保存</button>' +
-            (isNew ? '      <button class="mem-btn mem-cancel">取消</button>' : '      <button class="mem-btn mem-btn-danger mem-del">删除</button>') +
+            '      <button class="memory-btn memory-btn-primary memory-save">保存</button>' +
+            (isNew ? '      <button class="memory-btn memory-cancel">取消</button>' : '      <button class="memory-btn memory-btn-danger memory-del">删除</button>') +
             '' +
             '    </div>' +
             '  </div>' +
@@ -224,7 +224,7 @@
             });
         });
         Array.prototype.forEach.call(listEl.querySelectorAll('.mem-row.open'), function (row) {
-            var saveBtn = row.querySelector('.mem-save');
+            var saveBtn = row.querySelector('.memory-save');
             if (saveBtn) saveBtn.addEventListener('click', function (e) { e.stopPropagation(); saveMemory(row); });
             var scopeBtns = row.querySelectorAll('.mem-scope-btn');
             Array.prototype.forEach.call(scopeBtns, function (btn) {
@@ -235,9 +235,9 @@
                     btn.classList.add('active');
                 });
             });
-            var cancelBtn = row.querySelector('.mem-cancel');
+            var cancelBtn = row.querySelector('.memory-cancel');
             if (cancelBtn) cancelBtn.addEventListener('click', function (e) { e.stopPropagation(); expandedKey = null; renderList(currentFilter()); });
-            var delBtn = row.querySelector('.mem-del');
+            var delBtn = row.querySelector('.memory-del');
             if (delBtn) delBtn.addEventListener('click', function (e) { e.stopPropagation(); removeMemory(row.getAttribute('data-key')); });
             // 阻止点 body 冒泡到 head 触发收起
             var body = row.querySelector('.mem-row-body');
@@ -283,7 +283,7 @@
     }
 
     function fillOpenRow(key) {
-        var listEl = document.getElementById('memList');
+        var listEl = document.getElementById('memoryList');
         if (!listEl) return;
         var row = listEl.querySelector('.mem-row.open[data-key="' + cssEscape(key) + '"]');
         if (!row) return;

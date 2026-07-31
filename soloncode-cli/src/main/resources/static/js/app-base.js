@@ -4,7 +4,7 @@
 /* ===== DOM ===== */
 var welcomeView = document.getElementById('welcomeView');
 var chatView = document.getElementById('chatView');
-var messagesWrap = document.getElementById('messagesWrap');
+var msgWrap = document.getElementById('msgWrap');
 var welcomeInput = document.getElementById('welcomeInput');
 var welcomeSendBtn = document.getElementById('welcomeSendBtn');
 var chatInput = document.getElementById('chatInput');
@@ -23,9 +23,9 @@ var DOTS_HTML = '<span class="thinking-dots"><span></span><span></span><span></s
 function SessionState(sessionId) {
     this.sessionId = sessionId;
     this.container = $('<div>')[0];
-    $(this.container).addClass('messages-inner');
+    $(this.container).addClass('msg-inner');
     $(this.container).hide();
-    $(messagesWrap).append(this.container);
+    $(msgWrap).append(this.container);
     // 监听会话容器高度变化，异步内容增高时保持贴底
     if (typeof observeMessagesHeight === 'function') {
         observeMessagesHeight(this.container);
@@ -217,9 +217,9 @@ function _markUserScrolledUp() {
 }
 
 function _syncUserScrollFromGap() {
-    if (!messagesWrap) return;
+    if (!msgWrap) return;
     if (Date.now() < _programmaticScrollUntil) return;
-    var gap = messagesWrap.scrollHeight - messagesWrap.scrollTop - messagesWrap.clientHeight;
+    var gap = msgWrap.scrollHeight - msgWrap.scrollTop - msgWrap.clientHeight;
     if (gap > 80) {
         _markUserScrolledUp();
     } else {
@@ -234,7 +234,7 @@ function _onScrollActivity() {
     if (_scrollActiveTimer) clearTimeout(_scrollActiveTimer);
     _scrollActiveTimer = setTimeout(function() { _scrollActive = false; }, 150);
 }
-$(messagesWrap).on('wheel', function(e) {
+$(msgWrap).on('wheel', function(e) {
     if (Date.now() < _programmaticScrollUntil) return;
     var dy = (e.originalEvent && e.originalEvent.deltaY) || 0;
     if (dy < 0) {
@@ -245,24 +245,24 @@ $(messagesWrap).on('wheel', function(e) {
     }
     _onScrollActivity();
 });
-$(messagesWrap).on('touchstart', function() {
+$(msgWrap).on('touchstart', function() {
     // 触控开始后的 scroll 视为用户操作，短暂关闭程序化忽略
     _programmaticScrollUntil = 0;
 });
-$(messagesWrap).on('scroll', function() {
+$(msgWrap).on('scroll', function() {
     if (Date.now() < _programmaticScrollUntil) return;
     _onScrollActivity();
     _syncUserScrollFromGap();
 });
 
 function _applyScrollBottom() {
-    if (!messagesWrap || userScrolledUp) return;
+    if (!msgWrap || userScrolledUp) return;
     // 已经贴底时赋值不会产生 scroll 事件，无需刷新程序化窗口；
     // 否则密集流式下 followTick(48ms) 会让窗口永不关闭，wheel 上滑被一直吞掉（滚轮锁死）。
-    var gap = messagesWrap.scrollHeight - messagesWrap.scrollTop - messagesWrap.clientHeight;
+    var gap = msgWrap.scrollHeight - msgWrap.scrollTop - msgWrap.clientHeight;
     if (gap < 1) return;
     _programmaticScrollUntil = Date.now() + SCROLL_PROGRAMMATIC_MS;
-    messagesWrap.scrollTop = messagesWrap.scrollHeight;
+    msgWrap.scrollTop = msgWrap.scrollHeight;
 }
 
 /**
@@ -293,7 +293,7 @@ function observeMessagesHeight(el) {
             var relevant = false;
             for (var i = 0; i < entries.length; i++) {
                 var target = entries[i].target;
-                if (target === messagesWrap || (activeSess && (target === activeSess.container || $(target).closest('.messages-inner')[0] === activeSess.container))) {
+                if (target === msgWrap || (activeSess && (target === activeSess.container || $(target).closest('.msg-inner')[0] === activeSess.container))) {
                     relevant = true;
                     break;
                 }
@@ -308,7 +308,7 @@ function observeMessagesHeight(el) {
     } catch (e) {}
 }
 // 列表根容器：会话增高、滚动条出现导致 clientHeight 变化时也补贴底
-if (messagesWrap) observeMessagesHeight(messagesWrap);
+if (msgWrap) observeMessagesHeight(msgWrap);
  
  /**
  * 贴底滚动（流式粘底）。
@@ -323,8 +323,8 @@ function scrollToBottom(force) {
         // force：同步立即贴底，避免 RAF 前被残留惯性 wheel / 回流 scroll 重新标成上滑
         // 同时拉长程序化窗口，吞掉发送前上滑的 momentum
         _programmaticScrollUntil = Date.now() + Math.max(SCROLL_PROGRAMMATIC_MS, 420);
-        if (messagesWrap) {
-            messagesWrap.scrollTop = messagesWrap.scrollHeight;
+        if (msgWrap) {
+            msgWrap.scrollTop = msgWrap.scrollHeight;
         }
         // force 时给更长粘底窗口，覆盖首条切页、图片解码、finishThinking + 多 tool 连续插入
         _scrollStickUntil = Math.max(_scrollStickUntil, Date.now() + SCROLL_FORCE_STICK_MS);

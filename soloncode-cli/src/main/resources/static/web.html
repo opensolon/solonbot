@@ -12,9 +12,9 @@
     <link rel="stylesheet" href="/css/app.css"/>
     <link rel="stylesheet" href="/css/settings.css"/>
     <!-- 当前皮肤：由 app-ui.js 按 static/skin/<name>/skin.css 动态加载 -->
-    <link rel="stylesheet" id="skin-style" href="/skin/default/skin.css"/>
-    <link rel="stylesheet" href="/highlight/github.min.css" media="(prefers-color-scheme: light)" id="hljs-light-theme"/>
-    <link rel="stylesheet" href="/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)" id="hljs-dark-theme" disabled/>
+    <link rel="stylesheet" id="skinStyle" href="/skin/default/skin.css"/>
+    <link rel="stylesheet" href="/highlight/github.min.css" media="(prefers-color-scheme: light)" id="hljsLightTheme"/>
+    <link rel="stylesheet" href="/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)" id="hljsDarkTheme" disabled/>
 </head>
 <body data-theme="light">
 
@@ -171,7 +171,7 @@
 
     <!-- Chat View -->
     <div class="chat-view" id="chatView">
-        <div class="messages-wrap" id="messagesWrap">
+        <div class="msg-wrap" id="msgWrap">
             <!-- Per-session containers are added here dynamically -->
         </div>
         <div class="msg-nav" id="msgNav" style="display:none" aria-hidden="true"></div>
@@ -265,7 +265,7 @@
     </div>
 
     <!-- Git Diff / File Viewer (内联在主内容区，替换聊天视图) -->
-    <div class="git-diff-viewer" id="gitDiffViewer" style="display:none">
+    <div class="git-viewer" id="gitViewer" style="display:none">
         <div class="git-viewer-header">
             <div class="git-viewer-breadcrumb">
                 <span class="git-viewer-label" id="gitViewerLabel">变更详情</span>
@@ -305,7 +305,7 @@
             <span class="todo-badge" id="todoBadge" style="display:none">0</span>
         </button>
         <button class="workspace-tab active" data-tab="files">文件</button>
-        <button class="workspace-tab" data-tab="gitdiff">
+        <button class="workspace-tab" data-tab="gitDiff">
             审查
             <span class="git-badge" id="gitBadge" style="display:none">0</span>
         </button>
@@ -357,22 +357,22 @@
 
     <!-- Tab Content: 文件树 -->
     <div class="workspace-tab-content active" id="tabContentFiles">
-        <div class="filer-search-bar">
-            <svg class="filer-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" class="filer-search-input" id="filerSearchInput" placeholder="搜索文件..." />
-            <button class="filer-search-clear" id="filerSearchClear" title="清除" style="display:none">
+        <div class="file-search-bar">
+            <svg class="file-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="file-search-input" id="fileSearchInput" placeholder="搜索文件..." />
+            <button class="file-search-clear" id="fileSearchClear" title="清除" style="display:none">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-        <div class="filer-panel-tree" id="filerTree"></div>
-        <div class="filer-mount-hint" id="filerMountHint">
+        <div class="file-panel-tree" id="fileTree"></div>
+        <div class="file-mount-hint" id="fileMountHint">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             <span>添加文件类型挂载</span>
         </div>
     </div>
 
     <!-- Tab Content: Git Diff -->
-    <div class="workspace-tab-content" id="tabContentGitdiff">
+    <div class="workspace-tab-content" id="tabContentGitDiff">
         <!-- 审查工作区选择器（自定义下拉） -->
         <div class="git-workspace-bar" id="gitWorkspaceBar">
             <div class="git-workspace-selector" id="gitWorkspaceSelector">
@@ -538,11 +538,11 @@
                                         </div>
                                         <div class="general-field">
                                             <label class="general-field-label">压缩触发消息数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionThresholdMessages" placeholder="100（默认）"/>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionMsgs" placeholder="100（默认）"/>
                                         </div>
                                         <div class="general-field">
                                             <label class="general-field-label">压缩触发上下文占比(%)</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionThresholdPercent" placeholder="75（默认）" autocomplete="off"/>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionPct" placeholder="75（默认）" autocomplete="off"/>
                                         </div>
                                     </div>
                                     <div class="general-toggle-desc settings-gap-top-sm">历史窗口控制新指令时使用几条历史消息；压缩策略控制对话上下文的自动压缩，防止超出模型窗口限制</div>

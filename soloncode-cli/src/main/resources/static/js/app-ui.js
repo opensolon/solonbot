@@ -655,8 +655,8 @@ function ensureQrcode(cb) {
 window.ensureQrcode = ensureQrcode;
 
 function applyHljsTheme(theme) {
-    var $lightLink = $('#hljs-light-theme');
-    var $darkLink = $('#hljs-dark-theme');
+    var $lightLink = $('#hljsLightTheme');
+    var $darkLink = $('#hljsDarkTheme');
     if (!$lightLink.length || !$darkLink.length) return;
     if (theme === 'dark') {
         $lightLink.prop('disabled', true).prop('media', 'not all');
@@ -713,10 +713,10 @@ function isBuiltinSkin(name) {
 }
 
 function ensureSkinStyleLink() {
-    var el = document.getElementById('skin-style');
+    var el = document.getElementById('skinStyle');
     if (!el) {
         el = document.createElement('link');
-        el.id = 'skin-style';
+        el.id = 'skinStyle';
         el.rel = 'stylesheet';
         document.head.appendChild(el);
     }
@@ -744,7 +744,7 @@ function loadSkinCss(skinName, source) {
 }
 
 function clearSkinCss() {
-    var el = document.getElementById('skin-style');
+    var el = document.getElementById('skinStyle');
     if (el) {
         // 回到默认目录下的空 skin.css，避免残留本地/其它皮肤样式
         el.href = builtinSkinCssUrl('default');
@@ -861,7 +861,6 @@ function switchToWelcomeMode() {
     $(chatView).removeClass('active');
     welcomeInput.focus();
     // 新对话时禁用“历史消息”按钮（循环任务按钮保持可用）
-    $('#welcomeHistoryBtn').prop('disabled', true);
     $('#welcomeLoopBtn').prop('disabled', false);
     // Reset model UI to new session
     if (typeof modelsLoaded !== 'undefined' && modelsLoaded) renderModelUI();

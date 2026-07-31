@@ -572,7 +572,7 @@ function createTaskGroupElement(sess, segment) {
         if (!expanded) {
             // 长内容收起后，若 group 顶部已离开视口，滚回可见，避免空白跳变
             requestAnimationFrame(function() {
-                var wrap = document.querySelector('.messages-wrap');
+                var wrap = document.querySelector('.msg-wrap');
                 if (!wrap || !document.contains(group)) return;
                 var gr = group.getBoundingClientRect();
                 var wr = wrap.getBoundingClientRect();

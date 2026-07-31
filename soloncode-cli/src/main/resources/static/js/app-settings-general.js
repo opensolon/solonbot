@@ -47,8 +47,8 @@
             if (resp.code === 200 && resp.data) {
                 var d = resp.data;
                 $('#generalSessionWindowSize').val(d.sessionWindowSize != null ? formatNum(d.sessionWindowSize) : '');
-                $('#generalCompressionThresholdMessages').val((d.compressionThresholdMessages ?? d.summaryWindowSize) != null ? formatNum(d.compressionThresholdMessages ?? d.summaryWindowSize) : '');
-                $('#generalCompressionThresholdPercent').val(d.compressionThresholdPercent != null ? formatNum(d.compressionThresholdPercent) : '');
+                $('#generalCompressionMsgs').val((d.compressionThresholdMessages ?? d.summaryWindowSize) != null ? formatNum(d.compressionThresholdMessages ?? d.summaryWindowSize) : '');
+                $('#generalCompressionPct').val(d.compressionThresholdPercent != null ? formatNum(d.compressionThresholdPercent) : '');
                 $('#generalSandboxMode').prop('checked', !!d.sandboxMode);
                 $('#generalSandboxAllowUserHome').prop('checked', d.sandboxAllowUserHome !== false);
                 $('#generalSandboxSystemRestrict').prop('checked', !!d.sandboxSystemRestrict);
@@ -99,8 +99,8 @@
         var $generalSaveBtn = $('#generalSaveBtn');
         var bodyObj = {
             sessionWindowSize: parseNumStr($('#generalSessionWindowSize').val().trim()),
-            compressionThresholdMessages: parseNumStr($('#generalCompressionThresholdMessages').val().trim()),
-            compressionThresholdPercent: parseNumStr($('#generalCompressionThresholdPercent').val().trim()),
+            compressionThresholdMessages: parseNumStr($('#generalCompressionMsgs').val().trim()),
+            compressionThresholdPercent: parseNumStr($('#generalCompressionPct').val().trim()),
             sandboxMode: $('#generalSandboxMode').is(':checked'),
             sandboxAllowUserHome: $('#generalSandboxAllowUserHome').is(':checked'),
             sandboxSystemRestrict: $('#generalSandboxSystemRestrict').is(':checked'),
