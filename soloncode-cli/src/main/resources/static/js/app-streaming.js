@@ -5,7 +5,7 @@
 /* ===== Send from both inputs ===== */
 $(welcomeSendBtn).on('click', function() { sendMessage(); });
 $(chatSendBtn).on('click', function() {
-    if (isStreaming && activeSessionId && sessionMap[activeSessionId]) {
+    if (btnMode === 'stop' && activeSessionId && sessionMap[activeSessionId]) {
         var sess = sessionMap[activeSessionId];
         // 已在等待服务端 done，避免重复 interrupt
         if (sess.stopRequested) return;
@@ -22,7 +22,18 @@ $(chatSendBtn).on('click', function() {
         // 提交 interrupt；不在本地立即 finishStream
         // 等服务端 error(取消) + trace + done 到齐后再收尾，避免迟到 chunk 被当成新流
         try {
-            $.post('/web/chat/interrupt?sessionId=' + encodeURIComponent(activeSessionId));
+            $.post('/web/chat/interrupt?sessionId=' + encodeURIComponent(activeSessionId))
+                .fail(function(err) {
+                    console.warn('[stop] interrupt request failed:', err);
+                    // HTTP 请求失败时用短兜底快速恢复按鈕，无需等待 4s
+                    if (sess._stopFallbackTimer) clearTimeout(sess._stopFallbackTimer);
+                    sess._stopFallbackTimer = setTimeout(function() {
+                        sess._stopFallbackTimer = null;
+                        if (sess.isStreaming && sess.stopRequested) {
+                            finishStream(sess);
+                        }
+                    }, 1500);
+                });
         } catch (e) {
             console.warn('[stop] interrupt failed:', e);
         }
@@ -33,7 +44,7 @@ $(chatSendBtn).on('click', function() {
             if (sess.isStreaming && sess.stopRequested) {
                 finishStream(sess);
             }
-        }, 8000);
+        }, 4000);
     } else {
         sendMessage();
     }

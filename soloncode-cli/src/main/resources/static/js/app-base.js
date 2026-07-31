@@ -87,6 +87,7 @@ var activeSessionId = null;
 /* ===== Global State ===== */
 var SESSION_ID = 'web-' + Date.now().toString(36);
 var isStreaming = false;
+var btnMode = 'send'; // 'send' | 'stop' —— 与按钮视觉态严格同步，消除 DOM 切换延迟窗口
 var inChatMode = false;
 var chatHistory = [];
 var currentChatIndex = -1;
@@ -392,12 +393,14 @@ function resetStreamState(sess) {
 }
 
 function setBtnStopMode() {
+    btnMode = 'stop';
     chatSendBtn.disabled = false;
     $(chatSendBtn).addClass('stop-mode');
     $(chatSendBtn).html('<div class="stop-icon"></div>');
     chatSendBtn.title = '停止生成';
 }
 function setBtnSendMode() {
+    btnMode = 'send';
     $(chatSendBtn).removeClass('stop-mode');
     $(chatSendBtn).html('<i class="layui-icon layui-icon-release"></i>');
     chatSendBtn.title = '发送';

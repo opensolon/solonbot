@@ -44,6 +44,7 @@ import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.File;
@@ -523,6 +524,10 @@ public class WebGate extends SimpleWebSocketListener {
         // 新开流前重置，避免上一轮 streamDoneSent 挡住本轮 done
         resetStreamDoneSent(session);
 
+        // 提前注册 CompositeDisposable：interruptSession 在 subscribe 返回前到达时
+        // composite.dispose() 会在 composite.add(disposable) 时立即 dispose 新成员，消除注册窗口竞态
+        Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
+
         Disposable disposable = streamBuilder.buildStreamFlux(session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
@@ -541,7 +546,8 @@ public class WebGate extends SimpleWebSocketListener {
                 })
                 .subscribe();
 
-        session.attrs().put("disposable", disposable);
+        // add 到 composite：若 composite 已被 dispose()（interrupt 先到达），会立即 dispose 该 disposable
+        composite.add(disposable);
 
     }
 
@@ -575,6 +581,9 @@ public class WebGate extends SimpleWebSocketListener {
         // 新开流前重置，避免上一轮 streamDoneSent 挡住本轮 done
         resetStreamDoneSent(session);
 
+        // 提前注册 CompositeDisposable，消除注册窗口竞态（同 performAgentTaskAsync）
+        Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
+
         Disposable disposable = streamBuilder.buildStreamFlux(session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
@@ -598,7 +607,7 @@ public class WebGate extends SimpleWebSocketListener {
                 })
                 .subscribe();
 
-        session.attrs().put("disposable", disposable);
+        composite.add(disposable);
         RunUtil.runAndTry(countDownLatch::await);
         return finalAnswerRef.get();
     }
@@ -697,8 +706,11 @@ public class WebGate extends SimpleWebSocketListener {
      * @return true 表示会话有正在执行的 AI 任务
      */
     private boolean isSessionBusy(AgentSession session) {
-        Disposable disposable = (Disposable) session.attrs().get("disposable");
-        return disposable != null;
+        Object slot = session.attrs().get("disposable");
+        if (slot instanceof Disposable.Composite) {
+            return !((Disposable.Composite) slot).isDisposed();
+        }
+        return false;
     }
 
     /**
@@ -893,16 +905,23 @@ public class WebGate extends SimpleWebSocketListener {
     public void interruptSession(String sessionId) {
         try {
             AgentSession session = engine.getSession(sessionId);
-            Disposable disposable = (Disposable) session.attrs().remove("disposable");
+            Object slot = session.attrs().remove("disposable");
 
             // 无活跃流：不发取消语义；若尚未发 done 则兜底，便于前端收尾
-            if (disposable == null || disposable.isDisposed()) {
+            if (!(slot instanceof Disposable.Composite)) {
                 boolean sent = emitDoneOnce(session);
                 if (sent) {
                     LOG.info("[WebGate] Session {} interrupt ignored (no active stream), emitted fallback done", sessionId);
                 } else {
                     LOG.info("[WebGate] Session {} interrupt ignored (no active stream)", sessionId);
                 }
+                return;
+            }
+
+            Disposable.Composite composite = (Disposable.Composite) slot;
+            if (composite.isDisposed()) {
+                boolean sent = emitDoneOnce(session);
+                LOG.info("[WebGate] Session {} interrupt ignored (already disposed), fallback done={}", sessionId, sent);
                 return;
             }
 
@@ -917,7 +936,7 @@ public class WebGate extends SimpleWebSocketListener {
 
             // 2) 同线程先发 done，再 dispose；doFinally 中 emitDoneOnce 因 CAS 跳过
             emitDoneOnce(session);
-            disposable.dispose();
+            composite.dispose();
             LOG.info("[WebGate] Session {} interrupted", sessionId);
         } catch (Exception e) {
             LOG.error("[WebGate] Interrupt failed for session {}: {}", sessionId, e.getMessage());
