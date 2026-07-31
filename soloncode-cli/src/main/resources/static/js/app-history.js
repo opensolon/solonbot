@@ -1622,7 +1622,25 @@ function scheduleMsgNavRebuild() {
     });
 }
 
-// 悬浮导航条 → 显示全部消息列表面板
+// 面板延时关闭计时器（防止 nav↔panel 间隙触发误关）
+var _navPanelTimer = null;
+function _scheduleNavClose() {
+    _navPanelTimer = setTimeout(function() {
+        $('.msg-nav-panel').remove();
+        $('#msgNav .msg-nav-block').removeClass('highlight');
+    }, 150);
+}
+function _cancelNavClose() {
+    if (_navPanelTimer) { clearTimeout(_navPanelTimer); _navPanelTimer = null; }
+}
+
+// ① 块直接点击定位
+$(document).on('click', '.msg-nav-block', function() {
+    var msgIdx = parseInt($(this).attr('data-msg-idx'));
+    if (!isNaN(msgIdx)) locateUserMessage(msgIdx);
+});
+
+// ② 悬浮导航条 → 弹出列表面板（垂直居中）
 $(document).on('mouseenter', '#msgNav', function() {
     if ($('.msg-nav-panel').length) return;
     var $blocks = $(this).find('.msg-nav-block');
@@ -1634,21 +1652,40 @@ $(document).on('mouseenter', '#msgNav', function() {
             + escapeHtml($(this).attr('data-preview') || '') + '</div>';
     });
     var navRect = this.getBoundingClientRect();
-    $('<div class="msg-nav-panel"></div>').html(html).css({
-        right: (window.innerWidth - navRect.left + 4) + 'px',
-        top: Math.min(navRect.top, window.innerHeight - 420) + 'px'
-    }).appendTo('body');
-}).on('mouseleave', '#msgNav', function(e) {
-    if (e.relatedTarget && $(e.relatedTarget).closest('.msg-nav-panel').length) return;
-    $('.msg-nav-panel').remove();
+    // 先插入 DOM，再用实际高度反算居中
+    var $panel = $('<div class="msg-nav-panel"></div>').html(html)
+        .css({ right: (window.innerWidth - navRect.left) + 'px', top: '-9999px' })
+        .on('mouseenter', _cancelNavClose)
+        .on('mouseleave', function(e) {
+            if (e.relatedTarget && $(e.relatedTarget).closest('#msgNav').length) {
+                _cancelNavClose();
+            } else {
+                _scheduleNavClose();
+            }
+        })
+        .appendTo('body');
+    var panelH = $panel[0].offsetHeight;
+    var centeredTop = navRect.top + navRect.height / 2 - panelH / 2;
+    var clampedTop = Math.max(8, Math.min(centeredTop, window.innerHeight - panelH - 8));
+    $panel.css('top', clampedTop + 'px');
+
+}).on('mouseleave', '#msgNav', function() {
+    _scheduleNavClose();
 });
 
+// ③ 面板 item hover ↔ 对应块联动高亮
+$(document).on('mouseenter', '.msg-nav-panel-item', function() {
+    var idx = $(this).attr('data-msg-idx');
+    $('#msgNav .msg-nav-block').removeClass('highlight');
+    $('#msgNav .msg-nav-block[data-msg-idx="' + idx + '"]').addClass('highlight');
+}).on('mouseleave', '.msg-nav-panel-item', function() {
+    $('#msgNav .msg-nav-block').removeClass('highlight');
+});
+
+// ④ 面板 item 点击定位
 $(document).on('click', '.msg-nav-panel-item', function() {
     var msgIdx = parseInt($(this).attr('data-msg-idx'));
     if (!isNaN(msgIdx)) { locateUserMessage(msgIdx); $('.msg-nav-panel').remove(); }
-}).on('mouseleave', '.msg-nav-panel', function(e) {
-    if (e.relatedTarget && $(e.relatedTarget).closest('#msgNav').length) return;
-    $('.msg-nav-panel').remove();
 });
 
 // 滚动时更新 active 态
