@@ -179,6 +179,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
         });
     }
     updateUserRerunButtons(sess.container);
+    if (typeof scheduleMsgNavRebuild === 'function') scheduleMsgNavRebuild();
 }
 
 /* 刷新用户消息的时间戳，在编辑/重发时调用 */

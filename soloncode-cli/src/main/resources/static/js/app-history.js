@@ -390,6 +390,7 @@ function selectSession(idx) {
         loadMessages(sess);
     } else {
         scrollToBottom(true);
+        if (typeof scheduleMsgNavRebuild === 'function') scheduleMsgNavRebuild();
     }
 }
 
@@ -469,6 +470,7 @@ function loadMessages(sess) {
             if (typeof flushPendingStreamChunks === 'function') {
                 flushPendingStreamChunks(sess);
             }
+            if (typeof scheduleMsgNavRebuild === 'function') scheduleMsgNavRebuild();
         }
     }).fail(function() {
         sess._loadingHistory = false;
@@ -1546,3 +1548,112 @@ $(document).on('click', function(e) {
         $('#chatAgentCurrent, #welcomeAgentCurrent, #chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
     }
 });
+
+/* ===== 消息导航条 ===== */
+var _msgNavRafId = null;
+
+function rebuildMsgNav() {
+    var $nav = $('#msgNav');
+    if (!$nav.length) return;
+
+    var sess = activeSessionId ? sessionMap[activeSessionId] : null;
+    if (!sess || !sess.container) { $nav.hide().empty(); return; }
+
+    var $rows = $(sess.container).find('.msg-row.user');
+    if ($rows.length === 0) { $nav.hide().empty(); return; }
+
+    var wrap = document.getElementById('messagesWrap');
+    if (!wrap) return;
+
+    // 导航条对齐 messagesWrap
+    $nav.css({
+        top: wrap.offsetTop + 'px',
+        height: wrap.offsetHeight + 'px'
+    }).show().attr('aria-hidden', 'false');
+
+    var html = '';
+    var userIdx = 0;
+    $rows.each(function() {
+        var $row = $(this);
+        var msgIdx = parseInt($row.attr('data-user-msg-idx'));
+        var raw = $row.find('.user-msg-text').attr('data-md-raw') || '';
+        userIdx++;
+        var preview = '#' + userIdx + ' ' + raw.replace(/\n+/g, ' ').substring(0, 15) + (raw.length > 15 ? '\u2026' : '');
+        html += '<div class="msg-nav-block"'
+            + ' data-msg-idx="' + msgIdx + '"'
+            + ' data-preview="' + escapeHtml(preview) + '"></div>';
+    });
+    $nav.html(html);
+    updateMsgNavActive();
+}
+
+function updateMsgNavActive() {
+    var $nav = $('#msgNav');
+    if (!$nav.is(':visible')) return;
+    var wrap = document.getElementById('messagesWrap');
+    if (!wrap) return;
+    var sess = activeSessionId ? sessionMap[activeSessionId] : null;
+    if (!sess || !sess.container) return;
+
+    var scrollTop = wrap.scrollTop;
+    var viewH = wrap.clientHeight;
+    var center = scrollTop + viewH * 0.3;
+
+    var closestIdx = -1;
+    var closestDist = Infinity;
+    $(sess.container).find('.msg-row.user').each(function() {
+        var dist = Math.abs(this.offsetTop - center);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestIdx = parseInt($(this).attr('data-user-msg-idx'));
+        }
+    });
+
+    $nav.find('.msg-nav-block').each(function() {
+        $(this).toggleClass('active', parseInt($(this).attr('data-msg-idx')) === closestIdx);
+    });
+}
+
+function scheduleMsgNavRebuild() {
+    if (_msgNavRafId) cancelAnimationFrame(_msgNavRafId);
+    _msgNavRafId = requestAnimationFrame(function() {
+        _msgNavRafId = null;
+        rebuildMsgNav();
+    });
+}
+
+// 悬浮导航条 → 显示全部消息列表面板
+$(document).on('mouseenter', '#msgNav', function() {
+    if ($('.msg-nav-panel').length) return;
+    var $blocks = $(this).find('.msg-nav-block');
+    if (!$blocks.length) return;
+    var html = '';
+    $blocks.each(function() {
+        html += '<div class="msg-nav-panel-item' + ($(this).hasClass('active') ? ' active' : '') + '"'
+            + ' data-msg-idx="' + $(this).attr('data-msg-idx') + '">'
+            + escapeHtml($(this).attr('data-preview') || '') + '</div>';
+    });
+    var navRect = this.getBoundingClientRect();
+    $('<div class="msg-nav-panel"></div>').html(html).css({
+        right: (window.innerWidth - navRect.left + 4) + 'px',
+        top: Math.min(navRect.top, window.innerHeight - 420) + 'px'
+    }).appendTo('body');
+}).on('mouseleave', '#msgNav', function(e) {
+    if (e.relatedTarget && $(e.relatedTarget).closest('.msg-nav-panel').length) return;
+    $('.msg-nav-panel').remove();
+});
+
+$(document).on('click', '.msg-nav-panel-item', function() {
+    var msgIdx = parseInt($(this).attr('data-msg-idx'));
+    if (!isNaN(msgIdx)) { locateUserMessage(msgIdx); $('.msg-nav-panel').remove(); }
+}).on('mouseleave', '.msg-nav-panel', function(e) {
+    if (e.relatedTarget && $(e.relatedTarget).closest('#msgNav').length) return;
+    $('.msg-nav-panel').remove();
+});
+
+// 滚动时更新 active 态
+$('#messagesWrap').on('scroll.msgnav', function() {
+    updateMsgNavActive();
+});
+
+window.scheduleMsgNavRebuild = scheduleMsgNavRebuild;

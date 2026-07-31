@@ -345,10 +345,21 @@ body {
 .welcome-send-btn:hover { background: var(--accent-hover); transform: scale(1.06); }
 
 /* ===== Chat View ===== */
-.chat-view { flex: 1; display: none; flex-direction: column; min-height: 0; }
+.chat-view { flex: 1; display: none; flex-direction: column; min-height: 0; position: relative; }
 .chat-view.active { display: flex; }
 .messages-wrap { flex: 1; overflow-y: auto; contain: layout paint; }
 .messages-inner { max-width: 820px; margin: 0 auto; padding: 28px 24px 12px; }
+
+/* ===== 消息导航条 ===== */
+.msg-nav { position: absolute; right: 0; width: 16px; z-index: 20; pointer-events: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px 0; }
+.msg-nav::before { content: ''; position: absolute; right: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--border-color, #444); opacity: 0.3; border-radius: 1px; pointer-events: none; }
+.msg-nav-block { flex-shrink: 0; width: 12px; height: 4px; background: var(--bg-user-msg); border-radius: 2px; opacity: 0.55; cursor: pointer; transition: opacity 0.15s; }
+.msg-nav-block:hover { opacity: 1; }
+.msg-nav-block.active { opacity: 1; background: var(--text-primary, #333); }
+.msg-nav-panel { position: fixed; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 4px 0; z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 220px; max-height: 400px; overflow-y: auto; }
+.msg-nav-panel-item { display: block; padding: 5px 14px; font-size: 12px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary, #e0e0e0); }
+.msg-nav-panel-item:hover { background: var(--bg-hover, rgba(255,255,255,0.08)); }
+.msg-nav-panel-item.active { font-weight: 600; color: var(--accent-color, #4a9eff); }
 
 /* Message */
 .msg-row { display: flex; margin-bottom: 28px; gap: 0; animation: msg-fade-in 0.2s ease-out; }
