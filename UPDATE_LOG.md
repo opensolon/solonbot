@@ -1,4 +1,9 @@
 
+### v2026.7.31
+
+* 优化 soloncode run 模式（参考 run-headless-mode.md）
+* 细节优化
+
 ### v2026.7.30
 
 * 优化 soloncode acp 模式
