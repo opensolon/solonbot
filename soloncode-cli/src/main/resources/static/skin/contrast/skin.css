@@ -5,20 +5,20 @@
  */
 
 [data-skin="contrast"][data-theme="light"] {
-    --accent: #1d4ed8;
-    --accent-hover: #1e40af;
-    --accent-light: #dbeafe;
-    --bg-user-msg: #dbeafe;
+    --accent: #1a1a1a;
+    --accent-hover: #333333;
+    --accent-light: #f0f0f0;
+    --bg-user-msg: #efefef;
     --text-primary: #0a0a0a;
     --text-secondary: #374151;
     --text-sidebar: #111827;
     --text-user-msg: #0a0a0a;
-    --text-user-msg-link: #1d4ed8;
-    --text-user-msg-link-hover: #1e40af;
+    --text-user-msg-link: #1a1a1a;
+    --text-user-msg-link-hover: #444444;
     --text-ai-msg: #0a0a0a;
     --border-color: #9ca3af;
     --border-input: #6b7280;
-    --thinking-dot: #1d4ed8;
+    --thinking-dot: #1a1a1a;
     --bg-body: #f3f4f6;
     --bg-main: #ffffff;
     --bg-sidebar: #ffffff;
@@ -45,31 +45,31 @@
 }
 
 [data-skin="contrast"][data-theme="dark"] {
-    --accent: #93c5fd;
-    --accent-hover: #60a5fa;
-    --accent-light: #1e293b;
-    --bg-user-msg: #1e3a5f;
+    --accent: #e0e0e0;
+    --accent-hover: #ffffff;
+    --accent-light: #282828;
+    --bg-user-msg: #e8e8e8;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-sidebar: #e2e8f0;
-    --text-user-msg: #f8fafc;
-    --text-user-msg-link: #dbeafe;
-    --text-user-msg-link-hover: #ffffff;
+    --text-user-msg: #111111;
+    --text-user-msg-link: #1a1a1a;
+    --text-user-msg-link-hover: #555555;
     --text-ai-msg: #f8fafc;
     --border-color: #64748b;
     --border-input: #94a3b8;
-    --thinking-dot: #93c5fd;
-    --bg-body: #020617;
-    --bg-main: #0f172a;
-    --bg-sidebar: #0b1220;
-    --bg-hover: #1e293b;
-    --bg-input-box: #111827;
-    --bg-primary: #0f172a;
-    --bg-secondary: #0b1220;
-    --tag-bg: #1e293b;
-    --tag-border: #64748b;
-    --reason-group-think-bg: #111827;
-    --reason-group-think-border: #64748b;
+    --thinking-dot: #e0e0e0;
+    --bg-body: #0a0a0a;
+    --bg-main: #161616;
+    --bg-sidebar: #111111;
+    --bg-hover: #222222;
+    --bg-input-box: #1c1c1c;
+    --bg-primary: #161616;
+    --bg-secondary: #111111;
+    --tag-bg: #222222;
+    --tag-border: #444444;
+    --reason-group-think-bg: #1a1a1a;
+    --reason-group-think-border: #444444;
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.45);
 

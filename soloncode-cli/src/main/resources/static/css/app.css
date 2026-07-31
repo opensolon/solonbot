@@ -929,11 +929,11 @@ body {
 .loop-item-schedule { font-size: 11px; color: var(--text-secondary); }
 .loop-item-status { font-size: 11px; padding: 1px 6px; border-radius: 4px; }
 .loop-item-status.ready { color: var(--accent); background: var(--bg-hover); }
-.loop-item-status.running { color: #f0ad4e; background: #fef8e7; }
+.loop-item-status.running { color: #f0ad4e; background: rgba(240,173,78,0.12); }
 .loop-item-status.disabled { color: var(--text-secondary); background: var(--bg-hover); }
 .loop-item-status.cancelled { color: var(--color-danger); background: rgba(239,68,68,0.08); }
-.loop-item-status.paused { color: #f0ad4e; background: #fef8e7; opacity: 0.7; }
-.loop-item-status.achieved { color: #059669; background: #ecfdf5; }
+.loop-item-status.paused { color: #f0ad4e; background: rgba(240,173,78,0.10); opacity: 0.7; }
+.loop-item-status.achieved { color: #059669; background: rgba(5,150,105,0.12); }
 .loop-item-actions { margin-left: auto; display: flex; gap: 2px; flex-shrink: 0; }
 .loop-action-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 13px; padding: 3px 6px; border-radius: 4px; transition: background 0.12s; }
 .loop-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
@@ -946,12 +946,12 @@ body {
 /* Loop Tags */
 .loop-item-tags { display: inline-flex; gap: 3px; margin-left: 4px; }
 .loop-tag { font-size: 10px; padding: 0 4px; border-radius: 3px; font-weight: 500; line-height: 16px; }
-.loop-tag-goal { color: #8b5cf6; background: #f3f0ff; }
-.loop-tag-mc { color: #0891b2; background: #ecfeff; }
-.loop-tag-wt { color: #059669; background: #ecfdf5; }
-.loop-tag-now { color: #ea580c; background: #fff7ed; }
+.loop-tag-goal { color: #8b5cf6; background: rgba(139,92,246,0.12); }
+.loop-tag-mc { color: #0891b2; background: rgba(8,145,178,0.12); }
+.loop-tag-wt { color: #059669; background: rgba(5,150,105,0.12); }
+.loop-tag-now { color: #ea580c; background: rgba(234,88,12,0.12); }
 
-.loop-tag-skill { color: #7c3aed; background: #f5f3ff; }
+.loop-tag-skill { color: #7c3aed; background: rgba(124,58,237,0.12); }
 
 /* Loop Result */
 .loop-item-result { font-size: 11px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; max-width: 100%; }
