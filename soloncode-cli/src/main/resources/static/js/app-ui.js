@@ -61,7 +61,7 @@ function renderAttachmentsWrap(wrap) {
         var item = pendingFiles[i];
         var el = document.createElement('div');
         el.className = 'attachment-item';
-        var typeTag = '<span class="attachment-type-tag ' + (item.attachmentsType || 'file') + '">' + (item.attachmentsType === 'image' ? '多模态' : '文件') + '</span>';
+        var typeTag = '<span class="attachment-type-tag ' + (item.attachmentsType || 'file') + '">' + (item.attachmentsType === 'image' ? I18n.t('attach.typeMultimodal') : I18n.t('attach.typeFile')) + '</span>';
         if (item.type === 'image') {
             $(el).html('<img src="' + item.dataUrl + '"/>'
                 + typeTag
@@ -154,14 +154,14 @@ $(chatInput).on('paste', handlePaste);
         if (!files || files.length === 0) return;
 
         if (pendingFiles.length >= MAX_ATTACHMENTS) {
-            showToast('附件数量已达上限（' + MAX_ATTACHMENTS + '个）', 'error');
+            showToast((window.I18n ? window.I18n.t('toast.attachLimit', { max: MAX_ATTACHMENTS }) : ('\u9644\u4ef6\u6570\u91cf\u5df2\u8fbe\u4e0a\u9650\uff08' + MAX_ATTACHMENTS + '\u4e2a\uff09')), 'error');
             return;
         }
 
         // Separate files into images and non-images for proper processing
         for (var i = 0; i < files.length; i++) {
             if (pendingFiles.length >= MAX_ATTACHMENTS) {
-                showToast('部分文件未添加，附件数量已达上限（' + MAX_ATTACHMENTS + '个）', 'error');
+            showToast((window.I18n ? window.I18n.t('toast.attachLimitPartial', { max: MAX_ATTACHMENTS }) : ('\u90e8\u5206\u6587\u4ef6\u672a\u6dfb\u52a0\uff0c\u9644\u4ef6\u6570\u91cf\u5df2\u8fbe\u4e0a\u9650\uff08' + MAX_ATTACHMENTS + '\u4e2a\uff09')), 'error');
                 break;
             }
             var file = files[i];
@@ -692,15 +692,15 @@ $(themeBtn).on('click', function() {
 });
 function updateThemeIcon() {
     $(themeIcon).html(currentTheme === 'light' ? '&#xe6c2;' : '&#xe748;');
-    $(themeBtn).prop('title', currentTheme === 'light' ? '切换至暗色' : '切换至浅色');
+    $(themeBtn).prop('title', currentTheme === 'light' ? (window.I18n ? window.I18n.t('header.switchToDark') : '\u5207\u6362\u81f3\u6697\u8272') : (window.I18n ? window.I18n.t('header.switchToLight') : '\u5207\u6362\u81f3\u6d45\u8272'));
 }
 window.updateThemeIcon = updateThemeIcon;
 
 /* ===== Skin (static/skin/<name>/skin.css + local zip) ===== */
 var BUILTIN_SKINS = {
-    default:  { name: 'default',  displayName: '默认',   source: 'builtin' },
-    eyecare:  { name: 'eyecare',  displayName: '护眼',   source: 'builtin' },
-    contrast: { name: 'contrast', displayName: '高对比', source: 'builtin' }
+    default:  { name: 'default',  get displayName() { return I18n.t('skin.default'); },   source: 'builtin' },
+    eyecare:  { name: 'eyecare',  get displayName() { return I18n.t('skin.eyecare'); },    source: 'builtin' },
+    contrast: { name: 'contrast', get displayName() { return I18n.t('skin.contrast'); },   source: 'builtin' }
 };
 window.BUILTIN_SKINS = BUILTIN_SKINS;
 
@@ -952,7 +952,7 @@ function startVoiceRecording(inputEl) {
     // 更新按钮状态
     var btn = (inputEl === welcomeInput) ? welcomeVoiceBtn : chatVoiceBtn;
     btn.addClass('recording');
-    btn.prop('title', '松开结束');
+        btn.prop('title', (window.I18n ? window.I18n.t('voice.releaseToStop') : '\u677e\u5f00\u7ed3\u675f'));
 }
 
 function stopVoiceRecording() {
@@ -963,8 +963,8 @@ function stopVoiceRecording() {
     // 更新按钮状态
     welcomeVoiceBtn.removeClass('recording');
     chatVoiceBtn.removeClass('recording');
-    welcomeVoiceBtn.prop('title', '按住说话');
-    chatVoiceBtn.prop('title', '按住说话');
+        welcomeVoiceBtn.prop('title', (window.I18n ? window.I18n.t('voice.holdToSpeak') : '\u6309\u4f4f\u8bf4\u8bdd'));
+        chatVoiceBtn.prop('title', (window.I18n ? window.I18n.t('voice.holdToSpeak') : '\u6309\u4f4f\u8bf4\u8bdd'));
 
     // 保留识别到的文本，重置基线以便下次追加
     if (voiceTargetInput) {
@@ -1018,7 +1018,7 @@ initVoice();
         var collapsed = sidebar.hasClass('collapsed');
         btn.toggleClass('collapsed', collapsed);
         btn.html(collapsed ? '›' : '‹');
-        btn.prop('title', collapsed ? '展开侧边栏' : '收起侧边栏');
+        btn.prop('title', collapsed ? (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f') : (window.I18n ? window.I18n.t('sidebar.collapse') : '\u6536\u8d77\u4fa7\u8fb9\u680f'));
         localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
     });
     // Restore state
@@ -1026,7 +1026,7 @@ initVoice();
         $('.sidebar').addClass('collapsed');
         btn.addClass('collapsed');
         btn.html('›');
-        btn.prop('title', '展开侧边栏');
+        btn.prop('title', (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f'));
     }
 })();
 
@@ -1103,7 +1103,7 @@ initVoice();
             var collapsed = $sidebar.hasClass('collapsed');
             $toggleBtn.toggleClass('collapsed', collapsed);
             $toggleBtn.html(collapsed ? '\u203A' : '\u2039');
-            $toggleBtn.prop('title', collapsed ? '展开侧边栏' : '收起侧边栏');
+        $toggleBtn.prop('title', collapsed ? (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f') : (window.I18n ? window.I18n.t('sidebar.collapse') : '\u6536\u8d77\u4fa7\u8fb9\u680f'));
             localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
             syncTogglePosition();
         });
@@ -1113,7 +1113,7 @@ initVoice();
             $sidebar.addClass('collapsed');
             $toggleBtn.addClass('collapsed');
             $toggleBtn.html('\u203A');
-            $toggleBtn.prop('title', '展开侧边栏');
+        $toggleBtn.prop('title', (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f'));
             syncTogglePosition();
         }
     }

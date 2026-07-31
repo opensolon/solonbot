@@ -134,7 +134,7 @@
             $.ajax({ url: '/web/settings/general/save', method: 'POST', data: JSON.stringify(bodyObj), contentType: 'application/json', dataType: 'json' })
                 .then(function (resp) {
                     if (resp.code !== 200) {
-                        return $.Deferred().reject(resp.message || '未知错误').promise();
+                        return $.Deferred().reject(resp.message || I18n.t('toast.unknownError')).promise();
                     }
                     window.cliPrintSimplified = bodyObj.cliPrintSimplified;
                     return resp;
@@ -155,7 +155,7 @@
             $.ajax({ url: '/web/settings/loop/save', method: 'POST', data: JSON.stringify(loopObj), contentType: 'application/json', dataType: 'json' })
                 .then(function (resp) {
                     if (resp.code !== 200) {
-                        return $.Deferred().reject(resp.message || '未知错误').promise();
+                        return $.Deferred().reject(resp.message || I18n.t('toast.unknownError')).promise();
                     }
                     return resp;
                 })
@@ -169,8 +169,8 @@
 
         // 统一处理所有请求的结果
         $.when.apply($, promises)
-            .done(function () { showToast('保存成功'); })
-            .fail(function () { showToast('保存失败', 'error'); })
+            .done(function () { showToast(window.I18n ? window.I18n.t('toast.saveSuccess') : '\u4fdd\u5b58\u6210\u529f'); })
+            .fail(function () { showToast(window.I18n ? window.I18n.t('toast.saveFailed') : '\u4fdd\u5b58\u5931\u8d25', 'error'); })
             .always(function () { $generalSaveBtn.prop('disabled', false); });
     });
 

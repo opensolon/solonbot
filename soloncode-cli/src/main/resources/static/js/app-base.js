@@ -134,7 +134,7 @@ function setActiveSession(sessionId) {
         && sess.messageQueue && sess.messageQueue.length) {
         var qn = sess.messageQueue.length;
         if (typeof showToast === 'function') {
-            showToast('有 ' + qn + ' 条任务排队，Enter 发送下一条', 'info', 2200);
+            showToast((window.I18n ? window.I18n.t('toast.queueItems', { count: qn }) : ('\u67093' + qn + '\u6761\u4efb\u52a1\u6392\u961f\uff0cEnter \u53d1\u9001\u4e0b\u4e00\u6761')), 'info', 2200);
         }
     }
             }
@@ -397,13 +397,13 @@ function setBtnStopMode() {
     chatSendBtn.disabled = false;
     $(chatSendBtn).addClass('stop-mode');
     $(chatSendBtn).html('<div class="stop-icon"></div>');
-    chatSendBtn.title = '停止生成';
+    chatSendBtn.title = (window.I18n ? window.I18n.t('btn.stopGeneration') : '\u505c\u6b62\u751f\u6210');
 }
 function setBtnSendMode() {
     btnMode = 'send';
     $(chatSendBtn).removeClass('stop-mode');
     $(chatSendBtn).html('<i class="layui-icon layui-icon-release"></i>');
-    chatSendBtn.title = '发送';
+    chatSendBtn.title = (window.I18n ? window.I18n.t('btn.send') : '\u53d1\u9001');
     chatSendBtn.disabled = false;
 }
 

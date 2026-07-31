@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" id="htmlRoot">
 <head>
     <title>SolonCode</title>
     <meta charset="UTF-8"/>
@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/css/app.css"/>
     <link rel="stylesheet" href="/css/settings.css"/>
     <!-- 当前皮肤：由 app-ui.js 按 static/skin/<name>/skin.css 动态加载 -->
+    <script src="/js/i18n.js"></script>
     <link rel="stylesheet" id="skinStyle" href="/skin/default/skin.css"/>
     <link rel="stylesheet" href="/highlight/github.min.css" media="(prefers-color-scheme: light)" id="hljsLightTheme"/>
     <link rel="stylesheet" href="/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)" id="hljsDarkTheme" disabled/>
@@ -21,35 +22,35 @@
 <!-- Sidebar -->
 <div class="sidebar">
     <div class="sidebar-nav">
-        <button class="sidebar-nav-item" id="newChatBtn" title="新对话">
+        <button class="sidebar-nav-item" id="newChatBtn" title="新对话" data-i18n-title="sidebar.newChat">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 5v14M5 12h14"/>
             </svg>
-            <span class="sidebar-nav-label">新对话</span>
+            <span class="sidebar-nav-label" data-i18n="sidebar.newChat">新对话</span>
         </button>
-        <button class="sidebar-nav-item" id="memoryNavBtn" title="心智记忆">
+        <button class="sidebar-nav-item" id="memoryNavBtn" title="心智记忆" data-i18n-title="sidebar.memory">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/>
                 <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/>
             </svg>
-            <span class="sidebar-nav-label">心智记忆</span>
+            <span class="sidebar-nav-label" data-i18n="sidebar.memory">心智记忆</span>
             <span class="sidebar-nav-badge" id="memoryBadge" style="display:none">0</span>
         </button>
     </div>
-    <div class="sidebar-title">最近对话</div>
+    <div class="sidebar-title" data-i18n="sidebar.recentChats">最近对话</div>
     <div class="sidebar-list" id="historyList"></div>
     <div class="sidebar-footer">
-        <button class="settings-btn" id="settingsBtn" title="设置">
+        <button class="settings-btn" id="settingsBtn" title="设置" data-i18n-title="sidebar.settings">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
-            <span style="margin-left:6px;font-size:12px;">设置</span>
+            <span style="margin-left:6px;font-size:12px;" data-i18n="sidebar.settings">设置</span>
         </button>
     </div>
 </div>
-<button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="收起侧边栏">‹</button>
-<button class="mobile-menu-btn" id="mobileMenuBtn" title="菜单">☰</button>
+<button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="收起侧边栏" data-i18n-title="sidebar.collapse">‹</button>
+<button class="mobile-menu-btn" id="mobileMenuBtn" title="菜单" data-i18n-title="sidebar.menu">☰</button>
 <div class="mobile-overlay" id="mobileOverlay"></div>
 
 <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
@@ -57,7 +58,7 @@
 <!-- Main -->
 <div class="main-area">
     <div class="main-header">
-        <button class="im-btn-header feishu-btn-header" id="feishuHeaderBtn" title="飞书绑定">
+        <button class="im-btn-header feishu-btn-header" id="feishuHeaderBtn" title="飞书绑定" data-i18n-title="header.feishu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M12.9238 12.8029C12.9427 12.784 12.9616 12.7682 12.9806 12.7493C13.0184 12.7146 13.0563 12.6767 13.091 12.6389L13.1667 12.5631L13.397 12.336L14.7315 11.0173L15.0659 10.686C15.129 10.6229 15.1952 10.563 15.2615 10.5031C15.3845 10.3926 15.5076 10.2854 15.6369 10.1813C15.7536 10.0866 15.8767 9.99514 15.9997 9.9068C16.1732 9.78376 16.3499 9.67019 16.5329 9.55977C16.7127 9.45251 16.8957 9.35471 17.085 9.26322C17.2616 9.17804 17.4415 9.09917 17.6276 9.02661C17.7317 8.9856 17.8326 8.94774 17.9399 8.91304C17.9935 8.89411 18.044 8.87834 18.0977 8.86256C17.6276 7.00439 16.7632 5.3008 15.5991 3.84959C15.3719 3.56566 15.0249 3.40161 14.6589 3.40161H5.0084C4.83489 3.40161 4.76233 3.6256 4.90114 3.72656C8.18528 6.13997 10.9236 9.24114 12.9017 12.825C12.908 12.8187 12.9175 12.8124 12.9238 12.8029Z" fill="currentColor" opacity="0.5" />
                 <path d="M9.09696 21.2986C14.0815 21.2986 18.4225 18.5476 20.6877 14.4843C20.7666 14.3423 20.8454 14.1972 20.918 14.052C20.8044 14.2729 20.6751 14.4811 20.5394 14.6767C20.4889 14.7461 20.4385 14.8155 20.388 14.8818C20.3217 14.9669 20.2555 15.049 20.1861 15.1278C20.1324 15.1909 20.0757 15.2509 20.0189 15.3108C19.9021 15.4307 19.7823 15.5474 19.6561 15.6547C19.5867 15.7146 19.5141 15.7714 19.4415 15.8282C19.3564 15.8944 19.268 15.9575 19.1797 16.0143C19.1229 16.0522 19.0661 16.09 19.0093 16.1247C18.9494 16.1626 18.8895 16.1973 18.8264 16.232C18.7002 16.3014 18.574 16.3645 18.4446 16.4245C18.3311 16.4749 18.2175 16.5223 18.1008 16.5633C17.9746 16.6106 17.8452 16.6516 17.7159 16.6863C17.5234 16.7399 17.3247 16.7809 17.1259 16.8125C16.9808 16.8346 16.8357 16.8504 16.6874 16.863C16.5328 16.8724 16.3751 16.8787 16.2173 16.8756C16.0438 16.8724 15.8703 16.863 15.6936 16.844C15.5643 16.8314 15.435 16.8125 15.3056 16.7873C15.192 16.7683 15.0785 16.7431 14.9649 16.7178C14.9049 16.7021 14.845 16.6895 14.7851 16.6737C14.6179 16.6295 14.4538 16.5822 14.2898 16.5349C14.2077 16.5096 14.1257 16.4875 14.0437 16.4623C13.9206 16.4245 13.7976 16.3897 13.6777 16.3519C13.5768 16.3203 13.479 16.2888 13.378 16.2572C13.2834 16.2257 13.1887 16.1942 13.0941 16.1626C13.031 16.1405 12.9647 16.1184 12.9016 16.0964C12.8228 16.0711 12.7471 16.0427 12.6682 16.0143C12.6114 15.9954 12.5578 15.9765 12.501 15.9544C12.3906 15.9134 12.2802 15.8755 12.1729 15.8345C12.1098 15.8093 12.0467 15.7872 11.9836 15.7619C11.8984 15.7304 11.8132 15.6957 11.7312 15.6641C11.6429 15.6294 11.5514 15.5947 11.4631 15.5569C11.4063 15.5348 11.3463 15.5096 11.2895 15.4875C11.217 15.4591 11.1476 15.4275 11.075 15.3991C11.0214 15.3771 10.9646 15.3518 10.911 15.3297C10.8542 15.3045 10.7974 15.2793 10.7406 15.254C10.6901 15.2319 10.6428 15.2099 10.5923 15.1878C10.5482 15.1688 10.5008 15.1468 10.4567 15.1278C10.4094 15.1057 10.3652 15.0868 10.3179 15.0647C10.2705 15.0427 10.2232 15.0206 10.1759 14.9985C10.116 14.9701 10.056 14.9417 9.99608 14.9165C9.93299 14.8881 9.87304 14.8565 9.80995 14.8281C9.7437 14.7966 9.67745 14.765 9.6112 14.7303C9.55441 14.7019 9.49762 14.6735 9.44084 14.6483C6.45324 13.1592 3.80321 11.1717 1.54438 8.76145C1.43081 8.64157 1.23206 8.72044 1.23206 8.88449L1.23836 18.0933C1.23836 18.494 1.43712 18.8726 1.77153 19.0934C3.86631 20.4878 6.38699 21.2986 9.09696 21.2986Z" fill="currentColor" opacity="0.7"/>
@@ -65,60 +66,60 @@
             </svg>
             <span class="im-label" id="feishuHeaderLabel"></span>
         </button>
-        <button class="im-btn-header dingtalk-btn-header" id="dingtalkHeaderBtn" title="钉钉绑定">
+        <button class="im-btn-header dingtalk-btn-header" id="dingtalkHeaderBtn" title="钉钉绑定" data-i18n-title="header.dingtalk">
             <svg width="18" height="18" viewBox="0 0 1024 1024" fill="currentColor"><path d="M573.7 252.5C422.5 197.4 201.3 96.7 201.3 96.7c-15.7-4.1-17.9 11.1-17.9 11.1-5 61.1 33.6 160.5 53.6 182.8 19.9 22.3 319.1 113.7 319.1 113.7S326 357.9 270.5 341.9c-55.6-16-37.9 17.8-37.9 17.8 11.4 61.7 64.9 131.8 107.2 138.4 42.2 6.6 220.1 4 220.1 4s-35.5 4.1-93.2 11.9c-42.7 5.8-97 12.5-111.1 17.8-33.1 12.5 24 62.6 24 62.6 84.7 76.8 129.7 50.5 129.7 50.5 33.3-10.7 61.4-18.5 85.2-24.2L565 743.1h84.6L603 928l205.3-271.9H700.8l22.3-38.7c.3.5.4.8.4.8S799.8 496.1 829 433.8l.6-1h-.1c5-10.8 8.6-19.7 10-25.8 17-71.3-114.5-99.4-265.8-154.5z"/></svg>
             <span class="im-label" id="dingtalkHeaderLabel"></span>
         </button>
-        <button class="wechat-btn-header" id="wechatHeaderBtn" title="微信绑定">
+        <button class="wechat-btn-header" id="wechatHeaderBtn" title="微信绑定" data-i18n-title="header.wechat">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1-.023-.156.49.49 0 0 1 .201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zM14.033 13.3c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982z"/></svg>
             <span class="wechat-label" id="wechatHeaderLabel"></span>
         </button>
-        <button class="theme-toggle" id="themeBtn" title="切换主题">
+        <button class="theme-toggle" id="themeBtn" title="切换主题" data-i18n-title="header.toggleTheme">
             <i class="layui-icon" id="themeIcon">&#xe748;</i>
         </button>
     </div>
 
     <!-- Welcome View -->
     <div class="welcome-view" id="welcomeView">
-        <a class="welcome-avatar" href="https://solon.noear.org/article/soloncode" target="_blank" rel="noopener noreferrer" title="了解更多关于 SolonCode">
+        <a class="welcome-avatar" href="https://solon.noear.org/article/soloncode" target="_blank" rel="noopener noreferrer" title="了解更多关于 SolonCode" data-i18n-title="welcome.learnMore">
             <img src="/img/favicon.png" alt="SolonCode" />
         </a>
-        <div class="welcome-title" id="welcomeTitle">你好，我是 SolonCode ！</div>
-        <div class="welcome-sub">需要什么帮助吗?</div>
+        <div class="welcome-title" id="welcomeTitle" data-i18n="welcome.greeting">你好，我是 SolonCode ！</div>
+        <div class="welcome-sub" data-i18n="welcome.sub">需要什么帮助吗?</div>
         <div class="welcome-input-box" id="welcomeDropZone">
             <div class="drop-overlay" id="welcomeDropOverlay">
                 <div class="drop-overlay-content">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span>松开以添加附件</span>
+                    <span data-i18n="welcome.dropHint">松开以添加附件</span>
                 </div>
             </div>
             <div class="attachments-wrap" id="welcomeAttachmentsWrap"></div>
             <div style="position:relative">
                 <div class="cmd-complete" id="welcomeCmdComplete"></div>
                 <div class="loop-panel" id="welcomeLoopPanel" style="display:none"></div>
-                <textarea id="welcomeInput" placeholder="随便问..." rows="1" autofocus style="width: 100%;"></textarea>
+                <textarea id="welcomeInput" placeholder="随便问..." data-i18n-placeholder="welcome.inputPlaceholder" rows="1" autofocus style="width: 100%;"></textarea>
             </div>
             <div class="welcome-toolbar">
                 <div class="toolbar-left">
                     <div class="more-menu" id="welcomeMoreMenu">
-                        <button type="button" class="more-menu-btn" id="welcomeMoreBtn" title="更多工具" aria-label="更多工具" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                        <button type="button" class="more-menu-btn" id="welcomeMoreBtn" title="更多工具" aria-label="更多工具" data-i18n-title="toolbar.moreTools" data-i18n-aria="toolbar.moreTools" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
                         <div class="more-menu-dropdown" role="menu">
-                            <button type="button" id="welcomeAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>上传可分析文件</button>
-                            <button type="button" id="welcomeImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>添加多模态素材</button>
+                            <button type="button" id="welcomeAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><span data-i18n="toolbar.attachFile">上传可分析文件</span></button>
+                            <button type="button" id="welcomeImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="toolbar.addImage">添加多模态素材</span></button>
                             <div class="more-menu-separator"></div>
-                            <button type="button" id="welcomeCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>添加命令<span class="more-menu-hint">或输入 "/"</span></button>
-                            <button type="button" id="welcomeSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>添加技能<span class="more-menu-hint">或输入 "$"</span></button>
-                            <button type="button" id="welcomeAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>添加子代理单次引用<span class="more-menu-hint">或输入 "@"</span></button>
+                            <button type="button" id="welcomeCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg><span data-i18n="toolbar.addCommand">添加命令</span><span class="more-menu-hint" data-i18n="toolbar.addCommandHint">或输入 "/"</span></button>
+                            <button type="button" id="welcomeSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg><span data-i18n="toolbar.addSkill">添加技能</span><span class="more-menu-hint" data-i18n="toolbar.addSkillHint">或输入 "$"</span></button>
+                            <button type="button" id="welcomeAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg><span data-i18n="toolbar.addAgent">添加子代理单次引用</span><span class="more-menu-hint" data-i18n="toolbar.addAgentHint">或输入 "@"</span></button>
                             <div class="more-menu-separator"></div>
-                            <button type="button" id="welcomeMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg>整理记忆</button>
-                            <button type="button" id="welcomeLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>循环任务<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
+                            <button type="button" id="welcomeMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg><span data-i18n="toolbar.organizeMemory">整理记忆</span></button>
+                            <button type="button" id="welcomeLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span data-i18n="toolbar.loopTask">循环任务</span><span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
                         </div>
                     </div>
 
                     <div class="toolbar-selector-group agent-selector-group">
                         <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg>
                         <div class="agent-selector" id="welcomeAgentSelector">
-                            <button type="button" class="agent-selector-current" id="welcomeAgentCurrent" title="选择子代理" aria-haspopup="menu" aria-expanded="false">
+                            <button type="button" class="agent-selector-current" id="welcomeAgentCurrent" title="选择子代理" data-i18n-title="toolbar.selectAgent" aria-haspopup="menu" aria-expanded="false">
                                 <span class="agent-name" id="welcomeAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
                             </button>
                             <div class="agent-dropdown" id="welcomeAgentDropdown" role="menu"></div>
@@ -127,25 +128,25 @@
                     <div class="toolbar-selector-group model-selector-group">
                         <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
                         <div class="model-selector" id="welcomeModelSelector">
-                            <div class="model-selector-current" id="welcomeModelCurrent" title="切换模型">
-                                <span class="model-name" id="welcomeModelName">加载中...</span>
+                            <div class="model-selector-current" id="welcomeModelCurrent" title="切换模型" data-i18n-title="toolbar.switchModel">
+                                <span class="model-name" id="welcomeModelName" data-i18n="toolbar.loading">加载中...</span>
                                 <i class="layui-icon layui-icon-down model-arrow"></i>
                             </div>
                             <div class="model-dropdown" id="welcomeModelDropdown">
                                 <div class="model-search-wrap">
-                                    <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                                    <input type="text" class="model-search-input" placeholder="搜索模型..." data-i18n-placeholder="toolbar.searchModel"/>
                                 </div>
                                 <div class="model-dropdown-items"></div>
                                 <div class="model-dropdown-footer">
                                     <div class="model-option-row model-reasoning-row" style="display:none">
                                         <div class="model-option-main">
-                                            <span class="model-option-label">推理强度</span>
+                                            <span class="model-option-label" data-i18n="toolbar.reasoningStrength">推理强度</span>
                                             <div class="model-option-pills" data-kind="reasoning">
-                                                <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
-                                                <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
-                                                <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
-                                                <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
-                                                <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                                                <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心" data-i18n-title="toolbar.effort.auto">auto</button>
+                                                <button type="button" data-effort="low" title="更快更省，适合简单问答" data-i18n-title="toolbar.effort.low">low</button>
+                                                <button type="button" data-effort="medium" title="均衡表现，日常任务推荐" data-i18n-title="toolbar.effort.medium">medium</button>
+                                                <button type="button" data-effort="high" title="更仔细分析，适合难问题" data-i18n-title="toolbar.effort.high">high</button>
+                                                <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度" data-i18n-title="toolbar.effort.max">max</button>
                                             </div>
                                         </div>
                                     </div>
@@ -158,10 +159,10 @@
                     <input type="file" class="attach-input" id="welcomeImageInput" multiple accept="image/*"/>
                 </div>
                 <div class="toolbar-right">
-                    <button class="voice-btn hidden" id="welcomeVoiceBtn" title="语音输入">
+                    <button class="voice-btn hidden" id="welcomeVoiceBtn" title="语音输入" data-i18n-title="toolbar.voice">
                         <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
                     </button>
-                    <button class="welcome-send-btn" id="welcomeSendBtn" title="发送">
+                    <button class="welcome-send-btn" id="welcomeSendBtn" title="发送" data-i18n-title="toolbar.send">
                         <i class="layui-icon layui-icon-release"></i>
                     </button>
                 </div>
@@ -194,25 +195,25 @@
                 <div class="input-toolbar">
                     <div class="toolbar-left">
                         <div class="more-menu" id="chatMoreMenu">
-                            <button type="button" class="more-menu-btn" id="chatMoreBtn" title="更多工具" aria-label="更多工具" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                            <button type="button" class="more-menu-btn" id="chatMoreBtn" title="更多工具" aria-label="更多工具" data-i18n-title="toolbar.moreTools" data-i18n-aria="toolbar.moreTools" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
                             <div class="more-menu-dropdown" role="menu">
-                                <button type="button" id="chatAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>上传可分析文件</button>
-                                <button type="button" id="chatImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>添加多模态素材</button>
+                                <button type="button" id="chatAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><span data-i18n="toolbar.attachFile">上传可分析文件</span></button>
+                                <button type="button" id="chatImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="toolbar.addImage">添加多模态素材</span></button>
                                 <div class="more-menu-separator"></div>
-                                <button type="button" id="chatCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg>添加命令<span class="more-menu-hint">或输入 "/"</span></button>
-                                <button type="button" id="chatSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg>添加技能<span class="more-menu-hint">或输入 "$"</span></button>
-                                <button type="button" id="chatAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg>添加子代理单次引用<span class="more-menu-hint">或输入 "@"</span></button>
+                                <button type="button" id="chatCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg><span data-i18n="toolbar.addCommand">添加命令</span><span class="more-menu-hint" data-i18n="toolbar.addCommandHint">或输入 "/"</span></button>
+                                <button type="button" id="chatSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg><span data-i18n="toolbar.addSkill">添加技能</span><span class="more-menu-hint" data-i18n="toolbar.addSkillHint">或输入 "$"</span></button>
+                                <button type="button" id="chatAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg><span data-i18n="toolbar.addAgent">添加子代理单次引用</span><span class="more-menu-hint" data-i18n="toolbar.addAgentHint">或输入 "@"</span></button>
                                 <div class="more-menu-separator"></div>
-                                <button type="button" id="chatMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg>整理记忆</button>
-                                <button type="button" id="chatLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>循环任务<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
-                                <button type="button" id="chatHistoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>历史消息<span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="16" x2="12" y2="8"/><polyline points="8 12 12 8 16 12"/></svg></span></button>
+                                <button type="button" id="chatMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg><span data-i18n="toolbar.organizeMemory">整理记忆</span></button>
+                                <button type="button" id="chatLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span data-i18n="toolbar.loopTask">循环任务</span><span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
+                                <button type="button" id="chatHistoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span data-i18n="toolbar.historyMessages">历史消息</span><span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="16" x2="12" y2="8"/><polyline points="8 12 12 8 16 12"/></svg></span></button>
                             </div>
                         </div>
 
                         <div class="toolbar-selector-group agent-selector-group">
                             <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg>
                             <div class="agent-selector" id="chatAgentSelector">
-                                <button type="button" class="agent-selector-current" id="chatAgentCurrent" title="选择子代理" aria-haspopup="menu" aria-expanded="false">
+                                <button type="button" class="agent-selector-current" id="chatAgentCurrent" title="选择子代理" data-i18n-title="toolbar.selectAgent" aria-haspopup="menu" aria-expanded="false">
                                     <span class="agent-name" id="chatAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
                                 </button>
                                 <div class="agent-dropdown" id="chatAgentDropdown" role="menu"></div>
@@ -221,25 +222,25 @@
                         <div class="toolbar-selector-group model-selector-group">
                             <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
                             <div class="model-selector" id="chatModelSelector">
-                                <div class="model-selector-current" id="chatModelCurrent" title="切换模型">
-                                    <span class="model-name" id="chatModelName">加载中...</span>
+                                <div class="model-selector-current" id="chatModelCurrent" title="切换模型" data-i18n-title="toolbar.switchModel">
+                                    <span class="model-name" id="chatModelName" data-i18n="toolbar.loading">加载中...</span>
                                     <i class="layui-icon layui-icon-down model-arrow"></i>
                                 </div>
                                 <div class="model-dropdown" id="chatModelDropdown">
                                     <div class="model-search-wrap">
-                                        <input type="text" class="model-search-input" placeholder="搜索模型..."/>
+                                        <input type="text" class="model-search-input" placeholder="搜索模型..." data-i18n-placeholder="toolbar.searchModel"/>
                                     </div>
                                     <div class="model-dropdown-items"></div>
                                     <div class="model-dropdown-footer">
                                         <div class="model-option-row model-reasoning-row" style="display:none">
                                             <div class="model-option-main">
-                                                <span class="model-option-label">推理强度</span>
+                                                <span class="model-option-label" data-i18n="toolbar.reasoningStrength">推理强度</span>
                                                 <div class="model-option-pills" data-kind="reasoning">
-                                                    <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心">auto</button>
-                                                    <button type="button" data-effort="low" title="更快更省，适合简单问答">low</button>
-                                                    <button type="button" data-effort="medium" title="均衡表现，日常任务推荐">medium</button>
-                                                    <button type="button" data-effort="high" title="更仔细分析，适合难问题">high</button>
-                                                    <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度">max</button>
+                                                    <button type="button" data-effort="auto" title="跟随模型或供应商默认，通常最省心" data-i18n-title="toolbar.effort.auto">auto</button>
+                                                    <button type="button" data-effort="low" title="更快更省，适合简单问答" data-i18n-title="toolbar.effort.low">low</button>
+                                                    <button type="button" data-effort="medium" title="均衡表现，日常任务推荐" data-i18n-title="toolbar.effort.medium">medium</button>
+                                                    <button type="button" data-effort="high" title="更仔细分析，适合难问题" data-i18n-title="toolbar.effort.high">high</button>
+                                                    <button type="button" data-effort="max" title="最强思考，通常最慢也更费额度" data-i18n-title="toolbar.effort.max">max</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -252,10 +253,10 @@
                         <input type="file" class="attach-input" id="chatImageInput" multiple accept="image/*"/>
                     </div>
                     <div class="toolbar-right">
-                        <button class="voice-btn hidden" id="chatVoiceBtn" title="语音输入">
+                        <button class="voice-btn hidden" id="chatVoiceBtn" title="语音输入" data-i18n-title="toolbar.voice">
                             <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
                         </button>
-                        <button class="send-btn" id="chatSendBtn" title="发送">
+                        <button class="send-btn" id="chatSendBtn" title="发送" data-i18n-title="toolbar.send">
                             <i class="layui-icon layui-icon-release"></i>
                         </button>
                     </div>
@@ -268,24 +269,24 @@
     <div class="git-viewer" id="gitViewer" style="display:none">
         <div class="git-viewer-header">
             <div class="git-viewer-breadcrumb">
-                <span class="git-viewer-label" id="gitViewerLabel">变更详情</span>
+                <span class="git-viewer-label" id="gitViewerLabel" data-i18n="gitViewer.changeDetails">变更详情</span>
                 <span class="git-viewer-sep">/</span>
                 <span class="git-viewer-file" id="gitViewerFile"></span>
             </div>
             <div class="git-viewer-header-actions">
-                <button class="git-viewer-action-btn" id="gitViewerMdToggle" title="预览 Markdown" style="display:none">
+                <button class="git-viewer-action-btn" id="gitViewerMdToggle" title="预览 Markdown" data-i18n-title="gitViewer.previewMd" style="display:none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
-                <button class="git-viewer-action-btn" id="gitViewerCopyBtn" title="复制文件内容">
+                <button class="git-viewer-action-btn" id="gitViewerCopyBtn" title="复制文件内容" data-i18n-title="gitViewer.copyContent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
-                <button class="git-viewer-action-btn" id="gitViewerMemNew" title="新建记忆" style="display:none">
+                <button class="git-viewer-action-btn" id="gitViewerMemNew" title="新建记忆" data-i18n-title="gitViewer.newMemory" style="display:none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
-                <button class="git-viewer-action-btn" id="gitViewerFullscreen" title="全屏">
+                <button class="git-viewer-action-btn" id="gitViewerFullscreen" title="全屏" data-i18n-title="gitViewer.fullscreen">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                 </button>
-                <button class="git-viewer-close" id="gitViewerClose" title="关闭 (Esc)">
+                <button class="git-viewer-close" id="gitViewerClose" title="关闭 (Esc)" data-i18n-title="gitViewer.close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
@@ -296,17 +297,17 @@
 </div>
 
 <!-- File Tree Panel (Right Side) -->
-<button class="workspace-panel-toggle-btn collapsed" id="workspaceToggleBtn" title="展开文件树">‹</button>
+<button class="workspace-panel-toggle-btn collapsed" id="workspaceToggleBtn" title="展开文件树" data-i18n-title="workspace.expandFiles">‹</button>
 <div class="workspace-resize-handle" id="workspaceResizeHandle"></div>
 <div class="workspace-panel collapsed" id="workspacePanel">
     <div class="workspace-tabs">
         <button class="workspace-tab" data-tab="tasks">
-            任务
+            <span data-i18n="workspace.tab.tasks">任务</span>
             <span class="todo-badge" id="todoBadge" style="display:none">0</span>
         </button>
-        <button class="workspace-tab active" data-tab="files">文件</button>
+        <button class="workspace-tab active" data-tab="files" data-i18n="workspace.tab.files">文件</button>
         <button class="workspace-tab" data-tab="gitDiff">
-            审查
+            <span data-i18n="workspace.tab.review">审查</span>
             <span class="git-badge" id="gitBadge" style="display:none">0</span>
         </button>
     </div>
@@ -316,13 +317,13 @@
     <div class="workspace-tab-content" id="tabContentTasks">
         <div class="todo-panel">
             <div class="todo-header">
-                <div class="todo-title">当前任务 <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
-                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新">
+                <div class="todo-title" data-i18n-partial><span data-i18n="workspace.currentTask">当前任务</span> <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
+                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新" data-i18n-title="workspace.refreshBtn">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
             </div>
             <div class="todo-list" id="todoList"></div>
-            <div class="todo-empty" id="todoEmpty" style="display:none">
+                <div class="todo-empty" id="todoEmpty" style="display:none" data-i18n="workspace.noTasks">
                 当前会话暂无任务清单
             </div>
         </div>
@@ -331,9 +332,9 @@
             <div class="queue-strip-header" id="chatQueueHeader">
                 <div class="queue-strip-title-row">
                     <div class="queue-strip-title">
-                        任务排队
+                        <span data-i18n="workspace.taskQueue">任务排队</span>
                         <span class="queue-strip-count" id="chatQueueTitle">0</span>
-                        <button type="button" class="queue-strip-clear" id="chatQueueClear" title="清空排队" aria-label="清空排队">
+                        <button type="button" class="queue-strip-clear" id="chatQueueClear" title="清空排队" data-i18n-title="workspace.clearQueue" aria-label="清空排队" data-i18n-aria="workspace.clearQueue">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -343,13 +344,13 @@
                         </button>
                     </div>
                     <div class="queue-strip-actions">
-                        <button type="button" class="queue-strip-toggle" id="chatQueueToggle" title="展开" aria-label="展开">
+                        <button type="button" class="queue-strip-toggle" id="chatQueueToggle" title="展开" data-i18n-title="workspace.expandQueue" aria-label="展开" data-i18n-aria="workspace.expandQueue">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                     </div>
                 </div>
                 <div class="queue-strip-preview" id="chatQueuePreview"></div>
-                <div class="queue-strip-hint">当前任务结束后自动发送</div>
+                <div class="queue-strip-hint" data-i18n="workspace.queueAutoSendHint">当前任务结束后自动发送</div>
             </div>
             <div class="queue-strip-list" id="chatQueueList"></div>
         </div>
@@ -359,15 +360,15 @@
     <div class="workspace-tab-content active" id="tabContentFiles">
         <div class="file-search-bar">
             <svg class="file-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" class="file-search-input" id="fileSearchInput" placeholder="搜索文件..." />
-            <button class="file-search-clear" id="fileSearchClear" title="清除" style="display:none">
+            <input type="text" class="file-search-input" id="fileSearchInput" placeholder="搜索文件..." data-i18n-placeholder="workspace.searchFiles" />
+            <button class="file-search-clear" id="fileSearchClear" title="清除" data-i18n-title="workspace.clearSearch" style="display:none">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
         <div class="file-panel-tree" id="fileTree"></div>
         <div class="file-mount-hint" id="fileMountHint">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-            <span>添加文件类型挂载</span>
+            <span data-i18n="workspace.addMountHint">添加文件类型挂载</span>
         </div>
     </div>
 
@@ -376,8 +377,8 @@
         <!-- 审查工作区选择器（自定义下拉） -->
         <div class="git-workspace-bar" id="gitWorkspaceBar">
             <div class="git-workspace-selector" id="gitWorkspaceSelector">
-                <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区">
-                    <span class="git-workspace-name" id="gitWorkspaceName">加载中...</span>
+                <div class="git-workspace-current" id="gitWorkspaceCurrent" title="切换工作区" data-i18n-title="git.switchWorkspace">
+                    <span class="git-workspace-name" id="gitWorkspaceName" data-i18n="git.workspaceLoading">加载中...</span>
                     <i class="layui-icon layui-icon-down git-workspace-arrow"></i>
                 </div>
                 <div class="git-workspace-dropdown" id="gitWorkspaceDropdown">
@@ -395,8 +396,8 @@
                     <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
             </div>
-            <div class="git-empty-title">Git 不可用</div>
-            <div class="git-empty-desc">系统未安装 Git 或 Git 不在 PATH 中</div>
+            <div class="git-empty-title" data-i18n="git.unavailableTitle">Git 不可用</div>
+            <div class="git-empty-desc" data-i18n="git.unavailableDesc">系统未安装 Git 或 Git 不在 PATH 中</div>
         </div>
 
         <!-- 状态2：未初始化仓库 -->
@@ -414,27 +415,27 @@
                     <path d="M13.446 2.6l7.955 7.954a2.045 2.045 0 0 1 0 2.892l-7.955 7.955a2.045 2.045 0 0 1 -2.892 0l-7.955 -7.955a2.045 2.045 0 0 1 0 -2.892l7.955 -7.955a2.045 2.045 0 0 1 2.892 0" />
                 </svg>
             </div>
-            <div class="git-empty-title">当前工作区不是 Git 仓库</div>
+            <div class="git-empty-title" data-i18n="git.notRepoTitle">当前工作区不是 Git 仓库</div>
             <div class="git-init-benefits">
-                <div>初始化后可以：</div>
+                <div data-i18n="git.initBenefitsTitle">初始化后可以：</div>
                 <ul>
-                    <li>跟踪文件变更历史</li>
-                    <li>查看 diff 代码对比</li>
-                    <li>配合 AI 进行代码审查</li>
+                    <li data-i18n="git.initBenefit1">跟踪文件变更历史</li>
+                    <li data-i18n="git.initBenefit2">查看 diff 代码对比</li>
+                    <li data-i18n="git.initBenefit3">配合 AI 进行代码审查</li>
                 </ul>
             </div>
             <div class="git-init-options">
                 <label class="git-init-checkbox">
                     <input type="checkbox" id="gitInitCommit" checked/>
-                    <span>自动提交当前所有文件</span>
+                    <span data-i18n="git.autoCommit">自动提交当前所有文件</span>
                 </label>
             </div>
             <button class="git-init-btn" id="gitInitBtn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                初始化 Git 仓库
+                <span data-i18n="git.initBtn">初始化 Git 仓库</span>
             </button>
-            <div class="git-init-note">将在工作区执行 git init</div>
+            <div class="git-init-note" data-i18n="git.initNote">将在工作区执行 git init</div>
         </div>
 
         <!-- 状态3：正常仓库 -->
@@ -449,27 +450,27 @@
                     <span class="git-branch" id="gitBranch">--</span>
                 </div>
                 <div class="git-header-right">
-                    <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表">
+                    <button class="git-refresh-btn" id="gitRefreshBtn" title="刷新变更列表" data-i18n-title="git.refreshChanges">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                     </button>
                 </div>
             </div>
             <div class="git-diff-file-list" id="gitDiffFileList"></div>
             <div class="git-commit-bar" id="gitCommitBar">
-                <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." rows="1"></textarea>
+                <textarea class="git-commit-input" id="gitCommitMsg" placeholder="审查摘要..." data-i18n-placeholder="git.reviewPlaceholder" rows="1"></textarea>
                 <div class="git-commit-actions">
-                    <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要">
+                    <button class="git-summary-btn" id="gitSummaryBtn" title="AI 生成变更摘要" data-i18n-title="git.generateSummaryTitle">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg>
-                        生成摘要
+                        <span data-i18n="git.generateSummaryBtn">生成摘要</span>
                     </button>
                     <button class="git-commit-btn" id="gitCommitBtn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        提交
+                        <span data-i18n="git.commitBtn">提交</span>
                     </button>
                 </div>
             </div>
             <div class="git-diff-empty" id="gitDiffEmpty" style="display:none">
-                <div class="git-empty-desc">没有未提交的变更</div>
+                <div class="git-empty-desc" data-i18n="git.noChanges">没有未提交的变更</div>
             </div>
         </div>
     </div>
@@ -483,28 +484,28 @@
         <div class="settings-content">
             <div class="settings-tabs">
                 <div class="settings-sidebar-title-row">
-                    <div class="sidebar-title settings-sidebar-title">设置</div>
-                    <button type="button" class="settings-reload-icon-btn" id="settingsReloadBtn" title="从磁盘重新加载 settings.json 到当前实例" aria-label="从磁盘重新加载配置">
+                    <div class="sidebar-title settings-sidebar-title" data-i18n="settings.title">设置</div>
+                    <button type="button" class="settings-reload-icon-btn" id="settingsReloadBtn" title="从磁盘重新加载 settings.json 到当前实例" data-i18n-title="settings.reloadTitle" aria-label="从磁盘重新加载配置" data-i18n-aria="settings.reloadAriaLabel">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                         </svg>
                     </button>
                 </div>
-                <button class="settings-tab active" data-tab="general"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 通用</button>
+                <button class="settings-tab active" data-tab="general"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="settings.tab.general">通用</span></button>
 
-                <button class="settings-tab" data-tab="agents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg> 智能体</button>
-                <button class="settings-tab" data-tab="mounts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 挂载</button>
-                <button class="settings-tab" data-tab="skills"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 技能管理</button>
+                <button class="settings-tab" data-tab="agents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg> <span data-i18n="settings.tab.agents">智能体</span></button>
+                <button class="settings-tab" data-tab="mounts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> <span data-i18n="settings.tab.mounts">挂载</span></button>
+                <button class="settings-tab" data-tab="skills"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> <span data-i18n="settings.tab.skills">技能管理</span></button>
 
-                <div class="sidebar-title" style="padding:16px 16px 8px;font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;">大语言模型</div>
-                <button class="settings-tab" data-tab="providers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> 供应商</button>
-                <button class="settings-tab" data-tab="llm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg> 模型</button>
+                <div class="sidebar-title" style="padding:16px 16px 8px;font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;" data-i18n="settings.group.llm">大语言模型</div>
+                <button class="settings-tab" data-tab="providers"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> <span data-i18n="settings.tab.providers">供应商</span></button>
+                <button class="settings-tab" data-tab="llm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg> <span data-i18n="settings.tab.llm">模型</span></button>
 
-                <div class="sidebar-title" style="padding:16px 16px 8px;font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;">外部连接</div>
-                <button class="settings-tab" data-tab="mcp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg> MCP 服务器</button>
-                <button class="settings-tab" data-tab="openapi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> OpenAPI 服务器</button>
-                <button class="settings-tab" data-tab="lsp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> LSP 服务器</button>
+                <div class="sidebar-title" style="padding:16px 16px 8px;font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;" data-i18n="settings.group.external">外部连接</div>
+                <button class="settings-tab" data-tab="mcp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg> <span data-i18n="settings.tab.mcp">MCP 服务器</span></button>
+                <button class="settings-tab" data-tab="openapi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span data-i18n="settings.tab.openapi">OpenAPI 服务器</span></button>
+                <button class="settings-tab" data-tab="lsp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> <span data-i18n="settings.tab.lsp">LSP 服务器</span></button>
 
                 <div class="settings-tabs-footer">
                     <div class="settings-product-name">SolonCode</div>
@@ -869,8 +870,28 @@
                                 </div>
                             </div>
 
+                            <!-- 界面语言 -->
+                            <div class="general-card">
+                                <div class="general-card-header">
+                                    <div class="general-card-text">
+                                        <div class="general-card-title" data-i18n="general.language.title">界面语言</div>
+                                    </div>
+                                </div>
+                                <div class="general-card-body">
+                                    <div class="general-toggle-row">
+                                        <div class="general-toggle-info">
+                                            <span class="general-toggle-name">Language / 语言</span>
+                                        </div>
+                                        <div class="mcp-type-toggle" id="localeSwitcher">
+                                            <button type="button" class="mcp-type-btn active" id="localeZhBtn" onclick="window.I18n && window.I18n.switch('zh-CN'); document.getElementById('localeZhBtn').classList.add('active'); document.getElementById('localeEnBtn').classList.remove('active');"><span data-i18n="general.language.zhCN">中文</span></button>
+                                            <button type="button" class="mcp-type-btn" id="localeEnBtn" onclick="window.I18n && window.I18n.switch('en'); document.getElementById('localeEnBtn').classList.add('active'); document.getElementById('localeZhBtn').classList.remove('active');"><span data-i18n="general.language.en">English</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-actions form-actions-end settings-actions-spacious">
-                                <button class="btn-primary" id="generalSaveBtn">保存</button>
+                                <button class="btn-primary" id="generalSaveBtn" data-i18n="general.saveBtn">保存</button>
                             </div>
                         </div>
                     </div>
@@ -1668,7 +1689,9 @@
         var verEl = document.getElementById('appVersionLabel');
         if (verEl && meta.appVersion) verEl.textContent = meta.appVersion;
         var titleEl = document.getElementById('welcomeTitle');
-        if (titleEl && meta.appTitle) titleEl.textContent = '你好，我是 ' + meta.appTitle + ' ！';
+        if (titleEl && meta.appTitle) {
+            titleEl.textContent = (window.I18n ? window.I18n.t('welcome.greeting', { appTitle: meta.appTitle }) : ('\u4f60\u597d\uff0c\u6211\u662f ' + meta.appTitle + '\uff01'));
+        }
     }).catch(function () { /* ignore */ });
 
     // 启动时拉取通用设置，回填控制台打印简化开关（决定流式工具卡默认收起/展开）
@@ -1697,7 +1720,7 @@
             if (window._notifyPerm === 'granted') {
                 try {
                     var n = new Notification('SolonCode', {
-                        body: 'AI 任务已完成',
+                        body: (window.I18n ? window.I18n.t('toast.taskComplete') : 'AI \u4efb\u52a1\u5df2\u5b8c\u6210'),
                         icon: '/img/favicon.png',
                         tag: 'soloncode-task-done',
                         requireInteraction: false
@@ -1787,7 +1810,7 @@
 
         function toastSettingsError() {
             if (window.layer && typeof layer.msg === 'function') {
-                layer.msg('设置模块加载失败，请重试', { icon: 2, time: 2500 });
+                layer.msg((window.I18n ? window.I18n.t('toast.settingsLoadFailed') : '\u8bbe\u7f6e\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5'), { icon: 2, time: 2500 });
             } else {
                 console.error('[settings] modules failed to load');
             }
@@ -1838,6 +1861,23 @@
                 realOpenSettingsTab = fn;
             }
         });
+    })();
+</script>
+
+<!-- i18n: 同步语言切换按鈕状态 -->
+<script>
+    (function() {
+        function syncLocaleBtns() {
+            var locale = (window.I18n && window.I18n.getLocale) ? window.I18n.getLocale() : (localStorage.getItem('sc-locale') || 'zh-CN');
+            var zh = document.getElementById('localeZhBtn');
+            var en = document.getElementById('localeEnBtn');
+            if (!zh || !en) return;
+            if (locale === 'en') { en.classList.add('active'); zh.classList.remove('active'); }
+            else { zh.classList.add('active'); en.classList.remove('active'); }
+        }
+        // 设置面板打开时同步
+        document.addEventListener('i18n:switched', syncLocaleBtns);
+        document.addEventListener('DOMContentLoaded', syncLocaleBtns);
     })();
 </script>
 
