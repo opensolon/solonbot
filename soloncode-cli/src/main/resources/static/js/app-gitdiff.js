@@ -599,6 +599,9 @@
     function renderFileContent(content, fileName, fileSize, filePath, rawUrl) {
         if (!gitViewerContent) return;
 
+        // 重置容器状态（清理之前文件留下的 overflow 等样式）
+        gitViewerContent.style.overflow = '';
+
         // ---- 媒体文件类型检测（优先于文本渲染）----
         if (rawUrl && isImageFile(filePath || fileName)) {
             renderMediaContent(rawUrl, fileName || filePath, true);
@@ -727,9 +730,11 @@
                 (function(content, toggle, wrap, code) {
                     toggle.addEventListener('click', function() {
                         if (wrap.style.display === 'none') {
-                            // 切换到"视图"模式
+                            // 切换到预览模式
                             code.style.display = 'none';
                             wrap.style.display = 'block';
+                            // 隐藏外层滚动条，与全屏模式行为一致
+                            gitViewerContent.style.overflow = 'hidden';
 
                             // 调整 iframe 高度
                             var iframe = wrap.querySelector('iframe');
@@ -758,6 +763,8 @@
                             // 切换回"源码"模式
                             code.style.display = 'block';
                             wrap.style.display = 'none';
+                            // 恢复外层滚动条（源码模式需要）
+                            gitViewerContent.style.overflow = '';
 
                             // 切换 SVG 图标为"眼睛"图标
                             toggle.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
