@@ -768,39 +768,6 @@ public class PrintMode {
         return node;
     }
 
-    /**
-     * api_retry 事件：对齐 Claude Code 格式（API 重试通知）
-     * <pre>
-     * {"type":"system","subtype":"api_retry","attempt":1,"max_retries":3,
-     *  "retry_delay_ms":2000,"error_status":429,"error":"rate_limit",
-     *  "uuid":"...","session_id":"..."}
-     * </pre>
-     *
-     * <p>已知错误分类（error 字段）：authentication_failed / oauth_org_not_allowed /
-     * billing_error / rate_limit / overloaded / invalid_request / model_not_found /
-     * server_error / max_output_tokens / unknown</p>
-     *
-     * <p>调用方：在引擎/模型层捕获到重试事件时，通过此方法构建事件并调用
-     * {@link #emitStreamEvent} 发射。{@code errorStatus} 为 null 表示连接级错误（无 HTTP 状态码）。</p>
-     */
-    ONode buildApiRetryEvent(int attempt, int maxRetries, long retryDelayMs,
-                             Integer errorStatus, String errorCategory, String sessionId) {
-        ONode node = new ONode();
-        node.set("type", "system");
-        node.set("subtype", "api_retry");
-        node.set("attempt", attempt);
-        node.set("max_retries", maxRetries);
-        node.set("retry_delay_ms", retryDelayMs);
-        if (errorStatus != null) {
-            node.set("error_status", errorStatus);
-        } else {
-            node.set("error_status", null);
-        }
-        node.set("error", errorCategory != null ? errorCategory : "unknown");
-        node.set("uuid", UUID.randomUUID().toString());
-        node.set("session_id", sessionId != null ? sessionId : "");
-        return node;
-    }
 
     // ========== 费用估算 ==========
 
