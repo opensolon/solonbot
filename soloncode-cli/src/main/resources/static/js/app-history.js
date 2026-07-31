@@ -1668,18 +1668,37 @@ $(document).on('mouseenter', '#msgNav', function() {
     var centeredTop = navRect.top + navRect.height / 2 - panelH / 2;
     var clampedTop = Math.max(8, Math.min(centeredTop, window.innerHeight - panelH - 8));
     $panel.css('top', clampedTop + 'px');
+    // ③ 修正箭头指向：clamp 后箭头仍对准导航条中心
+    var navCenterY = navRect.top + navRect.height / 2;
+    $panel[0].style.setProperty('--arrow-top', (navCenterY - clampedTop) + 'px');
+    // ② 滚动面板内部使 active 项居中可见
+    var $activeItem = $panel.find('.msg-nav-panel-item.active');
+    if ($activeItem.length) {
+        var itemOffset = $activeItem[0].offsetTop;
+        var itemH = $activeItem[0].offsetHeight;
+        $panel.scrollTop(itemOffset - panelH / 2 + itemH / 2);
+    }
 
 }).on('mouseleave', '#msgNav', function() {
     _scheduleNavClose();
 });
 
-// ③ 面板 item hover ↔ 对应块联动高亮
+// ③ 面板 item hover ↔ 对应块联动高亮（双向）
 $(document).on('mouseenter', '.msg-nav-panel-item', function() {
     var idx = $(this).attr('data-msg-idx');
     $('#msgNav .msg-nav-block').removeClass('highlight');
     $('#msgNav .msg-nav-block[data-msg-idx="' + idx + '"]').addClass('highlight');
 }).on('mouseleave', '.msg-nav-panel-item', function() {
     $('#msgNav .msg-nav-block').removeClass('highlight');
+});
+
+// ④ 块 hover → 面板 item 反向联动高亮
+$(document).on('mouseenter', '.msg-nav-block', function() {
+    var idx = $(this).attr('data-msg-idx');
+    $('.msg-nav-panel-item').removeClass('highlight');
+    $('.msg-nav-panel-item[data-msg-idx="' + idx + '"]').addClass('highlight');
+}).on('mouseleave', '.msg-nav-block', function() {
+    $('.msg-nav-panel-item').removeClass('highlight');
 });
 
 // ④ 面板 item 点击定位
