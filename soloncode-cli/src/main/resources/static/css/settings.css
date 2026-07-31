@@ -246,8 +246,8 @@
 .settings-action-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; }
 .settings-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .settings-action-btn.delete:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
-.settings-action-btn.edit:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
-.settings-action-btn.browse:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.settings-action-btn.edit:hover { background: var(--bg-hover); color: var(--accent); }
+.settings-action-btn.browse:hover { background: var(--bg-hover); color: var(--accent); }
 .settings-action-btn.copy:hover { background: rgba(16,185,129,0.08); color: #10b981; }
 .mcp-tools-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-primary); }
 .mcp-tools-select-all { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; user-select: none; }
@@ -413,9 +413,9 @@
 /* 技能市场内容类（结构类统一使用 .settings-list-*） */
 .skill-installed-badge { font-size: 10px; font-weight: 500; color: #22c55e; background: rgba(34,197,94,0.1); padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
 .skill-item-meta { font-size: 10px; color: var(--text-secondary); margin-top: 3px; display: flex; gap: 10px; }
-.skill-item-version { font-size: 10px; font-weight: 400; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 0 5px; border-radius: 3px; }
+.skill-item-version { font-size: 10px; font-weight: 400; color: var(--accent); background: var(--bg-hover); padding: 0 5px; border-radius: 3px; }
 .skill-install-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: 6px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
-.skill-install-btn:hover { background: rgba(59,130,246,0.08); color: #3b82f6; }
+.skill-install-btn:hover { background: var(--bg-hover); color: var(--accent); }
 .skill-install-btn.installing { opacity: 0.6; cursor: wait; }
 .skill-install-btn.installing .skill-install-spin { animation: settings-spin 0.8s linear infinite; }
 .skill-reinstall-btn:hover { background: rgba(34,197,94,0.08); color: #22c55e; }
@@ -1376,7 +1376,7 @@ select[disabled] {
     padding: 1px 6px;
     border-radius: 4px;
     background: var(--accent-bg, rgba(59,130,246,0.1));
-    color: var(--accent, #3b82f6);
+    color: var(--accent, #4f6ef7);
     font-weight: 500;
     vertical-align: middle;
     margin-left: 4px;
@@ -1469,7 +1469,7 @@ select[disabled] {
 }
 .import-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    background: var(--accent);
     border-radius: 3px;
     transition: width 0.3s ease;
 }
@@ -1621,7 +1621,7 @@ select[disabled] {
     transition: border-color 0.2s;
 }
 .import-string-textarea:focus {
-    border-color: var(--accent, #3b82f6);
+    border-color: var(--accent, #4f6ef7);
     box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
 }
 .import-string-hint {
@@ -1637,7 +1637,7 @@ select[disabled] {
     padding: 1px 5px;
     background: var(--bg-secondary, #f0f0f0);
     border-radius: 4px;
-    color: var(--accent, #3b82f6);
+    color: var(--accent, #4f6ef7);
     border: 1px solid var(--border-color);
 }
 
