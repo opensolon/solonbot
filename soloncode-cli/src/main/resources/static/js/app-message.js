@@ -816,6 +816,14 @@ function clearThinkTags(text) {
 function appendReasonChunk(sess, segment, text, reasonId, agentName) {
     var clean = clearThinkTags(text || '');
     if (!clean) return;
+    // 新 reasonId 到来时，先结束同 segment 内其他 reasonId 的思考块，
+    // 防止上一个思考块的 spinner 无限旋转（与 appendContentChunk / appendActionStartChunk 行为一致）
+    var key = streamReasonKey(segment, reasonId);
+    for (var _rid in sess.reasonGroups) {
+        if (_rid !== key && sess.reasonGroups[_rid].thinkingBlockEl) {
+            finishThinkingBlock(sess, _rid);
+        }
+    }
     var group = ensureReasonGroup(sess, segment, reasonId);
     if (!group) return;
     group.activeKind = 'reason';
