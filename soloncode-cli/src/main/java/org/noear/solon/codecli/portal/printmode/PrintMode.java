@@ -93,6 +93,8 @@ public class PrintMode {
     public static final int EXIT_NO_PROMPT = 3;
     /** 退出码：超过费用预算 */
     public static final int EXIT_BUDGET_EXCEEDED = 4;
+    /** 退出码：收到 SIGTERM（= 128 + 15，与 Unix 惯例一致） */
+    public static final int EXIT_SIGTERM = 143;
 
     /** 写入类工具集合（plan 模式下会被 DENY） */
     private static final String[] WRITE_TOOLS = {"Write", "Edit", "Bash"};
@@ -207,12 +209,21 @@ public class PrintMode {
         return prompt;
     }
 
+    /** stdin 输入上限：10MB（对齐官方 v2.1.128+ 规范） */
+    private static final int STDIN_MAX_BYTES = 10 * 1024 * 1024;
+
     private byte[] readAllStdin() {
         try {
             java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
             byte[] buffer = new byte[4096];
             int len;
+            int totalRead = 0;
             while ((len = System.in.read(buffer)) != -1) {
+                totalRead += len;
+                if (totalRead > STDIN_MAX_BYTES) {
+                    System.err.println("Error: stdin input exceeds 10MB limit.");
+                    return null;
+                }
                 baos.write(buffer, 0, len);
             }
             return baos.toByteArray();
@@ -475,6 +486,11 @@ public class PrintMode {
             result.sessionId = session.getSessionId();
 
             if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON) {
+                // result 事件在流中发出时需要费用数据，提前计算（execute() 步骤6 会再次赋值，幂等）
+                result.estimatedCostUsd = estimateCostUsd(result.metrics);
+                result.budgetLimitUsd = options.getMaxBudgetUsd();
+                result.budgetExceeded = result.budgetLimitUsd != null
+                        && result.estimatedCostUsd > result.budgetLimitUsd;
                 emitStreamEvent(buildResultEvent(result));
             }
         }
@@ -601,11 +617,20 @@ public class PrintMode {
             toolsNode.add(tool);
         }
 
-        // MCP 服务列表
+        // MCP 服务列表（对齐官方格式：[{name, status}] 对象数组）
         ONode mcpServersNode = node.getOrNew("mcp_servers").asArray();
         for (String name : engine.getMcpServers().keySet()) {
-            mcpServersNode.add(name);
+            ONode mcpEntry = new ONode();
+            mcpEntry.set("name", name);
+            mcpEntry.set("status", "connected");
+            mcpServersNode.add(mcpEntry);
         }
+
+        // MCP 服务错误列表（加载失败的 server，v2.1.219+；当前占位空数组，CI 可检测非空来 fail）
+        node.getOrNew("mcp_server_errors").asArray();
+
+        // 协议能力声明（v2.1.205+，消费方应忽略未知值）
+        node.getOrNew("capabilities").asArray();
 
         node.set("version", AgentFlags.getVersion());
         return node;
@@ -613,9 +638,10 @@ public class PrintMode {
 
     /**
      * assistant 文本事件：对齐 Claude Code 格式
-     * <pre>
-     * {"type":"assistant","message":{"content":[{"type":"text","text":"..."}]}}
-     * </pre>
+     * <ul>
+     *   <li>普通文本：{"type":"text","text":"..."}</li>
+     *   <li>thinking 块：{"type":"thinking","thinking":"..."}（字段名与 Anthropic API 一致）</li>
+     * </ul>
      */
     private ONode buildAssistantTextEvent(String text, boolean isThinking) {
         ONode node = new ONode();
@@ -625,8 +651,14 @@ public class PrintMode {
         ONode contentArray = message.getOrNew("content").asArray();
 
         ONode contentBlock = new ONode();
-        contentBlock.set("type", isThinking ? "thinking" : "text");
-        contentBlock.set("text", text);
+        if (isThinking) {
+            // thinking 块：字段名为 "thinking"，对齐 Anthropic API 规范
+            contentBlock.set("type", "thinking");
+            contentBlock.set("thinking", text);
+        } else {
+            contentBlock.set("type", "text");
+            contentBlock.set("text", text);
+        }
         contentArray.add(contentBlock);
 
         return node;
@@ -733,6 +765,40 @@ public class PrintMode {
         ONode node = new ONode();
         node.set("type", "error");
         node.set("error", error.getMessage());
+        return node;
+    }
+
+    /**
+     * api_retry 事件：对齐 Claude Code 格式（API 重试通知）
+     * <pre>
+     * {"type":"system","subtype":"api_retry","attempt":1,"max_retries":3,
+     *  "retry_delay_ms":2000,"error_status":429,"error":"rate_limit",
+     *  "uuid":"...","session_id":"..."}
+     * </pre>
+     *
+     * <p>已知错误分类（error 字段）：authentication_failed / oauth_org_not_allowed /
+     * billing_error / rate_limit / overloaded / invalid_request / model_not_found /
+     * server_error / max_output_tokens / unknown</p>
+     *
+     * <p>调用方：在引擎/模型层捕获到重试事件时，通过此方法构建事件并调用
+     * {@link #emitStreamEvent} 发射。{@code errorStatus} 为 null 表示连接级错误（无 HTTP 状态码）。</p>
+     */
+    ONode buildApiRetryEvent(int attempt, int maxRetries, long retryDelayMs,
+                             Integer errorStatus, String errorCategory, String sessionId) {
+        ONode node = new ONode();
+        node.set("type", "system");
+        node.set("subtype", "api_retry");
+        node.set("attempt", attempt);
+        node.set("max_retries", maxRetries);
+        node.set("retry_delay_ms", retryDelayMs);
+        if (errorStatus != null) {
+            node.set("error_status", errorStatus);
+        } else {
+            node.set("error_status", null);
+        }
+        node.set("error", errorCategory != null ? errorCategory : "unknown");
+        node.set("uuid", UUID.randomUUID().toString());
+        node.set("session_id", sessionId != null ? sessionId : "");
         return node;
     }
 
