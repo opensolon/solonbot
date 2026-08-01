@@ -151,7 +151,9 @@
 
             if (saved === DEFAULT_LOCALE) {
                 // 默认语言：HTML 已是中文，预加载 zh-CN 包（供切换回来时使用）
-                this.load(DEFAULT_LOCALE, function () { /* 静默预加载 */ });
+                this.load(DEFAULT_LOCALE, function () {
+                    document.dispatchEvent(new CustomEvent('i18n:loaded', { detail: { locale: DEFAULT_LOCALE } }));
+                });
                 return;
             }
             // 非默认语言：加载并应用

@@ -1694,14 +1694,21 @@
         if (verEl && meta.appVersion) verEl.textContent = meta.appVersion;
         if (meta.appTitle) {
             window._cachedAppTitle = meta.appTitle;
-            var renderGreeting = function () {
+            window._renderGreeting = function () {
                 if (!window._cachedAppTitle) return;
                 var el = document.getElementById('welcomeTitle');
                 if (!el) return;
-                el.textContent = (window.I18n ? window.I18n.t('welcome.greeting', { appTitle: window._cachedAppTitle }) : ('\u4f60\u597d\uff0c\u6211\u662f ' + window._cachedAppTitle + '\uff01'));
+                var title = window._cachedAppTitle;
+                if (window.I18n && window.I18n.messages && window.I18n.messages[window.I18n.locale]) {
+                    el.textContent = window.I18n.t('welcome.greeting', { appTitle: title });
+                } else {
+                    // 语言包尚未加载，使用默认中文
+                    el.textContent = '\u4f60\u597d\uff0c\u6211\u662f ' + title + '\uff01';
+                }
             };
-            renderGreeting();
-            document.addEventListener('i18n:switched', renderGreeting);
+            window._renderGreeting();
+            document.addEventListener('i18n:switched', window._renderGreeting);
+            document.addEventListener('i18n:loaded', window._renderGreeting);
         }
     }).catch(function () { /* ignore */ });
 

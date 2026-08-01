@@ -864,6 +864,8 @@ function switchToWelcomeMode() {
     $('#welcomeLoopBtn').prop('disabled', false);
     // Reset model UI to new session
     if (typeof modelsLoaded !== 'undefined' && modelsLoaded) renderModelUI();
+    // 重新渲染欢迎标题
+    if (typeof window._renderGreeting === 'function') window._renderGreeting();
 }
 
 /* ===== Auto-resize ===== */

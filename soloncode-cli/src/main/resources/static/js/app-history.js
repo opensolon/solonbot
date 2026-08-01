@@ -1065,13 +1065,15 @@ var modelList = [];        // [{name, desc, supportsReasoning, reasoningEfforts,
     var sessionModelMap = {};  // { sessionId: selectedModelName } — 仅会话，无全局
     var sessionReasoningMap = {}; // { sessionId: effort|'' } — 与 model 相同，仅会话
 
-var EFFORT_LABELS = {
-    auto: 'auto',
-    low: 'low',
-    medium: 'medium',
-    high: 'high',
-    max: 'max'
-};
+function getEffortLabels() {
+    return {
+        auto: I18n.t('history.effortLabelAuto'),
+        low: I18n.t('history.effortLabelLow'),
+        medium: I18n.t('history.effortLabelMedium'),
+        high: I18n.t('history.effortLabelHigh'),
+        max: I18n.t('history.effortLabelMax')
+    };
+}
 function getEffortHints() {
     return {
         auto: I18n.t('history.effortHintAuto'),
@@ -1237,7 +1239,8 @@ function buildTriggerTitle(modelName, effort, showDepth) {
     if (showDepth) {
         if (effort && EFFORT_LABELS[effort]) {
             bits.push(I18n.t('history.reasoningEffortLabel') + EFFORT_LABELS[effort]);
-            if (EFFORT_HINTS[effort]) bits.push(EFFORT_HINTS[effort]);
+            var _h = getEffortHints();
+                if (_h[effort]) bits.push(_h[effort]);
         } else {
             bits.push(I18n.t('history.reasoningEffortAutoHint'));
         }
