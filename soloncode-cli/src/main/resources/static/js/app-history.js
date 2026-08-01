@@ -1228,7 +1228,8 @@ function buildTriggerLabel(modelName, effort, showDepth) {
     parts.push(displayName);
     // 支持推理强度调节时始终展示档位，auto 显示英文词以便发现
     if (showDepth) {
-        parts.push((effort && EFFORT_LABELS[effort]) || EFFORT_LABELS.auto);
+        var _el = getEffortLabels();
+        parts.push((effort && _el[effort]) || _el.auto);
     }
     return parts.join(' · ');
 }
@@ -1237,10 +1238,11 @@ function buildTriggerTitle(modelName, effort, showDepth) {
     var bits = [];
     bits.push(I18n.t('history.modelLabel') + (modelName || I18n.t('history.defaultShort')));
     if (showDepth) {
-        if (effort && EFFORT_LABELS[effort]) {
-            bits.push(I18n.t('history.reasoningEffortLabel') + EFFORT_LABELS[effort]);
+        var _el = getEffortLabels();
+        if (effort && _el[effort]) {
+            bits.push(I18n.t('history.reasoningEffortLabel') + _el[effort]);
             var _h = getEffortHints();
-                if (_h[effort]) bits.push(_h[effort]);
+            if (_h[effort]) bits.push(_h[effort]);
         } else {
             bits.push(I18n.t('history.reasoningEffortAutoHint'));
         }
