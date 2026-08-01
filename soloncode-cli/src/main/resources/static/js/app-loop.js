@@ -25,56 +25,58 @@
     }
 
     // ========== 预设模板 v3（精选真实场景版） ==========
-    var LOOP_TEMPLATES = [
-        {
-            id: 'auto-fix',
-            icon: 'AF',
-            name: I18n.t('loop.tpl.autoFix.name'),
-            desc: I18n.t('loop.tpl.autoFix.desc'),
-            data: {
-                prompt: I18n.t('loop.tpl.autoFix.prompt'),
-                intervalMinutes: 10,
-                type: 'GOAL',
-                runNow: true
+    function getLoopTemplates() {
+        return [
+            {
+                id: 'auto-fix',
+                icon: 'AF',
+                name: I18n.t('loop.tpl.autoFix.name'),
+                desc: I18n.t('loop.tpl.autoFix.desc'),
+                data: {
+                    prompt: I18n.t('loop.tpl.autoFix.prompt'),
+                    intervalMinutes: 10,
+                    type: 'GOAL',
+                    runNow: true
+                }
+            },
+            {
+                id: 'code-review',
+                icon: 'CR',
+                name: I18n.t('loop.tpl.codeReview.name'),
+                desc: I18n.t('loop.tpl.codeReview.desc'),
+                data: {
+                    prompt: I18n.t('loop.tpl.codeReview.prompt'),
+                    cron: '0 0 9 * * ? *',
+                    type: 'HEARTBEAT',
+                    runNow: false
+                }
+            },
+            {
+                id: 'dep-security',
+                icon: 'DS',
+                name: I18n.t('loop.tpl.depSecurity.name'),
+                desc: I18n.t('loop.tpl.depSecurity.desc'),
+                data: {
+                    prompt: I18n.t('loop.tpl.depSecurity.prompt'),
+                    intervalMinutes: 60,
+                    type: 'HEARTBEAT',
+                    runNow: false
+                }
+            },
+            {
+                id: 'test-coverage',
+                icon: 'TC',
+                name: I18n.t('loop.tpl.testCoverage.name'),
+                desc: I18n.t('loop.tpl.testCoverage.desc'),
+                data: {
+                    prompt: I18n.t('loop.tpl.testCoverage.prompt'),
+                    intervalMinutes: 15,
+                    type: 'GOAL',
+                    runNow: true
+                }
             }
-        },
-        {
-            id: 'code-review',
-            icon: 'CR',
-            name: I18n.t('loop.tpl.codeReview.name'),
-            desc: I18n.t('loop.tpl.codeReview.desc'),
-            data: {
-                prompt: I18n.t('loop.tpl.codeReview.prompt'),
-                cron: '0 0 9 * * ? *',
-                type: 'HEARTBEAT',
-                runNow: false
-            }
-        },
-        {
-            id: 'dep-security',
-            icon: 'DS',
-            name: I18n.t('loop.tpl.depSecurity.name'),
-            desc: I18n.t('loop.tpl.depSecurity.desc'),
-            data: {
-                prompt: I18n.t('loop.tpl.depSecurity.prompt'),
-                intervalMinutes: 60,
-                type: 'HEARTBEAT',
-                runNow: false
-            }
-        },
-        {
-            id: 'test-coverage',
-            icon: 'TC',
-            name: I18n.t('loop.tpl.testCoverage.name'),
-            desc: I18n.t('loop.tpl.testCoverage.desc'),
-            data: {
-                prompt: I18n.t('loop.tpl.testCoverage.prompt'),
-                intervalMinutes: 15,
-                type: 'GOAL',
-                runNow: true
-            }
-        }
-    ];
+        ];
+    }
 
     // ========== 工具函数 ==========
     function formatTimeAgo(isoStr) {
@@ -135,14 +137,16 @@
         return mins + 'm';
     }
 
-    // Goal 状态中文映射（4 态，与 GoalState.Status 对齐）
-    var GOAL_STATUS_LABEL = {
-        PURSUING: I18n.t('loop.status.pursuing'),
-        PAUSED: I18n.t('loop.status.paused'),
-        ACHIEVED: I18n.t('loop.status.achieved'),
-        BUDGET_LIMITED: I18n.t('loop.status.budgetLimited'),
-        BLOCKED: I18n.t('loop.status.blocked')
-    };
+    // Goal 状态映射（与 GoalState.Status 对齐）
+    function getGoalStatusLabel() {
+        return {
+            PURSUING: I18n.t('loop.status.pursuing'),
+            PAUSED: I18n.t('loop.status.paused'),
+            ACHIEVED: I18n.t('loop.status.achieved'),
+            BUDGET_LIMITED: I18n.t('loop.status.budgetLimited'),
+            BLOCKED: I18n.t('loop.status.blocked')
+        };
+    }
 
     // ========== 统一状态解析（合并 running / goal 两套机制）==========
     // 无论任务是 HEARTBEAT 还是 GOAL，都通过此函数获取单一状态
@@ -153,7 +157,7 @@
 
         // Goal 任务：以 goal.status 为唯一依据（running 在其面前是冗余的）
         if (t.goal && t.goal.status) {
-            var label = GOAL_STATUS_LABEL[t.goal.status] || t.goal.status;
+            var label = getGoalStatusLabel()[t.goal.status] || t.goal.status;
             // 将 goal 状态映射到已有的 CSS 语义（部分复用，部分新增）
             var clsMap = {
                 PURSUING: 'running',
@@ -435,8 +439,9 @@
             html += '<button class="loop-tpl-trigger" id="loopTplBtn" title="' + I18n.t('loop.fillTemplate') + '">' +
                 '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></button>';
             html += '<div class="loop-tpl-menu" id="loopTplMenu">';
-            for (var i = 0; i < LOOP_TEMPLATES.length; i++) {
-                var tpl = LOOP_TEMPLATES[i];
+            var _tpls = getLoopTemplates();
+            for (var i = 0; i < _tpls.length; i++) {
+                var tpl = _tpls[i];
                 html += '<div class="loop-tpl-item" data-tpl="' + tpl.id + '">';
                 html += '<span class="loop-tpl-icon">' + tpl.icon + '</span>';
                 html += '<div class="loop-tpl-info">';
@@ -623,8 +628,9 @@
                 e.stopPropagation();
                 var tplId = $(this).data('tpl');
                 var tpl = null;
-                for (var i = 0; i < LOOP_TEMPLATES.length; i++) {
-                    if (LOOP_TEMPLATES[i].id === tplId) { tpl = LOOP_TEMPLATES[i]; break; }
+                var _tpls2 = getLoopTemplates();
+                for (var i = 0; i < _tpls2.length; i++) {
+                    if (_tpls2[i].id === tplId) { tpl = _tpls2[i]; break; }
                 }
                 if (tpl && tpl.data) fillFormData(tpl.data);
                 $tplMenu.removeClass('show');
