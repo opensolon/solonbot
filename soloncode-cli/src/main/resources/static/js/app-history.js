@@ -1072,13 +1072,15 @@ var EFFORT_LABELS = {
     high: 'high',
     max: 'max'
 };
-var EFFORT_HINTS = {
-    auto: I18n.t('history.effortHintAuto'),
-    low: I18n.t('history.effortHintLow'),
-    medium: I18n.t('history.effortHintMedium'),
-    high: I18n.t('history.effortHintHigh'),
-    max: I18n.t('history.effortHintMax')
-};
+function getEffortHints() {
+    return {
+        auto: I18n.t('history.effortHintAuto'),
+        low: I18n.t('history.effortHintLow'),
+        medium: I18n.t('history.effortHintMedium'),
+        high: I18n.t('history.effortHintHigh'),
+        max: I18n.t('history.effortHintMax')
+    };
+}
 
 // Get the effective selected model for current context
 function getSelectedModel() {
@@ -1324,7 +1326,8 @@ function renderModelOptionRows($dropdown, meta, userEffort) {
             $(this).toggle(ok).toggleClass('active', !!isUser);
         });
         var hintKey = userEffort || 'auto';
-        var hint = EFFORT_HINTS[hintKey] || EFFORT_HINTS.auto;
+        var _effortHints = getEffortHints();
+        var hint = _effortHints[hintKey] || _effortHints.auto;
         $reasonRow.find('.model-option-hint').text(hint);
     } else {
         $reasonRow.hide();
