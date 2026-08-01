@@ -1578,14 +1578,7 @@ function rebuildMsgNav() {
     var $rows = $(sess.container).find('.msg-row.user');
     if ($rows.length === 0) { $nav.hide().empty(); return; }
 
-    var wrap = document.getElementById('msgWrap');
-    if (!wrap) return;
-
-    // 导航条对齐 msgWrap
-    $nav.css({
-        top: wrap.offsetTop + 'px',
-        height: wrap.offsetHeight + 'px'
-    }).show().attr('aria-hidden', 'false');
+    $nav.show().attr('aria-hidden', 'false');
 
     var html = '';
     var userIdx = 0;
