@@ -1336,6 +1336,88 @@ body {
     border-radius: 2px;
 }
 
+/* ---- 通用设置 > 语言选择器 ---- */
+.locale-selector {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.locale-selector-current {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input-box);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 110px;
+    justify-content: space-between;
+    user-select: none;
+}
+.locale-selector-current:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+.locale-selector-current .locale-selector-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.locale-selector-current .locale-selector-arrow {
+    font-size: 11px;
+    transition: transform 0.2s;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+.locale-selector.open .locale-selector-arrow {
+    transform: rotate(180deg);
+}
+.locale-selector-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--bg-input-box);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 130px;
+    width: max-content;
+    max-height: 240px;
+    overflow-y: auto;
+    display: none;
+    z-index: 200;
+}
+.locale-selector.open .locale-selector-dropdown {
+    display: block;
+}
+.locale-selector-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.15s;
+}
+.locale-selector-item:hover {
+    background: var(--bg-hover);
+}
+.locale-selector-item.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 500;
+}
+.locale-selector-dropdown::-webkit-scrollbar {
+    width: 4px;
+}
+.locale-selector-dropdown::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
 .file-panel-tree {
     flex: 1;
     overflow-y: auto;

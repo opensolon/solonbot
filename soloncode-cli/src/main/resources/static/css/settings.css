@@ -515,7 +515,6 @@
     border-radius: 12px;
     background: var(--bg-primary);
     transition: border-color 0.2s, box-shadow 0.2s;
-    overflow: hidden;
 }
 .general-card:hover {
     border-color: var(--border-color);

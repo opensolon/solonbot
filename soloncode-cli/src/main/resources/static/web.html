@@ -536,9 +536,12 @@
                                     <div class="general-toggle-info">
                                         <span class="general-toggle-name" data-i18n="general.language.subTitle">语言</span>
                                     </div>
-                                    <div class="mcp-type-toggle" id="localeSwitcher">
-                                        <button type="button" class="mcp-type-btn active" id="localeZhBtn" onclick="window.I18n && window.I18n.switch('zh-CN'); document.getElementById('localeZhBtn').classList.add('active'); document.getElementById('localeEnBtn').classList.remove('active');"><span data-i18n="general.language.zhCN">中文</span></button>
-                                        <button type="button" class="mcp-type-btn" id="localeEnBtn" onclick="window.I18n && window.I18n.switch('en'); document.getElementById('localeEnBtn').classList.add('active'); document.getElementById('localeZhBtn').classList.remove('active');"><span data-i18n="general.language.en">English</span></button>
+                                    <div class="locale-selector" id="localeSelector">
+                                        <div class="locale-selector-current" id="localeSelectorCurrent">
+                                            <span class="locale-selector-name" id="localeSelectorName">中文</span>
+                                            <i class="layui-icon layui-icon-down locale-selector-arrow"></i>
+                                        </div>
+                                        <div class="locale-selector-dropdown" id="localeSelectorDropdown"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1872,20 +1875,83 @@
     })();
 </script>
 
-<!-- i18n: 同步语言切换按鈕状态 -->
+<!-- i18n: 语言选择器下拉 -->
 <script>
     (function() {
-        function syncLocaleBtns() {
-            var locale = (window.I18n && window.I18n.getLocale) ? window.I18n.getLocale() : (localStorage.getItem('sc-locale') || 'zh-CN');
-            var zh = document.getElementById('localeZhBtn');
-            var en = document.getElementById('localeEnBtn');
-            if (!zh || !en) return;
-            if (locale === 'en') { en.classList.add('active'); zh.classList.remove('active'); }
-            else { zh.classList.add('active'); en.classList.remove('active'); }
+        // 语言列表：后续新增语言只需在此数组追加一项即可
+        var LOCALES = [
+            { code: 'zh-CN', label: '中文' },
+            { code: 'en',    label: 'English' }
+        ];
+
+        function getCurrentLocale() {
+            return (window.I18n && window.I18n.getLocale) ? window.I18n.getLocale()
+                 : (localStorage.getItem('sc-locale') || 'zh-CN');
         }
-        // 设置面板打开时同步
-        document.addEventListener('i18n:switched', syncLocaleBtns);
-        document.addEventListener('DOMContentLoaded', syncLocaleBtns);
+
+        function syncLocaleSelectorUI() {
+            var current = getCurrentLocale();
+            var nameEl  = document.getElementById('localeSelectorName');
+            var dropdown = document.getElementById('localeSelectorDropdown');
+            if (!nameEl) return;
+            // 更新触发器显示名
+            for (var i = 0; i < LOCALES.length; i++) {
+                if (LOCALES[i].code === current) { nameEl.textContent = LOCALES[i].label; break; }
+            }
+            // 更新下拉项 active 状态
+            if (dropdown) {
+                var items = dropdown.querySelectorAll('.locale-selector-item');
+                for (var j = 0; j < items.length; j++) {
+                    items[j].classList.toggle('active', items[j].dataset.code === current);
+                }
+            }
+        }
+
+        function buildDropdownItems() {
+            var dropdown = document.getElementById('localeSelectorDropdown');
+            if (!dropdown || dropdown.children.length > 0) return; // 只构建一次
+            var current = getCurrentLocale();
+            LOCALES.forEach(function(loc) {
+                var item = document.createElement('div');
+                item.className = 'locale-selector-item' + (loc.code === current ? ' active' : '');
+                item.textContent = loc.label;
+                item.dataset.code = loc.code;
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    closeLocaleDropdown();
+                    if (window.I18n) window.I18n.switch(loc.code);
+                });
+                dropdown.appendChild(item);
+            });
+        }
+
+        function closeLocaleDropdown() {
+            var sel = document.getElementById('localeSelector');
+            if (sel) sel.classList.remove('open');
+        }
+
+        var trigger = document.getElementById('localeSelectorCurrent');
+        if (trigger) {
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var sel = document.getElementById('localeSelector');
+                if (!sel) return;
+                if (sel.classList.contains('open')) {
+                    sel.classList.remove('open');
+                } else {
+                    buildDropdownItems();
+                    syncLocaleSelectorUI();
+                    sel.classList.add('open');
+                }
+            });
+        }
+
+        // 点击其他区域关闭
+        document.addEventListener('click', closeLocaleDropdown);
+        // 语言切换后同步触发器显示名与选中状态
+        document.addEventListener('i18n:switched', syncLocaleSelectorUI);
+        // 页面初始化同步
+        document.addEventListener('DOMContentLoaded', syncLocaleSelectorUI);
     })();
 </script>
 
