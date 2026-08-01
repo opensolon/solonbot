@@ -594,6 +594,16 @@ function createTaskGroupElement(sess, segment) {
     return { groupEl: group, bodyEl: body };
 }
 
+/* 在已渲染 DOM 中查找指定 taskId 的 task-group（resetStreamState 清索引但保留 DOM 的迟到场景） */
+function findTaskGroupEl(sess, taskId) {
+    if (!sess || !sess.container || !taskId) return null;
+    var els = sess.container.querySelectorAll('.task-group[data-task-id]');
+    for (var i = 0; i < els.length; i++) {
+        if (els[i].getAttribute('data-task-id') === taskId) return els[i];
+    }
+    return null;
+}
+
 /* 为 taskId 保持唯一的 task-group；主代理输出仍按连续流片段追加，避免任务组重复创建。 */
 function ensureStreamSegment(sess, taskId, taskDescription, agentName) {
     ensureAssistantBubble(sess);
@@ -603,6 +613,43 @@ function ensureStreamSegment(sess, taskId, taskDescription, agentName) {
             // 标题首次确定后不再变更（后续 description 仅补内存字段，不刷新 DOM）
             if (!taskSegment.taskDescription && taskDescription) taskSegment.taskDescription = taskDescription;
             if (!taskSegment.agentName && agentName) taskSegment.agentName = agentName;
+            sess.currentStreamSegment = taskSegment;
+            return taskSegment;
+        }
+        // ★ 迟到 chunk 场景：resetStreamState 清空了内存索引但保留了已渲染 DOM。
+        //   若该 taskId 的 task-group 已存在，复用外壳重建索引（不新建 DOM、不重复建组），
+        //   避免“每个思考消息新建一个分组 + 同一 taskId 出现多个 task-group”。
+        var existingGroup = findTaskGroupEl(sess, taskId);
+        if (existingGroup) {
+            var now = Date.now();
+            var bodyEl = $(existingGroup).find('.task-group-body')[0] || null;
+            taskSegment = {
+                id: 'task-' + (++sess.streamSegmentSeq),
+                laneKey: 'task:' + taskId,
+                taskId: taskId,
+                taskDescription: taskDescription || null,
+                agentName: agentName || null,
+                bodyEl: bodyEl,
+                groupEl: existingGroup,
+                reasonEntries: {},
+                // 从 DOM 状态 class 恢复终态，避免已 done/error 的分组被迟到 chunk 打回 running
+                status: existingGroup.classList.contains('is-error') ? 'error'
+                    : (existingGroup.classList.contains('is-done') ? 'done' : 'running'),
+                userToggled: false,
+                createdAt: now,
+                updatedAt: now,
+                finishedAt: null,
+                toolCount: 0,
+                reasonCount: 0,
+                errorCount: 0,
+                lastToolName: null,
+                lastActionLabel: null,
+                hasPendingTools: 0,
+                _metaRafId: null
+            };
+            sess.taskGroups[taskId] = existingGroup;
+            sess.taskSegments[taskId] = taskSegment;
+            sess.streamSegments.push(taskSegment);
             sess.currentStreamSegment = taskSegment;
             return taskSegment;
         }
@@ -818,11 +865,18 @@ function appendReasonChunk(sess, segment, text, reasonId, agentName) {
     var clean = clearThinkTags(text || '');
     if (!clean) return;
     // 新 reasonId 到来时，先结束同 segment 内其他 reasonId 的思考块，
-    // 防止上一个思考块的 spinner 无限旋转（与 appendContentChunk / appendActionStartChunk 行为一致）
-    var key = streamReasonKey(segment, reasonId);
-    for (var _rid in sess.reasonGroups) {
-        if (_rid !== key && sess.reasonGroups[_rid].thinkingBlockEl) {
-            finishThinkingBlock(sess, _rid);
+    // 防止上一个思考块的 spinner 无限旋转（与 appendContentChunk / appendActionStartChunk 行为一致）。
+    // ★ 必须按 segment 隔离（遍历 segment.reasonEntries），不能遍历全局 sess.reasonGroups：
+    //   multitask 并行时多个 task-group 的思考流会交错到达，全局遍历会把其它子任务正在
+    //   流式输出的思考块强行结束，造成思考流被反复截断、重建，视觉上表现为“每个思考消息一个分组”。
+    if (segment) {
+        for (var _rid in segment.reasonEntries) {
+            if (_rid !== reasonId) {
+                var _entry = segment.reasonEntries[_rid];
+                if (_entry && _entry.thinkingBlockEl) {
+                    finishThinkingBlock(sess, streamReasonKey(segment, _rid));
+                }
+            }
         }
     }
     var group = ensureReasonGroup(sess, segment, reasonId);

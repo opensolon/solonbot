@@ -1385,7 +1385,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     box-shadow: var(--shadow-lg);
-    min-width: 130px;
+    min-width: 170px;
     width: max-content;
     max-height: 240px;
     overflow-y: auto;
