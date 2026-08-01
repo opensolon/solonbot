@@ -148,7 +148,7 @@
         } else {
             el.insertBefore(document.createTextNode(arrow), el.firstChild);
         }
-        $toggleBtn.attr('title', collapsed ? '\u5C55\u5F00\u6587\u4EF6\u6811' : '\u6536\u7F29\u6587\u4EF6\u6811');
+        $toggleBtn.attr('title', collapsed ? I18n.t('filer.expandFiles') : I18n.t('filer.collapseFiles'));
     }
     
     if ($toggleBtn.length) {
@@ -322,7 +322,7 @@
 
         var $row = $('<div>').addClass('file-node-row')
             .addClass(isReadonly ? 'file-workspace-readonly' : '')
-            .attr('title', ws.name + (isReadonly ? ' (只读)' : ''));
+            .attr('title', ws.name + (isReadonly ? ' (' + I18n.t('filer.readonly') + ')' : ''));
 
         // 箭头
         var $arrow = $('<span>').addClass('file-arrow')
@@ -341,7 +341,7 @@
 
         // 只读徽标
         if (isReadonly) {
-            $row.append('<span class="file-ws-badge">只读</span>');
+            $row.append('<span class="file-ws-badge">' + I18n.t('filer.readonly') + '</span>');
         }
 
         $nodeEl.append($row);
@@ -414,8 +414,8 @@
 
         var $row = $('<div>').addClass('file-node-row')
             .attr('title', node.type === 'directory'
-                ? '单击展开/折叠，双击插入路径到输入框：' + node.path
-                : '单击打开文件，双击插入路径到输入框：' + node.path);
+                ? I18n.t('filer.dirTip', {path: node.path})
+                : I18n.t('filer.fileTip', {path: node.path}));
 
         if (node.type === 'directory') {
             var $arrow = $('<span>').addClass('file-arrow')
@@ -435,8 +435,8 @@
         var $name = $('<span>').addClass('file-node-name')
             .text(node.name)
             .attr('title', node.type === 'directory'
-                ? '单击展开/折叠，双击插入路径到输入框：' + node.path
-                : '单击打开文件，双击插入路径到输入框：' + node.path);
+                ? I18n.t('filer.dirTip', {path: node.path})
+                : I18n.t('filer.fileTip', {path: node.path}));
         $row.append($name);
 
         $nodeEl.append($row);
@@ -967,14 +967,14 @@
         $treeEl.hide();
         ensureSearchResultsContainer();
         searchResultsEl.show();
-        searchResultsEl.html('<div class="file-search-loading">搜索中...</div>');
+        searchResultsEl.html('<div class="file-search-loading">' + I18n.t('common.loading') + '</div>');
 
         $.get(filerUrl('/web/chat/filer/search', 'keyword=' + encodeURIComponent(kw)), function(res) {
             var data = (res && res.data) ? res.data : [];
             searchResultsEl.html('');
 
             if (data.length === 0) {
-                searchResultsEl.html('<div class="file-search-empty">未找到匹配文件</div>');
+                searchResultsEl.html('<div class="file-search-empty">' + I18n.t('filer.noResults') + '</div>');
                 return;
             }
 
@@ -1051,7 +1051,7 @@
             });
         }).fail(function(jqXHR, textStatus, error) {
             console.error('[filer] search error', error);
-            searchResultsEl.html('<div class="file-search-empty">搜索失败</div>');
+            searchResultsEl.html('<div class="file-search-empty">' + I18n.t('filer.searchFailed') + '</div>');
         });
     }
 

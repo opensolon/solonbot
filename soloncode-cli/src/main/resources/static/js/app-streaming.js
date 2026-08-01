@@ -135,12 +135,12 @@ function persistMessageQueueNow(sess, useKeepalive) {
             })
             .then(function(res) {
                 if (res && res.code === 200) return;
-                var msg = (res && res.description) || (res && res.message) || '保存任务排队失败';
+                var msg = (res && res.description) || (res && res.message) || I18n.t('streaming.queueSaveFailed');
                 console.warn('[queue] persist rejected:', msg);
                 var now = Date.now();
                 if (typeof showToast === 'function' && now - _queuePersistFailToastAt > 8000) {
                     _queuePersistFailToastAt = now;
-                    showToast('任务排队保存失败，刷新可能丢失', 'error', 2500);
+                    showToast(I18n.t('streaming.queuePersistFailed'), 'error', 2500);
                 }
             })
             .catch(function(err) {
@@ -150,7 +150,7 @@ function persistMessageQueueNow(sess, useKeepalive) {
                 var now = Date.now();
                 if (typeof showToast === 'function' && now - _queuePersistFailToastAt > 8000) {
                     _queuePersistFailToastAt = now;
-                    showToast('任务排队保存失败，刷新可能丢失', 'error', 2500);
+                    showToast(I18n.t('streaming.queuePersistFailed'), 'error', 2500);
                 }
             });
     } catch (e) {
@@ -212,7 +212,7 @@ function loadMessageQueue(sess) {
                 if (typeof updateStreamingPlaceholder === 'function') updateStreamingPlaceholder();
                 // 冷恢复：只 hydrate UI，不自动 drain。用户 Enter 空发或带新消息入队后会续发。
                 if (restored.length && typeof showToast === 'function') {
-                    showToast('已恢复 ' + restored.length + ' 条任务排队，Enter 继续发送', 'info', 2800);
+                    showToast(I18n.t('streaming.queueRestored', {n: restored.length}), 'info', 2800);
                     if (typeof expandFilerPanel === 'function') {
                         try { expandFilerPanel(); } catch (e) {}
                     }
@@ -252,9 +252,9 @@ function buildDisplayText(text, filesToSend) {
     if (!displayText && filesToSend && filesToSend.length > 0) {
         var first = filesToSend[0];
         if (first.attachmentsType === 'image') {
-            displayText = '请描述这些图片';
+            displayText = I18n.t('streaming.describeImages');
         } else {
-            displayText = '请帮我处理这些文件';
+            displayText = I18n.t('streaming.processFiles');
         }
     }
     return displayText;
@@ -262,7 +262,7 @@ function buildDisplayText(text, filesToSend) {
 
     function truncateQueueText(text, maxLen) {
     var s = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!s) return '（附件）';
+    if (!s) return I18n.t('streaming.attachment');
     maxLen = maxLen || 60;
     if (s.length <= maxLen) return s;
     return s.slice(0, maxLen) + '…';
@@ -290,12 +290,12 @@ function buildDisplayText(text, filesToSend) {
     if (!sess) return false;
     // Stop 窗口期：禁止再入队，避免结束后误续发
     if (sess.stopRequested) {
-        showToast('正在停止，请稍后再发送', 'info', 1500);
+        showToast(I18n.t('streaming.stoppingWaitSend'), 'info', 1500);
         return false;
     }
     if (!sess.messageQueue) sess.messageQueue = [];
     if (sess.messageQueue.length >= MAX_QUEUED_MESSAGES) {
-        showToast('最多排队 ' + MAX_QUEUED_MESSAGES + ' 条', 'info', 2000);
+        showToast(I18n.t('streaming.queueMaxLimit', {n: MAX_QUEUED_MESSAGES}), 'info', 2000);
         return false;
     }
     var filesSnap = (files || []).slice();
@@ -415,7 +415,7 @@ function editQueuedMessageToInput(sess, id) {
     if (!sess || !id) return;
     // 先检查草稿，确认后再出队，避免取消时丢队列项
     if (hasDraftInput()) {
-        if (!window.confirm('将覆盖当前输入内容，是否继续编辑排队消息？')) return;
+        if (!window.confirm(I18n.t('streaming.overwriteDraftConfirm'))) return;
     }
     var item = removeQueuedMessage(sess, id);
     if (!item) return;
@@ -465,14 +465,14 @@ function cancelLastQueuedToInput(sess) {
 
         var previewEl = document.getElementById('chatQueuePreview');
         if (previewEl) {
-            previewEl.textContent = '下一则：' + truncateQueueText(q[0].displayText || q[0].text, 36);
+            previewEl.textContent = I18n.t('streaming.nextMessage') + truncateQueueText(q[0].displayText || q[0].text, 36);
             previewEl.style.display = _queueDockExpanded ? 'none' : 'block';
         }
 
         var toggleEl = document.getElementById('chatQueueToggle');
         if (toggleEl) {
-            toggleEl.title = _queueDockExpanded ? '收起' : '展开';
-            toggleEl.setAttribute('aria-label', _queueDockExpanded ? '收起' : '展开');
+            toggleEl.title = _queueDockExpanded ? I18n.t('streaming.collapse') : I18n.t('streaming.expand');
+            toggleEl.setAttribute('aria-label', _queueDockExpanded ? I18n.t('streaming.collapse') : I18n.t('streaming.expand'));
             if (_queueDockExpanded) toggleEl.classList.add('expanded');
             else toggleEl.classList.remove('expanded');
         }
@@ -485,7 +485,7 @@ function cancelLastQueuedToInput(sess) {
             var fileCount = (item.files && item.files.length) ? item.files.length : 0;
             var attachBadge = (fileCount > 0 || item.hasFiles)
                 ? '<span class="queue-item-attach" title="' +
-                    (fileCount > 0 ? (fileCount + ' 个附件') : '附件未持久化，发送前请重新添加') +
+                    (fileCount > 0 ? I18n.t('streaming.attachCount', {n: fileCount}) : I18n.t('streaming.attachNotPersisted')) +
                     '">📎' + (fileCount > 0 ? fileCount : '!') + '</span>'
                 : '';
             html += '<div class="queue-item" data-qid="' + escapeHtml(item.id) + '">' +
@@ -494,8 +494,8 @@ function cancelLastQueuedToInput(sess) {
                     escapeHtml(truncateQueueText(item.displayText || item.text, 48)) +
                 '</span>' + attachBadge +
                 '<span class="queue-item-actions">' +
-                    '<button type="button" data-act="edit">编辑</button>' +
-                    '<button type="button" data-act="cancel">取消</button>' +
+                    '<button type="button" data-act="edit">' + I18n.t('streaming.edit') + '</button>' +
+                    '<button type="button" data-act="cancel">' + I18n.t('common.cancel') + '</button>' +
                 '</span></div>';
         }
         listEl.innerHTML = html;
@@ -506,27 +506,27 @@ function cancelLastQueuedToInput(sess) {
     if (!chatInput) return;
     var sess = activeSessionId && sessionMap[activeSessionId];
     if (!sess) {
-        chatInput.placeholder = '随便问...';
+        chatInput.placeholder = I18n.t('welcome.inputPlaceholder');
         return;
     }
     if (sess.isStreaming) {
         if (sess.stopRequested) {
-            chatInput.placeholder = '正在停止，请稍候…';
+            chatInput.placeholder = I18n.t('streaming.stoppingPlaceholder');
             return;
         }
         var n = (sess.messageQueue || []).length;
         chatInput.placeholder = n > 0
-            ? ('继续输入，将排在第 ' + (n + 1) + ' 位…')
-            : '任务进行中，Enter 加入排队…';
+            ? I18n.t('streaming.queuePosition', {n: n + 1})
+            : I18n.t('streaming.taskRunningPlaceholder');
         return;
     }
     // 空闲但有任务排队：提示 Enter 续发（冷恢复后不自动发）
     var qn = (sess.messageQueue || []).length;
     if (qn > 0 && !sess.stopRequested && !sess._stoppedTurn) {
-        chatInput.placeholder = '有 ' + qn + ' 条任务排队，Enter 发送下一条…';
+        chatInput.placeholder = I18n.t('streaming.queueWaiting', {n: qn});
         return;
     }
-    chatInput.placeholder = '随便问...';
+    chatInput.placeholder = I18n.t('welcome.inputPlaceholder');
             }
             window.updateStreamingPlaceholder = updateStreamingPlaceholder;
 
@@ -552,7 +552,7 @@ function cancelLastQueuedToInput(sess) {
                     var sess = activeSessionId && sessionMap[activeSessionId];
                     if (!sess || !sess.messageQueue || !sess.messageQueue.length) return;
                     if (sess.messageQueue.length >= 3) {
-                        if (!window.confirm('确定清空全部 ' + sess.messageQueue.length + ' 条排队消息？')) return;
+                        if (!window.confirm(I18n.t('streaming.clearQueueConfirm', {n: sess.messageQueue.length}))) return;
                     }
                     clearMessageQueue(sess);
                 });
@@ -588,7 +588,7 @@ function cancelLastQueuedToInput(sess) {
             return;
         }
         if (text && text.charAt(0) === '/') {
-            showToast('请先清空排队消息，再执行命令', 'error', 2000);
+            showToast(I18n.t('streaming.clearQueueBeforeCommand'), 'error', 2000);
             return;
         }
         // 入队失败（如超限）时仍尝试 drain 已有队列，避免卡住
@@ -603,12 +603,12 @@ function cancelLastQueuedToInput(sess) {
     /* 活动会话 streaming：入队等待，不打断当前轮 */
     if (streamSess && streamSess.isStreaming) {
         if (streamSess.stopRequested) {
-            showToast('正在停止，请稍后再发送', 'info', 1500);
+            showToast(I18n.t('streaming.stoppingWaitSend'), 'info', 1500);
             return;
         }
         // 斜杠命令不进排队，避免当普通气泡发出或语义错乱
         if (text && text.charAt(0) === '/') {
-            showToast('任务进行中时请先停止，再执行命令', 'error', 2000);
+            showToast(I18n.t('streaming.stopBeforeCommand'), 'error', 2000);
             return;
         }
         enqueueMessage(streamSess, text, pendingFiles.slice());
@@ -662,13 +662,13 @@ function sendCommandSilent(cmdText, onBeforeSend) {
     // 有排队时禁止静默命令插队（/clear 由 sendMessage 先清队列再调用）
     if (sess.messageQueue && sess.messageQueue.length) {
         if (typeof showToast === 'function') {
-            showToast('请先清空排队消息，再执行该操作', 'error', 2000);
+            showToast(I18n.t('streaming.clearQueueBeforeCommand'), 'error', 2000);
         }
         return;
     }
     if (sess.stopRequested || sess._stoppedTurn) {
         if (typeof showToast === 'function') {
-            showToast('正在停止，请稍后再试', 'info', 1500);
+            showToast(I18n.t('streaming.stoppingWaitRetry'), 'info', 1500);
         }
         return;
     }
@@ -1286,7 +1286,7 @@ function connectWebGate() {
     webGateSocket.onclose = function() {
         console.log('[WebGate] closed');
         stopWebGateHeartbeat();
-        showNetworkBar('disconnected', '连接已断开，正在尝试重连...');
+        showNetworkBar('disconnected', I18n.t('streaming.wsDisconnected'));
         scheduleWebGateReconnect();
     };
 
@@ -1319,7 +1319,7 @@ function scheduleWebGateReconnect() {
     var delay = Math.min(1000 * Math.pow(2, webGateReconnectAttempts), 30000);
     webGateReconnectAttempts++;
     console.log('[WebGate] reconnecting in ' + delay + 'ms (attempt ' + webGateReconnectAttempts + ')');
-    showNetworkBar('reconnecting', '正在重连 (' + webGateReconnectAttempts + '/' + WEBGATE_MAX_RECONNECT + ')...');
+    showNetworkBar('reconnecting', I18n.t('streaming.wsReconnecting', {attempt: webGateReconnectAttempts, max: WEBGATE_MAX_RECONNECT}));
     setTimeout(function() {
         connectWebGate();
     }, delay);
@@ -1349,8 +1349,8 @@ function updateWechatUI() {
         try {
             var bound = resp.data && resp.data.bound;
             wechatHeaderBtn.toggleClass('bound', !!bound);
-            wechatHeaderLabel.text(bound ? '已连接' : '');
-            wechatHeaderBtn.attr('title', bound ? '微信已绑定（点击解绑）' : '微信绑定');
+            wechatHeaderLabel.text(bound ? I18n.t('im.connected') : '');
+            wechatHeaderBtn.attr('title', bound ? I18n.t('im.wechatBoundUnbind') : I18n.t('im.wechatBind'));
         } catch(e) {}
     }, 'json');
 }
@@ -1398,7 +1398,7 @@ wechatHeaderBtn.on('click', function() {
     if (!activeSessionId) return;
     // If already bound, unbind
     if (wechatHeaderBtn.hasClass('bound')) {
-        layer.confirm('确定要断开微信连接吗？', { title: '确认断开', btn: ['断开', '取消'], icon: 3, offset: '120px' }, function(index) {
+        layer.confirm(I18n.t('im.wechatUnbindConfirm'), { title: I18n.t('im.confirmUnbind'), btn: [I18n.t('im.unbind'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function(index) {
             layer.close(index);
             $.post('/web/chat/wechat/unbind?sessionId=' + encodeURIComponent(activeSessionId)).always(function() {
                 updateWechatUI();
@@ -1415,12 +1415,12 @@ function showWechatModal() {
 
     wechatModalOverlay = $('<div>').addClass('wechat-modal-overlay').html(
         '<div class="wechat-modal">'
-        + '<div class="wechat-modal-title">微信扫码绑定</div>'
-        + '<div class="wechat-modal-subtitle">用微信扫描二维码，授权后自动完成绑定</div>'
-        + '<div class="wechat-qr-wrap" id="wechatQrWrap"><span style="color:#999;font-size:13px">加载中...</span></div>'
-        + '<div class="wechat-status" id="wechatQrStatus">等待扫码...</div>'
-        + '<div class="im-bind-hint">绑定后即可在微信上与 SolonCode 对话</div>'
-        + '<button class="wechat-modal-close" id="wechatModalClose">取消</button>'
+        + '<div class="wechat-modal-title">' + I18n.t('im.wechatScanBind') + '</div>'
+        + '<div class="wechat-modal-subtitle">' + I18n.t('im.wechatScanSubtitle') + '</div>'
+        + '<div class="wechat-qr-wrap" id="wechatQrWrap"><span style="color:#999;font-size:13px">' + I18n.t('common.loading') + '...</span></div>'
+        + '<div class="wechat-status" id="wechatQrStatus">' + I18n.t('im.waitingScan') + '...</div>'
+        + '<div class="im-bind-hint">' + I18n.t('im.wechatBindHint') + '</div>'
+        + '<button class="wechat-modal-close" id="wechatModalClose">' + I18n.t('common.cancel') + '</button>'
         + '</div>'
     );
     $('body').append(wechatModalOverlay);
@@ -1434,7 +1434,7 @@ function showWechatModal() {
     $.get('/web/chat/wechat/qrcode?sessionId=' + encodeURIComponent(activeSessionId), function(resp) {
         try {
             if (resp.code !== 200 || !resp.data) {
-                $('#wechatQrStatus').text(resp.message || '获取二维码失败').addClass('error');
+                $('#wechatQrStatus').text(resp.message || I18n.t('im.qrcodeFailed')).addClass('error');
                 return;
             }
             var $qrWrap = $('#wechatQrWrap');
@@ -1458,7 +1458,7 @@ function showWechatModal() {
             // Start polling
             startWechatPoll(resp.data.qrcode, activeSessionId);
         } catch(e) {
-            $('#wechatQrStatus').text('解析失败').addClass('error');
+            $('#wechatQrStatus').text(I18n.t('im.parseFailed')).addClass('error');
         }
     }, 'json');
 }
@@ -1474,11 +1474,11 @@ function startWechatPoll(qrcode, sessionId) {
 
                 var status = data.status;
                 if (status === 'wait') {
-                    $statusEl.text('等待扫码...').removeClass('error scanned');
+                    $statusEl.text(I18n.t('im.waitingScan') + '...').removeClass('error scanned');
                 } else if (status === 'scaned') {
-                    $statusEl.text('已扫码，请在微信中确认...').removeClass('error').addClass('scanned');
+                    $statusEl.text(I18n.t('im.scannedConfirm')).removeClass('error').addClass('scanned');
                 } else if (status === 'confirmed') {
-                    $statusEl.text('连接成功！').removeClass('error').addClass('scanned');
+                    $statusEl.text(I18n.t('im.connectSuccess')).removeClass('error').addClass('scanned');
                     clearInterval(wechatPollTimer);
                     wechatPollTimer = null;
                     setTimeout(function() {
@@ -1488,17 +1488,17 @@ function startWechatPoll(qrcode, sessionId) {
                         var initSess = getOrCreateSession(SESSION_ID);
                         if (!initSess._wechatInited) {
                             initSess._wechatInited = true;
-                            appendSystemNotice(initSess, '微信已连接成功，现在可以在微信上给机器人发条消息试试了。');
+                            appendSystemNotice(initSess, I18n.t('im.wechatConnectedNotice'));
                         }
                     }, 1200);
                 } else if (status === 'expired') {
-                    $statusEl.text('二维码已过期，请重新获取').removeClass('scanned').addClass('error');
+                    $statusEl.text(I18n.t('im.qrcodeExpired')).removeClass('scanned').addClass('error');
                     clearInterval(wechatPollTimer);
                     wechatPollTimer = null;
                 } else {
                     // 临时错误或未知状态：继续轮询，扫码过程中的API短暂波动不应打断流程
                     if (wechatPollTimer) {
-                        $statusEl.text('扫码处理中...').removeClass('error scanned');
+                        $statusEl.text(I18n.t('im.scanProcessing') + '...').removeClass('error scanned');
                     }
                 }
             } catch(e) {}
@@ -1527,8 +1527,8 @@ function updateFeishuUI() {
             var data = resp.data || {};
             var bound = !!data.bound;
             feishuHeaderBtn.toggleClass('bound', bound);
-            feishuHeaderLabel.text(bound ? '已连接' : '');
-            feishuHeaderBtn.attr('title', bound ? '飞书已绑定（点击解绑）' : '飞书绑定');
+            feishuHeaderLabel.text(bound ? I18n.t('im.connected') : '');
+            feishuHeaderBtn.attr('title', bound ? I18n.t('im.feishuBoundUnbind') : I18n.t('im.feishuBind'));
         } catch(e) {}
     }, 'json');
 }
@@ -1540,7 +1540,7 @@ feishuHeaderBtn.on('click', function() {
     if (!activeSessionId) return;
     // If already bound, unbind
     if (feishuHeaderBtn.hasClass('bound')) {
-        layer.confirm('确定要断开飞书连接吗？', { title: '确认断开', btn: ['断开', '取消'], icon: 3, offset: '120px' }, function(index) {
+        layer.confirm(I18n.t('im.feishuUnbindConfirm'), { title: I18n.t('im.confirmUnbind'), btn: [I18n.t('im.unbind'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function(index) {
             layer.close(index);
             $.post('/web/chat/feishu/unbind?sessionId=' + encodeURIComponent(activeSessionId)).always(function() {
                 updateFeishuUI();
@@ -1557,35 +1557,35 @@ function showFeishuModal() {
 
     feishuModalOverlay = $('<div>').addClass('im-bind-modal-overlay').html(
         '<div class="im-bind-modal" style="min-width:360px">'
-        + '<div class="im-bind-modal-title" style="color:#3370ff">飞书绑定</div>'
+        + '<div class="im-bind-modal-title" style="color:#3370ff">' + I18n.t('im.feishuBind') + '</div>'
         + '<div class="im-bind-tabs">'
-        + '  <button class="im-bind-tab active" data-tab="qrcode">扫码绑定</button>'
-        + '  <button class="im-bind-tab" data-tab="credential">手动输入</button>'
+        + '  <button class="im-bind-tab active" data-tab="qrcode">' + I18n.t('im.scanBind') + '</button>'
+        + '  <button class="im-bind-tab" data-tab="credential">' + I18n.t('im.manualInput') + '</button>'
         + '</div>'
         /* === 手动输入 Tab === */
         + '<div class="im-bind-tab-content" id="feishuTabCredential" style="display:none">'
-        + '<div class="im-bind-modal-subtitle">输入飞书应用的 App ID 和 App Secret，连接后请在飞书上发消息给机器人完成自动绑定</div>'
+        + '<div class="im-bind-modal-subtitle">' + I18n.t('im.feishuCredentialSubtitle') + '</div>'
         + '<div class="im-bind-input-group">'
         + '  <label class="im-bind-input-label">App ID</label>'
-        + '  <input class="im-bind-input" id="feishuAppIdInput" placeholder="飞书开放平台 → 应用 → 凭据 → App ID" />'
+        + '  <input class="im-bind-input" id="feishuAppIdInput" placeholder="' + I18n.t('im.feishuAppIdPlaceholder') + '" />'
         + '</div>'
         + '<div class="im-bind-input-group">'
         + '  <label class="im-bind-input-label">App Secret</label>'
-        + '  <input class="im-bind-input" id="feishuAppSecretInput" type="password" placeholder="飞书开放平台 → 应用 → 凭据 → App Secret" />'
+        + '  <input class="im-bind-input" id="feishuAppSecretInput" type="password" placeholder="' + I18n.t('im.feishuAppSecretPlaceholder') + '" />'
         + '</div>'
         + '<div class="im-bind-status" id="feishuBindStatus">&nbsp;</div>'
-        + '<button class="im-bind-confirm-btn feishu" id="feishuBindConfirmBtn">连接</button>'
-        + '<div class="im-bind-hint">提示：请在飞书开放平台（<a href="https://open.feishu.cn/" target="_blank">open.feishu.cn</a>）创建企业自建应用，开启机器人能力，事件订阅选择 WebSocket 长连接模式，然后复制 App ID 和 App Secret 到这里。</div>'
+        + '<button class="im-bind-confirm-btn feishu" id="feishuBindConfirmBtn">' + I18n.t('im.connect') + '</button>'
+        + '<div class="im-bind-hint">' + I18n.t('im.feishuBindHint') + '</div>'
         + '</div>'
         /* === 扫码绑定 Tab === */
         + '<div class="im-bind-tab-content" id="feishuTabQrcode">'
-        + '<div class="im-bind-modal-subtitle">使用飞书扫描二维码，授权后自动完成绑定</div>'
-        + '<div class="feishu-qr-wrap" id="feishuQrWrap"><span class="feishu-qr-loading">正在获取二维码...</span></div>'
+        + '<div class="im-bind-modal-subtitle">' + I18n.t('im.feishuScanSubtitle') + '</div>'
+        + '<div class="feishu-qr-wrap" id="feishuQrWrap"><span class="feishu-qr-loading">' + I18n.t('im.fetchingQrcode') + '...</span></div>'
         + '<div class="im-bind-status" id="feishuQrStatus">&nbsp;</div>'
-        + '<button class="im-bind-confirm-btn feishu" id="feishuQrRefreshBtn" style="display:none">刷新二维码</button>'
-        + '<div class="im-bind-hint">绑定后即可在飞书上与 SolonCode 对话</div>'
+        + '<button class="im-bind-confirm-btn feishu" id="feishuQrRefreshBtn" style="display:none">' + I18n.t('im.refreshQrcode') + '</button>'
+        + '<div class="im-bind-hint">' + I18n.t('im.feishuChatHint') + '</div>'
         + '</div>'
-        + '<button class="im-bind-modal-close" id="feishuModalClose">取消</button>'
+        + '<button class="im-bind-modal-close" id="feishuModalClose">' + I18n.t('common.cancel') + '</button>'
         + '</div>'
     );
     $('body').append(feishuModalOverlay);
@@ -1622,14 +1622,14 @@ function showFeishuModal() {
         var appId = $appIdInput.val().trim();
         var appSecret = $appSecretInput.val().trim();
         if (!appId) {
-            $statusEl.text('请输入 App ID').addClass('error');
+            $statusEl.text(I18n.t('im.inputAppId')).addClass('error');
             return;
         }
         if (!appSecret) {
-            $statusEl.text('请输入 App Secret').addClass('error');
+            $statusEl.text(I18n.t('im.inputAppSecret')).addClass('error');
             return;
         }
-        $statusEl.text('正在启动 WebSocket 连接...').removeClass('error scanned');
+        $statusEl.text(I18n.t('im.startingWsConnection') + '...').removeClass('error scanned');
         $confirmBtn.prop('disabled', true);
         $appIdInput.prop('disabled', true);
         $appSecretInput.prop('disabled', true);
@@ -1645,21 +1645,21 @@ function showFeishuModal() {
         }).done(function(resp) {
             if (resp.code === 200) {
                 // WebSocket 启动成功，进入等待飞书消息状态
-                $statusEl.text('连接成功！请在飞书上发送消息给机器人...').removeClass('error');
+                $statusEl.text(I18n.t('im.feishuConnectSuccessHint') + '...').removeClass('error');
                 $confirmBtn.hide();
                 // 开始轮询绑定状态
                 startFeishuPoll();
             } else {
-                $statusEl.text(resp.message || '连接失败').addClass('error');
+                $statusEl.text(resp.message || I18n.t('im.connectFailed')).addClass('error');
                 $confirmBtn.prop('disabled', false);
                 $appIdInput.prop('disabled', false);
                 $appSecretInput.prop('disabled', false);
             }
         }).fail(function(jqXhr) {
             if (jqXhr.status) {
-                $statusEl.text('请求失败 (' + jqXhr.status + ')').addClass('error');
+                $statusEl.text(I18n.t('im.requestFailed', {status: jqXhr.status})).addClass('error');
             } else {
-                $statusEl.text('连接失败').addClass('error');
+                $statusEl.text(I18n.t('im.connectFailed')).addClass('error');
             }
             $confirmBtn.prop('disabled', false);
             $appIdInput.prop('disabled', false);
@@ -1682,7 +1682,7 @@ function showFeishuModal() {
         feishuPollTimer = setInterval(function() {
             dotCount = (dotCount + 1) % 4;
             var dots = '.'.repeat(dotCount);
-            $statusEl.text('等待飞书消息' + dots);
+            $statusEl.text(I18n.t('im.waitingFeishuMsg') + dots);
 
             $.get('/web/chat/feishu/status?sessionId=' + encodeURIComponent(activeSessionId), function(resp) {
                 try {
@@ -1690,7 +1690,7 @@ function showFeishuModal() {
                     if (data.bound) {
                         clearInterval(feishuPollTimer);
                         feishuPollTimer = null;
-                        $statusEl.text('绑定成功！').removeClass('error').addClass('scanned');
+                        $statusEl.text(I18n.t('im.bindSuccess')).removeClass('error').addClass('scanned');
                         setTimeout(function() {
                             closeFeishuModal();
                             updateFeishuUI();
@@ -1717,7 +1717,7 @@ function showFeishuModal() {
             dataType: 'json'
         }).done(function(resp) {
             if (resp.code !== 200 || !resp.data) {
-                var errMsg = resp.message || '获取二维码失败';
+                var errMsg = resp.message || I18n.t('im.qrcodeFailed');
                 $qrWrap.html('<span style="font-size:13px;color:#666">' + escapeHtml(errMsg) + '</span>');
                 $qrStatus.text(errMsg).addClass('error');
                 $refreshBtn.show();
@@ -1729,12 +1729,12 @@ function showFeishuModal() {
                 var renderFeishuQr = function(err) {
                     if (err || typeof QRCode === 'undefined') {
                         $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
-                        $qrStatus.text('二维码库加载失败').addClass('error');
+                        $qrStatus.text(I18n.t('im.qrcodeLibFailed')).addClass('error');
                         return;
                     }
                     try {
                         new QRCode($qrWrap[0], { text: qrUrl, width: 180, height: 180 });
-                        $qrStatus.text('请使用飞书 App 扫码').removeClass('error scanned');
+                        $qrStatus.text(I18n.t('im.feishuScanQr')).removeClass('error scanned');
                     } catch(e) {
                         $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
                     }
@@ -1745,8 +1745,8 @@ function showFeishuModal() {
             // 开始轮询扫码状态
             startFeishuQrPoll();
         }).fail(function(jqXhr) {
-            $qrWrap.html('<span style="font-size:13px;color:#666">网络请求失败</span>');
-            $qrStatus.text('网络请求失败').addClass('error');
+            $qrWrap.html('<span style="font-size:13px;color:#666">' + I18n.t('im.networkFailed') + '</span>');
+            $qrStatus.text(I18n.t('im.networkFailed')).addClass('error');
             $refreshBtn.show();
         });
     }
@@ -1765,9 +1765,9 @@ function showFeishuModal() {
                     if (status === 'waiting') {
                         dotCount = (dotCount + 1) % 4;
                         var dots = '.'.repeat(dotCount);
-                        $qrStatus.text('等待扫码' + dots).removeClass('error scanned');
+                        $qrStatus.text(I18n.t('im.waitingScan') + dots).removeClass('error scanned');
                     } else if (status === 'success') {
-                        $qrStatus.text('绑定成功！').removeClass('error').addClass('scanned');
+                        $qrStatus.text(I18n.t('im.bindSuccess')).removeClass('error').addClass('scanned');
                         clearInterval(feishuPollTimer);
                         feishuPollTimer = null;
                         setTimeout(function() {
@@ -1776,12 +1776,12 @@ function showFeishuModal() {
                             switchToChatMode();
                         }, 1200);
                     } else if (status === 'failed') {
-                        $qrStatus.text(data.message || '绑定失败').addClass('error');
+                        $qrStatus.text(data.message || I18n.t('im.bindFailed')).addClass('error');
                         clearInterval(feishuPollTimer);
                         feishuPollTimer = null;
                         $('#feishuQrRefreshBtn').show();
                     } else if (status === 'error') {
-                        $qrStatus.text(data.message || '查询状态失败').addClass('error');
+                        $qrStatus.text(data.message || I18n.t('im.queryStatusFailed')).addClass('error');
                         clearInterval(feishuPollTimer);
                         feishuPollTimer = null;
                         $('#feishuQrRefreshBtn').show();
@@ -1830,17 +1830,17 @@ function updateDingTalkUI() {
             if (bound && !pending) {
                 // 完全绑定（用户已在钉上发过消息）
                 dingtalkHeaderBtn.toggleClass('bound', true).removeClass('pending');
-                dingtalkHeaderLabel.text('已连接');
-                dingtalkHeaderBtn.attr('title', '钉钉已绑定（点击解绑）');
+                dingtalkHeaderLabel.text(I18n.t('im.connected'));
+                dingtalkHeaderBtn.attr('title', I18n.t('im.dingtalkBoundUnbind'));
             } else if (bound && pending) {
                 // 半绑定（扫码成功，等待用户发第一条消息）
                 dingtalkHeaderBtn.toggleClass('pending', true).removeClass('bound');
-                dingtalkHeaderLabel.text('连接中...');
-                dingtalkHeaderBtn.attr('title', '等待用户在钉钉上发消息完成绑定');
+                dingtalkHeaderLabel.text(I18n.t('im.connecting') + '...');
+                dingtalkHeaderBtn.attr('title', I18n.t('im.dingtalkWaitingMsg'));
             } else {
                 dingtalkHeaderBtn.removeClass('bound pending');
                 dingtalkHeaderLabel.text('');
-                dingtalkHeaderBtn.attr('title', '钉钉绑定');
+                dingtalkHeaderBtn.attr('title', I18n.t('im.dingtalkBind'));
             }
         } catch(e) {}
     }, 'json');
@@ -1867,8 +1867,8 @@ function startDingtalkStatusPoll() {
                     clearInterval(dingtalkStatusTimer);
                     dingtalkStatusTimer = null;
                     dingtalkHeaderBtn.toggleClass('bound', true).removeClass('pending');
-                    dingtalkHeaderLabel.text('已连接');
-                    dingtalkHeaderBtn.attr('title', '钉钉已绑定（点击解绑）');
+                    dingtalkHeaderLabel.text(I18n.t('im.connected'));
+                    dingtalkHeaderBtn.attr('title', I18n.t('im.dingtalkBoundUnbind'));
                 }
             } catch(e) {}
         }, 'json');
@@ -1882,7 +1882,7 @@ dingtalkHeaderBtn.on('click', function() {
     if (!activeSessionId) return;
     // If already bound, unbind
     if (dingtalkHeaderBtn.hasClass('bound')) {
-        layer.confirm('确定要断开钉钉连接吗？', { title: '确认断开', btn: ['断开', '取消'], icon: 3, offset: '120px' }, function(index) {
+        layer.confirm(I18n.t('im.dingtalkUnbindConfirm'), { title: I18n.t('im.confirmUnbind'), btn: [I18n.t('im.unbind'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function(index) {
             layer.close(index);
             $.post('/web/chat/dingtalk/unbind?sessionId=' + encodeURIComponent(activeSessionId)).always(function() {
                 updateDingTalkUI();
@@ -1899,35 +1899,35 @@ function showDingTalkModal() {
 
     dingtalkModalOverlay = $('<div>').addClass('im-bind-modal-overlay').html(
         '<div class="im-bind-modal" style="min-width:360px">'
-        + '<div class="im-bind-modal-title" style="color:#0089FF">钉钉绑定</div>'
+        + '<div class="im-bind-modal-title" style="color:#0089FF">' + I18n.t('im.dingtalkBind') + '</div>'
         + '<div class="im-bind-tabs">'
-        + '  <button class="im-bind-tab active" data-tab="qrcode">扫码绑定</button>'
-        + '  <button class="im-bind-tab" data-tab="credential">手动输入</button>'
+        + '  <button class="im-bind-tab active" data-tab="qrcode">' + I18n.t('im.scanBind') + '</button>'
+        + '  <button class="im-bind-tab" data-tab="credential">' + I18n.t('im.manualInput') + '</button>'
         + '</div>'
         /* === 手动输入 Tab === */
         + '<div class="im-bind-tab-content" id="dingtalkTabCredential" style="display:none">'
-        + '<div class="im-bind-modal-subtitle">输入钉钉应用的 AppKey 和 AppSecret，连接后请在钉钉上发消息给机器人完成自动绑定</div>'
+        + '<div class="im-bind-modal-subtitle">' + I18n.t('im.dingtalkCredentialSubtitle') + '</div>'
         + '<div class="im-bind-input-group">'
-        + '  <label class="im-bind-input-label">AppKey（Client ID）</label>'
-        + '  <input class="im-bind-input" id="dingtalkAppKeyInput" placeholder="钉钉开放平台 → 应用 → 凭据 → AppKey" />'
+        + '  <label class="im-bind-input-label">' + I18n.t('im.appKeyLabel') + '</label>'
+        + '  <input class="im-bind-input" id="dingtalkAppKeyInput" placeholder="' + I18n.t('im.dingtalkAppKeyPlaceholder') + '" />'
         + '</div>'
         + '<div class="im-bind-input-group">'
-        + '  <label class="im-bind-input-label">AppSecret（Client Secret）</label>'
-        + '  <input class="im-bind-input" id="dingtalkAppSecretInput" type="password" placeholder="钉钉开放平台 → 应用 → 凭据 → AppSecret" />'
+        + '  <label class="im-bind-input-label">' + I18n.t('im.appSecretLabel') + '</label>'
+        + '  <input class="im-bind-input" id="dingtalkAppSecretInput" type="password" placeholder="' + I18n.t('im.dingtalkAppSecretPlaceholder') + '" />'
         + '</div>'
         + '<div class="im-bind-status" id="dingtalkBindStatus">&nbsp;</div>'
-        + '<button class="im-bind-confirm-btn dingtalk" id="dingtalkBindConfirmBtn">连接</button>'
-        + '<div class="im-bind-hint">提示：请在钉钉开放平台（<a href="https://open.dingtalk.com/" target="_blank">open.dingtalk.com</a>）创建企业内部应用，开启机器人能力，消息接收模式选择 Stream，然后复制 AppKey 和 AppSecret 到这里。</div>'
+        + '<button class="im-bind-confirm-btn dingtalk" id="dingtalkBindConfirmBtn">' + I18n.t('im.connect') + '</button>'
+        + '<div class="im-bind-hint">' + I18n.t('im.dingtalkBindHint') + '</div>'
         + '</div>'
         /* === 扫码绑定 Tab === */
         + '<div class="im-bind-tab-content" id="dingtalkTabQrcode">'
-        + '<div class="im-bind-modal-subtitle">使用钉钉扫描二维码，授权后自动完成绑定</div>'
-        + '<div class="feishu-qr-wrap" id="dingtalkQrWrap"><span class="feishu-qr-loading">正在获取二维码...</span></div>'
+        + '<div class="im-bind-modal-subtitle">' + I18n.t('im.dingtalkScanSubtitle') + '</div>'
+        + '<div class="feishu-qr-wrap" id="dingtalkQrWrap"><span class="feishu-qr-loading">' + I18n.t('im.fetchingQrcode') + '...</span></div>'
         + '<div class="im-bind-status" id="dingtalkQrStatus">&nbsp;</div>'
-        + '<button class="im-bind-confirm-btn dingtalk" id="dingtalkQrRefreshBtn" style="display:none">刷新二维码</button>'
-        + '<div class="im-bind-hint">绑定后即可在钉钉上与 SolonCode 对话</div>'
+        + '<button class="im-bind-confirm-btn dingtalk" id="dingtalkQrRefreshBtn" style="display:none">' + I18n.t('im.refreshQrcode') + '</button>'
+        + '<div class="im-bind-hint">' + I18n.t('im.dingtalkChatHint') + '</div>'
         + '</div>'
-        + '<button class="im-bind-modal-close" id="dingtalkModalClose">取消</button>'
+        + '<button class="im-bind-modal-close" id="dingtalkModalClose">' + I18n.t('common.cancel') + '</button>'
         + '</div>'
     );
     $('body').append(dingtalkModalOverlay);
@@ -1964,14 +1964,14 @@ function showDingTalkModal() {
         var appKey = $appKeyInput.val().trim();
         var appSecret = $appSecretInput.val().trim();
         if (!appKey) {
-            $statusEl.text('请输入 AppKey').addClass('error');
+            $statusEl.text(I18n.t('im.inputAppKey')).addClass('error');
             return;
         }
         if (!appSecret) {
-            $statusEl.text('请输入 AppSecret').addClass('error');
+            $statusEl.text(I18n.t('im.inputAppSecret')).addClass('error');
             return;
         }
-        $statusEl.text('正在启动 Stream 连接...').removeClass('error scanned');
+        $statusEl.text(I18n.t('im.startingStreamConnection') + '...').removeClass('error scanned');
         $confirmBtn.prop('disabled', true);
         $appKeyInput.prop('disabled', true);
         $appSecretInput.prop('disabled', true);
@@ -1987,21 +1987,21 @@ function showDingTalkModal() {
         }).done(function(resp) {
             if (resp.code === 200) {
                 // Stream 启动成功，进入等待钉钉消息状态
-                $statusEl.text('连接成功！请在钉钉上发送消息给机器人...').removeClass('error');
+                $statusEl.text(I18n.t('im.dingtalkConnectSuccessHint') + '...').removeClass('error');
                 $confirmBtn.hide();
                 // 开始轮询绑定状态
                 startDingTalkPoll();
             } else {
-                $statusEl.text(resp.message || '连接失败').addClass('error');
+                $statusEl.text(resp.message || I18n.t('im.connectFailed')).addClass('error');
                 $confirmBtn.prop('disabled', false);
                 $appKeyInput.prop('disabled', false);
                 $appSecretInput.prop('disabled', false);
             }
         }).fail(function(jqXhr) {
             if (jqXhr.status) {
-                $statusEl.text('请求失败 (' + jqXhr.status + ')').addClass('error');
+                $statusEl.text(I18n.t('im.requestFailed', {status: jqXhr.status})).addClass('error');
             } else {
-                $statusEl.text('连接失败').addClass('error');
+                $statusEl.text(I18n.t('im.connectFailed')).addClass('error');
             }
             $confirmBtn.prop('disabled', false);
             $appKeyInput.prop('disabled', false);
@@ -2015,7 +2015,7 @@ function showDingTalkModal() {
         dingtalkPollTimer = setInterval(function() {
             dotCount = (dotCount + 1) % 4;
             var dots = '.'.repeat(dotCount);
-            $statusEl.text('等待钉钉消息' + dots);
+            $statusEl.text(I18n.t('im.waitingDingtalkMsg') + dots);
 
             $.get('/web/chat/dingtalk/status?sessionId=' + encodeURIComponent(activeSessionId), function(resp) {
                 try {
@@ -2024,7 +2024,7 @@ function showDingTalkModal() {
                         // 绑定成功！
                         clearInterval(dingtalkPollTimer);
                         dingtalkPollTimer = null;
-                        $statusEl.text('绑定成功！').removeClass('error').addClass('scanned');
+                        $statusEl.text(I18n.t('im.bindSuccess')).removeClass('error').addClass('scanned');
                         setTimeout(function() {
                             closeDingTalkModal();
                             updateDingTalkUI();
@@ -2062,7 +2062,7 @@ function showDingTalkModal() {
             dataType: 'json'
         }).done(function(resp) {
             if (resp.code !== 200 || !resp.data) {
-                var errMsg = resp.message || '获取二维码失败';
+                var errMsg = resp.message || I18n.t('im.qrcodeFailed');
                 $qrWrap.html('<span style="font-size:13px;color:#666">' + escapeHtml(errMsg) + '</span>');
                 $qrStatus.text(errMsg).addClass('error');
                 $refreshBtn.show();
@@ -2074,12 +2074,12 @@ function showDingTalkModal() {
                 var renderDingtalkQr = function(err) {
                     if (err || typeof QRCode === 'undefined') {
                         $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
-                        $qrStatus.text('二维码库加载失败').addClass('error');
+                        $qrStatus.text(I18n.t('im.qrcodeLibFailed')).addClass('error');
                         return;
                     }
                     try {
                         new QRCode($qrWrap[0], { text: qrUrl, width: 180, height: 180 });
-                        $qrStatus.text('请使用钉钉 App 扫码').removeClass('error scanned');
+                        $qrStatus.text(I18n.t('im.dingtalkScanQr')).removeClass('error scanned');
                     } catch(e) {
                         $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
                     }
@@ -2090,8 +2090,8 @@ function showDingTalkModal() {
             // 开始轮询扫码状态
             startDingtalkQrPoll();
         }).fail(function(jqXhr) {
-            $qrWrap.html('<span style="font-size:13px;color:#666">网络请求失败</span>');
-            $qrStatus.text('网络请求失败').addClass('error');
+            $qrWrap.html('<span style="font-size:13px;color:#666">' + I18n.t('im.networkFailed') + '</span>');
+            $qrStatus.text(I18n.t('im.networkFailed')).addClass('error');
             $refreshBtn.show();
         });
     }
@@ -2110,11 +2110,11 @@ function showDingTalkModal() {
                     if (status === 'waiting') {
                         dotCount = (dotCount + 1) % 4;
                         var dots = '.'.repeat(dotCount);
-                        $qrStatus.text('等待扫码' + dots).removeClass('error scanned');
+                        $qrStatus.text(I18n.t('im.waitingScan') + dots).removeClass('error scanned');
                     } else if (status === 'success') {
                         clearInterval(dingtalkPollTimer);
                         dingtalkPollTimer = null;
-                        $qrStatus.text('扫码成功！请在钉钉上给机器人发送任意消息完成绑定').removeClass('error').addClass('scanned');
+                        $qrStatus.text(I18n.t('im.dingtalkScanSuccess')).removeClass('error').addClass('scanned');
                         $('#dingtalkQrRefreshBtn').hide();
                         // 遮罩层变透明、不阻断页面交互，弹窗保持可见等待真正绑定
                         dingtalkModalOverlay.css({ pointerEvents: 'none', background: 'transparent' });
@@ -2128,7 +2128,7 @@ function showDingTalkModal() {
                                     if (data.bound && !data.pending) {
                                         clearInterval(dingtalkBindCheckTimer);
                                         dingtalkBindCheckTimer = null;
-                                        $qrStatus.text('绑定成功！').removeClass('error').addClass('scanned');
+                                        $qrStatus.text(I18n.t('im.bindSuccess')).removeClass('error').addClass('scanned');
                                         setTimeout(function() {
                                             closeDingTalkModal();
                                             updateDingTalkUI();
@@ -2140,12 +2140,12 @@ function showDingTalkModal() {
                             }, 'json');
                         }, 2000);
                     } else if (status === 'failed') {
-                        $qrStatus.text(data.message || '绑定失败').addClass('error');
+                        $qrStatus.text(data.message || I18n.t('im.bindFailed')).addClass('error');
                         clearInterval(dingtalkPollTimer);
                         dingtalkPollTimer = null;
                         $('#dingtalkQrRefreshBtn').show();
                     } else if (status === 'error') {
-                        $qrStatus.text(data.message || '查询状态失败').addClass('error');
+                        $qrStatus.text(data.message || I18n.t('im.queryStatusFailed')).addClass('error');
                         clearInterval(dingtalkPollTimer);
                         dingtalkPollTimer = null;
                         $('#dingtalkQrRefreshBtn').show();

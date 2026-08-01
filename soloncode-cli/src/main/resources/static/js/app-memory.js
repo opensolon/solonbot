@@ -39,7 +39,7 @@
         gitViewer.classList.add('mem-overlay');
         gitViewer.style.display = 'flex';
 
-        if (gitViewerLabel) gitViewerLabel.textContent = '心智记忆';
+        if (gitViewerLabel) gitViewerLabel.textContent = I18n.t('memory.title');
         if (gitViewerFile) gitViewerFile.textContent = '';
 
         // 记忆面板 header 保留「新建」「全屏」「关闭」：显式复位 header 按钮，
@@ -135,7 +135,7 @@
         }
 
         if (items.length === 0 && expandedKey !== NEW_KEY) {
-            listEl.innerHTML = '<div class="mem-list-empty">暂无记忆</div>';
+            listEl.innerHTML = '<div class="mem-list-empty">' + I18n.t('memory.empty') + '</div>';
             return;
         }
 
@@ -151,12 +151,12 @@
     // ---- 单行 HTML（收起头 + 可选展开体）----
     function rowHtml(it, isOpen, isNew) {
         var imp = Math.round(it.importance || 0);
-        var keyText = isNew ? '新建记忆' : escapeHtml(it.key);
+        var keyText = isNew ? I18n.t('memory.newMemory') : escapeHtml(it.key);
         var caret = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 4 10 8 6 12"></polyline></svg>';
         var openCls = isOpen ? ' open' : '';
         var dataKey = isNew ? NEW_KEY : escapeHtml(it.key);
 
-        var scopeLabel = it.scope === 'user' ? '' : '工作区';
+        var scopeLabel = it.scope === 'user' ? '' : I18n.t('memory.scopeWorkspace');
         var scopeCls = it.scope === 'user' ? '' : 'mem-scope-workspace';
 
         var head =
@@ -190,26 +190,26 @@
         var userActive = currentScope === 'user' ? ' active' : '';
         var wsActive = currentScope !== 'user' ? ' active' : '';
         var scopeField = '' +
-            '      <label class="mem-field mem-field-scope"><span>作用域</span>' +
+            '      <label class="mem-field mem-field-scope"><span>' + I18n.t('memory.scope') + '</span>' +
             '        <div class="mem-scope-toggle">' +
-            '          <button class="mem-scope-btn' + userActive + '" data-scope="user" type="button">全局</button>' +
-            '          <button class="mem-scope-btn' + wsActive + '" data-scope="workspace" type="button">工作区</button>' +
+            '          <button class="mem-scope-btn' + userActive + '" data-scope="user" type="button">' + I18n.t('memory.scopeGlobal') + '</button>' +
+            '          <button class="mem-scope-btn' + wsActive + '" data-scope="workspace" type="button">' + I18n.t('memory.scopeWorkspace') + '</button>' +
             '        </div></label>';
 
         return '<div class="mem-row-body">' +
             '  <div class="mem-form">' +
             '    <div class="mem-form-row">' +
             '      <label class="mem-field mem-field-key"><span>Key</span>' +
-            '        <input type="text" class="mem-key" value="' + escapeHtml(keyVal) + '" ' + keyReadonly + ' placeholder="唯一标识，如 project-build" /></label>' +
-            '      <label class="mem-field mem-field-imp"><span>权重 (1-10)</span>' +
+            '        <input type="text" class="mem-key" value="' + escapeHtml(keyVal) + '" ' + keyReadonly + ' placeholder="' + I18n.t('memory.keyPlaceholder') + '" /></label>' +
+            '      <label class="mem-field mem-field-imp"><span>' + I18n.t('memory.weight') + '</span>' +
             '        <input type="number" class="mem-imp" min="1" max="10" value="' + imp + '" /></label>' +
             scopeField +
             '    </div>' +
-            '    <label class="mem-field"><span>内容</span>' +
-            '      <textarea class="mem-content" placeholder="记忆内容（支持 markdown，建议 200 字以内）">' + escapeHtml(content) + '</textarea></label>' +
+            '    <label class="mem-field"><span>' + I18n.t('memory.content') + '</span>' +
+            '      <textarea class="mem-content" placeholder="' + I18n.t('memory.contentPlaceholder') + '">' + escapeHtml(content) + '</textarea></label>' +
             '    <div class="mem-actions">' +
-            '      <button class="memory-btn memory-btn-primary memory-save">保存</button>' +
-            (isNew ? '      <button class="memory-btn memory-cancel">取消</button>' : '      <button class="memory-btn memory-btn-danger memory-del">删除</button>') +
+            '      <button class="memory-btn memory-btn-primary memory-save">' + I18n.t('common.save') + '</button>' +
+            (isNew ? '      <button class="memory-btn memory-cancel">' + I18n.t('common.cancel') + '</button>' : '      <button class="memory-btn memory-btn-danger memory-del">' + I18n.t('common.delete') + '</button>') +
             '' +
             '    </div>' +
             '  </div>' +
@@ -325,9 +325,9 @@
         var scopeBtn = row.querySelector('.mem-scope-btn.active');
         var scope = scopeBtn ? scopeBtn.getAttribute('data-scope') : null;
 
-        if (!key) { memToast('Key 不能为空', true); return; }
-        if (!content) { memToast('内容不能为空', true); return; }
-        if (isNaN(imp) || imp < 1 || imp > 10) { memToast('重要度需在 1-10 之间', true); return; }
+        if (!key) { memToast(I18n.t('memory.keyRequired'), true); return; }
+        if (!content) { memToast(I18n.t('memory.contentRequired'), true); return; }
+        if (isNaN(imp) || imp < 1 || imp > 10) { memToast(I18n.t('memory.importanceRange'), true); return; }
 
         var form = new URLSearchParams();
         form.append('key', key);
@@ -346,12 +346,12 @@
                     detailCache[key] = { content: content, importance: imp, scope: scope || 'workspace' };
                     expandedKey = key;
                     loadMemoryList();
-                    memToast('保存成功', false);
+                    memToast(I18n.t('toast.saveSuccess'), false);
                 } else {
-                    memToast((res && res.description) || '保存失败', true);
+                    memToast((res && res.description) || I18n.t('toast.saveFailed'), true);
                 }
             })
-            .catch(function (e) { memToast('保存失败: ' + e.message, true); });
+            .catch(function (e) { memToast(I18n.t('toast.saveFailed') + ': ' + e.message, true); });
     }
 
     // ---- 删除 ----
@@ -379,11 +379,11 @@
         };
 
         if (typeof layer !== 'undefined' && layer.confirm) {
-            layer.confirm('确定删除记忆「' + key + '」？', { title: '确认删除', btn: ['删除', '取消'], icon: 3, offset: '120px' }, function (index) {
+            layer.confirm(I18n.t('memory.confirmDelete', {key: key}), { title: I18n.t('memory.confirmDeleteTitle'), btn: [I18n.t('common.delete'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function (index) {
                 layer.close(index);
                 doRemove();
             });
-        } else if (window.confirm('确定删除记忆「' + key + '」？')) {
+        } else if (window.confirm(I18n.t('memory.confirmDelete', {key: key}))) {
             doRemove();
         }
     }

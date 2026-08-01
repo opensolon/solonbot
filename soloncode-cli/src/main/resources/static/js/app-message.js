@@ -27,7 +27,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     var row = $('<div>').addClass('msg-row user')[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
-    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" title="复制">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" title="重做" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" title="删除此处及之后消息">' + DELETE_SVG + '</button></div></div>';
+    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" title="' + I18n.t('common.copy') + '">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" title="' + I18n.t('msg.redo') + '" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" title="' + I18n.t('msg.deleteHereAndAfter') + '">' + DELETE_SVG + '</button></div></div>';
     var bubble = $(row).find('.msg-bubble')[0];
 
     // 来源标签（仅非空且非 "Web" 时显示；会在时间戳左侧追加）
@@ -126,9 +126,9 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
 
     var delBtn = $(row).find('.user-del-btn')[0];
     $(delBtn).on('click', function() {
-        layer.confirm('确认删除此消息及之后的所有消息？此操作不可撤销。', {
-            title: '确认删除',
-            btn: ['删除', '取消'],
+        layer.confirm(I18n.t('msg.confirmDeleteMsg'), {
+            title: I18n.t('msg.confirmDeleteTitle'),
+            btn: [I18n.t('common.delete'), I18n.t('common.cancel')],
             icon: 3,
             offset: '120px'
         }, function(index) {
@@ -148,10 +148,10 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
                     handleRewind(sess, rows.length - idx);
                     updateUserRerunButtons(sess.container);
                 } else {
-                    showToast('删除失败：' + ((resp && (resp.description || resp.message)) || '后端未成功'), 'error');
+                    showToast(I18n.t('msg.deleteFailed') + ((resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded')), 'error');
                 }
             }).fail(function() {
-                showToast('删除失败：网络错误', 'error');
+                showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
             });
         });
     });
@@ -218,10 +218,10 @@ function ensureAssistantBubble(sess) {
         row.innerHTML = '<div class="msg-bubble"><div class="msg-content"><div class="md-content"></div></div>'
             + '<div class="msg-time" style="display:none"></div>'
             + '<div class="msg-actions">'
-            + '<button class="user-copy-btn copy-btn" title="复制">' + COPY_SVG + '</button>'
-            + '<button class="user-copy-btn rerun-btn" title="重新运行">' + RERUN_SVG + '</button>'
-            + '<button class="user-copy-btn continue-btn" title="继续运行">' + CONTINUE_SVG + '</button>'
-            + '<button class="user-copy-btn del-btn" title="删除此处及之后消息">' + DELETE_SVG + '</button>'
+            + '<button class="user-copy-btn copy-btn" title="' + I18n.t('common.copy') + '">' + COPY_SVG + '</button>'
+            + '<button class="user-copy-btn rerun-btn" title="' + I18n.t('msg.rerun') + '">' + RERUN_SVG + '</button>'
+            + '<button class="user-copy-btn continue-btn" title="' + I18n.t('msg.continue') + '">' + CONTINUE_SVG + '</button>'
+            + '<button class="user-copy-btn del-btn" title="' + I18n.t('msg.deleteHereAndAfter') + '">' + DELETE_SVG + '</button>'
             + '</div></div>';
         $(sess.container).append(row);
         if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
@@ -287,9 +287,9 @@ function ensureAssistantBubble(sess) {
         if (continueBtn) $(continueBtn).on('click', function() { triggerCommand('/continue', false); });
         var delBtn = $(row).find('.del-btn')[0];
         if (delBtn) $(delBtn).on('click', function() {
-            layer.confirm('确认删除此消息及之后的所有消息？此操作不可撤销。', {
-                title: '确认删除',
-                btn: ['删除', '取消'],
+            layer.confirm(I18n.t('msg.confirmDeleteMsg'), {
+                title: I18n.t('msg.confirmDeleteTitle'),
+                btn: [I18n.t('common.delete'), I18n.t('common.cancel')],
                 icon: 3,
                 offset: '120px'
             }, function(index) {
@@ -308,10 +308,10 @@ function ensureAssistantBubble(sess) {
                         // 前端删所有可视行（含命令消息的无记录行），保持界面干净
                         handleRewind(sess, rows.length - idx);
                     } else {
-                        showToast('删除失败：' + ((resp && (resp.description || resp.message)) || '后端未成功'), 'error');
+                        showToast(I18n.t('msg.deleteFailed') + ((resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded')), 'error');
                     }
                 }).fail(function() {
-                    showToast('删除失败：网络错误', 'error');
+                    showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
                 });
             });
         });
@@ -331,25 +331,25 @@ function streamReasonKey(segment, reasonId) {
 }
 
 function buildTaskGroupAriaLabel(segment, expanded) {
-    var title = segment.taskDescription || segment.agentName || '\u5b50\u4efb\u52a1';
+    var title = segment.taskDescription || segment.agentName || I18n.t('msg.subTask');
     // 双字段时补读 agent，避免仅读 description 丢失「谁在跑」
     if (segment.taskDescription && segment.agentName) {
-        title = segment.taskDescription + '\uff0c' + segment.agentName;
+        title = segment.taskDescription + I18n.t('msg.comma') + segment.agentName;
     }
-    var stateLabel = expanded ? '\u5df2\u5c55\u5f00' : '\u5df2\u6536\u8d77';
+    var stateLabel = expanded ? I18n.t('msg.expanded') : I18n.t('msg.collapsed');
     var stats = formatTaskGroupStats(segment);
     var action = formatTaskGroupMeta(segment);
     var detailParts = [];
     if (stats) detailParts.push(stats);
     if (action) detailParts.push(action);
-    var detail = detailParts.length ? detailParts.join(' \u00b7 ') + '\uff0c' : '';
+    var detail = detailParts.length ? detailParts.join(' \u00b7 ') + I18n.t('msg.comma') : '';
     if (segment.status === 'error') {
-        return title + ' \u5931\u8d25\uff0c' + detail + stateLabel + (expanded ? '' : '\uff0c\u70b9\u51fb\u5c55\u5f00\u67e5\u770b');
+        return title + I18n.t('msg.taskFailed', {detail: detail}) + stateLabel + (expanded ? '' : I18n.t('msg.clickToExpand'));
     }
     if (segment.status === 'done') {
-        return title + ' \u5df2\u5b8c\u6210\uff0c' + detail + stateLabel;
+        return title + I18n.t('msg.taskDone', {detail: detail}) + stateLabel;
     }
-    return title + ' \u8fd0\u884c\u4e2d\uff0c' + detail + stateLabel + (expanded ? '' : '\uff0c\u70b9\u51fb\u5c55\u5f00\u67e5\u770b');
+    return title + I18n.t('msg.taskRunning', {detail: detail}) + stateLabel + (expanded ? '' : I18n.t('msg.clickToExpand'));
 }
 
 /** 与 tool-card 同系的 22px 状态圆点：running 转圈 / done 绿勾 / error 红叉 */
@@ -521,13 +521,13 @@ function createTaskGroupElement(sess, segment) {
     if (sess.currentRunId) group.setAttribute('data-run-id', sess.currentRunId);
     // L1：状态图标(22px) + title(文本+可选 agent-badge 贴字) + stats + toggle(右)；L2：最近 tool 动作。
     // 有 description 时 badge 展示 agentName；仅 agentName 时直接作标题，避免重复。
-    var titleText = segment.taskDescription || segment.agentName || '\u5b50\u4efb\u52a1';
+    var titleText = segment.taskDescription || segment.agentName || I18n.t('msg.subTask');
     var agentHtml = (segment.taskDescription && segment.agentName)
         ? '<span class="agent-badge">' + escapeHtml(segment.agentName) + '</span>'
         : '';
     // hover：双字段时补全身份（badge 可能被窄屏裁进 max-width）
     var titleAttr = (segment.taskDescription && segment.agentName)
-        ? titleText + '\uff08' + segment.agentName + '\uff09'
+        ? titleText + I18n.t('msg.parenLeft') + segment.agentName + I18n.t('msg.parenRight')
         : titleText;
     var header = $('<div>').addClass('task-group-header')[0];
     // task-group 本级一律默认收起（单/多任务相同），展开由用户手动触发
@@ -563,7 +563,7 @@ function createTaskGroupElement(sess, segment) {
     // 左侧边线仅作为鼠标热区；可见标题是唯一键盘入口。
     var rail = $('<div>').addClass('task-group-rail')[0];
     rail.setAttribute('aria-hidden', 'true');
-    rail.setAttribute('title', '展开');
+    rail.setAttribute('title', I18n.t('msg.expand'));
     function toggle() {
         var expanded = !$(group).hasClass('expanded');
         segment.userToggled = true;
@@ -582,7 +582,7 @@ function createTaskGroupElement(sess, segment) {
             });
         }
         header.setAttribute('aria-label', buildTaskGroupAriaLabel(segment, expanded));
-        rail.setAttribute('title', expanded ? '收起' : '展开');
+        rail.setAttribute('title', expanded ? I18n.t('msg.collapse') : I18n.t('msg.expand'));
     }
     $(header).on('click', function(e) { e.stopPropagation(); toggle(); }).on('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
@@ -678,7 +678,7 @@ function ensureThinkingBlockInGroup(sess, group) {
     var initiallyExpanded = window.cliPrintSimplified === false;
     var block = $('<div>').addClass('reason-group-think streaming')[0];
     if (initiallyExpanded) $(block).addClass('expanded');
-    block.innerHTML = '<div class="reason-group-think-header" aria-expanded="' + initiallyExpanded + '"><span class="reason-group-think-label">思考</span>'
+    block.innerHTML = '<div class="reason-group-think-header" aria-expanded="' + initiallyExpanded + '"><span class="reason-group-think-label">' + I18n.t('msg.thinking') + '</span>'
         + '<svg class="reason-group-think-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
         + '<i class="layui-icon layui-icon-right reason-group-think-toggle"></i></div>'
         + '<div class="reason-group-think-body"><div class="md-content"></div></div>';
@@ -744,7 +744,7 @@ function finishThinkingBlock(sess, reasonId) {
             $(group.thinkingBlockEl).removeClass('expanded');
         }
         var label = $(group.thinkingBlockEl).find('.reason-group-think-label')[0];
-        if (label) $(label).text('思考');
+        if (label) $(label).text(I18n.t('msg.thinking'));
         $(group.thinkingBlockEl).find('.reason-group-think-dots').remove();
 
         // ★ 清空组内引用 + 顶层引用，防止 finishStream 再次包裹
@@ -781,7 +781,7 @@ function finishThinkingBlock(sess, reasonId) {
             $(sess.thinkingBlockEl).removeClass('expanded');
         }
         var label = $(sess.thinkingBlockEl).find('.reason-group-think-label')[0];
-        if (label) $(label).text('思考');
+        if (label) $(label).text(I18n.t('msg.thinking'));
         $(sess.thinkingBlockEl).find('.reason-group-think-dots').remove();
         
         // reason-group 已在 ensureThinkingBlock 中预创建，无需再做 DOM 包裹
@@ -931,7 +931,7 @@ window._toolRenderers.edit = function(bodyEl, text, args) {
         var isErr = result.indexOf("成功完成") < 0;
         if (isErr) {
             html += '<div class="edit-result is-error">'
-                + '<span class="edit-result-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> \u5931\u8d25</span>'
+                + '<span class="edit-result-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ' + I18n.t('msg.failed') + '</span>'
                 + '<span class="edit-result-text">' + escapeHtml(result) + '</span></div>';
         }
     }
@@ -1002,7 +1002,7 @@ window._toolRenderers.grep = function(bodyEl, text, args) {
     var html = '<div class="grep-result">';
     var totalHits = 0;
     groups.forEach(function(g) { totalHits += g.hits.length; });
-    html += '<div class="tool-summary">' + groups.length + ' \u4e2a\u6587\u4ef6 / ' + totalHits + ' \u5904\u5339\u914d</div>';
+    html += '<div class="tool-summary">' + I18n.t('msg.grepSummary', {files: groups.length, hits: totalHits}) + '</div>';
     groups.forEach(function(g) {
         html += '<div class="grep-file"><span class="grep-file-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 1.5h4.75L12.5 5.75V13.5a1 1 0 01-1 1H4a1 1 0 01-1-1V2.5a1 1 0 011-1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/><path d="M8.75 1.5v4.25H12.5" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg></span>' + escapeHtml(g.path) + '</div>';
         g.hits.forEach(function(h) {
@@ -1033,7 +1033,7 @@ function renderFileListing(bodyEl, text, args) {
         else if (/[\u2502\u251c\u2514]/.test(raw)) { hasTree = true; break; }
     }
     if (hasTree || items.length === 0) return false;
-    var html = '<div class="file-listing"><div class="tool-summary">' + items.length + ' \u9879</div>';
+    var html = '<div class="file-listing"><div class="tool-summary">' + I18n.t('msg.itemCount', {count: items.length}) + '</div>';
     items.forEach(function(it) {
         var icon = it.dir
             ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4a1 1 0 011-1h3.5l1.5 1.5H13a1 1 0 011 1V12a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>'
@@ -1055,7 +1055,7 @@ window._toolRenderers.bash = function(bodyEl, text, args) {
     var cmd = (args && args.command) ? args.command : '';
     var html = '<div class="bash-output">';
     if (cmd) html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd) + '</div>';
-    html += '<pre class="bash-stdout">' + escapeHtml(text || '(\u65e0\u8f93\u51fa)') + '</pre>';
+    html += '<pre class="bash-stdout">' + escapeHtml(text || '(' + I18n.t('msg.noOutput') + ')') + '</pre>';
     html += '</div>';
     bodyEl.innerHTML = html;
     return true;
@@ -1115,7 +1115,7 @@ function formatToolArgsStr(args) {
         if (v === undefined) return 'undefined';
         if (typeof v === 'string') return v.replace(/\n/g, ' ');
         if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-        if (Array.isArray(v)) return '[' + v.length + '\u9879]';
+        if (Array.isArray(v)) return '[' + v.length + I18n.t('msg.items') + ']';
         if (typeof v === 'object') {
             var keys = Object.keys(v);
             if (keys.length === 0) return '{}';
@@ -1147,7 +1147,7 @@ function formatToolSummary(toolName, args) {
         if (name === 'read' && args.offset) {
             fileSummary += ' · ' + args.offset;
             if (args.limit) fileSummary += '–' + (Number(args.offset) + Number(args.limit) - 1);
-            fileSummary += ' 行';
+            fileSummary += ' ' + I18n.t('msg.lines');
         }
         return fileSummary;
     }
@@ -1157,7 +1157,7 @@ function formatToolSummary(toolName, args) {
         return grepSummary;
     }
     if (name === 'glob') return args.pattern || args.path || '';
-    if (name === 'ls') return (args.path || '') + (args.recursive ? ' · 递归' : '');
+    if (name === 'ls') return (args.path || '') + (args.recursive ? ' · ' + I18n.t('msg.recursive') : '');
     return formatToolArgsStr(args);
 }
 
@@ -1295,7 +1295,7 @@ function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reason
         var body = $(card).find('.tool-card-body')[0];
         if (body) {
             body.classList.add('tool-body-terminal');
-            body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(args.command) + '</div><pre class="bash-stdout">(执行中...)</pre></div>';
+            body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(args.command) + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
         }
     }
     if (group) { group.activeKind = 'tool'; $(group.groupEl).append(card); } else $(segment.bodyEl).append(card);
@@ -1546,7 +1546,7 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
     sess.pendingHitlCount = (sess.pendingHitlCount || 0) + 1;
 
     var cardArgs = (args && typeof args === 'object') ? args : (command ? { command: command } : {});
-    var card = createToolCard(toolName, cardArgs, '\u9700\u8981\u6388\u6743\uff1a' + (toolName || 'unknown'), null, 'warn');
+    var card = createToolCard(toolName, cardArgs, I18n.t('msg.needApproval') + (toolName || 'unknown'), null, 'warn');
     $(card).addClass('hitl-pending');
     if (sess.currentRunId) card.setAttribute('data-run-id', sess.currentRunId);
     if (callId) card.setAttribute('data-call-id', callId);
@@ -1557,7 +1557,7 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
         if (!bodyText && args && typeof args === 'object') {
             try { bodyText = JSON.stringify(args); } catch (e) { bodyText = ''; }
         }
-        body.textContent = bodyText || '\u7b49\u5f85\u6388\u6743\u4ee5\u6267\u884c\u8be5\u5de5\u5177';
+        body.textContent = bodyText || I18n.t('msg.waitingForApproval');
     }
     // 拦截理由作为副标题
     if (comment) {
@@ -1565,8 +1565,8 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
         if (titleEl) titleEl.setAttribute('title', comment);
     }
     card.insertAdjacentHTML('beforeend', '<div class="hitl-card-actions">'
-        + '<button class="hitl-btn hitl-btn-approve">\u6279\u51c6</button>'
-        + '<button class="hitl-btn hitl-btn-reject">\u62d2\u7edd</button>'
+        + '<button class="hitl-btn hitl-btn-approve">' + I18n.t('msg.approve') + '</button>'
+        + '<button class="hitl-btn hitl-btn-reject">' + I18n.t('msg.reject') + '</button>'
         + '</div>');
 
     insertBeforeActions(sess, card);
@@ -1595,7 +1595,7 @@ function appendHitlCard(sess, toolName, command, callId, args, toolTitle, commen
         rejectBtn.disabled = true;
         var icon = $(card).find('.tool-status-icon')[0];
         if (icon) { icon.className = 'tool-status-icon reject'; icon.innerHTML = '<i class="layui-icon layui-icon-close"></i>'; }
-        $(card).find('.tool-name').text('\u5df2\u62d2\u7edd\uff1a' + (toolName || 'unknown'));
+        $(card).find('.tool-name').text(I18n.t('msg.rejected') + (toolName || 'unknown'));
         $(card).find('.hitl-card-actions').remove();
         $(card).removeClass('hitl-pending expanded');
         if (callId && sess.hitlApprovedCards) delete sess.hitlApprovedCards[callId];
@@ -1700,7 +1700,7 @@ function addCodeBlockButtons(container) {
     var pres = $(container).find('pre');
     for (var i = 0; i < pres.length; i++) {
         if ($(pres[i]).find('.code-copy-btn').length) continue;
-        var btn = $('<button>').addClass('code-copy-btn').text('复制')[0];
+        var btn = $('<button>').addClass('code-copy-btn').text(I18n.t('common.copy'))[0];
         $(btn).on('click', function(e) {
             e.stopPropagation();
             var pre = $(this).closest('pre')[0];
@@ -1709,9 +1709,9 @@ function addCodeBlockButtons(container) {
             var self = this;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text).then(function() {
-                    $(self).text('已复制').addClass('copied');
+                    $(self).text(I18n.t('msg.copied')).addClass('copied');
                     setTimeout(function() {
-                        $(self).text('复制').removeClass('copied');
+                        $(self).text(I18n.t('common.copy')).removeClass('copied');
                     }, 1500);
                 });
             }

@@ -41,7 +41,7 @@
         if (!data.exists || items.length === 0) {
             todoList.innerHTML = '';
             todoEmpty.style.display = '';
-            todoEmpty.textContent = data.exists ? '暂无任务' : '当前会话暂无任务清单';
+            todoEmpty.textContent = data.exists ? I18n.t('todos.empty') : I18n.t('todos.noList');
             todoStats.style.display = 'none';
             // 清理会话级缓存
             if (requestSid) delete (window.sessionTodoMap || {})[requestSid];
@@ -81,7 +81,7 @@
         if (!items || items.length === 0) {
             todoList.innerHTML = '';
             todoEmpty.style.display = '';
-            todoEmpty.textContent = '暂无任务';
+            todoEmpty.textContent = I18n.t('todos.empty');
             return;
         }
         todoEmpty.style.display = 'none';
@@ -129,7 +129,7 @@
     function renderError() {
         todoList.innerHTML = '';
         todoEmpty.style.display = '';
-        todoEmpty.textContent = '\u52A0\u8F7D\u4EFB\u52A1\u6E05\u5355\u5931\u8D25';
+        todoEmpty.textContent = I18n.t('todos.loadFailed');
         todoStats.style.display = 'none';
         if (todoBadge) todoBadge.style.display = 'none';
     }

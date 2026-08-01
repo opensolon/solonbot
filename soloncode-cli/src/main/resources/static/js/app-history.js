@@ -58,7 +58,7 @@ function saveChatToHistory(firstMsg) {
 
 function ensureChatInHistory(sessionId, firstMsg, makeCurrent) {
     if (!sessionId) return;
-    var label = (firstMsg || '新对话').toString();
+    var label = (firstMsg || I18n.t('history.newConversation')).toString();
     label = label.length > 30 ? label.substring(0, 30) + '...' : label;
     var shouldMakeCurrent = (makeCurrent !== false) && (sessionId === SESSION_ID || sessionId === activeSessionId || currentChatIndex === -1);
     for (var i = 0; i < chatHistory.length; i++) {
@@ -183,7 +183,7 @@ function updateHistoryUI() {
                 html += '<span class="sidebar-item-todo' + doneClass + '">' + todoInfo.done + '/' + todoInfo.total + '</span>';
             }
             if (streaming) {
-                html += '<span class="sidebar-item-spinner" title="对话进行中..."></span>';
+                html += '<span class="sidebar-item-spinner" title="' + I18n.t('history.conversationInProgress') + '"></span>';
             }
             // pinned：未 hover 时在 ⋯ 槽位显示 pin 标识；hover/菜单打开时再显示 ⋯
             html += '<span class="sidebar-item-menu-wrap">';
@@ -193,18 +193,18 @@ function updateHistoryUI() {
                 + '<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>'
                 + '</svg>';
             if (isPinned) {
-                html += '<span class="sidebar-item-pin-mark" title="已置顶" aria-hidden="true">' + pinSvg + '</span>';
+                html += '<span class="sidebar-item-pin-mark" title="' + I18n.t('history.pinned') + '" aria-hidden="true">' + pinSvg + '</span>';
             }
-            html += '<button type="button" class="sidebar-item-menu-trigger" title="对话操作" aria-label="对话操作" aria-expanded="false">'
+            html += '<button type="button" class="sidebar-item-menu-trigger" title="' + I18n.t('history.conversationActions') + '" aria-label="' + I18n.t('history.conversationActions') + '" aria-expanded="false">'
                 + '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="19" cy="12" r="1.25"/></svg>'
                 + '</button>'
                 + '<span class="sidebar-item-menu" role="menu">'
                 + '<button type="button" class="sidebar-item-pin-btn" role="menuitem">'
                 + pinSvg
-                + '<span>' + (isPinned ? '取消置顶' : '置顶对话') + '</span></button>'
-                + '<button type="button" class="sidebar-item-rename" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>重命名</span></button>'
-                + '<button type="button" class="sidebar-item-fork" role="menuitem"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.25 2.25 0 1 1-1.5 0v-2.128h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 0 1.5Z"/></svg><span>复制对话</span></button>'
-                + '<button type="button" class="sidebar-item-del" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>删除</span></button>'
+                + '<span>' + (isPinned ? I18n.t('history.unpin') : I18n.t('history.pinConversation')) + '</span></button>'
+                + '<button type="button" class="sidebar-item-rename" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + I18n.t('history.rename') + '</span></button>'
+                + '<button type="button" class="sidebar-item-fork" role="menuitem"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.25 2.25 0 1 1-1.5 0v-2.128h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 0 1.5Z"/></svg><span>' + I18n.t('history.copyConversation') + '</span></button>'
+                + '<button type="button" class="sidebar-item-del" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + I18n.t('common.delete') + '</span></button>'
                 + '</span></span></div>';
         }
         var $list = $(historyList);
@@ -267,9 +267,9 @@ function forkSession(idx) {
     var entry = chatHistory[idx];
     if (!entry) return;
 
-    layer.confirm('将当前对话完整复制一份作为新对话，\n原对话不受影响，你可以在此基础上继续提问。', {
-        title: '复制对话',
-        btn: ['复制', '取消'],
+    layer.confirm(I18n.t('history.forkConfirmMessage'), {
+        title: I18n.t('history.copyConversation'),
+        btn: [I18n.t('common.copy'), I18n.t('common.cancel')],
         icon: 3,
         offset: '120px'
     }, function(confirmIdx) {
@@ -290,20 +290,20 @@ function forkSession(idx) {
                 if (newIdx >= 0) selectSession(newIdx);
 
                 if (typeof layer !== 'undefined' && layer.msg) {
-                    layer.msg('复制对话成功', { icon: 1, time: 2000, offset: '120px' });
+                    layer.msg(I18n.t('history.forkSuccess'), { icon: 1, time: 2000, offset: '120px' });
                 }
             } catch (e) {
                 if (typeof layer !== 'undefined' && layer.msg) {
-                    layer.msg('复制对话失败，请重试', { icon: 2, time: 3000, offset: '120px' });
+                    layer.msg(I18n.t('history.forkFailed'), { icon: 2, time: 3000, offset: '120px' });
                 } else {
-                    alert('复制对话失败，请重试');
+                    alert(I18n.t('history.forkFailed'));
                 }
             }
         }).fail(function() {
             if (typeof layer !== 'undefined' && layer.msg) {
-                layer.msg('复制对话失败，请重试', { icon: 2, time: 3000, offset: '120px' });
+                layer.msg(I18n.t('history.forkFailed'), { icon: 2, time: 3000, offset: '120px' });
             } else {
-                alert('复制对话失败，请重试');
+                alert(I18n.t('history.forkFailed'));
             }
         });
     });
@@ -313,7 +313,7 @@ function deleteSession(idx) {
     var entry = chatHistory[idx];
     if (!entry) return;
 
-    layer.confirm('确定删除对话 "' + (entry.label || '未命名') + '"？', { title: '确认删除', btn: ['删除', '取消'], icon: 3, offset: '120px' }, function(index) {
+    layer.confirm(I18n.t('history.deleteConfirmMessage', { name: entry.label || I18n.t('history.unnamed') }), { title: I18n.t('history.confirmDelete'), btn: [I18n.t('common.delete'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function(index) {
         layer.close(index);
         $.post('/web/chat/sessions/delete?sessionId=' + encodeURIComponent(entry.sessionId), function() {
         /* Clean up session state after server confirms */
@@ -339,9 +339,9 @@ function deleteSession(idx) {
         updateHistoryUI();
     }).fail(function () {
         if (typeof layer !== 'undefined' && layer.msg) {
-            layer.msg('删除对话失败，请重试', { icon: 2, time: 3000, offset: '120px' });
+            layer.msg(I18n.t('history.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
         } else {
-            alert('删除对话失败，请重试');
+            alert(I18n.t('history.deleteFailed'));
         }
     });
     });
@@ -361,9 +361,9 @@ function togglePin(idx) {
         updateHistoryUI();
     }).fail(function() {
         if (typeof layer !== 'undefined' && layer.msg) {
-            layer.msg('操作失败，请重试', { icon: 2, time: 3000, offset: '120px' });
+            layer.msg(I18n.t('history.operateFailedRetry'), { icon: 2, time: 3000, offset: '120px' });
         } else {
-            alert('操作失败，请重试');
+            alert(I18n.t('history.operateFailedRetry'));
         }
     });
 }
@@ -547,7 +547,7 @@ function showCmdComplete(inputEl, completeEl, prefix) {
     // Add search bar for skills
     if (filterType === 'skill') {
         html += '<div class="cmd-complete-search">'
-            + '<input type="text" class="cmd-search-input" placeholder="搜索技能..." autocomplete="off" />'
+            + '<input type="text" class="cmd-search-input" placeholder="' + I18n.t('history.searchSkills') + '" autocomplete="off" />'
             + '</div>';
     }
 
@@ -911,10 +911,10 @@ function showHistoryPanel() {
     closeAllToolbarPanels();
     var messages = extractUserMessages();
     if (messages.length === 0) {
-        $chatHistoryPanel.html('<div class="history-panel-empty">暂无输入历史</div>');
+        $chatHistoryPanel.html('<div class="history-panel-empty">' + I18n.t('history.emptyHistory') + '</div>');
     } else {
         var html = '<div class="history-panel-search">'
-            + '<input type="text" class="history-search-input" placeholder="搜索历史消息..." />'
+            + '<input type="text" class="history-search-input" placeholder="' + I18n.t('history.searchHistoryMessages') + '" />'
             + '</div>';
         html += '<div class="history-panel-list">';
         for (var i = 0; i < messages.length; i++) {
@@ -926,7 +926,7 @@ function showHistoryPanel() {
                 + '<span class="history-item-text">' + escapeHtml(display) + '</span>'
                 + '<span class="history-item-actions">'
                 + timeStr
-                + '<button class="history-locate-btn" title="定位到该消息">◎</button>'
+                + '<button class="history-locate-btn" title="' + I18n.t('history.locateMessage') + '">◎</button>'
                 + '</span>'
                 + '</div>';
         }
@@ -1073,11 +1073,11 @@ var EFFORT_LABELS = {
     max: 'max'
 };
 var EFFORT_HINTS = {
-    auto: '跟随模型或供应商默认，通常最省心',
-    low: '更快更省，适合简单问答',
-    medium: '均衡表现，日常任务推荐',
-    high: '更仔细分析，适合难问题',
-    max: '最强思考，通常最慢也更费额度'
+    auto: I18n.t('history.effortHintAuto'),
+    low: I18n.t('history.effortHintLow'),
+    medium: I18n.t('history.effortHintMedium'),
+    high: I18n.t('history.effortHintHigh'),
+    max: I18n.t('history.effortHintMax')
 };
 
 // Get the effective selected model for current context
@@ -1220,7 +1220,7 @@ function getCurrentModelMeta() {
 
 function buildTriggerLabel(modelName, effort, showDepth) {
     var parts = [];
-    var displayName = modelName ? modelName : '默认模型';
+    var displayName = modelName ? modelName : I18n.t('history.defaultModel');
     parts.push(displayName);
     // 支持推理强度调节时始终展示档位，auto 显示英文词以便发现
     if (showDepth) {
@@ -1231,13 +1231,13 @@ function buildTriggerLabel(modelName, effort, showDepth) {
 
 function buildTriggerTitle(modelName, effort, showDepth) {
     var bits = [];
-    bits.push('模型: ' + (modelName || '默认'));
+    bits.push(I18n.t('history.modelLabel') + (modelName || I18n.t('history.defaultShort')));
     if (showDepth) {
         if (effort && EFFORT_LABELS[effort]) {
-            bits.push('推理强度: ' + EFFORT_LABELS[effort]);
+            bits.push(I18n.t('history.reasoningEffortLabel') + EFFORT_LABELS[effort]);
             if (EFFORT_HINTS[effort]) bits.push(EFFORT_HINTS[effort]);
         } else {
-            bits.push('推理强度: auto（跟随模型/供应商）');
+            bits.push(I18n.t('history.reasoningEffortAutoHint'));
         }
     }
     return bits.join(' · ');
@@ -1482,8 +1482,8 @@ function renderAgentUI() {
     var selected = getSelectedAgent();
     var label = selected || 'main';
     $('#chatAgentName, #welcomeAgentName').text(label);
-    $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? ('子代理: ' + selected) : '使用主代理 main');
-    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">主代理（工具权限最多，可以调度子代理）</span></button>';
+    $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? (I18n.t('history.subagentLabel') + selected) : I18n.t('history.useMainAgent'));
+    var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">' + I18n.t('history.mainAgentDesc') + '</span></button>';
     for (var i = 0; i < commandList.length; i++) {
         var item = commandList[i];
         if (item.type !== 'subagent') continue;

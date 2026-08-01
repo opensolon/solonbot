@@ -70,7 +70,7 @@
             html += '<div class="git-workspace-dropdown-item" data-workspace="' + ws.id + '">' + escapeHtml(label) + '</div>';
         });
         $items.innerHTML = html;
-        $name.textContent = currentLabel || '工作区';
+        $name.textContent = currentLabel || I18n.t('gitdiff.workspace');
     }
     var chatView = document.getElementById('chatView');
 
@@ -301,7 +301,7 @@
 
         var subListEl = document.createElement('div');
         subListEl.className = 'git-dir-sublist';
-        subListEl.innerHTML = '<div class="git-dir-loading" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">加载中...</div>';
+        subListEl.innerHTML = '<div class="git-dir-loading" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">' + I18n.t('common.loading') + '...</div>';
 
         // 在 item 后面插入子列表
         item.parentNode.insertBefore(subListEl, item.nextSibling);
@@ -316,7 +316,7 @@
             .then(function(res) {
                 var children = (res && res.data) ? res.data : [];
                 if (children.length === 0) {
-                    subListEl.innerHTML = '<div class="git-dir-empty" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">空目录</div>';
+                    subListEl.innerHTML = '<div class="git-dir-empty" style="padding:6px 12px 6px 40px;color:var(--text-secondary);font-size:11px;">' + I18n.t('gitdiff.emptyDirectory') + '</div>';
                     return;
                 }
 
@@ -358,7 +358,7 @@
                 });
             })
             .catch(function(e) {
-                subListEl.innerHTML = '<div class="git-dir-error" style="padding:6px 12px 6px 40px;color:var(--color-danger);font-size:11px;">加载失败: ' + escapeHtml(e.message) + '</div>';
+                subListEl.innerHTML = '<div class="git-dir-error" style="padding:6px 12px 6px 40px;color:var(--color-danger);font-size:11px;">' + I18n.t('gitdiff.loadFailed') + ': ' + escapeHtml(e.message) + '</div>';
             });
     }
 
@@ -472,14 +472,14 @@
         }
 
         // 更新 header（显示带工作区前缀的路径）
-        if (gitViewerLabel) gitViewerLabel.textContent = '文件内容';
+        if (gitViewerLabel) gitViewerLabel.textContent = I18n.t('gitdiff.fileContent');
         if (gitViewerFile) gitViewerFile.textContent = displayPath;
 
         // 清理操作栏
         var oldActions = gitViewer.querySelector('.git-viewer-actions');
         if (oldActions) oldActions.remove();
 
-        if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">加载中...</div>';
+        if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">' + I18n.t('common.loading') + '...</div>';
 
         var readUrl = '/web/chat/filer/read?path=' + encodeURIComponent(apiPath);
         if (fileWorkspace !== 'workspace') {
@@ -491,7 +491,7 @@
                 var d = (res && res.data) ? res.data : {};
                 if (res && res.code !== 200) {
                     gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--color-danger)">'
-                        + escapeHtml((res && res.data && res.data.message) || res.description || '无法读取文件')
+                        + escapeHtml((res && res.data && res.data.message) || res.description || I18n.t('gitdiff.cannotReadFile'))
                         + '</div>';
                     return;
                 }
@@ -503,7 +503,7 @@
                 renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
-                if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--color-danger)">加载失败: ' + escapeHtml(e.message) + '</div>';
+                if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--color-danger)">' + I18n.t('gitdiff.loadFailed') + ': ' + escapeHtml(e.message) + '</div>';
             })
             .finally(function() {
                 // 渲染操作按钮（添加到Git / 回滚），status 默认按未跟踪处理
@@ -563,7 +563,7 @@
             html += '<img src="' + escapeHtml(rawUrl) + '" alt="' + displayName + '" class="file-view-media-img" />';
         } else {
             html += '<video src="' + escapeHtml(rawUrl) + '" controls class="file-view-media-video" autoplay>';
-            html += '您的浏览器不支持视频播放。</video>';
+            html += I18n.t('gitdiff.videoNotSupported') + '</video>';
         }
         html += '</div></div>';
         gitViewerContent.innerHTML = html;
@@ -592,8 +592,8 @@
             + '<polyline points="14 2 14 8 20 8"/>'
             + '<line x1="9" y1="13" x2="15" y2="13"/>'
             + '</svg>'
-            + '<div style="font-size:14px;font-weight:500;margin-bottom:6px">该文件为二进制文件</div>'
-            + '<div style="font-size:12px;opacity:0.6">' + escapeHtml(fileName || '') + ' 无法以文本形式预览</div>'
+            + '<div style="font-size:14px;font-weight:500;margin-bottom:6px">' + I18n.t('gitdiff.binaryFile') + '</div>'
+            + '<div style="font-size:12px;opacity:0.6">' + escapeHtml(fileName || '') + ' ' + I18n.t('gitdiff.binaryFileHint') + '</div>'
             + '</div>';
         gitViewerContent.scrollTop = 0;
     }
@@ -624,7 +624,7 @@
         var _mdToggleReset = document.getElementById('gitViewerMdToggle');
         if (_mdToggleReset) {
             _mdToggleReset.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-            _mdToggleReset.title = '预览 Markdown';
+            _mdToggleReset.title = I18n.t('gitViewer.previewMd');
         }
         // 显示复制按钮（可能在审查详情中被隐藏）
         var _copyBtnReset = document.getElementById('gitViewerCopyBtn');
@@ -761,7 +761,7 @@
 
                             // 切换 SVG 图标为"代码"图标
                             toggle.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
-                            toggle.title = '查看源码';
+                            toggle.title = I18n.t('gitViewer.changeDetails');
                         } else {
                             // 切换回"源码"模式
                             code.style.display = 'block';
@@ -771,7 +771,7 @@
 
                             // 切换 SVG 图标为"眼睛"图标
                             toggle.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-                            toggle.title = '预览 Markdown';
+                            toggle.title = I18n.t('gitViewer.previewMd');
                         }
                     });
                 })(content, mdToggleBtn, mdFrameWrap, codeBlock);
@@ -946,7 +946,7 @@
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = 'none';
 
-        if (gitViewerLabel) gitViewerLabel.textContent = '变更详情';
+        if (gitViewerLabel) gitViewerLabel.textContent = I18n.t('gitViewer.changeDetails');
         // 如果是挂载工作区，显示路径时带上 @xxx/ 前缀
         var displayDiffPath = path;
         if (gitWorkspace !== 'workspace') {
@@ -962,7 +962,7 @@
             if (gitViewerContent) {
                 gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">'
                     + '<div style="margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> ' + escapeHtml(displayDiffPath) + '</div>'
-                    + '<div id="gitDirFileList" style="margin-top:12px">加载中...</div>'
+                    + '<div id="gitDirFileList" style="margin-top:12px">' + I18n.t('common.loading') + '...</div>'
                     + '</div>';
             }
             renderViewerActions(path, status);
@@ -979,7 +979,7 @@
                     if (!dirListEl) return;
                     var children = (res && res.data) ? res.data : [];
                     if (children.length === 0) {
-                        dirListEl.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px 0">空目录</div>';
+                        dirListEl.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px 0">' + I18n.t('gitdiff.emptyDirectory') + '</div>';
                         return;
                     }
                     var html = '<div style="font-size:12px;">';
@@ -1010,12 +1010,12 @@
                 })
                 .catch(function(e) {
                     var dirListEl = document.getElementById('gitDirFileList');
-                    if (dirListEl) dirListEl.innerHTML = '<div style="color:var(--color-danger);font-size:12px">加载失败: ' + escapeHtml(e.message) + '</div>';
+                    if (dirListEl) dirListEl.innerHTML = '<div style="color:var(--color-danger);font-size:12px">' + I18n.t('gitdiff.loadFailed') + ': ' + escapeHtml(e.message) + '</div>';
                 });
             return;
         }
 
-        if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">加载中...</div>';
+        if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">' + I18n.t('common.loading') + '...</div>';
 
         fetch(gitUrl('/web/chat/git/diff', 'path=' + encodeURIComponent(path)))
             .then(function(r) { return r.json(); })
@@ -1026,15 +1026,15 @@
                     // 后端已对未跟踪文件生成整文件新增 diff；此处仅作兜底空态
                     gitViewerContent.innerHTML = '<div style="padding:20px;color:var(--text-secondary)">'
                         + (status === '?'
-                            ? '新文件（未跟踪）。若内容无法以文本差异展示（如二进制），可先「添加到 Git」后再查看。'
-                            : '无变更内容。')
+                            ? I18n.t('gitdiff.newFileHint')
+                            : I18n.t('gitdiff.noChanges'))
                         + '</div>';
                 } else {
                     renderViewerDiff(diffText);
                 }
             })
             .catch(function(e) {
-                if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:#cb2431">加载失败: ' + escapeHtml(e.message) + '</div>';
+                if (gitViewerContent) gitViewerContent.innerHTML = '<div style="padding:20px;color:#cb2431">' + I18n.t('gitdiff.loadFailed') + ': ' + escapeHtml(e.message) + '</div>';
             })
             .finally(function() {
                 renderViewerActions(path, status);
@@ -1055,10 +1055,10 @@
             // 未跟踪 -> 提供 "添加到 Git" 按钮
             var addBtn = document.createElement('button');
             addBtn.className = 'git-action-btn git-action-add';
-            addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 添加到 Git';
+            addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.addToGit');
             addBtn.addEventListener('click', function() {
                 addBtn.disabled = true;
-                addBtn.textContent = '添加中...';
+                addBtn.textContent = I18n.t('gitdiff.adding') + '...';
                 fetch(gitUrl('/web/chat/git/stage'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1070,15 +1070,15 @@
                         loadGitStatus();
                         closeCenterViewer();
                     } else {
-                        alert('操作失败：' + gitActionError(res));
+                        alert(I18n.t('toast.operateFailed') + '：' + gitActionError(res));
                         addBtn.disabled = false;
-                        addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 添加到 Git';
+                        addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.addToGit');
                     }
                 })
                 .catch(function(e) {
-                    alert('操作失败：' + e.message);
+                    alert(I18n.t('toast.operateFailed') + '：' + e.message);
                     addBtn.disabled = false;
-                    addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 添加到 Git';
+                    addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.addToGit');
                 });
             });
             actionBar.appendChild(addBtn);
@@ -1089,10 +1089,10 @@
             // 已暂存 -> 提供 "移出暂存" 按钮
             var unstageBtn = document.createElement('button');
             unstageBtn.className = 'git-action-btn git-action-unstage';
-            unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> 移出暂存';
+            unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.unstage');
             unstageBtn.addEventListener('click', function() {
                 unstageBtn.disabled = true;
-                unstageBtn.textContent = '移出中...';
+                unstageBtn.textContent = I18n.t('gitdiff.unstaging') + '...';
                 fetch(gitUrl('/web/chat/git/unstage'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1104,15 +1104,15 @@
                         loadGitStatus();
                         closeCenterViewer();
                     } else {
-                        alert('操作失败：' + gitActionError(res));
+                        alert(I18n.t('toast.operateFailed') + '：' + gitActionError(res));
                         unstageBtn.disabled = false;
-                        unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> 移出暂存';
+                        unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.unstage');
                     }
                 })
                 .catch(function(e) {
-                    alert('操作失败：' + e.message);
+                    alert(I18n.t('toast.operateFailed') + '：' + e.message);
                     unstageBtn.disabled = false;
-                    unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> 移出暂存';
+                    unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.unstage');
                 });
             });
             actionBar.appendChild(unstageBtn);
@@ -1124,20 +1124,20 @@
             var discardBtn = document.createElement('button');
             discardBtn.className = 'git-action-btn git-action-discard';
             discardBtn.title = status === '?'
-                ? '删除此未跟踪文件（不可恢复）'
-                : '丢弃此文件的本地变更，恢复到 HEAD';
-            discardBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> 回滚';
+                ? I18n.t('gitdiff.discardUntrackedHint')
+                : I18n.t('gitdiff.discardHint');
+            discardBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> ' + I18n.t('gitdiff.discard');
             discardBtn.addEventListener('click', function() {
                 var confirmMsg = status === '?'
-                    ? '确定删除未跟踪文件「' + path + '」吗？此操作不可恢复。'
-                    : '确定回滚「' + path + '」的变更吗？本地修改将丢失且不可恢复。';
-                var confirmTitle = status === '?' ? '确认删除' : '确认回滚';
-                var confirmBtn = status === '?' ? '删除' : '回滚';
-                var discardIconHtml = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> 回滚';
+                    ? I18n.t('gitdiff.confirmDeleteUntracked', { path: path })
+                    : I18n.t('gitdiff.confirmDiscard', { path: path });
+                var confirmTitle = status === '?' ? I18n.t('history.confirmDelete') : I18n.t('gitdiff.confirmDiscardTitle');
+                var confirmBtn = status === '?' ? I18n.t('common.delete') : I18n.t('gitdiff.discard');
+                var discardIconHtml = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> ' + I18n.t('gitdiff.discard');
 
                 function doDiscard() {
                     discardBtn.disabled = true;
-                    discardBtn.textContent = '回滚中...';
+                    discardBtn.textContent = I18n.t('gitdiff.discarding') + '...';
                     fetch(gitUrl('/web/chat/git/discard'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1147,15 +1147,15 @@
                     .then(function(res) {
                         if (res && res.code === 200) {
                             if (typeof showToast === 'function') {
-                                showToast('已回滚：' + path, 'success', 2200);
+                                showToast(I18n.t('gitdiff.discarded', { path: path }), 'success', 2200);
                             }
                             loadGitStatus();
                             closeCenterViewer();
                         } else {
                             if (typeof layer !== 'undefined' && layer.msg) {
-                                layer.msg('回滚失败：' + gitActionError(res), { icon: 2, time: 3000, offset: '120px' });
+                                layer.msg(I18n.t('gitdiff.discardFailed', { error: gitActionError(res) }), { icon: 2, time: 3000, offset: '120px' });
                             } else if (typeof showToast === 'function') {
-                                showToast('回滚失败：' + gitActionError(res), 'error');
+                                showToast(I18n.t('gitdiff.discardFailed', { error: gitActionError(res) }), 'error');
                             }
                             discardBtn.disabled = false;
                             discardBtn.innerHTML = discardIconHtml;
@@ -1163,9 +1163,9 @@
                     })
                     .catch(function(e) {
                         if (typeof layer !== 'undefined' && layer.msg) {
-                            layer.msg('回滚失败：' + e.message, { icon: 2, time: 3000, offset: '120px' });
+                            layer.msg(I18n.t('gitdiff.discardFailed', { error: e.message }), { icon: 2, time: 3000, offset: '120px' });
                         } else if (typeof showToast === 'function') {
-                            showToast('回滚失败：' + e.message, 'error');
+                            showToast(I18n.t('gitdiff.discardFailed', { error: e.message }), 'error');
                         }
                         discardBtn.disabled = false;
                         discardBtn.innerHTML = discardIconHtml;
@@ -1175,7 +1175,7 @@
                 if (typeof layer !== 'undefined' && layer.confirm) {
                     layer.confirm(confirmMsg, {
                         title: confirmTitle,
-                        btn: [confirmBtn, '取消'],
+                        btn: [confirmBtn, I18n.t('common.cancel')],
                         icon: 3,
                         offset: '120px'
                     }, function(index) {
@@ -1200,10 +1200,10 @@
     }
 
     function gitActionError(res) {
-        if (!res) return '未知错误';
+        if (!res) return I18n.t('toast.unknownError');
         if (res.message) return res.message;
         if (res.data && res.data.message) return res.data.message;
-        return '未知错误';
+        return I18n.t('toast.unknownError');
     }
 
     // ---- Diff Viewer：渲染 diff 文本（带行号）----
@@ -1325,10 +1325,10 @@
         document.addEventListener('fullscreenchange', function() {
             if (document.fullscreenElement === gitViewer) {
                 gitViewerFullscreen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6m10-10h-6V4M4 10h6V4m10 10h-6v6"/></svg>';
-                gitViewerFullscreen.title = '退出全屏';
+                gitViewerFullscreen.title = I18n.t('gitdiff.exitFullscreen');
             } else {
                 gitViewerFullscreen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
-                gitViewerFullscreen.title = '全屏';
+                gitViewerFullscreen.title = I18n.t('gitdiff.fullscreen');
             }
         });
     }
@@ -1350,15 +1350,15 @@
 
             var files = getSelectedFiles();
             if (files.length === 0) {
-                if (typeof showToast === 'function') showToast('请至少勾选一个文件', 'error');
-                else alert('请至少勾选一个文件');
+                if (typeof showToast === 'function') showToast(I18n.t('gitdiff.selectAtLeastOneFile'), 'error');
+                else alert(I18n.t('gitdiff.selectAtLeastOneFile'));
                 return;
             }
 
             isGeneratingSummary = true;
             gitSummaryBtn.disabled = true;
             gitSummaryBtn.classList.add('loading');
-            gitSummaryBtn.innerHTML = '生成中...';
+            gitSummaryBtn.innerHTML = I18n.t('gitdiff.generating') + '...';
             if (gitCommitMsg) gitCommitMsg.value = '';
 
             // 获取当前会话的 sessionId
@@ -1380,21 +1380,21 @@
                         gitCommitMsg.style.height = Math.min(gitCommitMsg.scrollHeight, 80) + 'px';
                     }
                 } else {
-                    var errMsg = (res && res.description) || '未知错误';
-                    if (typeof showToast === 'function') showToast('生成摘要失败: ' + errMsg, 'error');
-                    else alert('生成摘要失败: ' + errMsg);
+                    var errMsg = (res && res.description) || I18n.t('toast.unknownError');
+                    if (typeof showToast === 'function') showToast(I18n.t('gitdiff.generateSummaryFailed', { error: errMsg }), 'error');
+                    else alert(I18n.t('gitdiff.generateSummaryFailed', { error: errMsg }));
                 }
             })
             .catch(function(e) {
-                if (typeof showToast === 'function') showToast('生成摘要失败: ' + e.message, 'error');
-                else alert('生成摘要失败: ' + e.message);
+                if (typeof showToast === 'function') showToast(I18n.t('gitdiff.generateSummaryFailed', { error: e.message }), 'error');
+                    else alert(I18n.t('gitdiff.generateSummaryFailed', { error: e.message }));
             })
             .finally(function() {
                 isGeneratingSummary = false;
                 if (gitSummaryBtn) {
                     gitSummaryBtn.disabled = false;
                     gitSummaryBtn.classList.remove('loading');
-                    gitSummaryBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg> 生成摘要';
+                    gitSummaryBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8L19 13"/><path d="M15 9h.01"/><path d="M17.8 6.2L19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2L11 5"/></svg> ' + I18n.t('git.generateSummaryBtn');
                 }
             });
         });
@@ -1410,7 +1410,7 @@
                 gitCommitMsg && gitCommitMsg.focus();
                 gitCommitMsg && gitCommitMsg.classList.add('shake');
                 var origPH = gitCommitMsg.placeholder;
-                gitCommitMsg.placeholder = '请输入提交信息';
+                gitCommitMsg.placeholder = I18n.t('gitdiff.pleaseEnterCommitMsg');
                 setTimeout(function() {
                     gitCommitMsg && gitCommitMsg.classList.remove('shake');
                     gitCommitMsg.placeholder = origPH;
@@ -1419,13 +1419,13 @@
             }
             var files = getSelectedFiles();
             if (files.length === 0) {
-                if (typeof showToast === 'function') showToast('请至少勾选一个文件', 'error');
+                if (typeof showToast === 'function') showToast(I18n.t('gitdiff.selectAtLeastOneFile'), 'error');
                 return;
             }
 
             isCommitting = true;
             gitCommitBtn.disabled = true;
-            gitCommitBtn.innerHTML = '<span style="opacity:0.7">提交中...</span>';
+            gitCommitBtn.innerHTML = '<span style="opacity:0.7">' + I18n.t('gitdiff.committing') + '...</span>';
 
         fetch(gitUrl('/web/chat/git/commit'), {
                 method: 'POST',
@@ -1442,16 +1442,16 @@
                         loadGitStatus();
                         // 提交成功，不显示提示
                     } else {
-                        alert('提交失败：' + ((res && res.data && res.data.message) || '未知错误'));
+                        alert(I18n.t('gitdiff.commitFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }));
                     }
                 })
                 .catch(function(e) {
-                    alert('提交失败：' + e.message);
+                    alert(I18n.t('gitdiff.commitFailed', { error: e.message }));
                 })
                 .finally(function() {
                     isCommitting = false;
                     gitCommitBtn.disabled = false;
-                    gitCommitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 提交';
+                    gitCommitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ' + I18n.t('git.commitBtn');
                 });
         });
 
@@ -1477,7 +1477,7 @@
             if (isInitializing) return;
             isInitializing = true;
             gitInitBtn.disabled = true;
-            gitInitBtn.textContent = '初始化中...';
+            gitInitBtn.textContent = I18n.t('gitdiff.initializing') + '...';
 
             var doCommit = gitInitCommit && gitInitCommit.checked;
         fetch(gitUrl('/web/chat/git/init', 'initialCommit=' + (doCommit ? 'true' : 'false')), { method: 'POST' })
@@ -1486,17 +1486,17 @@
                     if (res && res.code === 200) {
                         loadGitStatus();
                     } else {
-                        alert('初始化失败：' + ((res && res.data && res.data.message) || '未知错误'));
+                        alert(I18n.t('gitdiff.initFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }));
                         gitInitBtn.disabled = false;
                         gitInitBtn.innerHTML =
-                            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 初始化 Git 仓库';
+                            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('git.initBtn');
                     }
                 })
                 .catch(function(e) {
-                    alert('初始化失败：' + e.message);
+                    alert(I18n.t('gitdiff.initFailed', { error: e.message }));
                     gitInitBtn.disabled = false;
                     gitInitBtn.innerHTML =
-                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 初始化 Git 仓库';
+                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('git.initBtn');
                 })
                 .finally(function() {
                     isInitializing = false;
