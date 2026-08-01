@@ -182,7 +182,7 @@
                 <div class="drop-overlay" id="chatDropOverlay">
                     <div class="drop-overlay-content">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span>松开以添加附件</span>
+                        <span data-i18n="dropzone.releaseToAttach">松开以添加附件</span>
                     </div>
                 </div>
                 <div class="attachments-wrap" id="chatAttachmentsWrap"></div>
@@ -190,7 +190,7 @@
                     <div class="cmd-complete" id="chatCmdComplete"></div>
                     <div class="history-panel" id="chatHistoryPanel"></div>
                     <div class="loop-panel" id="chatLoopPanel" style="display:none"></div>
-                    <textarea id="chatInput" placeholder="随便问..." rows="1" style="width:100%"></textarea>
+                    <textarea id="chatInput" placeholder="随便问..." data-i18n-placeholder="chat.inputPlaceholder" rows="1" style="width:100%"></textarea>
                 </div>
                 <div class="input-toolbar">
                     <div class="toolbar-left">
@@ -442,7 +442,7 @@
         <div class="git-diff-panel" id="gitDiffPanel" style="display:none">
             <div class="git-diff-header">
                 <div class="git-header-left">
-                    <label class="git-select-all-label" title="全选/取消全选">
+                    <label class="git-select-all-label" title="全选/取消全选" data-i18n-title="git.selectAllToggle">
                         <input type="checkbox" id="gitSelectAll" checked/>
                     </label>
                 </div>

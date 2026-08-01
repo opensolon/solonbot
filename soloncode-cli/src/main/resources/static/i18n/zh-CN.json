@@ -1071,5 +1071,8 @@
   "form.headers": "请求头（KEY=VALUE，每行一个）",
   "form.timeout": "超时时间",
   "form.url": "URL",
-  "mcp.type.stdio": "stdio"
+  "mcp.type.stdio": "stdio",
+  "dropzone.releaseToAttach": "松开以添加附件",
+  "chat.inputPlaceholder": "随便问...",
+  "git.selectAllToggle": "全选/取消全选"
 }

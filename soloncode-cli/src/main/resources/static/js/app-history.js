@@ -1268,8 +1268,8 @@ function renderModelUI() {
     var showDepth = !!(meta && meta.supportsReasoning);
     var label = buildTriggerLabel(currentModel, displayEffort, showDepth);
     var title = buildTriggerTitle(currentModel, displayEffort, showDepth);
-    $chatName.text(label);
-    $welcomeName.text(label);
+    $chatName.text(label).removeAttr('data-i18n');
+    $welcomeName.text(label).removeAttr('data-i18n');
     $('#chatModelCurrent').attr('title', title);
     $('#welcomeModelCurrent').attr('title', title);
 
@@ -1713,3 +1713,10 @@ $('#msgWrap').on('scroll.msgnav', function() {
 });
 
 window.scheduleMsgNavRebuild = scheduleMsgNavRebuild;
+
+// 语言切换后重新渲染模型选择器（防止 apply() 覆盖模型名）
+document.addEventListener('i18n:switched', function() {
+    if (typeof modelsLoaded !== 'undefined' && modelsLoaded) {
+        renderModelUI();
+    }
+});

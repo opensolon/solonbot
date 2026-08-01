@@ -1071,5 +1071,8 @@
   "form.headers": "Headers (KEY=VALUE, one per line)",
   "form.timeout": "Timeout",
   "form.url": "URL",
-  "mcp.type.stdio": "stdio"
+  "mcp.type.stdio": "stdio",
+  "dropzone.releaseToAttach": "Release to attach",
+  "chat.inputPlaceholder": "Ask anything...",
+  "git.selectAllToggle": "Select all / Deselect all"
 }

@@ -71,6 +71,7 @@
         });
         $items.innerHTML = html;
         $name.textContent = currentLabel || I18n.t('gitdiff.workspace');
+        $name.removeAttribute('data-i18n');
     }
     var chatView = document.getElementById('chatView');
 
@@ -1579,6 +1580,13 @@
     loadGitWorkspaces();
     // 每60秒兜底刷新
     setInterval(loadGitStatus, 60000);
+
+    // 语言切换后重渲染 git 工作区名
+    document.addEventListener('i18n:switched', function() {
+        if (typeof gitWritableWorkspaces !== 'undefined' && gitWritableWorkspaces.length > 0) {
+            renderGitWorkspaceBar(gitWritableWorkspaces);
+        }
+    });
 
     // 暴露全局（供 app-filer.js / app-message.js 调用）
     window.loadGitStatus = loadGitStatus;
