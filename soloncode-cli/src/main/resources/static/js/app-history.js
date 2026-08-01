@@ -1587,7 +1587,7 @@ function rebuildMsgNav() {
         var msgIdx = parseInt($row.attr('data-user-msg-idx'));
         var raw = $row.find('.user-msg-text').attr('data-md-raw') || '';
         userIdx++;
-        var preview = '#' + userIdx + ' ' + raw.replace(/\n+/g, ' ').substring(0, 15) + (raw.length > 15 ? '\u2026' : '');
+        var preview = '#' + userIdx + ' ' + raw.replace(/\n+/g, ' ').substring(0, 20) + (raw.length > 20 ? '\u2026' : '');
         html += '<div class="msg-nav-block"'
             + ' data-msg-idx="' + msgIdx + '"'
             + ' data-preview="' + escapeHtml(preview) + '"></div>';

@@ -352,8 +352,8 @@ body {
 .msg-inner { max-width: 820px; margin: 0 auto; padding: 28px 24px 12px; }
 
 /* ===== 消息导航条 ===== */
-.msg-nav { position: absolute; right: 0; top: 0; bottom: 0; width: 16px; z-index: 20; pointer-events: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px 0; }
-.msg-nav::before { content: ''; position: absolute; right: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--border-color, #444); opacity: 0.3; border-radius: 1px; pointer-events: none; }
+.msg-nav { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 16px; max-height: 100%; overflow-y: auto; scrollbar-width: none; z-index: 20; pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; }
+.msg-nav::-webkit-scrollbar { display: none; }
 .msg-nav-block { flex-shrink: 0; width: 12px; height: 4px; background: var(--bg-user-msg); border-radius: 2px; opacity: 0.55; cursor: pointer; transition: opacity 0.15s; }
 .msg-nav-block:hover { opacity: 1; }
 .msg-nav-block.active { opacity: 1; background: var(--text-primary, #333); }
@@ -361,7 +361,7 @@ body {
 .msg-nav-panel::after { content: ''; position: absolute; right: -6px; top: var(--arrow-top, 50%); transform: translateY(-50%); border: 6px solid transparent; border-left-color: var(--border-color); border-right: none; pointer-events: none; }
 .msg-nav-panel-item { display: block; padding: 5px 14px; font-size: 12px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary, #e0e0e0); }
 .msg-nav-panel-item:hover { background: var(--bg-hover, rgba(255,255,255,0.08)); }
-.msg-nav-panel-item.active { font-weight: 600; color: var(--accent); border-left: 3px solid var(--accent); padding-left: 11px; }
+.msg-nav-panel-item.active { font-weight: 600; color: var(--accent);}
 .msg-nav-block.highlight { opacity: 1; background: var(--accent); }
 .msg-nav-panel-item.highlight { background: var(--bg-hover, rgba(255,255,255,0.08)); }
 
