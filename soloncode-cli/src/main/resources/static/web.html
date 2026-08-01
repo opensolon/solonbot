@@ -318,7 +318,7 @@
         <div class="todo-panel">
             <div class="todo-header">
                 <div class="todo-title" data-i18n-partial><span data-i18n="workspace.currentTask">当前任务</span> <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
-                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新" data-i18n-title="workspace.refreshBtn">
+                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新" data-i18n-title="common.refresh" data-i18n-title="workspace.refreshBtn">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
             </div>
@@ -518,8 +518,8 @@
                     <div class="settings-section">
                         <div class="settings-section-header">
                             <div>
-                                <span class="settings-section-title">通用</span>
-                                <div class="settings-section-desc">全局运行参数，影响所有对话与工具行为</div>
+                                <span class="settings-section-title" data-i18n="general.title">通用</span>
+                                <div class="settings-section-desc" data-i18n="general.desc">全局运行参数，影响所有对话与工具行为</div>
                             </div>
                         </div>
 
@@ -528,25 +528,25 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">对话策略</div>
+                                        <div class="general-card-title" data-i18n="general.conversation.title">对话策略</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
                                         <div class="general-field">
-                                            <label class="general-field-label">历史窗口大小</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalSessionWindowSize" placeholder="8（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.conversation.historyWindowSize">历史窗口大小</label>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalSessionWindowSize" placeholder="8（默认）" data-i18n-placeholder="general.conversation.historyWindowSizePlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">压缩触发消息数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionMsgs" placeholder="100（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.conversation.compressionMsgs">压缩触发消息数</label>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionMsgs" placeholder="100（默认）" data-i18n-placeholder="general.conversation.compressionMsgsPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">压缩触发上下文占比(%)</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionPct" placeholder="75（默认）" autocomplete="off"/>
+                                            <label class="general-field-label" data-i18n="general.conversation.compressionPct">压缩触发上下文占比(%)</label>
+                                            <input type="text" inputmode="numeric" class="general-input" id="generalCompressionPct" placeholder="75（默认）" data-i18n-placeholder="general.conversation.compressionPctPlaceholder" autocomplete="off"/>
                                         </div>
                                     </div>
-                                    <div class="general-toggle-desc settings-gap-top-sm">历史窗口控制新指令时使用几条历史消息；压缩策略控制对话上下文的自动压缩，防止超出模型窗口限制</div>
+                                    <div class="general-toggle-desc settings-gap-top-sm" data-i18n="general.conversation.desc">历史窗口控制新指令时使用几条历史消息；压缩策略控制对话上下文的自动压缩，防止超出模型窗口限制</div>
                                 </div>
                             </div>
 
@@ -554,13 +554,13 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">沙盒模式</div>
+                                        <div class="general-card-title" data-i18n="general.sandbox.title">沙盒模式</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-toggle-row">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-desc">AI 执行的命令将在受限沙盒环境中运行（只能读写'工作区'和'挂载'内的文件）</span>
+                                            <span class="general-toggle-desc" data-i18n="general.sandbox.modeDesc">AI 执行的命令将在受限沙盒环境中运行（只能读写'工作区'和'挂载'内的文件）</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalSandboxMode"/>
@@ -569,7 +569,7 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-desc">在沙盒中允许访问用户主目录（`~/` 目录，如：`~/.m2`）</span>
+                                            <span class="general-toggle-desc" data-i18n="general.sandbox.allowHomeDesc">在沙盒中允许访问用户主目录（`~/` 目录，如：`~/.m2`）</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalSandboxAllowUserHome"/>
@@ -578,7 +578,7 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-desc">采用更严格的系统内核级沙盒限制；关闭则放宽限制（测试）</span>
+                                            <span class="general-toggle-desc" data-i18n="general.sandbox.strictDesc">采用更严格的系统内核级沙盒限制；关闭则放宽限制（测试）</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalSandboxSystemRestrict"/>
@@ -592,13 +592,13 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">心智记忆</div>
+                                        <div class="general-card-title" data-i18n="general.memory.title">心智记忆</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-toggle-row">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-desc">跨会话保留心智记忆；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-desc" data-i18n="general.memory.enabledDesc">跨会话保留心智记忆；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalMemoryEnabled"/>
@@ -607,16 +607,16 @@
                                     </div>
                                     <div class="general-field-row" style="margin-top: 12px;">
                                         <div class="general-field">
-                                            <label class="general-field-label">语义匹配条数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalMemoryRelevanceCount" placeholder="6（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.memory.relevanceCount">语义匹配条数</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalMemoryRelevanceCount" placeholder="6（默认）" data-i18n-placeholder="general.memory.relevanceCountPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">重要加载条数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalMemoryPriorityCount" placeholder="5（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.memory.priorityCount">重要加载条数</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalMemoryPriorityCount" placeholder="5（默认）" data-i18n-placeholder="general.memory.priorityCountPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">摘要控制长度</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalMemorySummaryLength" placeholder="80（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.memory.summaryLength">摘要控制长度</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalMemorySummaryLength" placeholder="80（默认）" data-i18n-placeholder="general.memory.summaryLengthPlaceholder"/>
                                         </div>
                                     </div>
                                 </div>
@@ -626,25 +626,25 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">失败重试</div>
+                                        <div class="general-card-title" data-i18n="general.retry.title">失败重试</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
                                         <div class="general-field">
-                                            <label class="general-field-label">模型重试次数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalModelRetries" placeholder="默认 3"/>
+                                            <label class="general-field-label" data-i18n="general.retry.modelRetries">模型重试次数</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalModelRetries" placeholder="默认 3" data-i18n-placeholder="general.retry.defaultPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">MCP 重试次数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalMcpRetries" placeholder="默认 3"/>
+                                            <label class="general-field-label" data-i18n="general.retry.mcpRetries">MCP 重试次数</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalMcpRetries" placeholder="默认 3" data-i18n-placeholder="general.retry.defaultPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">OpenAPI 重试次数</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalApiRetries" placeholder="默认 3"/>
+                                            <label class="general-field-label" data-i18n="general.retry.apiRetries">OpenAPI 重试次数</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalApiRetries" placeholder="默认 3" data-i18n-placeholder="general.retry.defaultPlaceholder"/>
                                         </div>
                                     </div>
-                                    <div class="general-toggle-desc settings-gap-top-sm">控制各类请求失败后的自动重试次数</div>
+                                    <div class="general-toggle-desc settings-gap-top-sm" data-i18n="general.retry.desc">控制各类请求失败后的自动重试次数</div>
                                 </div>
                             </div>
 
@@ -652,14 +652,14 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">界面效果</div>
+                                        <div class="general-card-title" data-i18n="general.ui.title">界面效果</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-toggle-row">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">简化工具调用展示</span>
-                                            <span class="general-toggle-desc">开启后默认收起详情，需要时再展开；关闭则始终完整显示</span>
+                                            <span class="general-toggle-name" data-i18n="general.ui.simplifiedName">简化工具调用展示</span>
+                                             <span class="general-toggle-desc" data-i18n="general.ui.simplifiedDesc">开启后默认收起详情，需要时再展开；关闭则始终完整显示</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalCliPrintSimplified"/>
@@ -668,7 +668,7 @@
                                     </div>
 
                                     <div class="settings-gap-top-md skin-section">
-                                        <div class="general-subblock-title">选择皮肤</div>
+                                        <div class="general-subblock-title" data-i18n="general.ui.chooseSkin">选择皮肤</div>
                                         <input type="file" id="skinZipInput" accept=".zip,application/zip" style="display:none"/>
                                         <div class="skin-card-list" id="skinCardList"></div>
                                     </div>
@@ -679,24 +679,24 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">安全访问</div>
+                                        <div class="general-card-title" data-i18n="general.security.title">安全访问</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
                                         <div class="general-field" style="flex:1">
-                                            <label class="general-field-label">用户名</label>
-                                            <input type="text" class="general-input" id="generalWebAuthUser"
-                                                   placeholder="留空=不启用"/>
+                                            <label class="general-field-label" data-i18n="general.security.username">用户名</label>
+                                             <input type="text" class="general-input" id="generalWebAuthUser"
+                                                    placeholder="留空=不启用" data-i18n-placeholder="general.security.usernamePlaceholder"/>
                                         </div>
                                         <div class="general-field" style="flex:1">
-                                            <label class="general-field-label">密码</label>
-                                            <input type="password" class="general-input" id="generalWebAuthPass"
-                                                   placeholder="留空=不启用" autocomplete="new-password"/>
+                                            <label class="general-field-label" data-i18n="general.security.password">密码</label>
+                                             <input type="password" class="general-input" id="generalWebAuthPass"
+                                                    placeholder="留空=不启用" data-i18n-placeholder="general.security.passwordPlaceholder" autocomplete="new-password"/>
                                         </div>
                                     </div>
                                     <div class="general-toggle-desc settings-gap-top-sm">
-                                        启用后，访问页面会弹出浏览器登录框，输入账号密码才能进入
+                                        <span data-i18n="general.security.desc">启用后，访问页面会弹出浏览器登录框，输入账号密码才能进入</span>
                                     </div>
                                 </div>
                             </div>
@@ -705,14 +705,14 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">功能开关</div>
+                                        <div class="general-card-title" data-i18n="general.features.title">功能开关</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">Bash 异步机制</span>
-                                            <span class="general-toggle-desc">开启后可支持 Bash 异步机制（一般没必要）；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-name" data-i18n="general.features.bashAsyncName">Bash 异步机制</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.bashAsyncDesc">开启后可支持 Bash 异步机制（一般没必要）；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalBashAsyncEnabled"/>
@@ -721,8 +721,8 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">Subagent 子代理机制</span>
-                                            <span class="general-toggle-desc">开启后可支持 Subagent 子代理机制，允许委派任务给专项子代理；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-name" data-i18n="general.features.subagentName">Subagent 子代理机制</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.subagentDesc">开启后可支持 Subagent 子代理机制，允许委派任务给专项子代理；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalSubagentEnabled"/>
@@ -731,8 +731,8 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">MCP 工具网关</span>
-                                            <span class="general-toggle-desc">开启后可连接外部 MCP 服务，扩展 AI 的工具调用能力；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-name" data-i18n="general.features.mcpName">MCP 工具网关</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.mcpDesc">开启后可连接外部 MCP 服务，扩展 AI 的工具调用能力；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalMcpEnabled"/>
@@ -741,8 +741,8 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">OpenAPI 接口网关</span>
-                                            <span class="general-toggle-desc">开启后可调用 OpenAPI/Swagger 接口，扩展 AI 的数据访问能力；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-name" data-i18n="general.features.openapiName">OpenAPI 接口网关</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.openapiDesc">开启后可调用 OpenAPI/Swagger 接口，扩展 AI 的数据访问能力；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalOpenApiEnabled"/>
@@ -751,8 +751,8 @@
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">LSP 代码智能</span>
-                                            <span class="general-toggle-desc">开启后提供代码补全、定义跳转等语言服务；关闭可减少上下文消耗</span>
+                                            <span class="general-toggle-name" data-i18n="general.features.lspName">LSP 代码智能</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.lspDesc">开启后提供代码补全、定义跳转等语言服务；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalLspEnabled"/>
@@ -766,48 +766,48 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">循环目标（Loop Goal）</div>
+                                        <div class="general-card-title" data-i18n="general.loopGoal.title">循环目标（Loop Goal）</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
                                         <div class="general-field">
-                                            <label class="general-field-label">默认 Token 预算</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopDefaultMaxTokens" placeholder="0（不限制）"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.maxTokens">默认 Token 预算</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopDefaultMaxTokens" placeholder="0（不限制）" data-i18n-placeholder="general.loopGoal.noLimitPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">默认时间预算（分钟）</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopDefaultMaxDuration" placeholder="0（不限制）"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.maxDuration">默认时间预算（分钟）</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopDefaultMaxDuration" placeholder="0（不限制）" data-i18n-placeholder="general.loopGoal.noLimitPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">停滞检测阈值（轮）</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopStagnationThreshold" placeholder="默认 3"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.stagnation">停滞检测阈值（轮）</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopStagnationThreshold" placeholder="默认 3" data-i18n-placeholder="general.loopGoal.stagnationPlaceholder"/>
                                         </div>
                                     </div>
                                     <div class="general-field-row settings-gap-top-md">
                                         <div class="general-field">
-                                            <label class="general-field-label">连续异常阈值（次）</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopMaxConsecutiveErrors" placeholder="默认 3"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.maxErrors">连续异常阈值（次）</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopMaxConsecutiveErrors" placeholder="默认 3" data-i18n-placeholder="general.loopGoal.maxErrorsPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">预算警告百分比</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopBudgetWarningPercent" placeholder="默认 70"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.budgetWarning">预算警告百分比</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopBudgetWarningPercent" placeholder="默认 70" data-i18n-placeholder="general.loopGoal.budgetWarningPlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">预算紧急百分比</label>
-                                            <input type="text" inputmode="numeric" class="general-input"
-                                                   id="generalLoopBudgetCriticalPercent" placeholder="默认 85"/>
+                                            <label class="general-field-label" data-i18n="general.loopGoal.budgetCritical">预算紧急百分比</label>
+                                             <input type="text" inputmode="numeric" class="general-input"
+                                                   id="generalLoopBudgetCriticalPercent" placeholder="默认 85" data-i18n-placeholder="general.loopGoal.budgetCriticalPlaceholder"/>
                                         </div>
                                     </div>
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">启用验证器</span>
-                                            <span class="general-toggle-desc">目标完成时运行构建/测试验证，未通过则拒绝标记完成</span>
+                                            <span class="general-toggle-name" data-i18n="general.loopGoal.validatorName">启用验证器</span>
+                                             <span class="general-toggle-desc" data-i18n="general.loopGoal.validatorDesc">目标完成时运行构建/测试验证，未通过则拒绝标记完成</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalLoopValidatorEnabled"/>
@@ -815,7 +815,7 @@
                                         </label>
                                     </div>
                                     <div class="general-toggle-desc settings-gap-top-sm">
-                                        Loop Goal 是长任务目标模式。Token/时间预算设为 0 表示不限制；停滞检测在连续 N 轮无进展时提醒模型；连续异常达阈值时自动标记阻塞
+                                        <span data-i18n="general.loopGoal.desc">Loop Goal 是长任务目标模式。Token/时间预算设为 0 表示不限制；停滞检测在连续 N 轮无进展时提醒模型；连续异常达阈值时自动标记阻塞</span>
                                     </div>
                                 </div>
                             </div>
@@ -824,15 +824,15 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">日志保存</div>
+                                        <div class="general-card-title" data-i18n="general.logging.title">日志保存</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
                                         <div class="general-field">
-                                            <label class="general-field-label">日志级别</label>
+                                            <label class="general-field-label" data-i18n="general.logging.level">日志级别</label>
                                             <select class="general-input form-select-custom" id="generalLogLevel">
-                                                <option value="">默认 (DEBUG)</option>
+                                                <option value="" data-i18n="general.logging.levelDefault">默认 (DEBUG)</option>
                                                 <option value="TRACE">TRACE</option>
                                                 <option value="DEBUG">DEBUG</option>
                                                 <option value="INFO">INFO</option>
@@ -841,16 +841,16 @@
                                             </select>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">单文件大小限制</label>
-                                            <input type="text" class="general-input" id="generalLogFileMaxSize" placeholder="10MB（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.logging.fileMaxSize">单文件大小限制</label>
+                                         <input type="text" class="general-input" id="generalLogFileMaxSize" placeholder="10MB（默认）" data-i18n-placeholder="general.logging.fileSizePlaceholder"/>
                                         </div>
                                         <div class="general-field">
-                                            <label class="general-field-label">存档周期（天）</label>
-                                            <input type="text" inputmode="numeric" class="general-input" id="generalLogMaxHistory" placeholder="30（默认）"/>
+                                            <label class="general-field-label" data-i18n="general.logging.maxHistory">存档周期（天）</label>
+                                         <input type="text" inputmode="numeric" class="general-input" id="generalLogMaxHistory" placeholder="30（默认）" data-i18n-placeholder="general.logging.maxHistoryPlaceholder"/>
                                         </div>
                                     </div>
                                     <div class="general-toggle-desc settings-gap-top-sm">
-                                        日志级别可运行时实时生效；文件大小限制和存档周期重启后生效
+                                        <span data-i18n="general.logging.desc">日志级别可运行时实时生效；文件大小限制和存档周期重启后生效</span>
                                     </div>
                                 </div>
                             </div>
@@ -859,11 +859,11 @@
                             <div class="general-card">
                                 <div class="general-card-header">
                                     <div class="general-card-text">
-                                        <div class="general-card-title">工具权限</div>
+                                        <div class="general-card-title" data-i18n="general.permissions.title">工具权限</div>
                                     </div>
                                 </div>
                                 <div class="general-card-body">
-                                    <div class="general-toggle-desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
+                                    <div class="general-toggle-desc" data-i18n="general.permissions.desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
                                     <div class="permission-container">
                                         <div class="permission-tools-list" id="permissionToolsList"></div>
                                     </div>
@@ -880,7 +880,7 @@
                                 <div class="general-card-body">
                                     <div class="general-toggle-row">
                                         <div class="general-toggle-info">
-                                            <span class="general-toggle-name">Language / 语言</span>
+                                            <span class="general-toggle-name" data-i18n="general.language.title">Language / 语言</span>
                                         </div>
                                         <div class="mcp-type-toggle" id="localeSwitcher">
                                             <button type="button" class="mcp-type-btn active" id="localeZhBtn" onclick="window.I18n && window.I18n.switch('zh-CN'); document.getElementById('localeZhBtn').classList.add('active'); document.getElementById('localeEnBtn').classList.remove('active');"><span data-i18n="general.language.zhCN">中文</span></button>
@@ -903,12 +903,12 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">智能体</span>
-                                    <div class="settings-section-desc">管理用户全局与当前工作区的子代理定义</div>
+                                    <span class="settings-section-title" data-i18n="agents.title">智能体</span>
+                                     <div class="settings-section-desc" data-i18n="agents.desc">管理用户全局与当前工作区的子代理定义</div>
                                 </div>
                                 <div class="settings-header-icon-actions">
-                                    <button class="settings-action-btn" id="agentsRefreshBtn" title="从目录刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-                                    <button class="settings-add-btn" id="agentsAddBtn">+ 添加智能体</button>
+                                    <button class="settings-action-btn" id="agentsRefreshBtn" title="从目录刷新" data-i18n-title="agents.refreshTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                     <button class="settings-add-btn" id="agentsAddBtn" data-i18n="agents.addBtn">+ 添加智能体</button>
                                 </div>
                             </div>
                             <div class="agents-list" id="agentsList"></div>
@@ -918,35 +918,35 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="agentsBackBtn" title="返回"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                    <button class="settings-back-btn" id="agentsBackBtn" title="返回" data-i18n-title="common.back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
                                     <span class="settings-section-title" id="agentsFormTitle">添加智能体</span>
                                 </div>
                                 <div class="settings-form-actions" id="agentsFormActions" style="display:none">
-                                    <button class="settings-form-action-btn" id="agentsFormCopyBtn" title="复制为新定义"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制</button>
-                                    <button class="settings-form-action-btn danger" id="agentsFormDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 删除</button>
+                                    <button class="settings-form-action-btn" id="agentsFormCopyBtn" title="复制为新定义" data-i18n-title="agents.copyTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> <span data-i18n="agents.copy">复制</span></button>
+                                     <button class="settings-form-action-btn danger" id="agentsFormDeleteBtn" title="删除" data-i18n-title="agents.deleteTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> <span data-i18n="agents.delete">删除</span></button>
                                 </div>
                             </div>
                             <div class="agents-form">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="agentsName" placeholder="backend-dev"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="agentsScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="agentsScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                     <input type="hidden" id="agentsScope" value="user"/>
+                                     <div class="settings-scope-toggle" data-target="agentsScope">
+                                         <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                         <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>描述 <span class="required">*</span></label>
-                                    <input type="text" id="agentsDescription" placeholder="请填写智能体职责说明"/>
+                                    <label data-i18n="agents.description">描述 <span class="required">*</span></label>
+                                     <input type="text" id="agentsDescription" placeholder="请填写智能体职责说明" data-i18n-placeholder="agents.descriptionPlaceholder"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>工具权限</label>
+                                    <label data-i18n="agents.tools">工具权限</label>
                                     <button type="button" class="agent-tools-trigger" id="agentsToolsBtn">
-                                        <span id="agentsToolsSummary">请选择工具</span>
+                                        <span id="agentsToolsSummary" data-i18n="agents.noTools">请选择工具</span>
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
                                     <div class="agent-tools-selector" id="agentsToolsSelector" style="display:none">
@@ -954,12 +954,12 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>系统提示词 <span class="required">*</span></label>
-                                    <textarea id="agentsSystemPrompt" class="agents-prompt-editor" rows="5" spellcheck="false" placeholder="你是一位专项智能体。请说明职责、工作方式和输出要求。"></textarea>
-                                    <div class="form-hint">这里只填写智能体的角色、职责与工作要求，配置头由系统自动生成。内置智能体可复制到用户或工作区进行覆盖。</div>
+                                    <label data-i18n="agents.systemPrompt">系统提示词 <span class="required">*</span></label>
+                                     <textarea id="agentsSystemPrompt" class="agents-prompt-editor" rows="5" spellcheck="false" placeholder="你是一位专项智能体。请说明职责、工作方式和输出要求。" data-i18n-placeholder="agents.promptPlaceholder"></textarea>
+                                     <div class="form-hint" data-i18n="agents.formHint">这里只填写智能体的角色、职责与工作要求，配置头由系统自动生成。内置智能体可复制到用户或工作区进行覆盖。</div>
                                 </div>
                                 <div class="form-actions form-actions-end">
-                                    <button class="btn-primary" id="agentsSaveBtn">保存</button>
+                                    <button class="btn-primary" id="agentsSaveBtn" data-i18n="agents.saveBtn">保存</button>
                                 </div>
                             </div>
                         </div>
@@ -972,11 +972,11 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">模型</span>
-                                    <div class="settings-section-desc">配置 AI 模型的连接参数与默认设定</div>
+                                    <span class="settings-section-title" data-i18n="llm.title">模型</span>
+                                    <div class="settings-section-desc" data-i18n="llm.desc">配置 AI 模型的连接参数与默认设定</div>
                                 </div>
                                 <div class="llm-header-actions">
-                                    <button class="settings-add-btn" id="llmAddBtn">+ 添加模型</button>
+                                    <button class="settings-add-btn" id="llmAddBtn" data-i18n="llm.addBtn">+ 添加模型</button>
                                 </div>
                             </div>
                             <div class="llm-model-list" id="llmModelList"></div>
@@ -987,68 +987,68 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="llmBackBtn" title="返回">
+                                    <button class="settings-back-btn" id="llmBackBtn" title="返回" data-i18n-title="common.back">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                                     </button>
                                     <span class="settings-section-title" id="llmFormTitle">添加模型</span>
                                 </div>
                                 <div class="settings-form-actions" id="llmFormActions" style="display:none">
-                                    <button class="settings-form-action-btn" id="llmFormCopyBtn" title="复制">
+                                    <button class="settings-form-action-btn" id="llmFormCopyBtn" title="复制" data-i18n-title="common.copy">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                        复制
+                                         <span data-i18n="llm.copy">复制</span>
                                     </button>
-                                    <button class="settings-form-action-btn danger" id="llmFormDeleteBtn" title="删除">
+                                    <button class="settings-form-action-btn danger" id="llmFormDeleteBtn" title="删除" data-i18n-title="common.delete">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                        删除
+                                         <span data-i18n="llm.delete">删除</span>
                                     </button>
                                 </div>
                             </div>
                             <div class="llm-add-form" id="llmAddForm">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="llmName" placeholder="my-model"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
+                                    <label data-i18n="form.scope">作用域</label>
                                     <input type="hidden" id="llmScope" value="user"/>
                                     <input type="hidden" id="llmProvider" value=""/>
                                     <div class="settings-scope-toggle" data-target="llmScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
+                                        <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                        <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>接口规范</label>
+                                    <label data-i18n="form.standard">接口规范</label>
                                     <select id="llmStandard" class="form-select-custom">
-                                        <option value="">FullUrl / 完整地址（自动检测）</option>
-                                        <option value="openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
-                                        <option value="openai-responses">OpenAI Responses BaseUrl / 兼容接口</option>
-                                        <option value="anthropic">Anthropic BaseUrl / 兼容接口</option>
-                                        <option value="gemini">Gemini Url</option>
-                                        <option value="ollama">Ollama Url</option>
+                                        <option value="" data-i18n="llm.standard.fullUrl">FullUrl / 完整地址（自动检测）</option>
+                                        <option value="openai" data-i18n="llm.standard.openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
+                                        <option value="openai-responses" data-i18n="llm.standard.openaiResponses">OpenAI Responses BaseUrl / 兼容接口</option>
+                                        <option value="anthropic" data-i18n="llm.standard.anthropic">Anthropic BaseUrl / 兼容接口</option>
+                                        <option value="gemini" data-i18n="llm.standard.gemini">Gemini Url</option>
+                                        <option value="ollama" data-i18n="llm.standard.ollama">Ollama Url</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>API 地址 <span class="required">*</span></label>
+                                    <label data-i18n="form.apiUrl">API 地址 <span class="required">*</span></label>
                                     <input type="text" id="llmApiUrl" placeholder="https://api.deepseek.com/v1/chat/completions"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>API 密钥</label>
+                                    <label data-i18n="form.apiKey">API 密钥</label>
                                     <div class="password-input-group">
                                         <input type="password" id="llmApiKey" autocomplete="new-password"/>
-                                        <button class="password-toggle" id="llmApiKeyToggle" title="显示/隐藏">
+                                        <button class="password-toggle" id="llmApiKeyToggle" title="显示/隐藏" data-i18n-title="form.showHide">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         </button>
                                     </div>
                                 </div>
                                 <div class="form-row-3col">
                                     <div class="form-group">
-                                        <label>模型 <span class="required">*</span></label>
+                                        <label data-i18n="llm.model">模型 <span class="required">*</span></label>
                                         <input type="text" id="llmModel" placeholder="deepseek-v4-flash" />
                                     </div>
                                     <div class="form-group">
-                                        <label>上下文长度</label>
-                                        <input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" list="contextLengthList" autocomplete="off"/>
+                                        <label data-i18n="llm.contextLength">上下文长度</label>
+                                         <input type="text" inputmode="numeric" id="llmContextLength" placeholder="1000k（模型上下文长度）" data-i18n-placeholder="llm.contextLengthPlaceholder" list="contextLengthList" autocomplete="off"/>
                                         <datalist id="contextLengthList">
                                             <option value="128k">
                                             <option value="256k">
@@ -1057,14 +1057,14 @@
                                         </datalist>
                                     </div>
                                     <div class="form-group">
-                                        <label>超时时间（可选）</label>
-                                        <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）"/>
+                                        <label data-i18n="llm.timeout">超时时间（可选）</label>
+                                         <input type="text" id="llmTimeout" placeholder="120s（默认 120 秒）" data-i18n-placeholder="llm.timeoutPlaceholder"/>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <div class="form-label-row">
-                                        <label>默认选项（可选，JSON 格式）</label>
-                                        <button type="button" class="provider-model-icon-btn" id="llmFormatJsonBtn" title="格式化 JSON">
+                                        <label data-i18n="llm.defaultOptions">默认选项（可选，JSON 格式）</label>
+                                        <button type="button" class="provider-model-icon-btn" id="llmFormatJsonBtn" title="格式化 JSON" data-i18n-title="llm.formatJson">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <polyline points="16 18 22 12 16 6"/>
                                                 <polyline points="8 6 2 12 8 18"/>
@@ -1072,20 +1072,20 @@
                                         </button>
                                     </div>
                                     <textarea id="llmDefaultOptions" rows="4" placeholder='{"temperature":0.2,"top_p":0.5,"thinking":{"type":"enabled"},"reasoning_effort":"high"}'></textarea>
-                                    <div class="form-hint">会话模型选择器中的「推理强度」会覆盖此处；选 auto 则使用本配置或供应商默认。</div>
+                                    <div class="form-hint" data-i18n="llm.defaultOptionsHint">会话模型选择器中的「推理强度」会覆盖此处；选 auto 则使用本配置或供应商默认。</div>
                                 </div>
                                 <div class="form-actions" style="justify-content:space-between">
                                     <label class="llm-default-checkbox">
                                         <input type="checkbox" id="llmIsDefaultModel"/>
                                         <span class="llm-default-checkmark"></span>
-                                        <span>设为默认模型</span>
+                                        <span data-i18n="llm.setDefault">设为默认模型</span>
                                     </label>
                                     <div class="settings-inline-actions">
                                         <button class="btn-secondary" id="llmTestBtn">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                            测试连接
+                                             <span data-i18n="llm.testBtn">测试连接</span>
                                         </button>
-                                        <button class="btn-primary" id="llmSaveBtn">保存</button>
+                                        <button class="btn-primary" id="llmSaveBtn" data-i18n="llm.saveBtn">保存</button>
                                     </div>
                                 </div>
                                 <div class="llm-check-result" id="llmCheckResult" style="display:none;"></div>
@@ -1099,15 +1099,15 @@
                     <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">技能管理</span>
-                                    <div class="settings-section-desc">管理已安装的技能包，或从技能市场获取更多能力</div>
+                                    <span class="settings-section-title" data-i18n="skills.title">技能管理</span>
+                                     <div class="settings-section-desc" data-i18n="skills.desc">管理已安装的技能包，或从技能市场获取更多能力</div>
                                 </div>
-                                <button class="settings-reload-icon-btn" id="skillsRefreshBtn" title="刷新技能列表"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                <button class="settings-reload-icon-btn" id="skillsRefreshBtn" title="刷新技能列表" data-i18n-title="skills.refreshTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                             </div>
 
                         <div class="mcp-type-toggle" id="skillsViewToggle" style="margin-bottom:12px">
-                            <button type="button" class="mcp-type-btn active" data-view="installed">已安装<span id="skillsInstalledCount" class="skills-view-count"></span></button>
-                            <button type="button" class="mcp-type-btn" data-view="market">技能市场</button>
+                            <button type="button" class="mcp-type-btn active" data-view="installed" data-i18n="skills.installedView">已安装<span id="skillsInstalledCount" class="skills-view-count"></span></button>
+                             <button type="button" class="mcp-type-btn" data-view="market" data-i18n="skills.marketView">技能市场</button>
                         </div>
 
                         <!-- 视图 A：已安装 -->
@@ -1115,19 +1115,19 @@
                             <div class="skills-search-bar">
                                 <div class="skills-market-wrap">
                                     <svg class="skills-market-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                                    <select id="skillsMountFilter" class="skills-market-select" title="按挂载筛选"></select>
+                                    <select id="skillsMountFilter" class="skills-market-select" title="按挂载筛选" data-i18n-title="skills.filterByMount"></select>
                                 </div>
 
                                 <div class="skills-search-input-wrap">
                                     <svg class="skills-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                    <input type="text" id="skillsInstalledFilter" placeholder="过滤已安装技能..." autocomplete="off"/>
-                                    <button class="skills-search-clear" id="skillsInstalledFilterClear" style="display:none" title="清除">&times;</button>
+                                    <input type="text" id="skillsInstalledFilter" placeholder="过滤已安装技能..." data-i18n-placeholder="skills.filterInstalledPlaceholder" autocomplete="off"/>
+                                     <button class="skills-search-clear" id="skillsInstalledFilterClear" style="display:none" title="清除" data-i18n-title="skills.clearTitle">&times;</button>
                                 </div>
                             </div>
                             <div class="skills-status" id="skillsInstalledStatus" style="display:none">
                                 <div class="skills-loading" id="skillsInstalledLoading" style="display:none">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                    <span>加载中...</span>
+                                    <span data-i18n="common.loading">加载中...</span>
                                 </div>
                                 <div class="skills-error" id="skillsInstalledError" style="display:none"></div>
                             </div>
@@ -1139,19 +1139,19 @@
                             <div class="skills-search-bar">
                                 <div class="skills-market-wrap">
                                     <svg class="skills-market-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                                    <select id="skillsMarketSelect" class="skills-market-select" title="选择技能市场"></select>
+                                    <select id="skillsMarketSelect" class="skills-market-select" title="选择技能市场" data-i18n-title="skills.selectMarket"></select>
                                 </div>
 
                                 <div class="skills-search-input-wrap">
                                     <svg class="skills-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                    <input type="text" id="skillsSearchInput" placeholder="搜索技能..." autocomplete="off"/>
-                                    <button class="skills-search-clear" id="skillsSearchClear" style="display:none" title="清除">&times;</button>
+                                    <input type="text" id="skillsSearchInput" placeholder="搜索技能..." data-i18n-placeholder="skills.searchMarketPlaceholder" autocomplete="off"/>
+                                     <button class="skills-search-clear" id="skillsSearchClear" style="display:none" title="清除" data-i18n-title="skills.clearTitle">&times;</button>
                                 </div>
                             </div>
                             <div class="skills-status" id="skillsStatus" style="display:none">
                                 <div class="skills-loading" id="skillsLoading" style="display:none">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                    <span>加载中...</span>
+                                    <span data-i18n="common.loading">加载中...</span>
                                 </div>
                                 <div class="skills-error" id="skillsError" style="display:none"></div>
                             </div>
@@ -1166,10 +1166,10 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">挂载</span>
-                                    <div class="settings-section-desc">管理本地目录映射，为 AI 提供技能与资源的加载路径</div>
+                                    <span class="settings-section-title" data-i18n="mounts.title">挂载</span>
+                                     <div class="settings-section-desc" data-i18n="mounts.desc">管理本地目录映射，为 AI 提供技能与资源的加载路径</div>
                                 </div>
-                                <button class="settings-add-btn" id="mountsAddBtn">+ 添加挂载</button>
+                                <button class="settings-add-btn" id="mountsAddBtn" data-i18n="mounts.addBtn">+ 添加挂载</button>
                             </div>
                             <div class="mounts-list" id="mountsList"></div>
                         </div>
@@ -1179,56 +1179,56 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="mountsBackBtn" title="返回"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                    <button class="settings-back-btn" id="mountsBackBtn" title="返回" data-i18n-title="common.back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
                                     <span class="settings-section-title" id="mountsFormTitle">添加挂载</span>
                                 </div>
                                 <div class="settings-form-actions" id="mountsFormActions" style="display:none">
-                                    <button class="settings-form-action-btn danger" id="mountsFormDeleteBtn" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 删除</button>
+                                    <button class="settings-form-action-btn danger" id="mountsFormDeleteBtn" title="删除" data-i18n-title="common.delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> 删除</button>
                                 </div>
                             </div>
                             <div class="mounts-add-form">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
-                                    <input type="text" id="mountsAlias" placeholder="@my-mount"/>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
+                                 <input type="text" id="mountsAlias" placeholder="@my-mount" data-i18n-placeholder="mounts.aliasPlaceholder"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="mountsScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="mountsScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                 <input type="hidden" id="mountsScope" value="user"/>
+                                 <div class="settings-scope-toggle" data-target="mountsScope">
+                                     <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                     <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>内容类型</label>
-                                    <div class="mcp-type-toggle" id="mountsTypeToggle">
-                                        <button class="mcp-type-btn active" data-type="SKILLS" type="button">技能 (SKILLS)</button>
-                                        <button class="mcp-type-btn" data-type="AGENTS" type="button">子代理 (AGENTS)</button>
-                                        <button class="mcp-type-btn" data-type="FILES" type="button">文件 (FILES)</button>
-                                    </div>
+                                    <label data-i18n="mounts.contentType">内容类型</label>
+                                 <div class="mcp-type-toggle" id="mountsTypeToggle">
+                                     <button class="mcp-type-btn active" data-type="SKILLS" type="button" data-i18n="mounts.contentType.skills">技能 (SKILLS)</button>
+                                     <button class="mcp-type-btn" data-type="AGENTS" type="button" data-i18n="mounts.contentType.agents">子代理 (AGENTS)</button>
+                                     <button class="mcp-type-btn" data-type="FILES" type="button" data-i18n="mounts.contentType.files">文件 (FILES)</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>映射路径 <span class="required">*</span></label>
-                                    <input type="text" id="mountsPath" placeholder="~/.myapp/skills/"/>
-                                    <div class="form-hint">文件所在的本地目录路径（支持 './' 工作区路径和 '~/' 用户目录路径）</div>
+                                    <label data-i18n="mounts.path">映射路径 <span class="required">*</span></label>
+                                 <input type="text" id="mountsPath" placeholder="~/.myapp/skills/" data-i18n-placeholder="mounts.pathPlaceholder"/>
+                                 <div class="form-hint" data-i18n="mounts.pathHint">文件所在的本地目录路径（支持 './' 工作区路径和 '~/' 用户目录路径）</div>
                                 </div>
                                 <div class="form-group" id="mountsWriteableGroup">
-                                    <label>开放 “写” 权限</label>
+                                    <label data-i18n="mounts.writePermission">开放 “写” 权限</label>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="mountsWriteable"/>
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
                                 <div class="form-group">
-                                    <label>描述（可选）</label>
-                                    <input type="text" id="mountsDescription" placeholder="简要描述此挂载用途"/>
+                                    <label data-i18n="mounts.description">描述（可选）</label>
+                                 <input type="text" id="mountsDescription" placeholder="简要描述此挂载用途" data-i18n-placeholder="mounts.descriptionPlaceholder"/>
                                 </div>
                                 <div class="form-actions form-actions-end">
-                                    <button class="btn-primary" id="mountsSaveBtn">保存</button>
+                                    <button class="btn-primary" id="mountsSaveBtn" data-i18n="mounts.saveBtn">保存</button>
                                 </div>
                                 <div class="mounts-divider" id="mountsPresetsDivider"></div>
                                 <div class="mounts-presets">
-                                    <div class="mounts-presets-label">常见挂载选择</div>
+                                    <div class="mounts-presets-label" data-i18n="mounts.presets">常见挂载选择</div>
                                     <div class="mounts-presets-btns">
                                         <button type="button" class="mounts-preset-btn" data-alias="@skills" data-path="./skills/">@skills ./skills/</button>
                                         <button type="button" class="mounts-preset-btn" data-alias="@skillhub" data-path="~/.skillhub/skills/">@skillhub  ~/.skillhub/skills/</button>
@@ -1245,12 +1245,12 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="mountsSkillsBackBtn" title="返回"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+                                    <button class="settings-back-btn" id="mountsSkillsBackBtn" title="返回" data-i18n-title="common.back"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
                                     <span class="settings-section-title" id="mountsSkillsTitle">技能包列表</span>
                                 </div>
                                 <div class="settings-header-icon-actions">
-                                    <button class="settings-action-btn" id="mountsOpenDirBtn" title="打开目录"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-                                    <button class="settings-action-btn" id="mountsRefreshBtn" title="刷新"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+                                    <button class="settings-action-btn" id="mountsOpenDirBtn" title="打开目录" data-i18n-title="mounts.openDir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+                                    <button class="settings-action-btn" id="mountsRefreshBtn" title="刷新" data-i18n-title="common.refresh"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
                                 </div>
                             </div>
                             <div class="mounts-skills-list" id="mountsSkillsList"></div>
@@ -1264,22 +1264,22 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">MCP 服务器</span>
-                                    <div class="settings-section-desc">管理外部工具服务器，扩展文件、数据库、浏览器等工具能力</div>
+                                    <span class="settings-section-title" data-i18n="mcp.title">MCP 服务器</span>
+                                     <div class="settings-section-desc" data-i18n="mcp.desc">管理外部工具服务器，扩展文件、数据库、浏览器等工具能力</div>
                                 </div>
                                 <div class="mcp-header-actions">
                                     <div class="mcp-import-menu-wrap">
-                                        <button class="settings-add-btn" id="mcpImportBtn" title="导入 MCP 服务器配置">
+                                        <button class="settings-add-btn" id="mcpImportBtn" title="导入 MCP 服务器配置" data-i18n-title="mcp.importBtn">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                            导入
+                                             <span data-i18n="mcp.importBtn">导入</span>
                                         </button>
                                         <div class="mcp-import-menu" id="mcpImportMenu">
-                                            <button type="button" class="mcp-import-menu-item" data-action="file">导入 JSON 文件</button>
-                                            <button type="button" class="mcp-import-menu-item" data-action="string">导入 JSON 字符串</button>
+                                            <button type="button" class="mcp-import-menu-item" data-action="file" data-i18n="mcp.importJsonFile">导入 JSON 文件</button>
+                                             <button type="button" class="mcp-import-menu-item" data-action="string" data-i18n="mcp.importJsonStr">导入 JSON 字符串</button>
                                         </div>
                                     </div>
                                     <input type="file" id="mcpImportFileInput" accept=".json" style="display:none;"/>
-                                    <button class="settings-add-btn" id="mcpAddBtn">+ 添加服务器</button>
+                                    <button class="settings-add-btn" id="mcpAddBtn" data-i18n="mcp.addBtn">+ 添加服务器</button>
                                 </div>
                             </div>
                             <div class="mcp-server-list" id="mcpServerList"></div>
@@ -1290,37 +1290,37 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="mcpBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="mcpBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="mcpFormTitle">添加服务器</span>
                                 </div>
                                 <div class="settings-form-actions" id="mcpFormActions" style="display:none">
-                                    <button class="settings-form-action-btn" id="mcpFormCopyBtn" title="复制">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                        复制
-                                    </button>
-                                    <button class="settings-form-action-btn danger" id="mcpFormDeleteBtn" title="删除">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                        删除
-                                    </button>
+                                    <button class="settings-form-action-btn" id="mcpFormCopyBtn" title="复制" data-i18n-title="common.copy">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                         <span data-i18n="mcp.copyBtn">复制</span>
+                                     </button>
+                                     <button class="settings-form-action-btn danger" id="mcpFormDeleteBtn" title="删除" data-i18n-title="mcp.deleteTitle">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <span data-i18n="mcp.deleteBtn">删除</span>
+                                     </button>
                                 </div>
                             </div>
                             <div class="mcp-add-form" id="mcpAddForm">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="mcpName" placeholder="my-mcp-server"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="mcpScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="mcpScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                 <input type="hidden" id="mcpScope" value="user"/>
+                                 <div class="settings-scope-toggle" data-target="mcpScope">
+                                     <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                     <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>类型</label>
+                                    <label data-i18n="form.type">类型</label>
                                     <div class="mcp-type-toggle">
                                         <button class="mcp-type-btn active" data-type="stdio">stdio</button>
                                         <button class="mcp-type-btn" data-type="sse">http sse</button>
@@ -1329,29 +1329,29 @@
                                 </div>
                                 <div class="mcp-config-stdio" id="mcpConfigStdio">
                                     <div class="form-group">
-                                        <label>命令 <span class="required">*</span></label>
+                                        <label data-i18n="form.command">命令 <span class="required">*</span></label>
                                         <input type="text" id="mcpCommand" placeholder="npx"/>
                                     </div>
                                     <div class="form-group">
-                                        <label>参数（每行一个）</label>
-                                        <textarea id="mcpArgs" rows="3" placeholder="-y&#10;@modelcontextprotocol/server-filesystem&#10;/path"></textarea>
+                                        <label data-i18n="form.args">参数（每行一个）</label>
+                                 <textarea id="mcpArgs" rows="3" placeholder="-y&#10;@modelcontextprotocol/server-filesystem&#10;/path"></textarea>
                                     </div>
                                     <div class="form-group">
-                                        <label>环境变量（KEY=VALUE，每行一个）</label>
-                                        <textarea id="mcpEnv" rows="3" placeholder="API_KEY=xxx"></textarea>
+                                        <label data-i18n="form.env">环境变量（KEY=VALUE，每行一个）</label>
+                                 <textarea id="mcpEnv" rows="3" placeholder="API_KEY=xxx"></textarea>
                                     </div>
                                 </div>
                                 <div class="mcp-config-remote" id="mcpConfigRemote" style="display:none">
                                     <div class="form-group">
-                                        <label>URL <span class="required">*</span></label>
+                                        <label data-i18n="form.url">URL <span class="required">*</span></label>
                                         <input type="text" id="mcpRemoteUrl" placeholder="http://localhost:3001/mcp"/>
                                     </div>
                                     <div class="form-group">
-                                        <label>请求头（KEY=VALUE，每行一个）</label>
+                                        <label data-i18n="form.headers">请求头（KEY=VALUE，每行一个）</label>
                                         <textarea id="mcpHeaders" rows="3" placeholder="Authorization=Bearer xxx&#10;X-Custom-Header=value"></textarea>
                                     </div>
                                     <div class="form-group">
-                                        <label>超时时间</label>
+                                        <label data-i18n="form.timeout">超时时间</label>
                                         <input type="text" id="mcpTimeout" class="settings-short-input" placeholder="30s"/>
                                     </div>
                                 </div>
@@ -1359,9 +1359,9 @@
                                     <div class="settings-inline-actions">
                                         <button class="btn-secondary settings-icon-btn" id="mcpCheckBtn">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                            检测连接
-                                        </button>
-                                        <button class="btn-primary" id="mcpSaveBtn">保存</button>
+                                             <span data-i18n="mcp.checkBtn">检测连接</span>
+                                         </button>
+                                         <button class="btn-primary" id="mcpSaveBtn" data-i18n="mcp.saveBtn">保存</button>
                                     </div>
                                 </div>
                                 <div class="mcp-check-result" id="mcpCheckResult" style="display:none;"></div>
@@ -1374,20 +1374,20 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="mcpToolsBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="mcpToolsBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="mcpToolsTitle">工具列表</span>
                                 </div>
                             </div>
                             <div class="mcp-tools-toolbar" id="mcpToolsToolbar" style="display:none;">
                                 <label class="mcp-tools-select-all">
                                     <input type="checkbox" id="mcpToolsSelectAll" />
-                                    <span>全选</span>
+                                     <span data-i18n="mcp.toolsSelectAll">全选</span>
                                 </label>
                                 <div class="mcp-tools-toolbar-actions">
                                     <span class="mcp-tools-count" id="mcpToolsCount"></span>
-                                    <button class="settings-add-btn settings-toolbar-save-btn" id="mcpToolsSaveBtn">保存</button>
+                                    <button class="settings-add-btn settings-toolbar-save-btn" id="mcpToolsSaveBtn" data-i18n="mcp.saveBtn">保存</button>
                                 </div>
                             </div>
                             <div class="mcp-tools-list" id="mcpToolsList"></div>
@@ -1402,11 +1402,11 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">OpenAPI 服务器</span>
-                                    <div class="settings-section-desc">接入 REST/OpenAPI 接口，控制 AI 可调用的 API 范围</div>
+                                    <span class="settings-section-title" data-i18n="openapi.title">OpenAPI 服务器</span>
+                                     <div class="settings-section-desc" data-i18n="openapi.desc">接入 REST/OpenAPI 接口，控制 AI 可调用的 API 范围</div>
                                 </div>
                                 <div class="openapi-header-actions">
-                                    <button class="settings-add-btn" id="openapiAddBtn">+ 添加服务器</button>
+                                    <button class="settings-add-btn" id="openapiAddBtn" data-i18n="openapi.addBtn">+ 添加服务器</button>
                                 </div>
                             </div>
                             <div class="openapi-server-list" id="openapiServerList"></div>
@@ -1417,54 +1417,54 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="openapiBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="openapiBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="openapiFormTitle">添加服务器</span>
                                 </div>
                                 <div class="settings-form-actions" id="openapiFormActions" style="display:none">
-                                    <button class="settings-form-action-btn" id="openapiFormCopyBtn" title="复制">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                                        复制
-                                    </button>
-                                    <button class="settings-form-action-btn danger" id="openapiFormDeleteBtn" title="删除">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                        删除
-                                    </button>
+                                    <button class="settings-form-action-btn" id="openapiFormCopyBtn" title="复制" data-i18n-title="openapi.copyTitle">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                         <span data-i18n="openapi.edit">复制</span>
+                                     </button>
+                                     <button class="settings-form-action-btn danger" id="openapiFormDeleteBtn" title="删除" data-i18n-title="openapi.deleteTitle">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <span data-i18n="openapi.deleteBtn">删除</span>
+                                     </button>
                                 </div>
                             </div>
                             <div class="openapi-add-form" id="openapiAddForm">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="openapiName" placeholder="my-api-server"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="openapiScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="openapiScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                 <input type="hidden" id="openapiScope" value="user"/>
+                                 <div class="settings-scope-toggle" data-target="openapiScope">
+                                     <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                     <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>API 基地址 <span class="required">*</span></label>
+                                    <label data-i18n="form.apiUrl">API 基地址 <span class="required">*</span></label>
                                     <input type="text" id="openapiBaseUrl" placeholder="https://api.example.com/app"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>接口文档地址（OpenApi 规范） <span class="required">*</span></label>
+                                    <label data-i18n="openapi.apiDocLabel">接口文档地址（OpenApi 规范） <span class="required">*</span></label>
                                     <input type="text" id="openapiDocUrl" placeholder="https://api.example.com/app/openapi.json"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>请求头（KEY=VALUE，每行一个）</label>
-                                    <textarea id="openapiHeaders" rows="3" placeholder="API_KEY=xxx&#10;Authorization=Bearer xxx"></textarea>
+                                    <label data-i18n="form.headers">请求头（KEY=VALUE，每行一个）</label>
+                                 <textarea id="openapiHeaders" rows="3" placeholder="API_KEY=xxx&#10;Authorization=Bearer xxx"></textarea>
                                 </div>
                                 <div class="form-actions form-actions-end">
                                     <div class="settings-inline-actions">
                                         <button class="btn-secondary settings-icon-btn" id="openapiTestBtn">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                            测试连接
-                                        </button>
-                                        <button class="btn-primary" id="openapiSaveBtn">保存</button>
+                                             <span data-i18n="openapi.testBtn">测试连接</span>
+                                         </button>
+                                         <button class="btn-primary" id="openapiSaveBtn" data-i18n="openapi.saveBtn">保存</button>
                                     </div>
                                 </div>
                                 <div class="llm-check-result" id="openapiCheckResult" style="display:none;"></div>
@@ -1476,20 +1476,20 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="openapiApisBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="openapiApisBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="openapiApisTitle">接口列表</span>
                                 </div>
                             </div>
                             <div class="mcp-tools-toolbar" id="openapiApisToolbar" style="display:none;">
                                 <label class="mcp-tools-select-all">
                                     <input type="checkbox" id="openapiApisSelectAll" />
-                                    <span>全选</span>
+                                     <span data-i18n="openapi.apisSelectAll">全选</span>
                                 </label>
                                 <div class="mcp-tools-toolbar-actions">
                                     <span class="mcp-tools-count" id="openapiApisCount"></span>
-                                    <button class="settings-add-btn settings-toolbar-save-btn" id="openapiApisSaveBtn">保存</button>
+                                    <button class="settings-add-btn settings-toolbar-save-btn" id="openapiApisSaveBtn" data-i18n="openapi.saveBtn">保存</button>
                                 </div>
                             </div>
                             <div id="openapiApisList"></div>
@@ -1504,11 +1504,11 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">LSP 服务器</span>
-                                    <div class="settings-section-desc">配置语言服务器，为代码理解和编辑提供语言能力</div>
+                                    <span class="settings-section-title" data-i18n="lsp.title">LSP 服务器</span>
+                                     <div class="settings-section-desc" data-i18n="lsp.desc">配置语言服务器，为代码理解和编辑提供语言能力</div>
                                 </div>
                                 <div class="openapi-header-actions">
-                                    <button class="settings-add-btn" id="lspAddBtn">+ 添加服务器</button>
+                                    <button class="settings-add-btn" id="lspAddBtn" data-i18n="lsp.addBtn">+ 添加服务器</button>
                                 </div>
                             </div>
                             <div class="openapi-server-list" id="lspServerList"></div>
@@ -1519,45 +1519,45 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="lspBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="lspBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="lspFormTitle">添加服务器</span>
                                 </div>
                                 <div class="settings-form-actions" id="lspFormActions" style="display:none">
-                                    <button class="settings-form-action-btn danger" id="lspFormDeleteBtn" title="删除">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                        删除
-                                    </button>
+                                    <button class="settings-form-action-btn danger" id="lspFormDeleteBtn" title="删除" data-i18n-title="lsp.deleteTitle">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <span data-i18n="lsp.deleteBtn">删除</span>
+                                     </button>
                                 </div>
                             </div>
                             <div class="openapi-add-form" id="lspAddForm">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="lspName" placeholder="my-lsp-server"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="lspScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="lspScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                 <input type="hidden" id="lspScope" value="user"/>
+                                 <div class="settings-scope-toggle" data-target="lspScope">
+                                     <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                     <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>启动命令 <span class="required">*</span></label>
-                                    <input type="text" id="lspCommand" placeholder="typescript-language-server --stdio"/>
+                                    <label data-i18n="lsp.command">启动命令 <span class="required">*</span></label>
+                                 <input type="text" id="lspCommand" placeholder="typescript-language-server --stdio" data-i18n-placeholder="lsp.commandPlaceholder"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>关联扩展名（逗号分隔）</label>
-                                    <input type="text" id="lspExtensions" placeholder=".ts, .tsx, .js"/>
+                                    <label data-i18n="lsp.extensions">关联扩展名（逗号分隔）</label>
+                                 <input type="text" id="lspExtensions" placeholder=".ts, .tsx, .js" data-i18n-placeholder="lsp.extensionsPlaceholder"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>环境变量（KEY=VALUE，每行一个）</label>
-                                    <textarea id="lspEnv" rows="3" placeholder="NODE_PATH=/usr/local/lib/node_modules"></textarea>
+                                    <label data-i18n="form.env">环境变量（KEY=VALUE，每行一个）</label>
+                                 <textarea id="lspEnv" rows="3" placeholder="NODE_PATH=/usr/local/lib/node_modules"></textarea>
                                 </div>
                                 <div class="form-actions form-actions-end">
-                                    <button class="btn-primary" id="lspSaveBtn">保存</button>
+                                    <button class="btn-primary" id="lspSaveBtn" data-i18n="lsp.saveBtn">保存</button>
                                 </div>
                             </div>
                         </div>
@@ -1570,11 +1570,11 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div>
-                                    <span class="settings-section-title">供应商</span>
-                                    <div class="settings-section-desc">管理 AI 模型供应商配置，支持自动拉取模型列表</div>
+                                    <span class="settings-section-title" data-i18n="provider.title">供应商</span>
+                                     <div class="settings-section-desc" data-i18n="provider.desc">管理 AI 模型供应商配置，支持自动拉取模型列表</div>
                                 </div>
                                 <div class="openapi-header-actions">
-                                    <button class="settings-add-btn" id="providerAddBtn">+ 添加供应商</button>
+                                    <button class="settings-add-btn" id="providerAddBtn" data-i18n="provider.addBtn">+ 添加供应商</button>
                                 </div>
                             </div>
                             <div class="openapi-server-list" id="providerList"></div>
@@ -1585,83 +1585,83 @@
                         <div class="settings-section">
                             <div class="settings-section-header">
                                 <div class="settings-title-row">
-                                    <button class="settings-back-btn" id="providerBackBtn" title="返回">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                    </button>
+                                    <button class="settings-back-btn" id="providerBackBtn" title="返回" data-i18n-title="common.back">
+                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                                     </button>
                                     <span class="settings-section-title" id="providerFormTitle">添加供应商</span>
                                 </div>
                                 <div class="settings-form-actions" id="providerFormActions" style="display:none">
-                                    <button class="settings-form-action-btn danger" id="providerFormDeleteBtn" title="删除">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                        删除
-                                    </button>
+                                    <button class="settings-form-action-btn danger" id="providerFormDeleteBtn" title="删除" data-i18n-title="provider.deleteTitle">
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <span data-i18n="provider.deleteBtn">删除</span>
+                                     </button>
                                 </div>
                             </div>
                             <div class="openapi-add-form" id="providerAddForm">
                                 <div class="form-group">
-                                    <label>名称 <span class="required">*</span></label>
+                                    <label data-i18n="form.name">名称 <span class="required">*</span></label>
                                     <input type="text" id="providerName" placeholder="deepseek"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>作用域</label>
-                                    <input type="hidden" id="providerScope" value="user"/>
-                                    <div class="settings-scope-toggle" data-target="providerScope">
-                                        <button class="settings-scope-btn active" data-scope="user" type="button">用户（全局）</button>
-                                        <button class="settings-scope-btn" data-scope="workspace" type="button">工作区（本地）</button>
-                                    </div>
+                                    <label data-i18n="form.scope">作用域</label>
+                                 <input type="hidden" id="providerScope" value="user"/>
+                                 <div class="settings-scope-toggle" data-target="providerScope">
+                                     <button class="settings-scope-btn active" data-scope="user" type="button" data-i18n="scope.user">用户（全局）</button>
+                                     <button class="settings-scope-btn" data-scope="workspace" type="button" data-i18n="scope.workspace">工作区（本地）</button>
+                                 </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>接口规范</label>
+                                    <label data-i18n="form.standard">接口规范</label>
                                     <select id="providerStandard" class="form-select-custom">
-                                        <option value="openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
-                                        <option value="openai-responses">OpenAI Responses BaseUrl / 兼容接口</option>
-                                        <option value="anthropic">Anthropic BaseUrl / 兼容接口</option>
+                                        <option value="openai" data-i18n="provider.standard.openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
+                                        <option value="openai-responses" data-i18n="provider.standard.openaiResponses">OpenAI Responses BaseUrl / 兼容接口</option>
+                                        <option value="anthropic" data-i18n="provider.standard.anthropic">Anthropic BaseUrl / 兼容接口</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>API 地址 <span class="required">*</span></label>
+                                    <label data-i18n="form.apiUrl">API 地址 <span class="required">*</span></label>
                                     <input type="text" id="providerApiUrl" placeholder="https://api.deepseek.com/v1"/>
                                 </div>
                                 <div class="form-group">
-                                    <label>API 密钥</label>
+                                    <label data-i18n="form.apiKey">API 密钥</label>
                                     <div class="password-input-group">
                                         <input type="password" id="providerApiKey" placeholder="sk-xxx" autocomplete="new-password"/>
-                                        <button class="password-toggle" id="providerApiKeyToggle" title="显示/隐藏">
+                                        <button class="password-toggle" id="providerApiKeyToggle" title="显示/隐藏" data-i18n-title="form.showHide">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         </button>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <div class="form-group-header">
-                                        <label>模型管理</label>
+                                        <label data-i18n="provider.models.title">模型管理</label>
                                         <div class="provider-model-header-actions">
                                             <div class="provider-model-menu-wrap">
-                                                <button class="provider-model-icon-btn" id="providerModelsSelectToggle" title="批量选择模型">
+                                                <button class="provider-model-icon-btn" id="providerModelsSelectToggle" title="批量选择模型" data-i18n-title="provider.models.batchSelectTitle">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-checks-icon lucide-list-checks"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/></svg>
                                                 </button>
                                                 <div class="provider-model-menu" id="providerModelsActionMenu">
-                                                    <button type="button" class="provider-model-menu-item" id="providerModelsSelectAll">全选</button>
-                                                    <button type="button" class="provider-model-menu-item" id="providerModelsSelectNone">全不选</button>
-                                                    <button type="button" class="provider-model-menu-item" id="providerModelsInvert">反选</button>
+                                                    <button type="button" class="provider-model-menu-item" id="providerModelsSelectAll" data-i18n="provider.selectAll">全选</button>
+                                                     <button type="button" class="provider-model-menu-item" id="providerModelsSelectNone" data-i18n="provider.selectNone">全不选</button>
+                                                     <button type="button" class="provider-model-menu-item" id="providerModelsInvert" data-i18n="provider.invert">反选</button>
                                                 </div>
                                             </div>
-                                            <button class="provider-model-icon-btn" id="providerAddModelBtn" title="手动添加模型">
+                                            <button class="provider-model-icon-btn" id="providerAddModelBtn" title="手动添加模型" data-i18n-title="provider.addBtn">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                             </button>
-                                            <button class="provider-model-icon-btn" id="providerFetchModelsBtn" title="从 API 拉取模型列表">
+                                            <button class="provider-model-icon-btn" id="providerFetchModelsBtn" title="从 API 拉取模型列表" data-i18n-title="provider.models.fetchTitle">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                                             </button>
-                                            <button class="provider-model-icon-btn" id="providerClearModelsBtn" title="清空模型列表">
+                                            <button class="provider-model-icon-btn" id="providerClearModelsBtn" title="清空模型列表" data-i18n-title="provider.models.clearTitle">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-1 2h14l-1 14H4L3 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><line x1="18" y1="11" x2="18" y2="17"/></svg>
                                             </button>
                                         </div>
                                     </div>
                                     <div class="provider-models-list" id="providerModelsList"></div>
-                                    <div class="provider-models-empty" id="providerModelsEmpty">点击右侧 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 添加模型，或 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> 从 API 拉取</div>
+                                    <div class="provider-models-empty" id="providerModelsEmpty" data-i18n="provider.modelsEmpty">点击右侧 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 添加模型，或 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> 从 API 拉取</div>
                                 </div>
 
                                 <div class="form-actions form-actions-end">
-                                    <button class="btn-primary" id="providerSaveBtn">保存</button>
+                                    <button class="btn-primary" id="providerSaveBtn" data-i18n="provider.saveBtn">保存</button>
                                 </div>
                             </div>
                         </div>
