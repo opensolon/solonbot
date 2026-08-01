@@ -65,7 +65,7 @@
         var currentLabel = '';
         var html = '';
         list.forEach(function(ws) {
-            var label = ws.name || ws.id;
+        var label = ws.name === '__current_workspace__' ? I18n.t('gitdiff.currentWorkspace') : (ws.name || ws.id);
             if (ws.id === gitWorkspace) currentLabel = label;
             html += '<div class="git-workspace-dropdown-item" data-workspace="' + ws.id + '">' + escapeHtml(label) + '</div>';
         });

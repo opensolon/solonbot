@@ -128,7 +128,7 @@ public class FileService {
         // 1. 当前工作区
         Map<String, Object> defaultWs = new LinkedHashMap<>();
         defaultWs.put("id", "workspace");
-        defaultWs.put("name", "当前工作区");
+        defaultWs.put("name", "__current_workspace__");
         defaultWs.put("type", "workspace");
         defaultWs.put("writeable", true);
         defaultWs.put("readonly", false);
