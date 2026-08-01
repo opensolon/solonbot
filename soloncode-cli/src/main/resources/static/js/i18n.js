@@ -156,9 +156,12 @@
                 });
                 return;
             }
-            // 非默认语言：加载并应用
+            // 非默认语言：加载并应用，完成后同样 dispatch i18n:loaded 供各模块守卫使用
             this.load(saved, function (err) {
-                if (!err) self.apply();
+                if (!err) {
+                    self.apply();
+                    document.dispatchEvent(new CustomEvent('i18n:loaded', { detail: { locale: saved } }));
+                }
             });
         },
 
