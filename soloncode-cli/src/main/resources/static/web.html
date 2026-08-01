@@ -524,6 +524,26 @@
                             </div>
                         </div>
 
+                        <!-- 界面语言 -->
+                        <div class="general-card">
+                            <div class="general-card-header">
+                                <div class="general-card-text">
+                                    <div class="general-card-title" data-i18n="general.language.title">界面语言</div>
+                                </div>
+                            </div>
+                            <div class="general-card-body">
+                                <div class="general-toggle-row">
+                                    <div class="general-toggle-info">
+                                        <span class="general-toggle-name" data-i18n="general.language.subTitle">Language / 语言</span>
+                                    </div>
+                                    <div class="mcp-type-toggle" id="localeSwitcher">
+                                        <button type="button" class="mcp-type-btn active" id="localeZhBtn" onclick="window.I18n && window.I18n.switch('zh-CN'); document.getElementById('localeZhBtn').classList.add('active'); document.getElementById('localeEnBtn').classList.remove('active');"><span data-i18n="general.language.zhCN">中文</span></button>
+                                        <button type="button" class="mcp-type-btn" id="localeEnBtn" onclick="window.I18n && window.I18n.switch('en'); document.getElementById('localeEnBtn').classList.add('active'); document.getElementById('localeZhBtn').classList.remove('active');"><span data-i18n="general.language.en">English</span></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="general-card-group">
                             <!-- 上下文压缩策略 -->
                             <div class="general-card">
@@ -867,26 +887,6 @@
                                     <div class="general-toggle-desc" data-i18n="general.permissions.desc">管理全局工具访问权限，默认启用所有工具，可勾选禁用特定工具</div>
                                     <div class="permission-container">
                                         <div class="permission-tools-list" id="permissionToolsList"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 界面语言 -->
-                            <div class="general-card">
-                                <div class="general-card-header">
-                                    <div class="general-card-text">
-                                        <div class="general-card-title" data-i18n="general.language.title">界面语言</div>
-                                    </div>
-                                </div>
-                                <div class="general-card-body">
-                                    <div class="general-toggle-row">
-                                        <div class="general-toggle-info">
-                                            <span class="general-toggle-name" data-i18n="general.language.title">Language / 语言</span>
-                                        </div>
-                                        <div class="mcp-type-toggle" id="localeSwitcher">
-                                            <button type="button" class="mcp-type-btn active" id="localeZhBtn" onclick="window.I18n && window.I18n.switch('zh-CN'); document.getElementById('localeZhBtn').classList.add('active'); document.getElementById('localeEnBtn').classList.remove('active');"><span data-i18n="general.language.zhCN">中文</span></button>
-                                            <button type="button" class="mcp-type-btn" id="localeEnBtn" onclick="window.I18n && window.I18n.switch('en'); document.getElementById('localeEnBtn').classList.add('active'); document.getElementById('localeZhBtn').classList.remove('active');"><span data-i18n="general.language.en">English</span></button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

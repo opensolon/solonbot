@@ -103,6 +103,7 @@
   "general.features.title": "功能开关",
   "general.language.en": "English",
   "general.language.title": "界面语言",
+  "general.language.subTitle": "语言",
   "general.language.zhCN": "中文",
   "general.logging.desc": "日志级别可运行时实时生效；文件大小限制和存档周期重启后生效",
   "general.logging.fileMaxSize": "单文件大小限制",
