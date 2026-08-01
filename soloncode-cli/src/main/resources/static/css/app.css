@@ -2,6 +2,12 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
+
+/* ===== 全局滚动条（统一所有可滚动区域，局部需要隐藏/定制时再覆盖） ===== */
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+html { scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
 body {
     font-family: var(--font-sans);
     background-color: var(--bg-body);
@@ -357,7 +363,8 @@ body {
 .msg-nav-block { flex-shrink: 0; width: 12px; height: 4px; background: var(--bg-user-msg); border-radius: 2px; opacity: 0.55; cursor: pointer; transition: opacity 0.15s; }
 .msg-nav-block:hover { opacity: 1; }
 .msg-nav-block.active { opacity: 1; background: var(--text-primary, #333); }
-.msg-nav-panel { position: fixed; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 4px 0; z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 220px; max-height: 400px; overflow-y: auto; }
+.msg-nav-panel { position: fixed; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 4px 0; z-index: 9999; box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 220px; max-height: 400px; overflow-y: auto; overflow-x: hidden}
+
 .msg-nav-panel::after { content: ''; position: absolute; right: -6px; top: var(--arrow-top, 50%); transform: translateY(-50%); border: 6px solid transparent; border-left-color: var(--border-color); border-right: none; pointer-events: none; }
 .msg-nav-panel-item { display: block; padding: 5px 14px; font-size: 12px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--text-primary, #e0e0e0); }
 .msg-nav-panel-item:hover { background: var(--bg-hover, rgba(255,255,255,0.08)); }
@@ -762,8 +769,7 @@ body {
 .model-dropdown-item .model-item-desc-text { color: var(--text-secondary); }
 .model-dropdown-item.active .model-item-desc { color: var(--accent); opacity: 0.7; }
 .model-dropdown-items { overflow-y: auto; max-height: 220px; flex: 1; min-height: 0; }
-.model-dropdown-items::-webkit-scrollbar { width: 4px; }
-.model-dropdown-items::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
 
 /* Model dropdown search */
 .model-search-wrap { position: sticky; top: 0; padding: 8px 8px 4px; background: var(--bg-input-box); border-bottom: 1px solid var(--border-color); border-radius: 10px 10px 0 0; z-index: 1; flex-shrink: 0; }
@@ -849,10 +855,7 @@ body {
     font-size: 11px;
 }
 
-/* Scrollbar */
-.msg-wrap::-webkit-scrollbar, .sidebar-list::-webkit-scrollbar, .reason-group-think-body::-webkit-scrollbar { width: 5px; }
-.msg-wrap::-webkit-scrollbar-thumb, .sidebar-list::-webkit-scrollbar-thumb, .reason-group-think-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-.msg-wrap::-webkit-scrollbar-track, .sidebar-list::-webkit-scrollbar-track, .reason-group-think-body::-webkit-scrollbar-track { background: transparent; }
+
 
 /* Voice Input */
  .voice-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent-fill, var(--accent)); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
@@ -873,8 +876,7 @@ body {
 .cmd-complete-item .cmd-name.skill { color: #0891b2; }
 .cmd-complete-item .cmd-desc { color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
 .cmd-complete-item .cmd-args { color: var(--text-secondary); font-size: 11px; font-family: var(--font-mono); white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
-.cmd-complete::-webkit-scrollbar { width: 4px; }
-.cmd-complete::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
 
 /* Cmd-complete Search Bar (for skills) */
 .cmd-complete-search { padding: 8px 10px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; background: var(--bg-input-box); z-index: 1; }
@@ -899,8 +901,7 @@ body {
 .history-panel-item:hover .history-locate-btn { opacity: 0.7; }
 .history-locate-btn:hover { opacity: 1 !important; background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 .history-panel-empty { padding: 18px; text-align: center; color: var(--text-secondary); font-size: 13px; }
-.history-panel-list::-webkit-scrollbar { width: 4px; }
-.history-panel-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
 
 /* ===== Loop Panel ===== */
 .loop-panel { position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); max-height: 360px; overflow: hidden; z-index: 100; animation: drop-up 0.15s ease-out; display: flex; flex-direction: column; }
@@ -1329,13 +1330,7 @@ body {
     background: var(--accent-light);
     color: var(--accent);
 }
-.git-workspace-dropdown::-webkit-scrollbar {
-    width: 4px;
-}
-.git-workspace-dropdown::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 2px;
-}
+
 
 /* ---- 通用设置 > 语言选择器 ---- */
 .locale-selector {
@@ -1411,13 +1406,7 @@ body {
     color: var(--accent);
     font-weight: 500;
 }
-.locale-selector-dropdown::-webkit-scrollbar {
-    width: 4px;
-}
-.locale-selector-dropdown::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 2px;
-}
+
 
 .file-panel-tree {
     flex: 1;
@@ -2461,11 +2450,7 @@ body.memory-active .main-header { display: none; }
     padding-top: 40px;
 }
 
-/* ===== Firefox Scrollbar ===== */
-.msg-wrap, .sidebar-list, .reason-group-think-body, .model-dropdown, .cmd-complete, .history-panel-list, .file-panel-tree, .git-diff-file-list {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
-}
+
 
 /* ===== Button Active States ===== */
 .send-btn:active:not(:disabled) { transform: scale(0.95); }
