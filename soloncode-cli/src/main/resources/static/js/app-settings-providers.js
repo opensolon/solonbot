@@ -48,8 +48,8 @@
         // 清空模型列表
         $('#providerClearModelsBtn').on('click', function () {
             if (fetchedModels.length === 0) return;
-            layui.layer.confirm('确定清空当前模型列表吗？手动添加的模型也会一并清除。', {
-                btn: ['清空', '取消'],
+            layui.layer.confirm(I18n.t('provider.clearConfirm'), {
+                btn: [I18n.t('provider.clearBtn'), I18n.t('common.cancel')],
                 icon: 3
             }, function (index) {
                 layui.layer.close(index);
@@ -168,7 +168,7 @@
                 }
             },
             error: function () {
-                layui.layer.msg('加载供应商列表失败', { icon: 2 });
+                layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
             }
         });
     }
@@ -176,7 +176,7 @@
     function renderProvidersList() {
         var html = '';
         if (providers.length === 0) {
-            html = '<div class="mcp-empty-state"><div class="mcp-empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg></div><div class="mcp-empty-title">暂无供应商配置</div><div class="mcp-empty-desc">管理 AI 模型供应商配置，支持自动拉取模型列表</div></div>';
+            html = '<div class="mcp-empty-state"><div class="mcp-empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg></div><div class="mcp-empty-title">' + I18n.t('provider.empty') + '</div><div class="mcp-empty-desc">' + I18n.t('provider.emptyDesc') + '</div></div>';
         } else {
             providers.forEach(function (provider) {
                 html += renderProviderItem(provider);
@@ -192,11 +192,11 @@
             '<div class="settings-list-icon">' + (getStandardAbbr(provider.standard) || 'F') + '</div>' +
             '<div class="settings-list-info">' +
                 '<div class="settings-list-title">' + provider.name + ' <span class="settings-inline-tag">[' + (provider.standard || 'openai') + ']</span></div>' +
-                '<div class="settings-list-desc">' + (provider.apiUrl || '未配置') + ' - ' + modelsCount + ' 模型</div>' +
+                '<div class="settings-list-desc">' + (provider.apiUrl || I18n.t('provider.notConfigured')) + ' - ' + I18n.t('provider.modelCount', {n: modelsCount}) + '</div>' +
             '</div>' +
             '<div class="settings-list-actions">' +
-                '<button class="settings-action-btn edit provider-edit-btn" title="编辑"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
-                '<label class="toggle-switch" title="' + (provider.enabled ? '停用' : '启用') + '">' +
+                '<button class="settings-action-btn edit provider-edit-btn" title="' + I18n.t('provider.edit') + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
+                '<label class="toggle-switch" title="' + (provider.enabled ? I18n.t('provider.toggle.disable') : I18n.t('provider.toggle.enable')) + '">' +
                     '<input type="checkbox" ' + (provider.enabled ? 'checked' : '') + ' data-name="' + provider.name + '" class="provider-toggle"/>' +
                     '<span class="toggle-slider"></span>' +
                 '</label>' +
@@ -214,7 +214,7 @@
         $formView.show();
 
         // 设置标题
-        $formTitle.text(provider ? '编辑供应商' : '添加供应商');
+        $formTitle.text(I18n.t(provider ? 'provider.editTitle' : 'provider.addTitle'));
         $formActions.toggle(!!provider);
 
         // 填充表单
@@ -251,17 +251,17 @@
         var dialogHtml = '<div class="model-add-overlay" id="modelAddOverlay">'
             + '<div class="model-add-dialog">'
             + '<div class="model-add-header">'
-            + '<span class="model-add-title">手动添加模型</span>'
+            + '<span class="model-add-title">' + I18n.t('provider.models.addTitle') + '</span>'
             + '<button class="model-add-close" id="modelAddClose">&times;</button>'
             + '</div>'
             + '<div class="model-add-body">'
             + '<div class="form-group">'
-            + '<label>模型名称 <span class="required">*</span></label>'
-            + '<input type="text" id="manualModelName" placeholder="例如 gpt-4o-mini">'
+            + '<label>' + I18n.t('provider.modelName') + ' <span class="required">*</span></label>'
+            + '<input type="text" id="manualModelName" placeholder="' + I18n.t('provider.modelNamePlaceholder') + '">'
             + '</div>'
             + '<div class="form-group">'
-            + '<label>上下文长度</label>'
-            + '<input type="text" id="manualModelTokens" inputmode="numeric" placeholder="1m（模型上下文长度）" list="manualContextLengthList" autocomplete="off">'
+            + '<label>' + I18n.t('provider.contextLength') + '</label>'
+            + '<input type="text" id="manualModelTokens" inputmode="numeric" placeholder="' + I18n.t('provider.contextLengthPlaceholder') + '" list="manualContextLengthList" autocomplete="off">'
             + '<datalist id="manualContextLengthList">'
             + '<option value="128k">'
             + '<option value="256k">'
@@ -271,8 +271,8 @@
             + '</div>'
             + '</div>'
             + '<div class="model-add-footer">'
-            + '<button class="btn-secondary" id="modelAddCancel">取消</button>'
-            + '<button class="btn-primary" id="modelAddConfirm">确认添加</button>'
+            + '<button class="btn-secondary" id="modelAddCancel">' + I18n.t('common.cancel') + '</button>'
+            + '<button class="btn-primary" id="modelAddConfirm">' + I18n.t('provider.confirmAdd') + '</button>'
             + '</div>'
             + '</div>'
             + '</div>';
@@ -286,7 +286,7 @@
             var maxTokens = $overlay.find('#manualModelTokens').val().trim();
 
             if (!modelId) {
-                layui.layer.msg('请输入模型名称', { icon: 0 });
+                layui.layer.msg(I18n.t('provider.modelNameRequired'), { icon: 0 });
                 return;
             }
 
@@ -294,7 +294,7 @@
                 return m.id === modelId;
             });
             if (exists) {
-                layui.layer.msg('模型 "' + modelId + '" 已存在', { icon: 0 });
+                layui.layer.msg(I18n.t('provider.modelExists', {name: modelId}), { icon: 0 });
                 return;
             }
 
@@ -347,7 +347,7 @@
         var standard = $('#providerStandard').val();
 
         if (!apiUrl) {
-            layui.layer.msg('请先填写 API 地址', { icon: 0 });
+            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0 });
             return;
         }
 
@@ -410,17 +410,17 @@
                         loadLlmModelsCache(function () {
                             renderModelsList();
                         });
-                        layui.layer.msg('成功拉取 ' + fetchedModels.length + ' 个模型', { icon: 1 });
+                        layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedModels.length}), { icon: 1 });
                     } catch (e) {
-                        layui.layer.msg('解析模型列表失败', { icon: 2 });
+                        layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2 });
                     }
                 } else {
-                    layui.layer.msg(res.msg || '拉取失败', { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('provider.fetchFailed'), { icon: 2 });
                 }
             },
             error: function (xhr) {
                 $btn.prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>');
-                layui.layer.msg('拉取模型列表失败: ' + (xhr.responseText || '网络错误'), { icon: 2 });
+                layui.layer.msg(I18n.t('provider.fetchListFailed') + ': ' + (xhr.responseText || I18n.t('toast.networkError')), { icon: 2 });
             }
         });
     }
@@ -466,18 +466,18 @@
             // 使用 LLM 缓存的启用状态，如果未同步则使用供应商的启用状态
             var enabled = isSynced ? (syncedModel.enabled !== false && syncedModel.visibled !== false) : providerEnabled;
 
-            var manualTag = model.manual ? ' <span class="provider-model-manual-tag">手动</span>' : '';
+            var manualTag = model.manual ? ' <span class="provider-model-manual-tag">' + I18n.t('provider.manualTag') + '</span>' : '';
             var removeBtn = model.manual
-                ? '<button class="provider-model-remove-btn" title="移除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+                ? '<button class="provider-model-remove-btn" title="' + I18n.t('provider.remove') + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
                 : '';
             html += '<div class="provider-model-item' + (!enabled ? ' disabled' : '') + '" data-model-id="' + model.id + '">' +
                 '<div class="provider-model-icon">' + providerStandardAbbr + '</div>' +
                 '<div class="provider-model-info">' +
-                    '<div class="provider-model-name">' + model.id + manualTag + (isSynced ? ' <span class="provider-model-synced">已同步</span>' : '') + '</div>' +
+                    '<div class="provider-model-name">' + model.id + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
                 '</div>' +
                 '<div class="provider-model-actions">' +
                     removeBtn +
-                    '<label class="toggle-switch" title="' + (enabled ? '停用' : '启用') + '">' +
+                    '<label class="toggle-switch" title="' + (enabled ? I18n.t('provider.toggle.disable') : I18n.t('provider.toggle.enable')) + '">' +
                         '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' class="provider-model-toggle" data-synced="' + isSynced + '" data-llm-name="' + llmName + '"/>' +
                         '<span class="toggle-slider"></span>' +
                     '</label>' +
@@ -501,7 +501,7 @@
                         window._settingsLlm.load();
                     }
                 } else {
-                    layui.layer.msg('操作失败: ' + (resp.message || '未知错误'), { icon: 2 });
+                    layui.layer.msg(I18n.t('toast.operateFailed') + ': ' + (resp.message || I18n.t('toast.unknownError')), { icon: 2 });
                     // 回滚状态
                     renderModelsList();
                 }
@@ -519,11 +519,11 @@
                 if (res.code === 200) {
                     showForm(res.data);
                 } else {
-                    layui.layer.msg(res.msg || '获取供应商详情失败', { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('provider.loadDetailFailed'), { icon: 2 });
                 }
             },
             error: function () {
-                layui.layer.msg('获取供应商详情失败', { icon: 2 });
+                layui.layer.msg(I18n.t('provider.loadDetailFailed'), { icon: 2 });
             }
         });
     }
@@ -555,11 +555,11 @@
         });
 
         if (!name) {
-            layui.layer.msg('请填写供应商名称', { icon: 0 });
+            layui.layer.msg(I18n.t('provider.nameRequired'), { icon: 0 });
             return;
         }
         if (!apiUrl) {
-            layui.layer.msg('请填写 API 地址', { icon: 0 });
+            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0 });
             return;
         }
 
@@ -587,16 +587,16 @@
             data: JSON.stringify(data),
             success: function (res) {
                 if (res.code === 200) {
-                    layui.layer.msg(currentProvider ? '供应商已更新' : '供应商已添加', { icon: 1 });
+                    layui.layer.msg(I18n.t(currentProvider ? 'provider.updated' : 'provider.added'), { icon: 1 });
                     // 同步模型到 LLM 模型列表
                     syncModelsToLlm(data);
                     showList();
                 } else {
-                    layui.layer.msg(res.msg || '保存失败', { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('toast.saveFailed'), { icon: 2 });
                 }
             },
             error: function () {
-                layui.layer.msg('保存失败', { icon: 2 });
+                layui.layer.msg(I18n.t('toast.saveFailed'), { icon: 2 });
             }
         });
     }
@@ -613,7 +613,7 @@
             }),
             success: function (res) {
                 if (res.code === 200 && res.data > 0) {
-                    layui.layer.msg('已同步 ' + res.data + ' 个模型到模型列表', { icon: 1 });
+                    layui.layer.msg(I18n.t('provider.syncedModels', {n: res.data}), { icon: 1 });
                     // 刷新 LLM 模型列表
                     if (window._settingsLlm) {
                         window._settingsLlm.load();
@@ -630,8 +630,8 @@
     function deleteProvider() {
         if (!currentProvider) return;
 
-        layui.layer.confirm('确定要删除供应商 "' + currentProvider.name + '" 吗？', {
-            btn: ['删除', '取消'],
+        layui.layer.confirm(I18n.t('provider.deleteConfirm', {name: currentProvider.name}), {
+            btn: [I18n.t('common.delete'), I18n.t('common.cancel')],
             icon: 3
         }, function (index) {
             layui.layer.close(index);
@@ -641,7 +641,7 @@
                 data: { name: currentProvider.name },
                 success: function (res) {
                     if (res.code === 200) {
-                        layui.layer.msg('供应商已删除', { icon: 1 });
+                        layui.layer.msg(I18n.t('provider.deleted'), { icon: 1 });
                         showList();
                         // 刷新 LLM 模型列表（供应商删除时关联模型也会删除）
                         if (window._settingsLlm) {
@@ -652,11 +652,11 @@
                             window.reloadModels();
                         }
                     } else {
-                        layui.layer.msg(res.msg || '删除失败', { icon: 2 });
+                        layui.layer.msg(res.msg || I18n.t('provider.deleteFailed'), { icon: 2 });
                     }
                 },
                 error: function () {
-                    layui.layer.msg('删除失败', { icon: 2 });
+                    layui.layer.msg(I18n.t('provider.deleteFailed'), { icon: 2 });
                 }
             });
         });
@@ -669,7 +669,7 @@
             data: { name: name, enabled: enabled },
             success: function (res) {
                 if (res.code === 200) {
-                    layui.layer.msg(enabled ? '供应商已启用' : '供应商已禁用', { icon: 1 });
+                    layui.layer.msg(I18n.t(enabled ? 'provider.enableOk' : 'provider.disableOk'), { icon: 1 });
                     // 刷新供应商列表 UI（更新 disabled 样式）
                     loadProvidersList();
                     // 刷新 LLM 模型列表（供应商禁用时关联模型会禁用）
@@ -681,12 +681,12 @@
                         window.reloadModels();
                     }
                 } else {
-                    layui.layer.msg(res.msg || '操作失败', { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('toast.operateFailed'), { icon: 2 });
                     loadProvidersList();
                 }
             },
             error: function () {
-                layui.layer.msg('操作失败', { icon: 2 });
+                layui.layer.msg(I18n.t('toast.operateFailed'), { icon: 2 });
                 loadProvidersList();
             }
         });
