@@ -320,9 +320,10 @@
             .attr('data-workspace-id', wsId)
             .attr('data-path', ws.name);
 
+        var wsDisplayName = ws.name === '__current_workspace__' ? I18n.t('gitdiff.currentWorkspace') : ws.name;
         var $row = $('<div>').addClass('file-node-row')
             .addClass(isReadonly ? 'file-workspace-readonly' : '')
-            .attr('title', ws.name + (isReadonly ? ' (' + I18n.t('filer.readonly') + ')' : ''));
+            .attr('title', wsDisplayName + (isReadonly ? ' (' + I18n.t('filer.readonly') + ')' : ''));
 
         // 箭头
         var $arrow = $('<span>').addClass('file-arrow')
@@ -336,7 +337,7 @@
 
         // 名称
         var $name = $('<span>').addClass('file-node-name')
-            .text(ws.name);
+            .text(wsDisplayName);
         $row.append($name);
 
         // 只读徽标
