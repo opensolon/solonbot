@@ -1251,6 +1251,14 @@ function buildTriggerTitle(modelName, effort, showDepth) {
 }
 
 function renderModelUI() {
+    // 语言包未加载时推迟渲染，避免 getEffortLabels()/I18n.t() 返回 key 名后 removeAttr('data-i18n') 永久固化
+    if (window.I18n && window.I18n.messages && !window.I18n.messages[window.I18n.locale || 'zh-CN']) {
+        document.addEventListener('i18n:loaded', function _rl() {
+            document.removeEventListener('i18n:loaded', _rl);
+            renderModelUI();
+        });
+        return;
+    }
     var $chatName = $('#chatModelName');
     var $welcomeName = $('#welcomeModelName');
     var $chatDropdown = $('#chatModelDropdown');

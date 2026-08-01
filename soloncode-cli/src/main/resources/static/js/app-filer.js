@@ -294,10 +294,20 @@
 
         $.get('/web/chat/filer/workspaces', function(res) {
             var wsList = (res && res.data) ? res.data : [];
-            if ($treeEl.length) {
-                $treeEl.html('');
-                wsList.forEach(function(ws) {
-                    appendWorkspaceNode(ws, $treeEl, 0);
+            function doRender() {
+                if ($treeEl.length) {
+                    $treeEl.html('');
+                    wsList.forEach(function(ws) {
+                        appendWorkspaceNode(ws, $treeEl, 0);
+                    });
+                }
+            }
+            doRender();
+            // 语言包尚未加载时（fetch 先于 zh-CN.json 返回），包就绪后重渲染工作区名
+            if (window.I18n && window.I18n.messages && !window.I18n.messages[window.I18n.locale || 'zh-CN']) {
+                document.addEventListener('i18n:loaded', function _rl() {
+                    document.removeEventListener('i18n:loaded', _rl);
+                    doRender();
                 });
             }
         }).fail(function(jqXHR, textStatus, error) {

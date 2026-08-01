@@ -1581,6 +1581,12 @@
     // 每60秒兜底刷新
     setInterval(loadGitStatus, 60000);
 
+    // 语言包首次加载完成后重渲染（修复启动竞态：fetch 先于 zh-CN.json 返回时显示 key 名）
+    document.addEventListener('i18n:loaded', function() {
+        if (gitWritableWorkspaces.length > 0) {
+            renderGitWorkspaceBar(gitWritableWorkspaces);
+        }
+    });
     // 语言切换后重渲染 git 工作区名
     document.addEventListener('i18n:switched', function() {
         if (typeof gitWritableWorkspaces !== 'undefined' && gitWritableWorkspaces.length > 0) {
