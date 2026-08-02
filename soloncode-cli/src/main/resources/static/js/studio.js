@@ -249,12 +249,6 @@
             return;
         }
 
-        // 跟随系统模式已激活时，视为已同步（避免重复触发循环上报）
-        if (normalizedLocale === "system" && window.I18n.isSystemMode && window.I18n.isSystemMode()) {
-            pendingStudioLocale = "";
-            return;
-        }
-
         // 显式语言与当前实际生效语言相同且非跟随系统模式时，视为已同步
         if (normalizedLocale !== "system"
             && !(window.I18n.isSystemMode && window.I18n.isSystemMode())
