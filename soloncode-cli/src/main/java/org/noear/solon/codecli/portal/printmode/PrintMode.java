@@ -492,6 +492,8 @@ public class PrintMode {
                 result.budgetExceeded = result.budgetLimitUsd != null
                         && result.estimatedCostUsd > result.budgetLimitUsd;
                 emitStreamEvent(buildResultEvent(result));
+                // 标记 result 事件已发出，outputResult 阶段将不再额外发 error 事件
+                result.resultEventEmitted = true;
             }
         }
     }
@@ -505,7 +507,9 @@ public class PrintMode {
                 outputJson(result);
                 break;
             case STREAM_JSON:
-                if (result.error != null) {
+                // 仅当 result 事件尚未发出时才发 error 事件，
+                // 避免 result 作为终止符之后再出现额外事件（对齐 Claude Code 协议）
+                if (result.error != null && !result.resultEventEmitted) {
                     emitStreamEvent(buildErrorEvent(result.error));
                 }
                 break;
@@ -761,11 +765,31 @@ public class PrintMode {
         return node;
     }
 
+    /**
+     * error 事件：对齐 Claude Code 格式
+     * <pre>
+     * {"type":"error","message":"...","code":"ERR_UNKNOWN"}
+     * </pre>
+     */
     private ONode buildErrorEvent(Throwable error) {
         ONode node = new ONode();
         node.set("type", "error");
-        node.set("error", error.getMessage());
+        node.set("message", error.getMessage() != null ? error.getMessage() : "Unknown error");
+        node.set("code", deriveErrorCode(error));
         return node;
+    }
+
+    /**
+     * 从异常类型推导错误码（对齐 Claude Code 错误码规范）
+     */
+    private static String deriveErrorCode(Throwable error) {
+        if (error == null) return "ERR_UNKNOWN";
+        if (error instanceof java.io.IOException) return "ERR_IO";
+        if (error instanceof InterruptedException) return "ERR_INTERRUPTED";
+        if (error instanceof java.util.concurrent.TimeoutException) return "ERR_TIMEOUT";
+        if (error instanceof IllegalArgumentException) return "ERR_INVALID_ARG";
+        if (error instanceof IllegalStateException) return "ERR_INVALID_STATE";
+        return "ERR_UNKNOWN";
     }
 
 
@@ -895,5 +919,7 @@ public class PrintMode {
         double estimatedCostUsd;
         Double budgetLimitUsd;
         boolean budgetExceeded;
+        /** result 事件是否已在流中发出；为 true 时 outputResult 不再补发 error 事件 */
+        boolean resultEventEmitted;
     }
 }
