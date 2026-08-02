@@ -5,6 +5,7 @@
 * 添加 soloncode web 国际化多语言支持
 * 添加 soloncode web 消息列表消息导航支持
 * 修复 soloncode web 文件详情初次显示时语法高亮失效的问题
+* 修复 soloncode web 审查详情文件名中文乱码的问题
 * 细节优化
 
 ### v2026.7.30
