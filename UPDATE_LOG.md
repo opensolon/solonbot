@@ -1,4 +1,8 @@
 
+### v2026.8.3
+
+* 优化 soloncode web 国际化多语言支持
+
 ### v2026.8.2
 
 * 优化 soloncode run 模式（参考 run-headless-mode.md）

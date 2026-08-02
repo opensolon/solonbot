@@ -13,10 +13,15 @@
 
     var STORAGE_KEY = 'sc-locale';
     var DEFAULT_LOCALE = 'zh-CN';
+    /** 跟随系统模式的哨兵值 */
+    var SYSTEM_LOCALE = 'system';
 
     var I18n = {
-        /** 当前语言 */
+        /** 当前生效语言（跟随系统时为解析后的实际语言） */
         locale: DEFAULT_LOCALE,
+
+        /** 语言模式：'system'（跟随系统）或 null（显式指定） */
+        mode: null,
 
         /** 已加载的语言包缓存 { 'en': {...}, 'zh-CN': {...} } */
         messages: {},
@@ -114,39 +119,108 @@
         },
 
         /**
+         * 解析系统语言到受支持的语言
+         * 依据 navigator.language / navigator.languages[0]，不支持时回退默认语言
+         * @returns {string}
+         */
+        resolveSystemLocale: function () {
+            var lang = '';
+            try {
+                lang = (navigator.languages && navigator.languages.length > 0)
+                    ? navigator.languages[0]
+                    : navigator.language;
+            } catch (e) {
+                // ignore
+            }
+            if (!lang) return DEFAULT_LOCALE;
+
+            var full = String(lang).toLowerCase().replace(/_/g, '-');
+            var base = full.split('-')[0];
+
+            // 中文细分：繁体地区（tw/hk/mo）与 hant 脚本 → zh-TW，其余 → zh-CN
+            if (base === 'zh') {
+                if (full.indexOf('zh-tw') === 0 || full.indexOf('zh-hk') === 0
+                    || full.indexOf('zh-mo') === 0 || full.indexOf('zh-hant') === 0) {
+                    return 'zh-TW';
+                }
+                return 'zh-CN';
+            }
+            // 葡萄牙语 / 希腊语的特殊码
+            if (base === 'pt') return 'br';
+            if (base === 'el') return 'gr';
+
+            var MAP = {
+                en: 'en', ja: 'ja', ko: 'ko', de: 'de', fr: 'fr', es: 'es', it: 'it',
+                ru: 'ru', ar: 'ar', th: 'th', vi: 'vi', pl: 'pl', bn: 'bn', bs: 'bs',
+                da: 'da', no: 'no', tr: 'tr', uk: 'uk'
+            };
+            return MAP[base] || DEFAULT_LOCALE;
+        },
+
+        /**
+         * 是否处于“跟随系统”模式
+         * @returns {boolean}
+         */
+        isSystemMode: function () {
+            return this.mode === SYSTEM_LOCALE;
+        },
+
+        /**
          * 切换语言：加载语言包 → 更新 locale → 应用 DOM → 持久化
-         * @param {string} locale 目标语言，如 'en' / 'zh-CN'
+         * @param {string} locale 目标语言，如 'en' / 'zh-CN'；传 'system' 表示跟随系统
          */
         switch: function (locale) {
             var self = this;
-            if (locale === this.locale) return;
+            var isSystem = (locale === SYSTEM_LOCALE);
+            var target = isSystem ? this.resolveSystemLocale() : locale;
+
+            // 已是显式目标语言且非跟随系统模式时，无需重复切换
+            if (!isSystem && !this.mode && target === this.locale) return;
 
             var doSwitch = function () {
-                self.locale = locale;
+                self.locale = target;
+                self.mode = isSystem ? SYSTEM_LOCALE : null;
                 self.apply();
-                localStorage.setItem(STORAGE_KEY, locale);
-                document.documentElement.lang = locale;
-                // 通知外部模块语言已切换
-                document.dispatchEvent(new CustomEvent('i18n:switched', { detail: { locale: locale } }));
+                localStorage.setItem(STORAGE_KEY, isSystem ? SYSTEM_LOCALE : target);
+                document.documentElement.lang = target;
+                // 通知外部模块语言已切换（locale 为实际生效语言，mode 标记是否跟随系统）
+                document.dispatchEvent(new CustomEvent('i18n:switched', { detail: { locale: target, mode: self.mode } }));
             };
 
-            if (this.messages[locale]) {
+            if (this.messages[target]) {
                 doSwitch();
             } else {
-                this.load(locale, function (err) {
+                this.load(target, function (err) {
                     if (!err) doSwitch();
-                    else console.error('[I18n] Cannot switch to', locale);
+                    else console.error('[I18n] Cannot switch to', target);
                 });
             }
         },
 
         /**
-         * 初始化：读取 localStorage → 若非默认语言则加载并应用
+         * 初始化：读取 localStorage → 无记录时默认跟随系统，有记录则尊重用户选择
          */
         init: function () {
             var self = this;
-            var saved = localStorage.getItem(STORAGE_KEY) || DEFAULT_LOCALE;
+            var saved = localStorage.getItem(STORAGE_KEY);
+            // 首次访问（无本地记录）：默认进入“跟随系统”模式，按浏览器系统语言匹配
+            if (saved === null) saved = SYSTEM_LOCALE;
+
+            if (saved === SYSTEM_LOCALE) {
+                // 跟随系统：解析系统语言并加载，不触发 apply（等待语言包就绪后由 i18n:loaded 守卫处理）
+                var resolved = this.resolveSystemLocale();
+                this.locale = resolved;
+                this.mode = SYSTEM_LOCALE;
+                document.documentElement.lang = resolved;
+                this.load(resolved, function () {
+                    if (resolved !== DEFAULT_LOCALE) self.apply();
+                    document.dispatchEvent(new CustomEvent('i18n:loaded', { detail: { locale: resolved } }));
+                });
+                return;
+            }
+
             this.locale = saved;
+            this.mode = null;
             document.documentElement.lang = saved;
 
             if (saved === DEFAULT_LOCALE) {

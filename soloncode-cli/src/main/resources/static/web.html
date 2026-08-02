@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/css/app.css"/>
     <link rel="stylesheet" href="/css/settings.css"/>
     <!-- 当前皮肤：由 app-ui.js 按 static/skin/<name>/skin.css 动态加载 -->
-    <script>window._i18nVer = '20260801';</script>
+    <script>window._i18nVer = '20260802';</script>
     <script src="/js/i18n.js"></script>
     <link rel="stylesheet" id="skinStyle" href="/skin/default/skin.css"/>
     <link rel="stylesheet" href="/highlight/github.min.css" media="(prefers-color-scheme: light)" id="hljsLightTheme"/>
@@ -1887,8 +1887,9 @@
 <!-- i18n: 语言选择器下拉 -->
 <script>
     (function() {
-        // 语言列表：后续新增语言只需在此数组追加一项即可
+        // 语言列表：后续新增语言只需在此数组追加一项即可（i18nKey 存在时显示名走翻译）
         var LOCALES = [
+            { code: 'system', label: '跟随系统', i18nKey: 'general.language.system' },
             { code: 'zh-CN', label: '简体中文' },
             { code: 'zh-TW', label: '繁體中文' },
             { code: 'en',    label: 'English' },
@@ -1918,14 +1919,25 @@
                  : (localStorage.getItem('sc-locale') || 'zh-CN');
         }
 
+        // 实际选中项：跟随系统模式下显示为 system 项
+        function getActiveLocale() {
+            return (window.I18n && window.I18n.isSystemMode && window.I18n.isSystemMode())
+                 ? 'system' : getCurrentLocale();
+        }
+
+        // 选项显示名：优先 i18nKey 翻译，否则用本地化名称
+        function localeLabel(loc) {
+            return (loc.i18nKey && window.I18n) ? window.I18n.t(loc.i18nKey) : loc.label;
+        }
+
         function syncLocaleSelectorUI() {
-            var current = getCurrentLocale();
+            var current = getActiveLocale();
             var nameEl  = document.getElementById('localeSelectorName');
             var dropdown = document.getElementById('localeSelectorDropdown');
             if (!nameEl) return;
             // 更新触发器显示名
             for (var i = 0; i < LOCALES.length; i++) {
-                if (LOCALES[i].code === current) { nameEl.textContent = LOCALES[i].label; break; }
+                if (LOCALES[i].code === current) { nameEl.textContent = localeLabel(LOCALES[i]); break; }
             }
             // 更新下拉项 active 状态
             if (dropdown) {
@@ -1939,11 +1951,11 @@
         function buildDropdownItems() {
             var dropdown = document.getElementById('localeSelectorDropdown');
             if (!dropdown || dropdown.children.length > 0) return; // 只构建一次
-            var current = getCurrentLocale();
+            var current = getActiveLocale();
             LOCALES.forEach(function(loc) {
                 var item = document.createElement('div');
                 item.className = 'locale-selector-item' + (loc.code === current ? ' active' : '');
-                item.textContent = loc.label;
+                item.textContent = localeLabel(loc);
                 item.dataset.code = loc.code;
                 item.addEventListener('click', function(e) {
                     e.stopPropagation();

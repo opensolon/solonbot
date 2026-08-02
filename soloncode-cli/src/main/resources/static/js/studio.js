@@ -15,6 +15,7 @@
     var studioMessageSource = "soloncode-studio";
     var studioParentOrigin = "";
     var supportedStudioLocales = [
+        "system",
         "zh-CN",
         "zh-TW",
         "en",
@@ -248,7 +249,16 @@
             return;
         }
 
-        if (window.I18n.getLocale() === normalizedLocale) {
+        // 跟随系统模式已激活时，视为已同步（避免重复触发循环上报）
+        if (normalizedLocale === "system" && window.I18n.isSystemMode && window.I18n.isSystemMode()) {
+            pendingStudioLocale = "";
+            return;
+        }
+
+        // 显式语言与当前实际生效语言相同且非跟随系统模式时，视为已同步
+        if (normalizedLocale !== "system"
+            && !(window.I18n.isSystemMode && window.I18n.isSystemMode())
+            && window.I18n.getLocale() === normalizedLocale) {
             pendingStudioLocale = "";
             return;
         }
@@ -257,8 +267,10 @@
         window.I18n.switch(normalizedLocale);
     }
 
-    function reportWorkspaceLocale(locale) {
-        var normalizedLocale = normalizeStudioLocale(locale);
+    function reportWorkspaceLocale(locale, mode) {
+        // 跟随系统模式下向桌面端上报 system 哨兵（附实际生效语言便于桌面端展示）
+        var reported = (mode === "system") ? "system" : locale;
+        var normalizedLocale = normalizeStudioLocale(reported);
         if (!normalizedLocale) {
             return;
         }
@@ -268,7 +280,9 @@
         }
         pendingStudioLocale = "";
         dispatchStudioMessage("soloncode-locale-change", {
-            locale: normalizedLocale
+            locale: normalizedLocale,
+            mode: mode || null,
+            resolvedLocale: locale
         });
     }
 
@@ -288,7 +302,8 @@
             });
 
             document.addEventListener("i18n:switched", function (event) {
-                reportWorkspaceLocale(event && event.detail ? event.detail.locale : "");
+                var detail = event && event.detail ? event.detail : {};
+                reportWorkspaceLocale(detail.locale || "", detail.mode || null);
             });
         } catch (e) {
             // ignore locale listener setup failures
@@ -397,8 +412,12 @@
 
         studioLog("studio appearance applied with theme:", currentTheme);
         dispatchStudioMessage("soloncode-theme-ready", {});
+        var activeLocale = window.I18n && typeof window.I18n.getLocale === "function" ? window.I18n.getLocale() : "";
+        var systemMode = !!(window.I18n && window.I18n.isSystemMode && window.I18n.isSystemMode());
         dispatchStudioMessage("soloncode-locale-ready", {
-            locale: window.I18n && typeof window.I18n.getLocale === "function" ? window.I18n.getLocale() : ""
+            locale: systemMode ? "system" : activeLocale,
+            mode: systemMode ? "system" : null,
+            resolvedLocale: activeLocale
         });
     }
 
