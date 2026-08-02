@@ -1925,9 +1925,13 @@
                  ? 'system' : getCurrentLocale();
         }
 
-        // 选项显示名：优先 i18nKey 翻译，否则用本地化名称
+        // 选项显示名：优先 i18nKey 翻译；翻译不可用（语言包未就绪/缺 key）时回退本地化名称，避免显示裸 key
         function localeLabel(loc) {
-            return (loc.i18nKey && window.I18n) ? window.I18n.t(loc.i18nKey) : loc.label;
+            if (loc.i18nKey && window.I18n) {
+                var v = window.I18n.t(loc.i18nKey);
+                if (v !== loc.i18nKey) return v;
+            }
+            return loc.label;
         }
 
         function syncLocaleSelectorUI() {
@@ -1991,6 +1995,8 @@
         document.addEventListener('click', closeLocaleDropdown);
         // 语言切换后同步触发器显示名与选中状态
         document.addEventListener('i18n:switched', syncLocaleSelectorUI);
+        // 语言包加载完成（含首次启动异步加载）后刷新显示名，避免启动时语言包未就绪显示裸 key
+        document.addEventListener('i18n:loaded', syncLocaleSelectorUI);
         // 页面初始化同步
         document.addEventListener('DOMContentLoaded', syncLocaleSelectorUI);
     })();
