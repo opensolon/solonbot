@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>Ein Open-Source-Coding-Agent, der mit <a href="https://github.com/opensolon/solon-ai">Solon AI</a> und Java entwickelt wurde (unterstützt Java8 bis Java26 Laufzeitumgebungen)</p>
 <p>Aktuelle Version: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="SolonCode Desktop-Arbeitsbereich" />
 </div>

@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>Відкритий кодувальний агент, побудований на <a href="https://github.com/opensolon/solon-ai">Solon AI</a> та Java (підтримує середовища виконання Java8 до Java26)</p>
 <p>Остання версія: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="Робочий простір SolonCode Desktop" />
 </div>

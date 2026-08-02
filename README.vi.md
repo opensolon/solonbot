@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>SolonCode là một tác nhân mã hóa mã nguồn mở được xây dựng dựa trên <a href="https://github.com/opensolon/solon-ai">Solon AI</a> và Java, hỗ trợ môi trường từ Java8 đến Java26.</p>
 <p>Phiên bản mới nhất: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="Không gian làm việc SolonCode Desktop" />
 </div>

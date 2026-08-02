@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>SolonCode je open-source kodirajući agent izgrađen s <a href="https://github.com/opensolon/solon-ai">Solon AI</a> i Javom (podržava Java8 do Java26 runtime okruženja)</p>
 <p>Najnovija verzija: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="SolonCode Desktop radni prostor" />
 </div>

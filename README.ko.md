@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p><a href="https://github.com/opensolon/solon-ai">Solon AI</a>와 Java로 구축된 오픈소스 코딩 에이전트 (Java8부터 Java26 런타임 환경 지원)</p>
 <p>최신 버전: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="SolonCode Desktop 워크스페이스" />
 </div>

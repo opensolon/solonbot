@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>Открытый исходный код интеллектуального агента для программирования, построенный на <a href="https://github.com/opensolon/solon-ai">Solon AI</a> и Java (поддерживает среды выполнения Java8 до Java26)</p>
 <p>Последняя версия: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="Рабочее пространство SolonCode Desktop" />
 </div>

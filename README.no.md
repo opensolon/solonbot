@@ -2,8 +2,8 @@
 <h1>SolonCode</h1>
 <p>SolonCode er en åpen kildekode-kodingsagent basert på Solon AI og Java, som støtter kjøremiljøer fra Java8 til Java26.</p>
 <p>Siste versjon: v2026.8.2</p>
-<img height="260" src="SHOW.png" />
-<img height="260" src="SHOW2.png" />
+<img height="260" src="SHOW_CLI.png" />
+<img height="260" src="SHOW_WEB.png" />
 <br />
 <img height="260"  src="SHOW_DESKTOP.png" alt="SolonCode Desktop-arbeidsområde" />
 </div>
