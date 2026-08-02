@@ -7,7 +7,6 @@ use std::io::{Read as IoRead, Write as IoWrite};
 use base64::Engine;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::net::TcpStream;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -996,14 +995,6 @@ struct ManagedBackendProcess {
 static BACKEND_PROCESS: Mutex<Option<ManagedBackendProcess>> = Mutex::new(None);
 /// 由上一桌面进程留下并在本次启动中复用的后端（PID, port）。
 static REUSED_BACKEND_PROCESS: Mutex<Option<(u32, u16)>> = Mutex::new(None);
-/// 关闭桌面窗口时是否保留正在执行的后端。默认开启，前端设置加载后会同步覆盖。
-static BACKGROUND_MODE: AtomicBool = AtomicBool::new(true);
-
-#[tauri::command]
-fn set_background_mode(enabled: bool) {
-    BACKGROUND_MODE.store(enabled, Ordering::SeqCst);
-    app_log(&format!("[soloncode] Background execution mode: {}", enabled));
-}
 
 /// 启动方式：soloncode 命令 或 java -jar
 enum BackendLaunchMethod {
@@ -1199,39 +1190,21 @@ struct DesktopBackendInfo {
 
 /// Read the identity of a backend bound to the desktop-only endpoint.
 fn query_soloncode_desktop_backend(port: u16) -> Option<DesktopBackendInfo> {
-    let addr = format!("127.0.0.1:{}", port);
-    let mut stream = match TcpStream::connect(&addr) {
-        Ok(stream) => stream,
-        Err(_) => return None,
-    };
-
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
-    let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(2)));
-
-    let req = format!(
-        "GET /desktop/version HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
-        port
-    );
-    if stream.write_all(req.as_bytes()).is_err() {
-        return None;
-    }
-
-    let mut buf = Vec::with_capacity(4096);
-    let mut chunk = [0u8; 1024];
-    while buf.len() < 4096 {
-        match stream.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(n) => buf.extend_from_slice(&chunk[..n]),
-            Err(_) => break,
-        }
-    }
-
-    let resp = String::from_utf8_lossy(&buf);
-    if !resp.starts_with("HTTP/1.1 200") {
-        return None;
-    }
-    let body = resp.split_once("\r\n\r\n")?.1;
-    let json: serde_json::Value = serde_json::from_str(body).ok()?;
+    // Solon may return a chunked response. Use an HTTP client so transfer
+    // encoding is decoded before parsing JSON; treating the raw body as JSON
+    // misidentifies a running SolonCode backend as an unrelated process.
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .ok()?;
+    let json: serde_json::Value = client
+        .get(format!("http://127.0.0.1:{}/desktop/version", port))
+        .send()
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .json()
+        .ok()?;
     if json.get("code").and_then(|value| value.as_i64()) != Some(200) {
         return None;
     }
@@ -1242,6 +1215,37 @@ fn query_soloncode_desktop_backend(port: u16) -> Option<DesktopBackendInfo> {
         workspace: data.get("workspace").and_then(|value| value.as_str()).map(str::to_string),
         desktop_managed: data.get("desktopManaged").and_then(|value| value.as_bool()).unwrap_or(false),
     })
+}
+
+#[cfg(test)]
+mod backend_detection_tests {
+    use super::query_soloncode_desktop_backend;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[test]
+    fn detects_chunked_desktop_version_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request);
+            let body = r#"{"code":200,"data":{"version":"v1","workspace":"C:\\workspace","pid":42,"desktopManaged":false}}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:X}\r\n{}\r\n0\r\n\r\n",
+                body.len(),
+                body,
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let info = query_soloncode_desktop_backend(port).expect("chunked backend should be detected");
+        assert_eq!(info.pid, 42);
+        assert_eq!(info.workspace.as_deref(), Some("C:\\workspace"));
+        assert!(!info.desktop_managed);
+        server.join().unwrap();
+    }
 }
 
 fn is_soloncode_desktop_backend(port: u16) -> bool {
@@ -1268,6 +1272,23 @@ fn terminate_reused_backend(pid: u32, port: u16) {
     {
         let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).output();
     }
+}
+
+fn terminate_managed_backend(managed: &mut ManagedBackendProcess) {
+    let pid = managed.child.id();
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut command = Command::new("taskkill");
+        command.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        command.creation_flags(0x08000000);
+        let _ = command.output();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = managed.child.kill();
+    }
+    let _ = managed.child.wait();
 }
 
 fn wait_for_backend_ready(port: u16, attempts: u32, sleep_ms: u64) -> bool {
@@ -1318,8 +1339,7 @@ fn spawn_backend_readiness_watchdog(port: u16, pid: u32) {
                 managed.child.id(),
                 port
             ));
-            let _ = managed.child.kill();
-            let _ = managed.child.wait();
+            terminate_managed_backend(&mut managed);
         }
     });
 }
@@ -1623,8 +1643,7 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
                                 port,
                                 work_dir.to_string_lossy(),
                             ));
-                            let _ = managed.child.kill();
-                            let _ = managed.child.wait();
+                            terminate_managed_backend(managed);
                             *proc = None;
                         } else if is_soloncode_desktop_backend(port) {
                             app_log(&format!(
@@ -1646,8 +1665,7 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
                                 managed.child.id(),
                                 port
                             ));
-                            let _ = managed.child.kill();
-                            let _ = managed.child.wait();
+                            terminate_managed_backend(managed);
                             *proc = None;
                         }
                     }
@@ -1808,15 +1826,19 @@ fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
 /// 停止后端 CLI 进程
 #[tauri::command]
 fn stop_backend() -> Result<(), String> {
+    stop_backend_processes("stop_backend invoked")
+}
+
+fn stop_backend_processes(reason: &str) -> Result<(), String> {
     let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
     if let Some(mut managed) = proc.take() {
         app_log(&format!(
-            "[soloncode] stop_backend invoked, killing managed backend PID {} on port {}",
+            "[soloncode] {}, killing managed backend PID {} on port {}",
+            reason,
             managed.child.id(),
             managed.port
         ));
-        let _ = managed.child.kill();
-        let _ = managed.child.wait();
+        terminate_managed_backend(&mut managed);
         app_log("[soloncode] Backend process stopped");
     }
     drop(proc);
@@ -2172,6 +2194,17 @@ fn toggle_agent(
         fs::write(&disabled_marker, "").map_err(|e| format!("创建标记失败: {}", e))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+fn close_application(app: tauri::AppHandle) {
+    if let Err(error) = stop_backend_processes("Direct application close") {
+        app_log(&format!("[soloncode] Failed to stop backend before direct close: {}", error));
+    }
+    if let Ok(mut pty) = PTY_STATE.lock() {
+        *pty = None;
+    }
+    app.exit(0);
 }
 
 fn validate_agent_config_path(
@@ -2599,7 +2632,7 @@ pub fn run() {
     init_app_log();
     app_log("[soloncode] Desktop app starting...");
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -2640,6 +2673,7 @@ pub fn run() {
             install_updates,
             start_backend,
             stop_backend,
+            close_application,
             backend_status,
             terminal_start,
             terminal_write,
@@ -2667,38 +2701,23 @@ pub fn run() {
             ,desktop_ops::workspace_checkpoint_restore
             ,desktop_ops::workspace_checkpoint_delete
             ,desktop_ops::run_workspace_check
-            ,set_background_mode
         ])
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if BACKGROUND_MODE.load(Ordering::SeqCst) {
-                    app_log("[soloncode] Window close requested; backend is kept alive for background execution");
-                } else {
-                    // 用户关闭后台续跑时，应用退出会停止由本窗口管理的后端进程。
-                    if let Ok(mut proc) = BACKEND_PROCESS.lock() {
-                        if let Some(mut managed) = proc.take() {
-                            app_log(&format!(
-                                "[soloncode] Window close requested, killing managed backend PID {} on port {}",
-                                managed.child.id(),
-                                managed.port
-                            ));
-                            let _ = managed.child.kill();
-                            let _ = managed.child.wait();
-                        }
-                    }
-                    if let Ok(mut reused) = REUSED_BACKEND_PROCESS.lock() {
-                        if let Some((pid, port)) = reused.take() {
-                            app_log(&format!("[soloncode] Window close requested, stopping reused backend PID {}", pid));
-                            terminate_reused_backend(pid, port);
-                        }
-                    }
-                }
-                // 关闭终端
-                if let Ok(mut pty) = PTY_STATE.lock() {
-                    *pty = None;
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                if let Err(error) = window.emit("app-close-requested", ()) {
+                    app_log(&format!("[soloncode] Failed to show close confirmation: {}", error));
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_app_handle, event| {
+        if matches!(event, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
+            if let Err(error) = stop_backend_processes("Application exit requested") {
+                app_log(&format!("[soloncode] Failed to stop backend while exiting: {}", error));
+            }
+        }
+    });
 }
