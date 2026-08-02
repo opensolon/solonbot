@@ -1,4 +1,4 @@
-/* ===== app-gitdiff.js ===== */
+/* ===== app-git.js ===== */
 /* Filer Panel Git Diff 面板：三态检测、文件列表（带勾选）、Diff Viewer 内联查看、精确提交 */
 
 (function() {
@@ -662,14 +662,17 @@
             + '<div class="file-view-code' + (lang ? ' hljs-language-' + lang : '') + '">' + codeHtml + '</div>'
             + (isMdFile ? '<div class="file-view-md-frame-wrap" style="display:none;"><iframe class="file-view-md-frame" sandbox="allow-scripts"></iframe></div>' : '');
 
-        // 如果有 hljs 且能识别语言，对代码区进行语法高亮
-        if (lang && typeof hljs !== 'undefined') {
-            var codeBlock = gitViewerContent.querySelector('.file-view-code');
-            if (codeBlock) {
+        // 如果能识别语言，按需加载 hljs 后对代码区进行语法高亮
+        if (lang) {
+            var _contentRef = content;
+            var _langRef = lang;
+            var _viewerContentRef = gitViewerContent;
+            var _applyHighlight = function() {
+                var codeBlock = _viewerContentRef.querySelector('.file-view-code');
+                if (!codeBlock || typeof hljs === 'undefined') return;
                 try {
-                    // 将纯文本替换为高亮后的 HTML
-                    var rawText = content || '';
-                    var highlighted = hljs.highlight(rawText, { language: lang, ignoreIllegals: true });
+                    var rawText = _contentRef || '';
+                    var highlighted = hljs.highlight(rawText, { language: _langRef, ignoreIllegals: true });
                     var hlLines = highlighted.value.split('\n');
                     var hlHtml = '';
                     for (var j = 0; j < hlLines.length; j++) {
@@ -683,6 +686,13 @@
                 } catch (e) {
                     // highlight 失败时保留纯文本
                 }
+            };
+            if (typeof hljs !== 'undefined') {
+                _applyHighlight();
+            } else if (typeof loadScriptOnce === 'function') {
+                loadScriptOnce('/highlight/highlight.min.js', function(err) {
+                    if (!err) _applyHighlight();
+                });
             }
         }
 
