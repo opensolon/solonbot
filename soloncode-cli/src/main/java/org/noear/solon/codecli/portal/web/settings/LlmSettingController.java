@@ -159,6 +159,8 @@ public class LlmSettingController extends BaseSettingsController {
         if (Assert.isEmpty(config.getApiUrl()) || Assert.isEmpty(config.getModel())) {
             return Result.failure("apiUrl and model are required");
         }
+        // 模型名带 [1m]/[256k] 后缀时，服务端统一剥离并回填上下文长度
+        applyModelContextSuffix(config);
         ModelApiUrl.normalize(config);
 
         engine.addModel(config);
@@ -202,6 +204,9 @@ public class LlmSettingController extends BaseSettingsController {
         if (Assert.isEmpty(originalName)) {
             return Result.failure("originalName is required");
         }
+
+        // 模型名带 [1m]/[256k] 后缀时，服务端统一剥离并回填上下文长度
+        applyModelContextSuffix(config);
 
         // 编辑时保持 provider 关联（防止前端遗漏 provider 字段）
         if (config.getProvider() == null) {
@@ -743,6 +748,24 @@ public class LlmSettingController extends BaseSettingsController {
         }
         int idx = modelId.lastIndexOf('[');
         return modelId.substring(0, idx);
+    }
+
+    /**
+     * 处理单个模型配置的模型名后缀（Claude Code 风格）：
+     * 若 model 带 [1m]/[256k] 后缀，则剥离为纯 id，并用后缀解析值设置上下文长度。
+     * 后缀为用户在模型名中显式指定，优先级最高，会覆盖已有的上下文长度。
+     */
+    private void applyModelContextSuffix(ModelDo config) {
+        if (config == null) {
+            return;
+        }
+        String rawModel = config.getModel();
+        long suffixLength = parseContextLengthSuffix(rawModel);
+        if (suffixLength <= 0) {
+            return;
+        }
+        config.setModel(stripContextLengthSuffix(rawModel));
+        config.setContextLength(suffixLength);
     }
 
 
