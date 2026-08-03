@@ -14,8 +14,23 @@
 
 /* ===== Common ===== */
 :root {
-    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-    --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+    /* Font stacks — latin faces first, CJK after: CSS falls back per character, so a
+     * CJK font placed early would also render the ASCII glyphs (e.g. YaHei's narrow
+     * latin on Windows). Emoji families sit after sans-serif on purpose: entries past
+     * a generic family are normally dead, but no font above carries emoji glyphs, so
+     * per-character fallback still reaches them.
+     *
+     * The *-fallback pair is kept as a separate variable so a user-picked font can be
+     * prepended without losing the chain: app-ui.js writes
+     *   --font-sans: <user font>, var(--font-sans-fallback)
+     * Otherwise picking "PingFang SC" on Windows would drop straight to generic
+     * sans-serif instead of walking Segoe UI / YaHei / Noto.
+     */
+    --font-sans-fallback: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --font-mono-fallback: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --font-sans: var(--font-sans-fallback);
+    --font-mono: var(--font-mono-fallback);
 
     /* Font scale (user adjustable, 0.85 ~ 1.5; set on <html> via style.setProperty).
      * MUST be set on <html>, not <body>: the --fs-* ladder below is declared here on

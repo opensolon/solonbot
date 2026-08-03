@@ -696,29 +696,33 @@
                                     <div class="settings-gap-top-md font-section">
                                         <div class="general-subblock-title" data-i18n="general.ui.fontTitle">调整字体</div>
                                         <div class="general-field-row">
-                                            <div class="general-field" style="flex:1">
-                                                <label class="general-field-label" data-i18n="general.ui.fontFamily">界面字体</label>
-                                                <select class="general-input" id="generalUiFontFamily">
-                                                    <option value="" data-i18n="general.ui.fontDefault">系统默认</option>
-                                                    <option value="&quot;PingFang SC&quot;, sans-serif">PingFang SC</option>
-                                                    <option value="&quot;Microsoft YaHei&quot;, sans-serif">Microsoft YaHei</option>
-                                                    <option value="&quot;Noto Sans SC&quot;, sans-serif">Noto Sans SC</option>
-                                                    <option value="&quot;Source Han Sans SC&quot;, sans-serif">Source Han Sans SC</option>
-                                                    <option value="&quot;Segoe UI&quot;, sans-serif">Segoe UI</option>
-                                                    <option value="system-ui, sans-serif">System UI</option>
-                                                </select>
+                                            <div class="general-field font-selector" data-font-type="sans" style="flex:1">
+                                                <label class="general-field-label" for="generalUiFontFamily" data-i18n="general.ui.fontFamily">界面字体</label>
+                                                <div class="font-selector-control">
+                                                    <input type="text" class="general-input font-selector-input" id="generalUiFontFamily"
+                                                           autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false"
+                                                           aria-autocomplete="list" aria-controls="generalUiFontFamilyDropdown"
+                                                           placeholder="系统默认" data-i18n-placeholder="general.ui.fontPlaceholder"/>
+                                                    <button type="button" class="font-selector-toggle" tabindex="-1"
+                                                            data-i18n-title="general.ui.fontFamily" title="界面字体">
+                                                        <i class="layui-icon layui-icon-down"></i>
+                                                    </button>
+                                                    <div class="font-selector-dropdown" id="generalUiFontFamilyDropdown" role="listbox"></div>
+                                                </div>
                                             </div>
-                                            <div class="general-field" style="flex:1">
-                                                <label class="general-field-label" data-i18n="general.ui.fontMono">代码字体</label>
-                                                <select class="general-input" id="generalUiFontMono">
-                                                    <option value="" data-i18n="general.ui.fontDefault">系统默认</option>
-                                                    <option value="&quot;JetBrains Mono&quot;, monospace">JetBrains Mono</option>
-                                                    <option value="&quot;Fira Code&quot;, monospace">Fira Code</option>
-                                                    <option value="&quot;Cascadia Code&quot;, monospace">Cascadia Code</option>
-                                                    <option value="Consolas, monospace">Consolas</option>
-                                                    <option value="&quot;SF Mono&quot;, monospace">SF Mono</option>
-                                                    <option value="ui-monospace, monospace">UI Monospace</option>
-                                                </select>
+                                            <div class="general-field font-selector" data-font-type="mono" style="flex:1">
+                                                <label class="general-field-label" for="generalUiFontMono" data-i18n="general.ui.fontMono">代码字体</label>
+                                                <div class="font-selector-control">
+                                                    <input type="text" class="general-input font-selector-input" id="generalUiFontMono"
+                                                           autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false"
+                                                           aria-autocomplete="list" aria-controls="generalUiFontMonoDropdown"
+                                                           placeholder="系统默认" data-i18n-placeholder="general.ui.fontPlaceholder"/>
+                                                    <button type="button" class="font-selector-toggle" tabindex="-1"
+                                                            data-i18n-title="general.ui.fontMono" title="代码字体">
+                                                        <i class="layui-icon layui-icon-down"></i>
+                                                    </button>
+                                                    <div class="font-selector-dropdown" id="generalUiFontMonoDropdown" role="listbox"></div>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="font-scale-row settings-gap-top-sm">

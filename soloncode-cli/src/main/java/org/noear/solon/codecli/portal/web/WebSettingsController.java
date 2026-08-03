@@ -584,7 +584,7 @@ public class WebSettingsController extends BaseSettingsController {
                 }
             }
 
-            // 字体设置：白名单校验（前端已过滤，这里做服务端兜底，防 CSS 注入）
+            // 字体设置：字族名过滤（前端已过滤，这里做服务端兜底，防 CSS 注入）
             GeneralGroupDo g = settings.getGeneral();
             g.setUiFontFamily(sanitizeFontFamily(g.getUiFontFamily()));
             g.setUiFontMono(sanitizeFontFamily(g.getUiFontMono()));
@@ -604,7 +604,13 @@ public class WebSettingsController extends BaseSettingsController {
         return Result.succeed();
     }
 
-    /** 字体名白名单：仅字母数字、中文、空格、逗号、引号、连字符、点号；非法值丢弃 */
+    /**
+     * 字体名过滤：黑名单式（与前端 app-ui.js sanitizeFontFamily 保持一致）。
+     * 原先是 [\w\u4e00-\u9fa5...] 白名单，只放过拉丁与中日韩汉字，日文假名、韩文谚文、
+     * 西里尔字母等字族名会被整条丢弃 —— 界面有 22 种语言，白名单在这里站不住。
+     * 只拦真正能越出 CSS 声明的字符（; { } ( ) < > \ 与注释起止），其余非法写法交给
+     * 浏览器解析器丢弃：自定义属性经 setProperty 走解析器，塞不进第二条声明。
+     */
     private static String sanitizeFontFamily(String v) {
         if (v == null) {
             return null;
@@ -613,7 +619,7 @@ public class WebSettingsController extends BaseSettingsController {
         if (s.isEmpty()) {
             return null;
         }
-        if (!s.matches("[\\w\\u4e00-\\u9fa5\\s,'\"\\-\\.]+")) {
+        if (s.matches(".*[;{}()<>\\\\].*") || s.contains("/*") || s.contains("*/")) {
             return null;
         }
         return s.length() > 200 ? s.substring(0, 200) : s;

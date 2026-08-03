@@ -44,13 +44,141 @@
 
     /* ===== 字体设置 ===== */
 
-    // 回填下拉：值不在预设项中时动态补一个自定义项（兼容手写配置）
-    function setFontFamilySelect($sel, value) {
-        if (!$sel.length) return;
-        if (value && !$sel.find('option').filter(function () { return this.value === value; }).length) {
-            $sel.append($('<option>').val(value).text(value));
+    // 预设字族。分两组：界面字体（sans）与代码字体（mono）。
+    // 顺序按“命中率 + 常用度”排：本机装了的排前面用户更容易看到效果。
+    var FONT_PRESETS = {
+        sans: [
+            'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC',
+            'HarmonyOS Sans SC', 'Hiragino Sans GB', 'Segoe UI', 'Helvetica Neue',
+            'Inter', 'Roboto', 'system-ui'
+        ],
+        mono: [
+            'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', 'Consolas',
+            'Source Code Pro', 'IBM Plex Mono', 'Sarasa Mono SC', 'Maple Mono', 'ui-monospace'
+        ]
+    };
+
+    // 字体是否已安装：document.fonts.check 对系统字体判定不完全可靠，
+    // 拿不到结论时按“已安装”处理（宁可不标记，也不误标为缺失）。
+    function fontInstalled(name) {
+        if (!document.fonts || typeof document.fonts.check !== 'function') return true;
+        try {
+            return document.fonts.check('12px "' + name + '"');
+        } catch (e) {
+            return true;
         }
-        $sel.val(value || '');
+    }
+
+    // 字族输入框为自研 combobox（input + 下拉面板，结构同 .locale-selector）：预设可选、也可自行输入。
+    // 空值 = 用 theme.css 的默认字体栈（由 placeholder 与下拉首项提示）。
+    function setFontFamilyInput($el, value) {
+        if (!$el.length) return;
+        $el.val(value || '');
+        markFontFamilyValid($el);
+    }
+
+    /* ---- 字体下拉面板 ---- */
+
+    function fontSelectorOf($el) {
+        return $el.closest('.font-selector');
+    }
+
+    // 渲染下拉项。keyword 非空时按子串过滤（大小写不敏感）。
+    function renderFontDropdown($sel, keyword) {
+        var $dropdown = $sel.find('.font-selector-dropdown');
+        if (!$dropdown.length) return;
+        var type = $sel.data('font-type') === 'mono' ? 'mono' : 'sans';
+        var current = ($sel.find('.font-selector-input').val() || '').trim();
+        var kw = (keyword || '').trim().toLowerCase();
+        var list = FONT_PRESETS[type].filter(function (name) {
+            return !kw || name.toLowerCase().indexOf(kw) >= 0;
+        });
+
+        $dropdown.empty();
+
+        // 首项：清空 = 回到默认字体栈（combobox 没有空 option 可用，这里补上入口）
+        var defaultLabel = window.I18n ? window.I18n.t('general.ui.fontPlaceholder') : '系统默认';
+        $dropdown.append(
+            $('<div>').addClass('font-selector-item is-default')
+                .attr({ role: 'option', 'data-value': '' })
+                .toggleClass('active', !current)
+                .text(defaultLabel)
+        );
+
+        if (!list.length) {
+            $dropdown.append(
+                $('<div>').addClass('font-selector-empty')
+                    .text(window.I18n ? window.I18n.t('general.ui.fontNoMatch') : '无匹配字体')
+            );
+            return;
+        }
+
+        list.forEach(function (name) {
+            var $item = $('<div>').addClass('font-selector-item')
+                .attr({ role: 'option', 'data-value': name })
+                .toggleClass('active', name === current)
+                // 用字体自身渲染：装了就能直接看出字形
+                .css('font-family', '"' + name + '", var(--font-' + (type === 'mono' ? 'mono' : 'sans') + '-fallback)')
+                .text(name);
+            if (!fontInstalled(name)) {
+                $item.append(
+                    $('<span>').addClass('font-selector-item-preview')
+                        .css('font-family', 'var(--font-sans)')
+                        .text(window.I18n ? window.I18n.t('general.ui.fontNotInstalled') : '未安装')
+                );
+            }
+            $dropdown.append($item);
+        });
+    }
+
+    function openFontDropdown($sel, keyword) {
+        if (!$sel.length) return;
+        // 同一时刻只开一个
+        $('.font-selector.open').not($sel).each(function () { closeFontDropdown($(this)); });
+        renderFontDropdown($sel, keyword);
+        $sel.addClass('open');
+        $sel.find('.font-selector-input').attr('aria-expanded', 'true');
+    }
+
+    function closeFontDropdown($sel) {
+        if (!$sel || !$sel.length) return;
+        $sel.removeClass('open');
+        $sel.find('.font-selector-item').removeClass('hover');
+        $sel.find('.font-selector-input').attr('aria-expanded', 'false');
+    }
+
+    function closeAllFontDropdowns() {
+        $('.font-selector.open').each(function () { closeFontDropdown($(this)); });
+    }
+
+    // 键盘高亮项在面板内滚动可见
+    function moveFontHover($sel, delta) {
+        var $items = $sel.find('.font-selector-item');
+        if (!$items.length) return;
+        var idx = $items.index($sel.find('.font-selector-item.hover'));
+        idx = idx < 0 ? (delta > 0 ? 0 : $items.length - 1) : idx + delta;
+        if (idx < 0) idx = $items.length - 1;
+        if (idx >= $items.length) idx = 0;
+        $items.removeClass('hover');
+        var $target = $items.eq(idx).addClass('hover');
+        var el = $target[0];
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    }
+
+    function commitFontValue($sel, value) {
+        var $input = $sel.find('.font-selector-input');
+        setFontFamilyInput($input, value);
+        closeFontDropdown($sel);
+        previewFont();
+    }
+
+    // 无效输入给可见反馈：过去是静默变空，用户不知道自己输错了
+    function markFontFamilyValid($el) {
+        if (!$el.length) return true;
+        var ok = typeof window.isValidFontFamily !== 'function'
+            || window.isValidFontFamily($el.val());
+        $el.toggleClass('input-invalid', !ok);
+        return ok;
     }
 
     function currentFontScale() {
@@ -89,8 +217,8 @@
 
     function readFontForm() {
         return {
-            family: $('#generalUiFontFamily').val() || '',
-            mono: $('#generalUiFontMono').val() || '',
+            family: ($('#generalUiFontFamily').val() || '').trim(),
+            mono: ($('#generalUiFontMono').val() || '').trim(),
             scale: currentFontScale()
         };
     }
@@ -109,20 +237,85 @@
         if (!base || typeof window.applyFont !== 'function') return;
         window._fontPreviewDirty = false;
         window.applyFont(base);
-        setFontFamilySelect($('#generalUiFontFamily'), base.family);
-        setFontFamilySelect($('#generalUiFontMono'), base.mono);
+        setFontFamilyInput($('#generalUiFontFamily'), base.family);
+        setFontFamilyInput($('#generalUiFontMono'), base.mono);
         $('#generalUiFontScale').val(Math.round(base.scale * 100));
         updateFontScaleLabel();
     }
 
-    $(document).on('change', '#generalUiFontFamily, #generalUiFontMono', previewFont);
+    /* ---- 字体 combobox 事件（委托绑定：设置面板是后插入的 DOM）---- */
+
+    // 手打：即时预览 + 按关键字过滤下拉
+    $(document).on('input', '.font-selector-input', function () {
+        var $input = $(this);
+        markFontFamilyValid($input);
+        openFontDropdown(fontSelectorOf($input), $input.val());
+        previewFont();
+    });
+
+    // change 兜住非 input 触发的赋值路径（如浏览器自动填充）
+    $(document).on('change', '.font-selector-input', function () {
+        markFontFamilyValid($(this));
+        previewFont();
+    });
+
+    // 点输入框：展开全部预设（不按当前值过滤，方便换字体）
+    $(document).on('focus click', '.font-selector-input', function (e) {
+        e.stopPropagation();
+        var $sel = fontSelectorOf($(this));
+        if (!$sel.hasClass('open')) openFontDropdown($sel, '');
+    });
+
+    // 点箭头：开合切换
+    $(document).on('click', '.font-selector-toggle', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var $sel = fontSelectorOf($(this));
+        if ($sel.hasClass('open')) {
+            closeFontDropdown($sel);
+        } else {
+            openFontDropdown($sel, '');
+            $sel.find('.font-selector-input').focus();
+        }
+    });
+
+    // 选中下拉项（首项 data-value="" 即回到默认字体栈）
+    $(document).on('click', '.font-selector-item', function (e) {
+        e.stopPropagation();
+        var $item = $(this);
+        commitFontValue(fontSelectorOf($item), $item.attr('data-value') || '');
+    });
+
+    // 键盘：上下移动高亮、回车选中、Esc 关闭
+    $(document).on('keydown', '.font-selector-input', function (e) {
+        var $sel = fontSelectorOf($(this));
+        var open = $sel.hasClass('open');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!open) { openFontDropdown($sel, ''); return; }
+            moveFontHover($sel, e.key === 'ArrowDown' ? 1 : -1);
+        } else if (e.key === 'Enter') {
+            var $hover = $sel.find('.font-selector-item.hover');
+            if (open && $hover.length) {
+                e.preventDefault();
+                commitFontValue($sel, $hover.attr('data-value') || '');
+            } else {
+                closeFontDropdown($sel);
+            }
+        } else if (e.key === 'Escape') {
+            if (open) { e.stopPropagation(); closeFontDropdown($sel); }
+        }
+    });
+
+    // 点面板外关闭（不吞事件，避免影响设置面板其它交互）
+    $(document).on('click', function () { closeAllFontDropdowns(); });
     $(document).on('input change', '#generalUiFontScale', function () {
         updateFontScaleLabel();
         previewFont();
     });
     $(document).on('click', '#generalUiFontReset', function () {
-        $('#generalUiFontFamily').val('');
-        $('#generalUiFontMono').val('');
+        setFontFamilyInput($('#generalUiFontFamily'), '');
+        setFontFamilyInput($('#generalUiFontMono'), '');
         $('#generalUiFontScale').val(100);
         updateFontScaleLabel();
         previewFont();
@@ -175,8 +368,8 @@
                 if (dirty) {
                     window._fontPreviewDirty = true;
                 } else {
-                    setFontFamilySelect($('#generalUiFontFamily'), serverFont.family);
-                    setFontFamilySelect($('#generalUiFontMono'), serverFont.mono);
+                    setFontFamilyInput($('#generalUiFontFamily'), serverFont.family);
+                    setFontFamilyInput($('#generalUiFontMono'), serverFont.mono);
                     $('#generalUiFontScale').val(Math.round(serverFont.scale * 100));
                     updateFontScaleLabel();
                     if (typeof window.applyFont === 'function') window.applyFont(serverFont);
@@ -228,8 +421,8 @@
             logLevel: $('#generalLogLevel').val().trim() || null,
             logFileMaxSize: $('#generalLogFileMaxSize').val().trim() || null,
             logMaxHistory: parseNumStr($('#generalLogMaxHistory').val().trim()),
-            uiFontFamily: $('#generalUiFontFamily').val() || null,
-            uiFontMono: $('#generalUiFontMono').val() || null,
+            uiFontFamily: ($('#generalUiFontFamily').val() || '').trim() || null,
+            uiFontMono: ($('#generalUiFontMono').val() || '').trim() || null,
             uiFontScale: currentFontScale()
         };
 

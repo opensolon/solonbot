@@ -870,6 +870,113 @@
     color: var(--text-secondary);
     opacity: 0.5;
 }
+/* 非法输入的可见反馈（如手写的 font-family 浏览器解析不通过） */
+.general-input.input-invalid {
+    border-color: var(--danger, #e05252);
+}
+.general-input.input-invalid:focus {
+    border-color: var(--danger, #e05252);
+    box-shadow: 0 0 0 2px rgba(224, 82, 82, 0.14);
+}
+
+/* ---- 字体选择器（可输入 + 可下拉，结构同 .locale-selector）----
+ * 弃用 <datalist>：Firefox 不画箭头、样式不受主题控制、且无法用字体本身预览。
+ * 这里全部走 CSS 变量，暗色主题与皮肤自动跟随。 */
+.font-selector-control {
+    position: relative;
+}
+.font-selector-input {
+    padding-right: 30px; /* 让位给右侧箭头按钮 */
+}
+.font-selector-toggle {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 0 7px 7px 0;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+}
+.font-selector-toggle .layui-icon {
+    font-size: var(--fs-xs);
+    opacity: 0.6;
+    transition: transform 0.2s, opacity 0.2s;
+}
+.font-selector-toggle:hover {
+    background: var(--bg-hover);
+}
+.font-selector-toggle:hover .layui-icon {
+    opacity: 1;
+    color: var(--accent);
+}
+.font-selector.open .font-selector-toggle .layui-icon {
+    transform: rotate(180deg);
+    opacity: 1;
+}
+.font-selector-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-input-box);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    max-height: 260px;
+    overflow-y: auto;
+    display: none;
+    z-index: 200;
+    padding: 4px 0;
+}
+.font-selector.open .font-selector-dropdown {
+    display: block;
+}
+.font-selector-item {
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: var(--fs-base);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.15s;
+}
+.font-selector-item:hover,
+.font-selector-item.hover {
+    background: var(--bg-hover);
+}
+.font-selector-item.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 500;
+}
+/* 预设项用字体自身渲染：装了就能直接看出字形，没装则退回默认栈 */
+.font-selector-item .font-selector-item-preview {
+    color: var(--text-secondary);
+    opacity: 0.75;
+    margin-left: 8px;
+    font-size: var(--fs-sm);
+}
+.font-selector-item.is-default {
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 4px;
+    padding-bottom: 8px;
+}
+.font-selector-empty {
+    padding: 8px 12px;
+    font-size: var(--fs-sm);
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
 
 /* Toggle 行 */
 .general-toggle-row {

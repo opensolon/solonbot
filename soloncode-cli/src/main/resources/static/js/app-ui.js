@@ -709,15 +709,37 @@ window.updateThemeIcon = updateThemeIcon;
  */
 var FONT_SCALE_MIN = 0.85;
 var FONT_SCALE_MAX = 1.5;
+var FONT_FAMILY_MAX = 200;
 
-/** 仅允许字母数字、中文、空格、逗号、引号、连字符、点号（防止 CSS 注入） */
+/**
+ * 字族名过滤：黑名单式。
+ * 早期用的是 [\w\u4e00-\u9fa5...] 白名单，只放过拉丁与中日韩汉字，日文假名（ヒラギノ角ゴ）、
+ * 韩文谚文（맑은 고딕）、西里尔字母等会被整条丢弃 —— 在 22 语言界面里不可接受。
+ * 这里只拦真正能越出声明的字符（; { } ( ) 与注释起止），其余非法写法由 CSS 解析器自行丢弃：
+ * setProperty 对自定义属性走解析器，塞不进第二条声明，最坏结果只是这条 font-family 无效。
+ */
 function sanitizeFontFamily(v) {
     if (!v) return '';
     var s = String(v).trim();
     if (!s) return '';
-    if (!/^[\w\u4e00-\u9fa5\s,'"\-\.]+$/.test(s)) return '';
-    return s.slice(0, 200);
+    if (/[;{}()<>\\]/.test(s)) return '';
+    if (s.indexOf('/*') >= 0 || s.indexOf('*/') >= 0) return '';
+    return s.slice(0, FONT_FAMILY_MAX);
 }
+window.sanitizeFontFamily = sanitizeFontFamily;
+
+/**
+ * 用户输入是否是浏览器能接受的 font-family 值（供设置面板做可见反馈）。
+ * 空值合法（= 用默认栈）。
+ */
+function isValidFontFamily(v) {
+    if (!v) return true;
+    var s = sanitizeFontFamily(v);
+    if (!s) return false;
+    if (typeof CSS === 'undefined' || !CSS.supports) return true;
+    return CSS.supports('font-family', s);
+}
+window.isValidFontFamily = isValidFontFamily;
 
 function clampFontScale(v) {
     var n = parseFloat(v);
@@ -737,9 +759,12 @@ function applyFont(opts) {
     var st = document.body.style;
     var rootSt = document.documentElement.style;
 
+    // 用户字体只做“前插”，尾部始终接 theme.css 的 *-fallback 链：
+    // 否则用户选了本机没装的字族（如 Windows 选 PingFang SC）会直接掉到 generic family，
+    // 丢掉整条跨平台回退。
     if ('family' in opts) {
         var fam = sanitizeFontFamily(opts.family);
-        if (fam) st.setProperty('--font-sans', fam);
+        if (fam) st.setProperty('--font-sans', fam + ', var(--font-sans-fallback)');
         else st.removeProperty('--font-sans');
         window.currentFontFamily = fam;
         localStorage.setItem('chat-font-family', fam);
@@ -747,7 +772,7 @@ function applyFont(opts) {
 
     if ('mono' in opts) {
         var mono = sanitizeFontFamily(opts.mono);
-        if (mono) st.setProperty('--font-mono', mono);
+        if (mono) st.setProperty('--font-mono', mono + ', var(--font-mono-fallback)');
         else st.removeProperty('--font-mono');
         window.currentFontMono = mono;
         localStorage.setItem('chat-font-mono', mono);
