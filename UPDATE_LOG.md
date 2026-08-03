@@ -1,6 +1,7 @@
 
 ### v2026.8.3
 
+* 添加 soloncode web 兼容 `glm-5.2[1m]` 风格的模型名解析
 * 优化 soloncode web 国际化多语言支持
 
 ### v2026.8.2
