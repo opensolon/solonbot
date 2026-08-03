@@ -103,7 +103,7 @@
   "general.features.title": "Перемикачі функцій",
   "general.language.title": "Мова відображення",
   "general.language.subTitle": "Мова",
-  "general.language.system": "Системний за замовчуванням",
+  "general.language.system": "Слідувати за системою",
   "general.logging.desc": "Рівень журналювання застосовується одразу під час виконання; обмеження розміру файлу та період зберігання — після перезапуску",
   "general.logging.fileMaxSize": "Максимальний розмір файлу",
   "general.logging.level": "Рівень журналювання",

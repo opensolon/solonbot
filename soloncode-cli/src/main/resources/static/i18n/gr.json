@@ -103,7 +103,7 @@
   "general.features.title": "Διακόπτες λειτουργιών",
   "general.language.title": "Γλώσσα εμφάνισης",
   "general.language.subTitle": "Γλώσσα",
-  "general.language.system": "Προεπιλογή συστήματος",
+  "general.language.system": "Ακολουθήστε το σύστημα",
   "general.logging.desc": "Το επίπεδο καταγραφής ισχύει άμεσα κατά την εκτέλεση· τα όρια μεγέθους αρχείου και η περίοδος διατήρησης ισχύουν μετά από επανεκκίνηση",
   "general.logging.fileMaxSize": "Μέγιστο μέγεθος αρχείου",
   "general.logging.level": "Επίπεδο καταγραφής",

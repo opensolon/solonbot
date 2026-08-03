@@ -103,7 +103,7 @@
   "general.features.title": "ফিচার সুইচ",
   "general.language.title": "প্রদর্শন ভাষা",
   "general.language.subTitle": "ভাষা",
-  "general.language.system": "সিস্টেম ডিফল্ট",
+  "general.language.system": "সিস্টেম অনুসরণ করুন",
   "general.logging.desc": "লগ লেভেল রানটাইমে তাৎক্ষণিক কার্যকর হয়; ফাইল সাইজ সীমা ও আর্কাইভ পিরিয়ড রিস্টার্টের পরে কার্যকর হয়",
   "general.logging.fileMaxSize": "একক ফাইলের সাইজ সীমা",
   "general.logging.level": "লগ লেভেল",

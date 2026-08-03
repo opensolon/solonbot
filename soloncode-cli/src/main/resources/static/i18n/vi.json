@@ -103,7 +103,7 @@
   "general.features.title": "Công tắc tính năng",
   "general.language.title": "Ngôn ngữ hiển thị",
   "general.language.subTitle": "Ngôn ngữ",
-  "general.language.system": "Mặc định hệ thống",
+  "general.language.system": "Theo hệ thống",
   "general.logging.desc": "Mức log có hiệu lực ngay khi chạy; giới hạn kích thước tệp và chu kỳ lưu trữ có hiệu lực sau khi khởi động lại",
   "general.logging.fileMaxSize": "Giới hạn kích thước tệp",
   "general.logging.level": "Mức log",

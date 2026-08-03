@@ -103,7 +103,7 @@
   "general.features.title": "Özellik Anahtarları",
   "general.language.title": "Görüntü Dili",
   "general.language.subTitle": "Dil",
-  "general.language.system": "Sistem varsayılanı",
+  "general.language.system": "Sistemi takip et",
   "general.logging.desc": "Günlük düzeyi anında uygulanır; dosya boyutu ve saklama süresi yeniden başlatma gerektirir",
   "general.logging.fileMaxSize": "Maksimum Dosya Boyutu",
   "general.logging.level": "Günlük Düzeyi",

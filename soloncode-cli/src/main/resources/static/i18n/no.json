@@ -103,7 +103,7 @@
   "general.features.title": "Funksjonsbrytere",
   "general.language.title": "Visningsspråk",
   "general.language.subTitle": "Språk",
-  "general.language.system": "Systemstandard",
+  "general.language.system": "Følg systemet",
   "general.logging.desc": "Loggnivået trer i kraft umiddelbart under kjøring; filstørrelsesgrense og arkiveringsperiode krever omstart",
   "general.logging.fileMaxSize": "Maks filstørrelse",
   "general.logging.level": "Loggnivå",

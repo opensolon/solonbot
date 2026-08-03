@@ -103,7 +103,7 @@
   "general.features.title": "Funktionsschalter",
   "general.language.title": "Anzeigesprache",
   "general.language.subTitle": "Sprache",
-  "general.language.system": "Systemstandard",
+  "general.language.system": "System folgen",
   "general.logging.desc": "Das Log-Level wirkt sofort; Dateigrößenlimit und Aufbewahrungszeitraum erfordern einen Neustart",
   "general.logging.fileMaxSize": "Maximale Dateigröße",
   "general.logging.level": "Log-Level",

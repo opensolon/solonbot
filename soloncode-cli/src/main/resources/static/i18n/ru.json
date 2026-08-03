@@ -103,7 +103,7 @@
   "general.features.title": "Переключатели функций",
   "general.language.title": "Язык отображения",
   "general.language.subTitle": "Язык",
-  "general.language.system": "Системный по умолчанию",
+  "general.language.system": "Следовать системе",
   "general.logging.desc": "Уровень журнала применяется немедленно; ограничение размера файла и период хранения вступают в силу после перезапуска",
   "general.logging.fileMaxSize": "Максимальный размер файла",
   "general.logging.level": "Уровень журнала",

@@ -103,7 +103,7 @@
   "general.features.title": "Przełączniki funkcji",
   "general.language.title": "Język wyświetlania",
   "general.language.subTitle": "Język",
-  "general.language.system": "Domyślna systemowa",
+  "general.language.system": "Podążaj za systemem",
   "general.logging.desc": "Poziom logowania działa natychmiast; limit rozmiaru pliku i okres archiwizacji obowiązują po restarcie",
   "general.logging.fileMaxSize": "Maksymalny rozmiar pliku",
   "general.logging.level": "Poziom logowania",

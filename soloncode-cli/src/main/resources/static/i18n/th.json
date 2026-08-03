@@ -103,7 +103,7 @@
   "general.features.title": "สวิตช์คุณสมบัติ",
   "general.language.title": "ภาษาที่แสดง",
   "general.language.subTitle": "ภาษา",
-  "general.language.system": "ค่าเริ่มต้นของระบบ",
+  "general.language.system": "ตามระบบ",
   "general.logging.desc": "ระดับล็อกมีผลทันทีที่รันไทม์; ขีดจำกัดขนาดไฟล์และรอบการเก็บถาวรมีผลหลังรีสตาร์ท",
   "general.logging.fileMaxSize": "ขีดจำกัดขนาดไฟล์ต่อไฟล์",
   "general.logging.level": "ระดับล็อก",

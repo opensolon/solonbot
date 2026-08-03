@@ -103,7 +103,7 @@
   "general.features.title": "機能トグル",
   "general.language.title": "表示言語",
   "general.language.subTitle": "言語",
-  "general.language.system": "システムデフォルト",
+  "general.language.system": "システムに従う",
   "general.logging.desc": "ログレベルは実行時に即時反映されます。ファイルサイズ制限と保持期間は再起動後に反映されます",
   "general.logging.fileMaxSize": "単一ファイルサイズ上限",
   "general.logging.level": "ログレベル",

@@ -103,7 +103,7 @@
   "general.features.title": "Feature Toggles",
   "general.language.title": "Display Language",
   "general.language.subTitle": "Language",
-  "general.language.system": "System Default",
+  "general.language.system": "Follow System",
   "general.logging.desc": "Log level takes effect immediately; file size and retention period require restart",
   "general.logging.fileMaxSize": "Max File Size",
   "general.logging.level": "Log Level",

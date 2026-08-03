@@ -103,7 +103,7 @@
   "general.features.title": "Interruttori funzionalità",
   "general.language.title": "Lingua di visualizzazione",
   "general.language.subTitle": "Lingua",
-  "general.language.system": "Predefinito di sistema",
+  "general.language.system": "Segui il sistema",
   "general.logging.desc": "Il livello di log ha effetto immediato a runtime; i limiti di dimensione file e il periodo di conservazione richiedono il riavvio",
   "general.logging.fileMaxSize": "Dimensione massima file",
   "general.logging.level": "Livello di log",

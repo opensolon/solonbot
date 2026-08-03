@@ -103,7 +103,7 @@
   "general.features.title": "مفاتيح الميزات",
   "general.language.title": "لغة العرض",
   "general.language.subTitle": "اللغة",
-  "general.language.system": "افتراضي النظام",
+  "general.language.system": "اتباع النظام",
   "general.logging.desc": "مستوى السجل يسري فورًا أثناء التشغيل؛ بينما يسري حد حجم الملف وفترة الاحتفاظ بعد إعادة التشغيل",
   "general.logging.fileMaxSize": "الحد الأقصى لحجم الملف",
   "general.logging.level": "مستوى السجل",

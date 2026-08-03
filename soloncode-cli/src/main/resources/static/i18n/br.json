@@ -103,7 +103,7 @@
   "general.features.title": "Interruptores de Recursos",
   "general.language.title": "Idioma de Exibição",
   "general.language.subTitle": "Idioma",
-  "general.language.system": "Padrão do sistema",
+  "general.language.system": "Seguir o sistema",
   "general.logging.desc": "O nível de log tem efeito imediato; o limite de tamanho de arquivo e o período de retenção exigem reinicialização",
   "general.logging.fileMaxSize": "Tamanho Máximo do Arquivo",
   "general.logging.level": "Nível de Log",

@@ -103,7 +103,7 @@
   "general.features.title": "Interruptores de funciones",
   "general.language.title": "Idioma de visualización",
   "general.language.subTitle": "Idioma",
-  "general.language.system": "Predeterminado del sistema",
+  "general.language.system": "Seguir el sistema",
   "general.logging.desc": "El nivel de registro se aplica en tiempo real; el límite de tamaño de archivo y el periodo de retención requieren reinicio",
   "general.logging.fileMaxSize": "Límite de tamaño por archivo",
   "general.logging.level": "Nivel de registro",

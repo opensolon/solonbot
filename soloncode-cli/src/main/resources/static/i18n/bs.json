@@ -103,7 +103,7 @@
   "general.features.title": "Prekidači funkcija",
   "general.language.title": "Jezik prikaza",
   "general.language.subTitle": "Jezik",
-  "general.language.system": "Sistemski podrazumijevano",
+  "general.language.system": "Prati sistem",
   "general.logging.desc": "Razina zapisivanja stupa na snagu odmah; ograničenje veličine datoteke i period arhiviranja stupaju na snagu nakon ponovnog pokretanja",
   "general.logging.fileMaxSize": "Ograničenje veličine jedne datoteke",
   "general.logging.level": "Razina zapisivanja",

@@ -103,7 +103,7 @@
   "general.features.title": "Funktionskontakter",
   "general.language.title": "Visningssprog",
   "general.language.subTitle": "Sprog",
-  "general.language.system": "Systemstandard",
+  "general.language.system": "Følg systemet",
   "general.logging.desc": "Log-niveauet træder i kraft øjeblikkeligt; filstørrelsesgrænse og opbevaringsperiode kræver genstart",
   "general.logging.fileMaxSize": "Maks. filstørrelse",
   "general.logging.level": "Log-niveau",
