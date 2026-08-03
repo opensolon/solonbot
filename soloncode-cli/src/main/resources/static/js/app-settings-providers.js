@@ -208,6 +208,18 @@
     function showForm(provider) {
         currentProvider = provider;
         fetchedModels = (provider && provider.models) ? provider.models.slice() : [];
+        // 兼容旧数据：剥离模型中可能残留的 [1m]/[256k] 后缀，并同步上下文长度
+        fetchedModels.forEach(function (m) {
+            if (m && m.id) {
+                var parsed = parseModelContextSuffix(m.id);
+                if (parsed.id !== m.id) {
+                    m.id = parsed.id;
+                    if (parsed.contextLength > 0 && !m.maxInputTokens) {
+                        m.maxInputTokens = parsed.contextLength;
+                    }
+                }
+            }
+        });
 
         // 切换视图
         $listView.hide();
@@ -247,6 +259,21 @@
     // ==================== 模型列表 ====================
     var llmModelsCache = {}; // 缓存 LLM 模型列表，用于判断是否已同步
 
+    /**
+     * 解析模型名中的上下文长度后缀（Claude Code 风格），如 glm5.2[1m] -> {id:'glm5.2', contextLength:1000000}
+     * 支持 k（千）和 m（百万）单位；无有效后缀时 contextLength 为 0
+     */
+    function parseModelContextSuffix(modelName) {
+        var match = String(modelName || '').trim().match(/^(.*)\[(\d+(?:\.\d+)?)([km])\]$/i);
+        if (!match) {
+            return { id: String(modelName || '').trim(), contextLength: 0 };
+        }
+        var value = parseFloat(match[2]);
+        var unit = match[3].toLowerCase();
+        var contextLength = unit === 'm' ? Math.round(value * 1000000) : Math.round(value * 1000);
+        return { id: match[1], contextLength: contextLength };
+    }
+
     function addManualModel() {
         var dialogHtml = '<div class="model-add-overlay" id="modelAddOverlay">'
             + '<div class="model-add-dialog">'
@@ -282,8 +309,13 @@
         var $overlay = $('#modelAddOverlay');
 
         function doAdd() {
-            var modelId = $overlay.find('#manualModelName').val().trim();
+            var modelInput = $overlay.find('#manualModelName').val().trim();
             var maxTokens = $overlay.find('#manualModelTokens').val().trim();
+
+            // 解析模型名中的 [1m]/[256k] 后缀（Claude Code 风格）
+            var parsed = parseModelContextSuffix(modelInput);
+            var modelId = parsed.id;
+            var suffixLength = parsed.contextLength;
 
             if (!modelId) {
                 layui.layer.msg(I18n.t('provider.modelNameRequired'), { icon: 0 });
@@ -299,8 +331,10 @@
             }
 
             var newModel = { id: modelId, manual: true };
-            if (maxTokens) {
-                var trimmed = maxTokens.replace(/[, _]/g, '');
+            // 模型名带后缀时优先使用后缀解析值；否则解析用户填写的上下文长度
+            var effectiveTokens = suffixLength > 0 ? String(suffixLength) : maxTokens;
+            if (effectiveTokens) {
+                var trimmed = effectiveTokens.replace(/[, _]/g, '');
                 var matchK = trimmed.match(/^(\d+\.?\d*)k$/i);
                 var matchM = trimmed.match(/^(\d+\.?\d*)m$/i);
                 if (matchK) {
@@ -470,10 +504,24 @@
             var removeBtn = model.manual
                 ? '<button class="provider-model-remove-btn" title="' + I18n.t('provider.remove') + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
                 : '';
+            // 上下文长度标识（如 1m / 256k）
+            var contextTag = '';
+            if (model.maxInputTokens && model.maxInputTokens > 0) {
+                var cl = model.maxInputTokens;
+                var clStr;
+                if (cl >= 1000000 && cl % 1000000 === 0) {
+                    clStr = (cl / 1000000) + 'm';
+                } else if (cl >= 1000) {
+                    clStr = (cl % 1000 === 0 ? (cl / 1000) + 'k' : (cl / 1000).toFixed(1).replace(/\.0$/, '') + 'k');
+                } else {
+                    clStr = String(cl);
+                }
+                contextTag = ' <span class="provider-model-context">' + clStr + '</span>';
+            }
             html += '<div class="provider-model-item' + (!enabled ? ' disabled' : '') + '" data-model-id="' + model.id + '">' +
                 '<div class="provider-model-icon">' + providerStandardAbbr + '</div>' +
                 '<div class="provider-model-info">' +
-                    '<div class="provider-model-name">' + model.id + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
+                    '<div class="provider-model-name">' + model.id + contextTag + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
                 '</div>' +
                 '<div class="provider-model-actions">' +
                     removeBtn +

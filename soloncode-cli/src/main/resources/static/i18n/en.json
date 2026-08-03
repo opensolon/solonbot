@@ -779,7 +779,7 @@
   "provider.modelCount": "{n} models",
   "provider.modelExists": "Model \"{name}\" already exists",
   "provider.modelName": "Model Name",
-  "provider.modelNamePlaceholder": "e.g. gpt-4o-mini",
+  "provider.modelNamePlaceholder": "e.g. gpt-5.6 or glm5.2[1m]",
   "provider.modelNameRequired": "Please enter a model name",
   "provider.models.addTitle": "Add model manually",
   "provider.models.batchSelectTitle": "Batch select models",

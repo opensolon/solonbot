@@ -779,7 +779,7 @@
   "provider.modelCount": "{n} 模型",
   "provider.modelExists": "模型 \"{name}\" 已存在",
   "provider.modelName": "模型名称",
-  "provider.modelNamePlaceholder": "例如 gpt-4o-mini",
+  "provider.modelNamePlaceholder": "例如 gpt-5.6 或 glm5.2[1m]",
   "provider.modelNameRequired": "请输入模型名称",
   "provider.models.addTitle": "手动添加模型",
   "provider.models.batchSelectTitle": "批量选择模型",

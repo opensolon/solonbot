@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -31,6 +33,9 @@ public class LlmSettingController extends BaseSettingsController {
      * 日志记录器
      */
     private static final Logger LOG = LoggerFactory.getLogger(LlmSettingController.class);
+
+    /** 模型名上下文长度后缀正则，如 glm5.2[1m]、glm5.2[256k] */
+    private static final Pattern CONTEXT_SUFFIX_PATTERN = Pattern.compile("^(\\d+(?:\\.\\d+)?)([km])$", Pattern.CASE_INSENSITIVE);
 
     /**
      * 构造函数：支持自定义所有依赖。
@@ -501,8 +506,10 @@ public class LlmSettingController extends BaseSettingsController {
             // 转换为前端需要的格式
             List<Map<String, Object>> modelList = new ArrayList<>();
             for (ModelInfo model : models) {
+                // 剥离模型名中的 [1m]/[256k] 后缀，避免影响后续请求
+                String modelId = stripContextLengthSuffix(model.getId());
                 Map<String, Object> item = new LinkedHashMap<>();
-                item.put("id", model.getId());
+                item.put("id", modelId);
                 item.put("object", model.getObject());
                 item.put("created", model.getCreated());
                 item.put("ownedBy", model.getOwnedBy());
@@ -559,7 +566,8 @@ public class LlmSettingController extends BaseSettingsController {
         String prefix = providerName + "-";
 
         for (ModelInfo modelInfo : providerModels) {
-            String modelId = modelInfo.getId();
+            // 剥离模型名中的 [1m]/[256k] 后缀，实际请求使用纯模型 id
+            String modelId = stripContextLengthSuffix(modelInfo.getId());
             if (Assert.isEmpty(modelId)) {
                 continue;
             }
@@ -578,8 +586,11 @@ public class LlmSettingController extends BaseSettingsController {
                 modelDo.setProvider(providerName);
                 modelDo.setVisibled(provider.isEnabled());
 
-                // 设置 contextLength：优先 maxInputTokens，其次 maxTokens，最后从 models.json 查询
-                if (modelInfo.getMaxInputTokens() != null && modelInfo.getMaxInputTokens() > 0) {
+                // 设置 contextLength：优先模型名后缀，其次 maxInputTokens，再次 maxTokens，最后从 models.json 查询
+                long suffixLength = parseContextLengthSuffix(modelInfo.getId());
+                if (suffixLength > 0) {
+                    modelDo.setContextLength(suffixLength);
+                } else if (modelInfo.getMaxInputTokens() != null && modelInfo.getMaxInputTokens() > 0) {
                     modelDo.setContextLength(modelInfo.getMaxInputTokens());
                 } else if (modelInfo.getMaxTokens() != null && modelInfo.getMaxTokens() > 0) {
                     modelDo.setContextLength(modelInfo.getMaxTokens());
@@ -602,9 +613,12 @@ public class LlmSettingController extends BaseSettingsController {
 
                     existingModel.setVisibled(provider.isEnabled());
 
-                    // 更新 contextLength：优先 maxInputTokens，其次 maxTokens，最后从 models.json 查询
+                    // 更新 contextLength：优先模型名后缀，其次 maxInputTokens，再次 maxTokens，最后从 models.json 查询
                     long newContextLength = 0;
-                    if (modelInfo.getMaxInputTokens() != null && modelInfo.getMaxInputTokens() > 0) {
+                    long suffixLength = parseContextLengthSuffix(modelInfo.getId());
+                    if (suffixLength > 0) {
+                        newContextLength = suffixLength;
+                    } else if (modelInfo.getMaxInputTokens() != null && modelInfo.getMaxInputTokens() > 0) {
                         newContextLength = modelInfo.getMaxInputTokens();
                     } else if (modelInfo.getMaxTokens() != null && modelInfo.getMaxTokens() > 0) {
                         newContextLength = modelInfo.getMaxTokens();
@@ -646,7 +660,10 @@ public class LlmSettingController extends BaseSettingsController {
 
         for (ONode modelNode : root.get("models").getArray()) {
             ModelInfo modelInfo = new ModelInfo();
-            modelInfo.setId(modelNode.get("id").getString());
+            // 剥离模型名中的 [1m]/[256k] 后缀，并自动填充上下文长度
+            String modelId = stripContextLengthSuffix(modelNode.get("id").getString());
+            long suffixLength = parseContextLengthSuffix(modelNode.get("id").getString());
+            modelInfo.setId(modelId);
             modelInfo.setOwnedBy(modelNode.get("ownedBy").getString(modelNode.get("owned_by").getString()));
             modelInfo.setType(modelNode.get("type").getString());
             modelInfo.setObject(modelNode.get("object").getString());
@@ -662,6 +679,11 @@ public class LlmSettingController extends BaseSettingsController {
                 modelInfo.setManual(modelNode.get("manual").getBoolean());
             }
 
+            // 模型名带 [1m]/[256k] 后缀时，自动用后缀解析值填充 maxInputTokens（用户显式指定，优先级最高）
+            if (suffixLength > 0) {
+                modelInfo.setMaxInputTokens(suffixLength);
+            }
+
             if (Assert.isNotEmpty(modelInfo.getId())) {
                 models.add(modelInfo);
             }
@@ -674,6 +696,11 @@ public class LlmSettingController extends BaseSettingsController {
         if (modelInfo == null || Assert.isEmpty(modelInfo.getId())) {
             return 0;
         }
+        // 优先解析模型名中的 [1m]/[256k] 后缀（用户显式指定，优先级最高）
+        long suffixLength = parseContextLengthSuffix(modelInfo.getId());
+        if (suffixLength > 0) {
+            return suffixLength;
+        }
         if (modelInfo.getMaxInputTokens() != null && modelInfo.getMaxInputTokens() > 0) {
             return modelInfo.getMaxInputTokens();
         }
@@ -681,9 +708,43 @@ public class LlmSettingController extends BaseSettingsController {
             return modelInfo.getMaxTokens();
         }
 
-        Long contextLength = modelSpecService.getContextLength(modelInfo.getId());
+        Long contextLength = modelSpecService.getContextLength(stripContextLengthSuffix(modelInfo.getId()));
         return contextLength == null ? 0 : contextLength;
     }
+
+    /**
+     * 解析模型名中的上下文长度后缀，如 glm5.2[1m] -> 1000000，glm5.2[256k] -> 256000
+     * 支持 k（千）和 m（百万）单位；无有效后缀返回 -1
+     */
+    private long parseContextLengthSuffix(String modelId) {
+        if (Assert.isEmpty(modelId)) {
+            return -1;
+        }
+        int idx = modelId.lastIndexOf('[');
+        if (idx < 0 || modelId.endsWith("]") == false) {
+            return -1;
+        }
+        String suffix = modelId.substring(idx + 1, modelId.length() - 1).trim();
+        Matcher m = CONTEXT_SUFFIX_PATTERN.matcher(suffix);
+        if (m.matches() == false) {
+            return -1;
+        }
+        double value = Double.parseDouble(m.group(1));
+        String unit = m.group(2).toLowerCase();
+        return (long) Math.round(value * ("m".equals(unit) ? 1_000_000 : 1_000));
+    }
+
+    /**
+     * 剥离模型名中的上下文长度后缀，如 glm5.2[1m] -> glm5.2；无有效后缀原样返回
+     */
+    private String stripContextLengthSuffix(String modelId) {
+        if (Assert.isEmpty(modelId) || parseContextLengthSuffix(modelId) < 0) {
+            return modelId;
+        }
+        int idx = modelId.lastIndexOf('[');
+        return modelId.substring(0, idx);
+    }
+
 
     private String maskApiKey(String apiKey) {
         if (apiKey == null || apiKey.isEmpty()) {
@@ -724,7 +785,8 @@ public class LlmSettingController extends BaseSettingsController {
         // 生成模型配置
         List<Map<String, Object>> generatedModels = new ArrayList<>();
         for (ONode modelNode : modelsNode.getArray()) {
-            String modelId = modelNode.get("id").getString();
+            String modelId = stripContextLengthSuffix(modelNode.get("id").getString());
+            long suffixLength = parseContextLengthSuffix(modelNode.get("id").getString());
             if (Assert.isEmpty(modelId)) {
                 continue;
             }
@@ -747,6 +809,11 @@ public class LlmSettingController extends BaseSettingsController {
             modelDo.setApiKey(apiKey);
             modelDo.setScope(scope);
             modelDo.setProvider(providerName);  // 设置所属供应商
+
+            // 模型名带 [1m]/[256k] 后缀时，自动设置上下文长度（用户显式指定，优先级最高）
+            if (suffixLength > 0) {
+                modelDo.setContextLength(suffixLength);
+            }
 
             // 设置超时时间
             if (timeout > 0) {

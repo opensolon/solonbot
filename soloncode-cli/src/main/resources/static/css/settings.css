@@ -1168,6 +1168,18 @@ select[disabled] {
     text-overflow: ellipsis;
 }
 
+.provider-model-context {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: 1px;
+}
+
 .provider-model-actions {
     display: flex;
     gap: 8px;
