@@ -2,6 +2,13 @@
  * Builtin skin: contrast (high contrast)
  * Applied via <body data-skin="contrast">.
  * Works on top of data-theme="light|dark".
+ *
+ * Font slots (not overridden here — contrast targets color, not typography):
+ *   --font-sans / --font-mono              font family; keep a fallback chain
+ *   --fs-3xs .. --fs-5xl                   size ladder, each calc(Npx * var(--font-scale))
+ * Redefining a --fs-* level MUST keep the "* var(--font-scale)" factor,
+ * otherwise the user's font-size setting stops affecting that level.
+ * Precedence: user setting (body inline style) > skin.css > theme.css defaults.
  */
 
 [data-skin="contrast"][data-theme="light"] {

@@ -78,6 +78,13 @@ public class GeneralGroupDo implements Serializable {
     //当前激活的皮肤（default / 预置名 / 本地安装名；空或 default 表示默认）
     private String activeSkin;
 
+    //界面字体-正文字族（空表示跟随主题/皮肤默认）
+    private String uiFontFamily;
+    //界面字体-等宽字族（空表示跟随主题/皮肤默认）
+    private String uiFontMono;
+    //界面字体-缩放倍率（0.85 ~ 1.5；空或 1 表示默认）
+    private Double uiFontScale;
+
 
     //===================
 

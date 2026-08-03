@@ -16,6 +16,29 @@
 :root {
     --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
     --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+
+    /* Font scale (user adjustable, 0.85 ~ 1.5; set on <html> via style.setProperty).
+     * MUST be set on <html>, not <body>: the --fs-* ladder below is declared here on
+     * :root, and custom-property var() substitution happens on the declaring element,
+     * so it only ever reads the --font-scale present on <html>.
+     */
+    --font-scale: 1;
+
+    /* Font size ladder — all UI text should use these instead of hard-coded px.
+     * Skins may override the base px values; users override --font-scale.
+     */
+    --fs-3xs:  calc(9px  * var(--font-scale));
+    --fs-2xs:  calc(10px * var(--font-scale));
+    --fs-xs:   calc(11px * var(--font-scale));
+    --fs-sm:   calc(12px * var(--font-scale));
+    --fs-base: calc(13px * var(--font-scale));
+    --fs-md:   calc(14px * var(--font-scale));
+    --fs-lg:   calc(15px * var(--font-scale));
+    --fs-xl:   calc(16px * var(--font-scale));
+    --fs-2xl:  calc(18px * var(--font-scale));
+    --fs-3xl:  calc(20px * var(--font-scale));
+    --fs-4xl:  calc(26px * var(--font-scale));
+    --fs-5xl:  calc(32px * var(--font-scale));
 }
 
 /* ===== Light Theme ===== */

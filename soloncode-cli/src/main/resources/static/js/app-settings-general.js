@@ -42,6 +42,92 @@
         return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '_');
     }
 
+    /* ===== 字体设置 ===== */
+
+    // 回填下拉：值不在预设项中时动态补一个自定义项（兼容手写配置）
+    function setFontFamilySelect($sel, value) {
+        if (!$sel.length) return;
+        if (value && !$sel.find('option').filter(function () { return this.value === value; }).length) {
+            $sel.append($('<option>').val(value).text(value));
+        }
+        $sel.val(value || '');
+    }
+
+    function currentFontScale() {
+        var v = parseInt($('#generalUiFontScale').val(), 10);
+        return isNaN(v) ? 1 : v / 100;
+    }
+
+    // 同步读数与滑块已选段填充比（--range-fill 供 settings.css 的轨道渐变使用）
+    function updateFontScaleLabel() {
+        var $range = $('#generalUiFontScale');
+        var pct = Math.round(currentFontScale() * 100);
+        $('#generalUiFontScaleValue').text(pct + '%');
+        if (!$range.length) return;
+        var min = parseInt($range.attr('min'), 10);
+        var max = parseInt($range.attr('max'), 10);
+        if (isNaN(min)) min = 85;
+        if (isNaN(max)) max = 150;
+        var ratio = max > min ? (pct - min) / (max - min) : 0;
+        ratio = Math.max(0, Math.min(1, ratio));
+        $range[0].style.setProperty('--range-fill', (ratio * 100).toFixed(2) + '%');
+    }
+
+    // 已持久化的字体基线（服务端值）。预览未保存时用它回滚。
+    // app-ui.js 首屏校准也会写 window.savedFontBaseline，作为本面板 GET 未返回时的兜底。
+    var savedFont = null;
+
+    function fontBaseline() {
+        return savedFont || window.savedFontBaseline || null;
+    }
+
+    function setFontBaseline(f) {
+        savedFont = f;
+        window.savedFontBaseline = f;
+        window._fontPreviewDirty = false;
+    }
+
+    function readFontForm() {
+        return {
+            family: $('#generalUiFontFamily').val() || '',
+            mono: $('#generalUiFontMono').val() || '',
+            scale: currentFontScale()
+        };
+    }
+
+    // 即时应用（仅运行时预览，持久化由保存按钮完成）
+    // 置 dirty 标记：避免首屏那次异步校准把用户正在看的预览覆盖掉
+    function previewFont() {
+        if (typeof window.applyFont !== 'function') return;
+        window._fontPreviewDirty = true;
+        window.applyFont(readFontForm());
+    }
+
+    // 放弃未保存的预览，恢复到基线（关闭设置面板时调用）
+    function revertFont() {
+        var base = fontBaseline();
+        if (!base || typeof window.applyFont !== 'function') return;
+        window._fontPreviewDirty = false;
+        window.applyFont(base);
+        setFontFamilySelect($('#generalUiFontFamily'), base.family);
+        setFontFamilySelect($('#generalUiFontMono'), base.mono);
+        $('#generalUiFontScale').val(Math.round(base.scale * 100));
+        updateFontScaleLabel();
+    }
+
+    $(document).on('change', '#generalUiFontFamily, #generalUiFontMono', previewFont);
+    $(document).on('input change', '#generalUiFontScale', function () {
+        updateFontScaleLabel();
+        previewFont();
+    });
+    $(document).on('click', '#generalUiFontReset', function () {
+        $('#generalUiFontFamily').val('');
+        $('#generalUiFontMono').val('');
+        $('#generalUiFontScale').val(100);
+        updateFontScaleLabel();
+        previewFont();
+    });
+
     function loadGeneralSettings() {
         $.get('/web/settings/general', function (resp) {
             if (resp.code === 200 && resp.data) {
@@ -75,6 +161,26 @@
                 $('#generalLogLevel').val(d.logLevel || '');
                 $('#generalLogFileMaxSize').val(d.logFileMaxSize || '');
                 $('#generalLogMaxHistory').val(d.logMaxHistory != null ? d.logMaxHistory : '');
+
+                // 字体：基线取服务端值（不经表单，避免与用户正在进行的预览互相污染）
+                var serverFont = {
+                    family: d.uiFontFamily || '',
+                    mono: d.uiFontMono || '',
+                    scale: d.uiFontScale != null ? d.uiFontScale : 1
+                };
+                var dirty = !!window._fontPreviewDirty;
+                setFontBaseline(serverFont);
+                // 用户已在预览：保留其表单与预览效果，只更新基线；否则按服务端值回填 + 校准
+                // （localStorage 可能是上次未保存的预览残留）
+                if (dirty) {
+                    window._fontPreviewDirty = true;
+                } else {
+                    setFontFamilySelect($('#generalUiFontFamily'), serverFont.family);
+                    setFontFamilySelect($('#generalUiFontMono'), serverFont.mono);
+                    $('#generalUiFontScale').val(Math.round(serverFont.scale * 100));
+                    updateFontScaleLabel();
+                    if (typeof window.applyFont === 'function') window.applyFont(serverFont);
+                }
             }
         }).fail(function () { console.error('[Settings] Failed to load general settings'); });
 
@@ -121,7 +227,10 @@
             webAuthPass: $('#generalWebAuthPass').val().trim() || null,
             logLevel: $('#generalLogLevel').val().trim() || null,
             logFileMaxSize: $('#generalLogFileMaxSize').val().trim() || null,
-            logMaxHistory: parseNumStr($('#generalLogMaxHistory').val().trim())
+            logMaxHistory: parseNumStr($('#generalLogMaxHistory').val().trim()),
+            uiFontFamily: $('#generalUiFontFamily').val() || null,
+            uiFontMono: $('#generalUiFontMono').val() || null,
+            uiFontScale: currentFontScale()
         };
 
         $generalSaveBtn.prop('disabled', true);
@@ -137,6 +246,7 @@
                         return $.Deferred().reject(resp.message || I18n.t('toast.unknownError')).promise();
                     }
                     window.cliPrintSimplified = bodyObj.cliPrintSimplified;
+                    setFontBaseline(readFontForm());
                     return resp;
                 })
         );
@@ -175,6 +285,7 @@
     });
 
     window._settingsGeneral = {
-        load: loadGeneralSettings
+        load: loadGeneralSettings,
+        revertFont: revertFont
     };
 })();

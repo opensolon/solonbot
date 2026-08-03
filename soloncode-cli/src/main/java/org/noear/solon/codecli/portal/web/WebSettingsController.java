@@ -583,10 +583,55 @@ public class WebSettingsController extends BaseSettingsController {
                     }
                 }
             }
+
+            // 字体设置：白名单校验（前端已过滤，这里做服务端兜底，防 CSS 注入）
+            GeneralGroupDo g = settings.getGeneral();
+            g.setUiFontFamily(sanitizeFontFamily(g.getUiFontFamily()));
+            g.setUiFontMono(sanitizeFontFamily(g.getUiFontMono()));
+            g.setUiFontScale(clampFontScale(g.getUiFontScale()));
+            if (tmp.hasKey("uiFontFamily") && tmp.get("uiFontFamily").isNull()) {
+                g.setUiFontFamily(null);
+            }
+            if (tmp.hasKey("uiFontMono") && tmp.get("uiFontMono").isNull()) {
+                g.setUiFontMono(null);
+            }
+            if (tmp.hasKey("uiFontScale") && tmp.get("uiFontScale").isNull()) {
+                g.setUiFontScale(null);
+            }
         }
 
         saveSettings();
         return Result.succeed();
+    }
+
+    /** 字体名白名单：仅字母数字、中文、空格、逗号、引号、连字符、点号；非法值丢弃 */
+    private static String sanitizeFontFamily(String v) {
+        if (v == null) {
+            return null;
+        }
+        String s = v.trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        if (!s.matches("[\\w\\u4e00-\\u9fa5\\s,'\"\\-\\.]+")) {
+            return null;
+        }
+        return s.length() > 200 ? s.substring(0, 200) : s;
+    }
+
+    /** 字号缩放钳制到 0.85 ~ 1.5；1.0 视为默认（存 null） */
+    private static Double clampFontScale(Double v) {
+        if (v == null) {
+            return null;
+        }
+        double n = v;
+        if (n < 0.85D) {
+            n = 0.85D;
+        } else if (n > 1.5D) {
+            n = 1.5D;
+        }
+        n = Math.round(n * 100D) / 100D;
+        return n == 1.0D ? null : n;
     }
 
     // ==================== 设置：皮肤 Skin ====================

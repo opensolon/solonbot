@@ -409,7 +409,10 @@ function setBtnSendMode() {
 
 function autoResize(el) {
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+    // 上限随 --font-scale 联动，与 CSS 中 textarea 的 max-height: calc(140px * var(--font-scale)) 保持一致
+    // --font-scale 由 applyFont 设在 <html> 上，这里直接读源头，避免依赖继承链
+    var scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font-scale')) || 1;
+    el.style.height = Math.min(el.scrollHeight, 140 * scale) + 'px';
 }
 
 function escapeHtml(str) {

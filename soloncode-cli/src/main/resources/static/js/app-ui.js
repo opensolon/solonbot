@@ -696,6 +696,83 @@ function updateThemeIcon() {
 }
 window.updateThemeIcon = updateThemeIcon;
 
+/* ===== Font (user font family + size scale) =====
+ * 优先级：用户显式设置（inline style） > 皮肤 CSS > 主题默认（theme.css :root）
+ * 字号不直接写死，统一由 theme.css 的 --fs-* 阶梯 * --font-scale 得出。
+ *
+ * 落点差异（关键，勿随意调整）：
+ * - --font-sans / --font-mono 写在 body：皮肤规则的选择器是 body[data-skin][data-theme]，
+ *   写在 body 的 inline style 才能盖过皮肤；写到 html 会被 body 上的皮肤声明反超。
+ * - --font-scale 必须写在 html(:root)：自定义属性中的 var() 在“声明它的元素”上完成替换，
+ *   --fs-* 声明在 :root，替换时只会读取 html 上的 --font-scale。写在 body 对 --fs-* 完全无效
+ *   （皮肤若把 --fs-* 声明在 body 上则又会生效，行为随皮肤翻转）。写在 html 两种情况都正确。
+ */
+var FONT_SCALE_MIN = 0.85;
+var FONT_SCALE_MAX = 1.5;
+
+/** 仅允许字母数字、中文、空格、逗号、引号、连字符、点号（防止 CSS 注入） */
+function sanitizeFontFamily(v) {
+    if (!v) return '';
+    var s = String(v).trim();
+    if (!s) return '';
+    if (!/^[\w\u4e00-\u9fa5\s,'"\-\.]+$/.test(s)) return '';
+    return s.slice(0, 200);
+}
+
+function clampFontScale(v) {
+    var n = parseFloat(v);
+    if (isNaN(n)) return 1;
+    if (n < FONT_SCALE_MIN) return FONT_SCALE_MIN;
+    if (n > FONT_SCALE_MAX) return FONT_SCALE_MAX;
+    return Math.round(n * 100) / 100;
+}
+
+/**
+ * 应用字体设置。opts: { family, mono, scale }
+ * 传入空值 / null 表示回退到主题或皮肤定义（移除 inline 覆盖）。
+ * opts 中未出现的键保持当前值不变。
+ */
+function applyFont(opts) {
+    opts = opts || {};
+    var st = document.body.style;
+    var rootSt = document.documentElement.style;
+
+    if ('family' in opts) {
+        var fam = sanitizeFontFamily(opts.family);
+        if (fam) st.setProperty('--font-sans', fam);
+        else st.removeProperty('--font-sans');
+        window.currentFontFamily = fam;
+        localStorage.setItem('chat-font-family', fam);
+    }
+
+    if ('mono' in opts) {
+        var mono = sanitizeFontFamily(opts.mono);
+        if (mono) st.setProperty('--font-mono', mono);
+        else st.removeProperty('--font-mono');
+        window.currentFontMono = mono;
+        localStorage.setItem('chat-font-mono', mono);
+    }
+
+    if ('scale' in opts) {
+        var scale = clampFontScale(opts.scale);
+        // 注意：落在 html 上，--fs-* 阶梯才会跟着变（见上方注释）
+        if (scale !== 1) rootSt.setProperty('--font-scale', String(scale));
+        else rootSt.removeProperty('--font-scale');
+        window.currentFontScale = scale;
+        localStorage.setItem('chat-font-scale', String(scale));
+    }
+}
+window.applyFont = applyFont;
+window.FONT_SCALE_MIN = FONT_SCALE_MIN;
+window.FONT_SCALE_MAX = FONT_SCALE_MAX;
+
+// 启动：先读 localStorage 立即应用（避免字号闪烁），随后由服务端配置校准
+applyFont({
+    family: localStorage.getItem('chat-font-family') || '',
+    mono: localStorage.getItem('chat-font-mono') || '',
+    scale: localStorage.getItem('chat-font-scale') || 1
+});
+
 /* ===== Skin (static/skin/<name>/skin.css + local zip) ===== */
 var BUILTIN_SKINS = {
     default:  { name: 'default',  get displayName() { return I18n.t('skin.default'); },   source: 'builtin' },
@@ -825,6 +902,23 @@ try {
         if (active !== window.currentSkin || src !== window.currentSkinSource) {
             applySkin(active, { source: src, forceLocal: src === 'local' });
         }
+    });
+} catch (e) { /* ignore */ }
+
+// 字体：用服务端配置校准首屏的 localStorage 值
+// 同时记录“已持久化基线”，供设置面板放弃预览时回滚（面板自身的 GET 可能还没回来）
+try {
+    $.get('/web/settings/general').done(function (resp) {
+        if (!resp || resp.code !== 200 || !resp.data) return;
+        var d = resp.data;
+        var baseline = {
+            family: d.uiFontFamily || '',
+            mono: d.uiFontMono || '',
+            scale: d.uiFontScale != null ? d.uiFontScale : 1
+        };
+        window.savedFontBaseline = baseline;
+        // 若用户已在设置面板里预览过，别用服务端值把预览覆盖掉（仅补基线）
+        if (!window._fontPreviewDirty) applyFont(baseline);
     });
 } catch (e) { /* ignore */ }
 

@@ -999,7 +999,7 @@
                             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
                             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
                         html += '<div class="git-dir-viewer-child" data-path="' + escapeHtml(child.path) + '" data-type="' + child.type + '" style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;border-radius:4px;transition:background 0.15s">'
-                            + icon + '<span style="font-family:SFMono-Regular,Consolas,Menlo,monospace;font-size:11px">' + escapeHtml(child.name) + '</span></div>';
+                            + icon + '<span style="font-family:var(--font-mono);font-size:var(--fs-xs)">' + escapeHtml(child.name) + '</span></div>';
                     });
                     html += '</div>';
                     dirListEl.innerHTML = html;

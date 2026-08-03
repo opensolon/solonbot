@@ -118,6 +118,10 @@
 
     function closeSettings() {
         $overlay.hide();
+        // 字体是即时预览的，未点保存就关闭要回滚到已持久化的值
+        if (mod('_settingsGeneral') && typeof mod('_settingsGeneral').revertFont === 'function') {
+            mod('_settingsGeneral').revertFont();
+        }
         if (mod('_settingsLlm')) mod('_settingsLlm').showList();
         if (mod('_settingsMcp')) mod('_settingsMcp').showList();
         if (mod('_settingsOpenapi')) mod('_settingsOpenapi').showList();
