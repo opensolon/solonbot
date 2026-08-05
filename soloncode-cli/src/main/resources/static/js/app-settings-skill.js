@@ -360,7 +360,9 @@
             var name = skill.name || '';
             var version = skill.version || '';
             var iconText = name ? name.substring(0, 2).toUpperCase() : 'SK';
-            html += '<div class="settings-list-item mounts-skill-item" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
+            var enabled = skill.enabled !== false;
+            var aliasPath = item.group.alias + (name ? '/' + name : '');
+            html += '<div class="settings-list-item mounts-skill-item' + (enabled ? '' : ' disabled') + '" data-real-path="' + escapeAttr(skill.realPath || '') + '">'
                 + '<div class="settings-list-icon">' + escapeHtml(iconText) + '</div>'
                 + '<div class="settings-list-info">'
                 + '<div class="settings-list-title">' + escapeHtml(name) + '</div>'
@@ -370,6 +372,10 @@
                 + '</div><div class="settings-list-actions">'
                 + '<button class="settings-action-btn skills-installed-upgrade-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="' + I18n.t('skills.upgradeTitle') + '">' + SVG_REFRESH_SM + '</button>'
                 + '<button class="settings-action-btn delete skills-installed-delete-btn" data-skill="' + escapeAttr(name) + '" data-alias="' + escapeAttr(item.group.alias) + '" title="' + I18n.t('skills.deleteTitle') + '">' + SVG_DELETE_SM + '</button>'
+                + '<label class="toggle-switch" title="' + (enabled ? I18n.t('skills.toggle.disable') : I18n.t('skills.toggle.enable')) + '">'
+                + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' data-alias-path="' + escapeAttr(aliasPath) + '" class="skills-installed-toggle"/> '
+                + '<span class="toggle-slider"></span>'
+                + '</label>'
                 + '</div></div>';
             rendered++;
         });
@@ -452,6 +458,36 @@
         $skillsInstalledFilter.val('').focus();
         $(this).hide();
         renderInstalledList();
+    });
+
+    // 启用/停用技能
+    $skillsInstalledList.on('change', '.skills-installed-toggle', function () {
+        var $chk = $(this);
+        var aliasPath = $chk.attr('data-alias-path');
+        var enabled = this.checked;
+        var $item = $chk.closest('.mounts-skill-item');
+        $.ajax({
+            url: '/web/settings/skills/toggle',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ aliasPath: aliasPath, enabled: enabled }),
+            dataType: 'json'
+        }).done(function (resp) {
+            if (resp && resp.code === 200) {
+                $item.toggleClass('disabled', !enabled);
+                if (typeof loadCommands === 'function') loadCommands();
+                if (typeof layer !== 'undefined' && layer.msg) {
+                    layer.msg(enabled ? I18n.t('skills.enabled') : I18n.t('skills.disabled'), { icon: 1, time: 1500, offset: '120px' });
+                }
+            } else {
+                $chk.prop('checked', !enabled);
+                var msg = (resp && (resp.description || resp.message)) || I18n.t('toast.operateFailed');
+                if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: 2, time: 3000, offset: '120px' });
+            }
+        }).fail(function () {
+            $chk.prop('checked', !enabled);
+            if (typeof layer !== 'undefined' && layer.msg) layer.msg(I18n.t('toast.operateFailed'), { icon: 2, time: 3000, offset: '120px' });
+        });
     });
 
     // 删除技能包
@@ -562,6 +598,7 @@
     // 点击条目 → 打开所在目录
     $skillsInstalledList.on('click', '.mounts-skill-item', function (e) {
         if ($(e.target).closest('.settings-action-btn').length) return;
+        if ($(e.target).closest('.toggle-switch').length) return;
         var realPath = $(this).attr('data-real-path') || '';
         if (!realPath) return;
         $.get('/web/settings/mounts/open', { path: realPath }, function (resp) {

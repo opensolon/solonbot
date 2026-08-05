@@ -251,14 +251,16 @@ public class MountSettingsController extends BaseSettingsController {
 
     private Result loadSkillsContent(String alias) {
         Collection<SkillDir> skillDirList = engine.getSkillsByMount(alias);
-        List<Map<String, String>> skills = new ArrayList<>();
+        List<Map<String, Object>> skills = new ArrayList<>();
 
         for (SkillDir subDir : skillDirList) {
-            Map<String, String> skillItem = new LinkedHashMap<>();
+            Map<String, Object> skillItem = new LinkedHashMap<>();
             skillItem.put("name", subDir.getName());
             skillItem.put("description", subDir.getDescription());
             skillItem.put("realPath", subDir.getRealPath() != null ? subDir.getRealPath().toString() : "");
             skillItem.put("version", subDir.getVersion());
+            skillItem.put("aliasPath", subDir.getAliasPath());
+            skillItem.put("enabled", engine.isSkillDisallowed(subDir.getAliasPath()) == false);
             skills.add(skillItem);
         }
 

@@ -294,12 +294,16 @@ public class AgentSettings implements Serializable {
     private static void copyPermission(PermissionGroupDo target, PermissionGroupDo source) {
         target.getTools().clear();
         target.getDisallowedTools().clear();
+        target.getDisallowedSkills().clear();
         if (source != null) {
             if (source.getTools() != null) {
                 target.getTools().addAll(source.getTools());
             }
             if (source.getDisallowedTools() != null) {
                 target.getDisallowedTools().addAll(source.getDisallowedTools());
+            }
+            if (source.getDisallowedSkills() != null) {
+                target.getDisallowedSkills().addAll(source.getDisallowedSkills());
             }
         }
     }

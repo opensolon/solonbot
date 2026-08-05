@@ -145,6 +145,9 @@ public class Configurator {
         engine.addMount(MountDir.builder().alias("@user-agents").type(MountType.AGENTS).path("~/" + engine.getHarnessAgents()).primary(true).build());
         engine.addMount(MountDir.builder().alias("@workspace-agents").type(MountType.AGENTS).path("./" + engine.getHarnessAgents()).primary(true).build());
 
+        // 灌入技能禁用清单（按 aliasPath 持久化于 settings.permission.disallowedSkills）
+        engine.disallowSkillReset(settings.getPermission().getDisallowedSkills());
+
 
         engine.getCommandRegistry().load(Paths.get(AgentFlags.getUserHome(), engine.getHarnessCommands()));
         engine.getCommandRegistry().load(Paths.get(workspace, engine.getHarnessCommands()));
