@@ -1,3 +1,9 @@
+### v2026.8.5
+
+* 优化 soloncode 沙盒处理细节
+* 修复 soloncode Windows 环境变量可能识别失误的问题
+* 修复 soloncode openapi2 可能无限递归解析的问题
+* 细节优化
 
 ### v2026.8.4
 
