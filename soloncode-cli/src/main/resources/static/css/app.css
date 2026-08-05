@@ -342,7 +342,7 @@ body {
 @keyframes blob-spin { to { transform: rotate(360deg); } }
 .welcome-title { font-size: var(--fs-4xl); font-weight: 700; margin-bottom: 10px; }
 .welcome-sub { color: var(--text-secondary); font-size: var(--fs-lg); margin-bottom: 36px; }
-.welcome-input-box { width: 100%; max-width: 680px; background: var(--bg-input-box); border: 1px solid var(--border-input); border-radius: 16px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; transition: all 0.25s; }
+.welcome-input-box { width: 100%; max-width: 820px; background: var(--bg-input-box); border: 1px solid var(--border-input); border-radius: 16px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; transition: all 0.25s; }
 .welcome-input-box:focus-within { border-color: var(--accent); box-shadow: var(--shadow-lg), 0 0 0 4px rgba(79,110,247,0.08); }
 .welcome-input-box textarea { border: none; outline: none; resize: none; background: transparent; padding: 18px 20px 8px; font-family: var(--font-sans); font-size: var(--fs-lg); color: var(--text-primary); min-height: calc(54px * var(--font-scale)); max-height: calc(140px * var(--font-scale)); line-height: 1.6; }
 .welcome-input-box textarea::placeholder { color: var(--text-secondary); }
