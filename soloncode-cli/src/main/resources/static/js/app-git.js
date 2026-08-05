@@ -175,6 +175,45 @@
         if (gitBranch) gitBranch.textContent = branch || '--';
     }
 
+    // ---- 双击插入路径到输入框（复用文件树的插入规则）----
+    function insertGitPathToInput(rawPath) {
+        if (!rawPath) return;
+        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        if (!targetInput) return;
+        var relPath = rawPath.replace(/\/$/, '');
+        var insertText = (gitWorkspace !== 'workspace')
+            ? '[' + gitWorkspace + '/' + relPath + ']'
+            : '[' + relPath + ']';
+        var currentVal = targetInput.value || '';
+        var cursorPos = targetInput.selectionStart || currentVal.length;
+        var before = currentVal.substring(0, cursorPos);
+        var after = currentVal.substring(cursorPos);
+        var prefix = (before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n')) ? ' ' : '';
+        targetInput.value = before + prefix + insertText + ' ' + after;
+        targetInput.focus();
+        var newPos = cursorPos + prefix.length + insertText.length + 1;
+        targetInput.setSelectionRange(newPos, newPos);
+        if (typeof autoResize === 'function') autoResize(targetInput);
+    }
+
+    /** 绑定单击/双击：延迟单击以规避双击时的两次 click 冲突 */
+    function bindGitClickDblClick(el, onClick, onDblClick) {
+        var timer = null;
+        el.addEventListener('click', function(e) {
+            if (timer) { clearTimeout(timer); timer = null; }
+            timer = setTimeout(function() {
+                timer = null;
+                onClick(e);
+            }, 250);
+        });
+        el.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (timer) { clearTimeout(timer); timer = null; }
+            onDblClick(e);
+        });
+    }
+
     // ---- 渲染文件列表（带 checkbox）----
     function renderFileList(data) {
         if (!gitDiffFileList) return;
@@ -263,16 +302,22 @@
             item.setAttribute('data-status', file.status);
             item.setAttribute('data-path', file.path);
 
-            // 点击文件行：目录展开/折叠，文件打开 diff viewer
-            item.addEventListener('click', function(e) {
-                // 避免点 checkbox 时也触发
-                if (e.target === cb) return;
-                if (isDir) {
-                    toggleDirExpand(item, file.path);
-                } else {
-                    openDiffViewer(file.path, file.status);
+            // 点击文件行：目录展开/折叠，文件打开 diff viewer；双击插入路径到输入框
+            bindGitClickDblClick(item,
+                function(e) {
+                    // 避免点 checkbox 时也触发
+                    if (e.target === cb) return;
+                    if (isDir) {
+                        toggleDirExpand(item, file.path);
+                    } else {
+                        openDiffViewer(file.path, file.status);
+                    }
+                },
+                function(e) {
+                    if (e.target === cb) return;
+                    insertGitPathToInput(file.path);
                 }
-            });
+            );
 
             gitDiffFileList.appendChild(item);
         });
@@ -344,16 +389,22 @@
                     childItem.appendChild(childIconSpan);
                     childItem.appendChild(childPathSpan);
 
-                    // 子项点击：文件打开查看，目录递归展开
-                    childItem.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        if (child.type === 'directory') {
-                            toggleDirExpand(childItem, child.path + '/');
-                        } else {
-                             // 未跟踪目录下的文件：用 openFileViewer 打开（status='?' 未跟踪）
-                             openFileViewer(child.path, child.name, '?');
-                        }
-                    });
+                    // 子项点击：文件打开查看，目录递归展开；双击插入路径到输入框
+                    (function(childNode, childEl) {
+                        bindGitClickDblClick(childEl,
+                            function() {
+                                if (childNode.type === 'directory') {
+                                    toggleDirExpand(childEl, childNode.path + '/');
+                                } else {
+                                    // 未跟踪目录下的文件：用 openFileViewer 打开（status='?' 未跟踪）
+                                    openFileViewer(childNode.path, childNode.name, '?');
+                                }
+                            },
+                            function() {
+                                insertGitPathToInput(childNode.path);
+                            }
+                        );
+                    })(child, childItem);
 
                     subListEl.appendChild(childItem);
                 });

@@ -1774,8 +1774,27 @@ body {
     font-size: var(--fs-sm);
     color: var(--text-sidebar);
     transition: background 0.15s;
+    position: relative;
 }
 .git-file-item:hover { background: var(--bg-hover); }
+.git-file-item:hover::after {
+    content: '双击插入路径';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    max-width: 88px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
 
 .git-status-letter {
     width: 18px;
