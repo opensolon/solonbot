@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "놓으면 첨부 파일 추가",
   "chat.inputPlaceholder": "무엇이든 물어보세요...",
-  "git.selectAllToggle": "전체 선택/선택 해제"
+  "git.selectAllToggle": "전체 선택/선택 해제",
+  "skills.disabled": "비활성화됨",
+  "skills.enabled": "활성화됨",
+  "skills.toggle.disable": "비활성화",
+  "skills.toggle.enable": "활성화"
 }

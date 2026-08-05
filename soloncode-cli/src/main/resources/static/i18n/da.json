@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Slip for at tilføje vedhæftning",
   "chat.inputPlaceholder": "Spørg om hvad som helst...",
-  "git.selectAllToggle": "Vælg alle / Fravælg alle"
+  "git.selectAllToggle": "Vælg alle / Fravælg alle",
+  "skills.disabled": "Deaktiveret",
+  "skills.enabled": "Aktiveret",
+  "skills.toggle.disable": "Deaktiver",
+  "skills.toggle.enable": "Aktivér"
 }

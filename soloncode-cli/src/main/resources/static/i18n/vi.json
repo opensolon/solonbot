@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Nhả ra để đính kèm",
   "chat.inputPlaceholder": "Hỏi bất cứ điều gì...",
-  "git.selectAllToggle": "Chọn tất cả / Bỏ chọn tất cả"
+  "git.selectAllToggle": "Chọn tất cả / Bỏ chọn tất cả",
+  "skills.disabled": "Đã tắt",
+  "skills.enabled": "Đã bật",
+  "skills.toggle.disable": "Tắt",
+  "skills.toggle.enable": "Bật"
 }

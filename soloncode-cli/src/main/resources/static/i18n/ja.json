@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "離すと添付ファイルを追加",
   "chat.inputPlaceholder": "なんでも聞いてください...",
-  "git.selectAllToggle": "すべて選択 / 選択解除"
+  "git.selectAllToggle": "すべて選択 / 選択解除",
+  "skills.disabled": "無効",
+  "skills.enabled": "有効",
+  "skills.toggle.disable": "無効化",
+  "skills.toggle.enable": "有効化"
 }

@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Eklemek için bırakın",
   "chat.inputPlaceholder": "Bir şey sorun...",
-  "git.selectAllToggle": "Tümünü seç / seçimi kaldır"
+  "git.selectAllToggle": "Tümünü seç / seçimi kaldır",
+  "skills.disabled": "Devre dışı",
+  "skills.enabled": "Etkin",
+  "skills.toggle.disable": "Devre dışı bırak",
+  "skills.toggle.enable": "Etkinleştir"
 }

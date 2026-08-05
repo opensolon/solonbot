@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Відпустіть, щоб додати вкладення",
   "chat.inputPlaceholder": "Запитайте що завгодно...",
-  "git.selectAllToggle": "Вибрати все / Зняти вибір"
+  "git.selectAllToggle": "Вибрати все / Зняти вибір",
+  "skills.disabled": "Вимкнено",
+  "skills.enabled": "Увімкнено",
+  "skills.toggle.disable": "Вимкнути",
+  "skills.toggle.enable": "Увімкнути"
 }

@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Αφήστε για προσθήκη συνημμένου",
   "chat.inputPlaceholder": "Ρωτήστε οτιδήποτε...",
-  "git.selectAllToggle": "Επιλογή όλων / Αποεπιλογή όλων"
+  "git.selectAllToggle": "Επιλογή όλων / Αποεπιλογή όλων",
+  "skills.disabled": "Απενεργοποιημένο",
+  "skills.enabled": "Ενεργοποιημένο",
+  "skills.toggle.disable": "Απενεργοποίηση",
+  "skills.toggle.enable": "Ενεργοποίηση"
 }

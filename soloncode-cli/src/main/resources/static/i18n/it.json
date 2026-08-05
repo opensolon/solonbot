@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Rilascia per aggiungere allegato",
   "chat.inputPlaceholder": "Chiedi qualsiasi cosa...",
-  "git.selectAllToggle": "Seleziona tutto / Deseleziona tutto"
+  "git.selectAllToggle": "Seleziona tutto / Deseleziona tutto",
+  "skills.disabled": "Disattivato",
+  "skills.enabled": "Abilitato",
+  "skills.toggle.disable": "Disattiva",
+  "skills.toggle.enable": "Abilita"
 }

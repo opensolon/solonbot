@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "অ্যাটাচমেন্ট যোগ করতে ছাড়ুন",
   "chat.inputPlaceholder": "যেকোনো কিছু জিজ্ঞেস করুন...",
-  "git.selectAllToggle": "সব নির্বাচন/সব বাতিল"
+  "git.selectAllToggle": "সব নির্বাচন/সব বাতিল",
+  "skills.disabled": "নিষ্ক্রিয়",
+  "skills.enabled": "সক্রিয়",
+  "skills.toggle.disable": "নিষ্ক্রিয় করুন",
+  "skills.toggle.enable": "সক্রিয় করুন"
 }

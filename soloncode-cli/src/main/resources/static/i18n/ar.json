@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "ارفع لإضافة المرفق",
   "chat.inputPlaceholder": "اسأل أي شيء...",
-  "git.selectAllToggle": "تحديد الكل/إلغاء التحديد"
+  "git.selectAllToggle": "تحديد الكل/إلغاء التحديد",
+  "skills.disabled": "معطّل",
+  "skills.enabled": "مفعّل",
+  "skills.toggle.disable": "تعطيل",
+  "skills.toggle.enable": "تفعيل"
 }

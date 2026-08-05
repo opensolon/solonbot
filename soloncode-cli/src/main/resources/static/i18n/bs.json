@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "Otpustite za dodavanje privitka",
   "chat.inputPlaceholder": "Pitajte bilo što...",
-  "git.selectAllToggle": "Odaberi sve / Poništi odabir svih"
+  "git.selectAllToggle": "Odaberi sve / Poništi odabir svih",
+  "skills.disabled": "Onemogućeno",
+  "skills.enabled": "Omogućeno",
+  "skills.toggle.disable": "Onemogući",
+  "skills.toggle.enable": "Omogući"
 }

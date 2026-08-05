@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "ปล่อยเพื่อเพิ่มไฟล์แนบ",
   "chat.inputPlaceholder": "ถามอะไรก็ได้...",
-  "git.selectAllToggle": "เลือกทั้งหมด/ยกเลิกการเลือกทั้งหมด"
+  "git.selectAllToggle": "เลือกทั้งหมด/ยกเลิกการเลือกทั้งหมด",
+  "skills.disabled": "ปิดใช้งานแล้ว",
+  "skills.enabled": "เปิดใช้งานแล้ว",
+  "skills.toggle.disable": "ปิดใช้งาน",
+  "skills.toggle.enable": "เปิดใช้งาน"
 }

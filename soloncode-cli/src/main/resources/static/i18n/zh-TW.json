@@ -1090,5 +1090,9 @@
   "mcp.type.stdio": "stdio",
   "dropzone.releaseToAttach": "鬆開以新增附件",
   "chat.inputPlaceholder": "隨便問...",
-  "git.selectAllToggle": "全選/取消全選"
+  "git.selectAllToggle": "全選/取消全選",
+  "skills.disabled": "已停用",
+  "skills.enabled": "已啓用",
+  "skills.toggle.disable": "停用",
+  "skills.toggle.enable": "啓用"
 }
