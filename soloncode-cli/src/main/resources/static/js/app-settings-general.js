@@ -355,6 +355,11 @@
                 $('#generalLogFileMaxSize').val(d.logFileMaxSize || '');
                 $('#generalLogMaxHistory').val(d.logMaxHistory != null ? d.logMaxHistory : '');
 
+                // HTTP 代理
+                $('#generalProxyHost').val(d.proxyHost || '');
+                $('#generalProxyPort').val(d.proxyPort != null && d.proxyPort > 0 ? d.proxyPort : '');
+                $('#generalNoProxy').val(d.noProxy || '');
+
                 // 字体：基线取服务端值（不经表单，避免与用户正在进行的预览互相污染）
                 var serverFont = {
                     family: d.uiFontFamily || '',
@@ -421,6 +426,9 @@
             logLevel: $('#generalLogLevel').val().trim() || null,
             logFileMaxSize: $('#generalLogFileMaxSize').val().trim() || null,
             logMaxHistory: parseNumStr($('#generalLogMaxHistory').val().trim()),
+            proxyHost: $('#generalProxyHost').val().trim() || null,
+            proxyPort: parseInt($('#generalProxyPort').val().trim(), 10) || 0,
+            noProxy: $('#generalNoProxy').val().trim() || null,
             uiFontFamily: ($('#generalUiFontFamily').val() || '').trim() || null,
             uiFontMono: ($('#generalUiFontMono').val() || '').trim() || null,
             uiFontScale: currentFontScale()
