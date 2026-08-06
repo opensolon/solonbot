@@ -830,6 +830,39 @@
                                 </div>
                             </div>
 
+                            <!-- ============ 配置卡片: HTTP 代理 ============ -->
+                            <div class="general-card">
+                                <div class="general-card-header">
+                                    <div class="general-card-text">
+                                        <div class="general-card-title" data-i18n="general.proxy.title">HTTP 代理</div>
+                                    </div>
+                                </div>
+                                <div class="general-card-body">
+                                    <div class="general-field-row">
+                                        <div class="general-field" style="flex:1">
+                                            <label class="general-field-label" data-i18n="general.proxy.host">代理主机</label>
+                                             <input type="text" class="general-input" id="generalProxyHost"
+                                                    placeholder="如 127.0.0.1" data-i18n-placeholder="general.proxy.hostPlaceholder"/>
+                                        </div>
+                                        <div class="general-field" style="flex:1">
+                                            <label class="general-field-label" data-i18n="general.proxy.port">代理端口</label>
+                                             <input type="text" inputmode="numeric" class="general-input" id="generalProxyPort"
+                                                    placeholder="如 1080" data-i18n-placeholder="general.proxy.portPlaceholder"/>
+                                        </div>
+                                    </div>
+                                    <div class="general-field-row">
+                                        <div class="general-field" style="flex:1">
+                                            <label class="general-field-label" data-i18n="general.proxy.noProxy">NO_PROXY 排除</label>
+                                             <input type="text" class="general-input" id="generalNoProxy"
+                                                    placeholder="如 localhost, 127.0.0.1, .internal.com" data-i18n-placeholder="general.proxy.noProxyPlaceholder"/>
+                                        </div>
+                                    </div>
+                                    <div class="general-toggle-desc settings-gap-top-sm">
+                                        <span data-i18n="general.proxy.desc">配置后，所有 HTTP 请求（模型访问、技能市场、飞书/钉钉/微信通道等）将通过此代理发出。留空则不使用代理。</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- ============ 配置卡片: Loop Goal ============ -->
                             <div class="general-card">
                                 <div class="general-card-header">

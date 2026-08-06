@@ -25,6 +25,7 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.annotation.*;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
 import org.noear.solon.codecli.config.entity.PermissionGroupDo;
@@ -547,6 +548,17 @@ public class WebSettingsController extends BaseSettingsController {
                 settings.getGeneral().setWebAuthPass(null);
             }
 
+            // 处理 proxyHost/proxyPort/noProxy 清空：bindTo 遇到 null 值会跳过，需要手动处理
+            if (tmp.get("proxyHost").isNull()) {
+                settings.getGeneral().setProxyHost(null);
+            }
+            if (tmp.get("noProxy").isNull()) {
+                settings.getGeneral().setNoProxy(null);
+            }
+            if (tmp.get("proxyPort").isNull()) {
+                settings.getGeneral().setProxyPort(0);
+            }
+
             engine.setCompressionThreshold(settings.getGeneral().getCompressionThresholdMessages(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D);
             engine.setSessionWindowSize(settings.getGeneral().getSessionWindowSize());
 
@@ -599,6 +611,9 @@ public class WebSettingsController extends BaseSettingsController {
                 g.setUiFontScale(null);
             }
         }
+
+        // 更新 HTTP 代理配置（热生效）
+        ProxyConfig.update(settings.getGeneral());
 
         saveSettings();
         return Result.succeed();

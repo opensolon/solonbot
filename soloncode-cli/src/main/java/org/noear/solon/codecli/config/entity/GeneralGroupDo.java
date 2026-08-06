@@ -95,6 +95,15 @@ public class GeneralGroupDo implements Serializable {
 
     //===================
 
+    //HTTP 代理主机地址（如 "127.0.0.1"），留空则不启用代理
+    private String proxyHost;
+    //HTTP 代理端口（如 1080），默认 0 表示不启用
+    private int proxyPort;
+    //NO_PROXY 排除列表（逗号分隔），匹配的主机/域名将不使用代理
+    private String noProxy;
+
+    //===================
+
     //日志级别 (TRACE/DEBUG/INFO/WARN/ERROR)
     private String logLevel;
     //日志文件大小限制，如 "10MB"
