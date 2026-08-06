@@ -384,6 +384,8 @@
   "llm.updateFailed": "更新失败",
   "llm.updated": "更新成功",
   "llm.workspaceBadge": "工作区",
+  "llm.selectAll": "全选",
+  "llm.invertSelect": "反选",
   "loop.addNew": "新建任务",
   "loop.confirmDelete": "确定要删除该循环任务吗？",
   "loop.confirmDeleteTitle": "确认删除",
