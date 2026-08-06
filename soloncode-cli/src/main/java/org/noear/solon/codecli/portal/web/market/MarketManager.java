@@ -1,12 +1,12 @@
 package org.noear.solon.codecli.portal.web.market;
 
 import org.noear.solon.codecli.portal.web.market.impl.ClawhubMarket;
+import org.noear.solon.codecli.portal.web.market.impl.ModelscopeMarket;
 import org.noear.solon.codecli.portal.web.market.impl.SkillhubMarket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 技能市场管理器 — 管理多个 Market 适配器，根据前端传入的 marketName 选择对应的市场。
@@ -39,6 +39,9 @@ public class MarketManager {
 
         Market clawhub = new ClawhubMarket();
         register(clawhub);
+
+        Market modelscope = new ModelscopeMarket();
+        register(modelscope);
 
 //        Market skillsSh = new SkillsShMarket();
 //        register(skillsSh);
