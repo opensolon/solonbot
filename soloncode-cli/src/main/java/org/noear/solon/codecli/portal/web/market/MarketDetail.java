@@ -14,6 +14,7 @@ public class MarketDetail {
     private long installs;
     private long stars;
     private String installSlug; // 用于安装时的实际 slug（如 owner/repo/skill-name）
+    private String sourceUrl;   // 源代码仓库地址（如 GitHub 链接），用于下载回退
 
     public MarketDetail() {
     }
@@ -26,6 +27,7 @@ public class MarketDetail {
     public MarketDetail installs(long installs) { this.installs = installs; return this; }
     public MarketDetail stars(long stars) { this.stars = stars; return this; }
     public MarketDetail installSlug(String installSlug) { this.installSlug = installSlug; return this; }
+    public MarketDetail sourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; return this; }
 
     public String getSlug() { return slug; }
     public void setSlug(String slug) { this.slug = slug; }
@@ -43,4 +45,6 @@ public class MarketDetail {
     public void setStars(long stars) { this.stars = stars; }
     public String getInstallSlug() { return installSlug; }
     public void setInstallSlug(String installSlug) { this.installSlug = installSlug; }
+    public String getSourceUrl() { return sourceUrl; }
+    public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
 }
