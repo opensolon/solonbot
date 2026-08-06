@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.config;
 
 import org.noear.solon.codecli.config.entity.GeneralGroupDo;
+import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.http.HttpConfiguration;
 import org.noear.solon.net.http.HttpSslSupplier;
 import org.noear.solon.net.http.HttpUtils;
@@ -42,7 +43,9 @@ public class ProxyConfig {
     private static volatile List<String> noProxyList = Collections.emptyList();
     private static volatile boolean globalFactoryRegistered = false;
 
-    /** 信任所有证书的 SSL 配置（用于代理场景下绕过 TLS 验证） */
+    /**
+     * 信任所有证书的 SSL 配置（用于代理场景下绕过 TLS 验证）
+     */
     private static final HttpSslSupplier TRUST_ALL_SSL = buildTrustAllSsl();
 
     private static HttpSslSupplier buildTrustAllSsl() {
@@ -107,6 +110,10 @@ public class ProxyConfig {
         GeneralGroupDo g = cachedGeneral;
         if (g == null) {
             return;
+        }
+
+        if (Assert.isNotEmpty(g.getUserAgent())) {
+            http.userAgent(g.getUserAgent());
         }
 
         String host = g.getProxyHost();
