@@ -1,10 +1,10 @@
-package org.noear.solon.codecli.portal.web.market.impl;
+package org.noear.solon.codecli.market.impl;
 
 import org.noear.snack4.ONode;
 import org.noear.solon.codecli.config.ProxyConfig;
-import org.noear.solon.codecli.portal.web.market.Market;
-import org.noear.solon.codecli.portal.web.market.MarketDetail;
-import org.noear.solon.codecli.portal.web.market.MarketItem;
+import org.noear.solon.codecli.market.Market;
+import org.noear.solon.codecli.market.MarketDetail;
+import org.noear.solon.codecli.market.MarketItem;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.http.HttpResponse;
@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
-import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -22,27 +21,25 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * SkillHub 市场适配器 — 对接 skillhub.cn（ClawHub 中国本土化镜像）。
+ * ClawHub 市场适配器 — 对接 clawhub.ai API。
  *
- * <p>搜索、详情、下载全部使用 skillhub.cn 自有 API（api.skillhub.cn）。</p>
- *
- * @author noear 2026/5/30 created
+ * @author noear 2026/5/28 created
  */
-public class SkillhubMarket implements Market {
+public class ClawhubMarket implements Market {
 
-    private static final Logger LOG = LoggerFactory.getLogger(SkillhubMarket.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClawhubMarket.class);
 
-    private static final String BASE_URL = "https://api.skillhub.cn";
+    private static final String BASE_URL = "https://clawhub.ai";
     private static final String USER_AGENT = "SolonCode/1.0";
 
     @Override
     public String name() {
-        return "skillhub.cn";
+        return "clawhub.ai";
     }
 
     @Override
     public String description() {
-        return "专为中国用户优化的技能社区";
+        return "";
     }
 
     // ==================== 列表与搜索 ====================
@@ -50,7 +47,7 @@ public class SkillhubMarket implements Market {
     @Override
     public Result<List<MarketItem>> trending(int limit) {
         try {
-            String url = BASE_URL + "/api/v1/search?q=&limit=" + limit;
+            String url = BASE_URL + "/api/v1/skills?limit=" + limit + "&sort=trending";
             String body = httpGet(url);
             ONode root = ONode.ofJson(body);
 
@@ -58,10 +55,10 @@ public class SkillhubMarket implements Market {
                 return Result.failure(root.get("message").getString());
             }
 
-            List<MarketItem> items = parseResults(root);
+            List<MarketItem> items = parseItems(root);
             return Result.succeed(items);
         } catch (Exception e) {
-            LOG.warn("SkillhubMarket.trending error: {}", e.getMessage());
+            LOG.warn("ClawhubMarket.trending error: {}", e.getMessage());
             return Result.failure("获取热门技能失败: " + e.getMessage());
         }
     }
@@ -73,8 +70,7 @@ public class SkillhubMarket implements Market {
         }
 
         try {
-            String url = BASE_URL + "/api/v1/search?q=" + URLEncoder.encode(query, "UTF-8")
-                    + "&limit=" + limit;
+            String url = BASE_URL + "/api/v1/search?q=" + java.net.URLEncoder.encode(query, "UTF-8");
             String body = httpGet(url);
             ONode root = ONode.ofJson(body);
 
@@ -82,10 +78,14 @@ public class SkillhubMarket implements Market {
                 return Result.failure(root.get("message").getString());
             }
 
-            List<MarketItem> items = parseResults(root);
-            return Result.succeed(items);
+            ONode resultsNode = root.get("results");
+            if (resultsNode != null && resultsNode.isArray()) {
+                return Result.succeed(parseNodeArray(resultsNode));
+            } else {
+                return Result.succeed(parseItems(root));
+            }
         } catch (Exception e) {
-            LOG.warn("SkillhubMarket.search error: {}", e.getMessage());
+            LOG.warn("ClawhubMarket.search error: {}", e.getMessage());
             return Result.failure("搜索技能失败: " + e.getMessage());
         }
     }
@@ -99,64 +99,36 @@ public class SkillhubMarket implements Market {
         }
 
         try {
-            // 使用 skillhub 详情接口: GET /api/v1/skills/{slug}
-            String url = BASE_URL + "/api/v1/skills/" + URLEncoder.encode(slug, "UTF-8");
+            String url = BASE_URL + "/api/v1/skills/" + java.net.URLEncoder.encode(slug, "UTF-8");
             String body = httpGet(url);
             ONode root = ONode.ofJson(body);
 
             if (root.hasKey("error")) {
-                ONode msgNode = root.get("message");
-                String errorMsg = (msgNode != null && !msgNode.isNull()) ? msgNode.getString() : "技能不存在";
-                return Result.failure(errorMsg);
+                return Result.failure(root.get("message").getString());
             }
 
-            // 解析 skillhub 详情响应
-            // 响应结构: { skill: { slug, displayName, summary, summary_zh, stats: { installs, stars, downloads } },
-            //             owner: { handle, displayName }, latestVersion: { version } }
             ONode skillNode = root.get("skill");
-            if (skillNode == null) {
+            if (skillNode == null || skillNode.isNull()) {
                 return Result.failure("技能不存在: " + slug);
             }
 
-            String resolvedSlug = getStringValue(skillNode, "slug");
-            String displayName = getStringValue(skillNode, "displayName");
-            String summary = firstNonEmpty(
-                    getStringValue(skillNode, "summary_zh"),
-                    getStringValue(skillNode, "summary"));
-
-            long installs = 0;
-            long stars = 0;
-            ONode statsNode = skillNode.get("stats");
-            if (statsNode != null) {
-                installs = getLongValue(statsNode, "installs");
-                stars = getLongValue(statsNode, "stars");
-            }
-
-            String ownerHandle = null;
-            ONode ownerNode = root.get("owner");
-            if (ownerNode != null) {
-                ownerHandle = getStringValue(ownerNode, "handle");
-            }
-
-            String latestVersion = null;
-            ONode versionNode = root.get("latestVersion");
-            if (versionNode != null) {
-                latestVersion = getStringValue(versionNode, "version");
-            }
-
             MarketDetail detail = new MarketDetail()
-                    .slug(resolvedSlug)
-                    .displayName(displayName)
-                    .summary(summary)
-                    .description(summary)
-                    .ownerHandle(ownerHandle)
-                    .installs(installs)
-                    .stars(stars)
-                    .installSlug(resolvedSlug);
+                    .slug(getStringValue(skillNode, "slug"))
+                    .displayName(getStringValue(skillNode, "displayName"))
+                    .summary(getStringValue(skillNode, "summary"))
+                    .description(getStringValue(skillNode, "description"))
+                    .ownerHandle(getStringValue(skillNode, "ownerHandle"))
+                    .installSlug(getStringValue(skillNode, "slug"));
+
+            ONode statsNode = skillNode.get("stats");
+            if (statsNode != null && !statsNode.isNull()) {
+                detail.installs(getLongValue(statsNode, "installsCurrent"));
+                detail.stars(getLongValue(statsNode, "stars"));
+            }
 
             return Result.succeed(detail);
         } catch (Exception e) {
-            LOG.warn("SkillhubMarket.detail error: {}", e.getMessage());
+            LOG.warn("ClawhubMarket.detail error: {}", e.getMessage());
             return Result.failure("获取技能详情失败: " + e.getMessage());
         }
     }
@@ -177,6 +149,7 @@ public class SkillhubMarket implements Market {
         try {
             Result<MarketDetail> detailResult = detail(slug);
             if (detailResult.getCode() != 200) {
+                // detail() 已经返回了具体的错误描述，直接透传，不要再次包装
                 return Result.failure(detailResult.getDescription());
             }
 
@@ -185,9 +158,8 @@ public class SkillhubMarket implements Market {
                 displayName = slug;
             }
 
-            // 使用 skillhub 自己的下载接口: GET /api/v1/download?slug={slug}
             String downloadUrl = BASE_URL + "/api/v1/download?slug="
-                    + URLEncoder.encode(slug, "UTF-8");
+                    + java.net.URLEncoder.encode(slug, "UTF-8");
 
             Files.createDirectories(skillsDir);
 
@@ -217,14 +189,14 @@ public class SkillhubMarket implements Market {
 
                 unzipToDirectory(tempZip, targetDir);
 
-                LOG.info("SkillhubMarket.install: {} -> {}", slug, targetDir);
+                LOG.info("ClawhubMarket.install: {} -> {}", slug, targetDir);
                 return Result.succeed(displayName);
             } finally {
                 Files.deleteIfExists(tempZip);
             }
 
         } catch (Exception e) {
-            LOG.warn("SkillhubMarket.install error: {}", e.getMessage(), e);
+            LOG.warn("ClawhubMarket.install error: {}", e.getMessage(), e);
             return Result.failure("安装失败: " + e.getMessage());
         }
     }
@@ -239,36 +211,37 @@ public class SkillhubMarket implements Market {
         return http.get();
     }
 
-    /**
-     * 解析 skillhub.cn 搜索 API 返回的 results 数组。
-     *
-     * <p>SkillHub 返回的字段与 ClawHub 不同：
-     * 统计字段是平铺的（installs, stars, downloads）而非嵌套在 stats 对象中；
-     * 所有者字段为 owner_name 而非 ownerHandle。</p>
-     */
-    private List<MarketItem> parseResults(ONode root) {
-        ONode resultsNode = root.get("results");
-        if (resultsNode == null || !resultsNode.isArray()) {
-            return Collections.emptyList();
+    private List<MarketItem> parseItems(ONode root) {
+        ONode itemsNode = root.get("items");
+        if (itemsNode != null && itemsNode.isArray()) {
+            return parseNodeArray(itemsNode);
         }
+        return Collections.emptyList();
+    }
 
+    private List<MarketItem> parseNodeArray(ONode arrayNode) {
         List<MarketItem> result = new ArrayList<>();
-        for (ONode node : resultsNode.getArray()) {
+        for (ONode node : arrayNode.getArray()) {
+            String slug = getStringValue(node, "slug");
+            String apiUrl = getStringValue(node, "url");
+            String detailUrl = (apiUrl != null) ? apiUrl : BASE_URL + "/skills/" + slug;
+
             MarketItem item = new MarketItem()
-                    .slug(getStringValue(node, "slug"))
-                    .name(getStringValue(node, "slug"))
+                    .slug(slug)
+                    .name(slug)
                     .displayName(getStringValue(node, "displayName"))
                     .summary(getStringValue(node, "summary"))
-                    .description(firstNonEmpty(
-                            getStringValue(node, "description_zh"),
-                            getStringValue(node, "description")))
-                    .ownerHandle(getStringValue(node, "owner_name"))
-                    .url(firstNonEmpty(
-                            getStringValue(node, "url"),
-                            "https://skillhub.cn/skills/" + getStringValue(node, "slug")))
-                    .installs(getLongValue(node, "installs"))
-                    .stars(getLongValue(node, "stars"))
-                    .version(parseVersion(node));
+                    .description(getStringValue(node, "description"))
+                    .ownerHandle(getStringValue(node, "ownerHandle"))
+                    .url(detailUrl);
+
+            ONode statsNode = node.get("stats");
+            if (statsNode != null && !statsNode.isNull()) {
+                item.installs(getLongValue(statsNode, "installsCurrent"));
+                item.stars(getLongValue(statsNode, "stars"));
+            }
+
+            item.version(parseVersion(node));
 
             result.add(item);
         }
@@ -300,18 +273,6 @@ public class SkillhubMarket implements Market {
     private long getLongValue(ONode node, String key) {
         ONode child = node.get(key);
         return (child != null && !child.isNull()) ? child.getLong() : 0;
-    }
-
-    /**
-     * 返回第一个非空、非空的字符串
-     */
-    private String firstNonEmpty(String... values) {
-        for (String v : values) {
-            if (v != null && !v.isEmpty()) {
-                return v;
-            }
-        }
-        return null;
     }
 
     private void deleteDirectory(Path dir) throws Exception {

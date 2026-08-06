@@ -9,7 +9,7 @@ import org.noear.solon.annotation.Post;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
-import org.noear.solon.codecli.portal.web.market.Market;
+import org.noear.solon.codecli.market.Market;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;

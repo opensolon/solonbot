@@ -1,10 +1,10 @@
-package org.noear.solon.codecli.portal.web.market.impl;
+package org.noear.solon.codecli.market.impl;
 
 import org.noear.snack4.ONode;
 import org.noear.solon.codecli.config.ProxyConfig;
-import org.noear.solon.codecli.portal.web.market.Market;
-import org.noear.solon.codecli.portal.web.market.MarketDetail;
-import org.noear.solon.codecli.portal.web.market.MarketItem;
+import org.noear.solon.codecli.market.Market;
+import org.noear.solon.codecli.market.MarketDetail;
+import org.noear.solon.codecli.market.MarketItem;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.http.HttpResponse;

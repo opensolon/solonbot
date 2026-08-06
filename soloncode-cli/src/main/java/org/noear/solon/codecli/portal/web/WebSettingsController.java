@@ -35,7 +35,7 @@ import org.noear.solon.codecli.config.entity.McpServerDo;
 import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.market.Market;
+import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
@@ -43,8 +43,6 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
-import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

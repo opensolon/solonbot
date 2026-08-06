@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.portal.web.market;
+package org.noear.solon.codecli.market;
 
 /**
  * 技能市场列表项实体 — 统一封装技能在列表/搜索中的展示信息。

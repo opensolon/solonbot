@@ -1,8 +1,8 @@
-package org.noear.solon.codecli.portal.web.market;
+package org.noear.solon.codecli.market;
 
-import org.noear.solon.codecli.portal.web.market.impl.ClawhubMarket;
-import org.noear.solon.codecli.portal.web.market.impl.ModelscopeMarket;
-import org.noear.solon.codecli.portal.web.market.impl.SkillhubMarket;
+import org.noear.solon.codecli.market.impl.ClawhubMarket;
+import org.noear.solon.codecli.market.impl.ModelscopeMarket;
+import org.noear.solon.codecli.market.impl.SkillhubMarket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +42,6 @@ public class MarketManager {
 
         Market modelscope = new ModelscopeMarket();
         register(modelscope);
-
-//        Market skillsSh = new SkillsShMarket();
-//        register(skillsSh);
 
         this.defaultMarket = skillhub;
     }

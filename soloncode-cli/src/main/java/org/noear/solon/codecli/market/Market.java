@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.portal.web.market;
+package org.noear.solon.codecli.market;
 
 import org.noear.solon.core.handle.Result;
 

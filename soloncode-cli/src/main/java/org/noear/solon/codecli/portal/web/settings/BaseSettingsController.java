@@ -6,7 +6,7 @@ import org.noear.solon.codecli.config.models.ModelSpecService;
 import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
-import org.noear.solon.codecli.portal.web.market.MarketManager;
+import org.noear.solon.codecli.market.MarketManager;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 
 import java.util.List;

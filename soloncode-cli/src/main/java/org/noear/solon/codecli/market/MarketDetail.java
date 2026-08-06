@@ -1,4 +1,4 @@
-package org.noear.solon.codecli.portal.web.market;
+package org.noear.solon.codecli.market;
 
 /**
  * 技能详情实体 — 统一封装技能的完整信息。

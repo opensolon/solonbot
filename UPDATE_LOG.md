@@ -1,6 +1,10 @@
 ### v2026.8.6
 
+* 添加 soloncode web http 代理设置
+* 添加 soloncode web Modelscope 技能市场适配 
 * 优化 soloncode `/goal` 更新状态时的检测
+* 优化 soloncode openai-resposes 方言适配
+* 细节优化
 
 ### v2026.8.5
 
