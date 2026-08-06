@@ -53,6 +53,7 @@ public class ProxyConfig {
             SSLContext ctx = SslContextBuilder.of()
                     .trustManagers(SslAnyTrustManager.INSTANCE)
                     .build();
+
             return new HttpSslSupplier() {
                 @Override
                 public SSLContext getSslContext() {
@@ -125,6 +126,7 @@ public class ProxyConfig {
             if (url != null && isInNoProxy(url)) {
                 return;
             }
+
             http.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(host, port)));
 
             // 代理环境下绕过 TLS 证书验证（域名、时间、CA 等），
@@ -133,47 +135,6 @@ public class ProxyConfig {
                 http.ssl(TRUST_ALL_SSL);
             }
         }
-    }
-
-    /**
-     * 获取代理对象（如果已配置），否则返回 null
-     */
-    public static Proxy getProxy() {
-        GeneralGroupDo g = cachedGeneral;
-        if (g == null) {
-            return null;
-        }
-
-        String host = g.getProxyHost();
-        int port = g.getProxyPort();
-
-        if (host != null && !host.isEmpty() && port > 0) {
-            return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(host, port));
-        }
-
-        return null;
-    }
-
-    /**
-     * 获取代理对象（带 URL 检查 NO_PROXY），如果已配置且不在排除列表中则返回 Proxy，否则返回 null
-     */
-    public static Proxy getProxy(String url) {
-        GeneralGroupDo g = cachedGeneral;
-        if (g == null) {
-            return null;
-        }
-
-        String host = g.getProxyHost();
-        int port = g.getProxyPort();
-
-        if (host != null && !host.isEmpty() && port > 0) {
-            if (url != null && isInNoProxy(url)) {
-                return null;
-            }
-            return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(host, port));
-        }
-
-        return null;
     }
 
     /**

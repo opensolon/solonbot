@@ -3,9 +3,6 @@ package org.noear.solon.codecli;
 import com.agentclientprotocol.sdk.agent.transport.StdioAcpAgentTransport;
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import org.noear.solon.Solon;
-import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.AgentSessionProvider;
-import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.ai.chat.CacheControl;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.HarnessExtension;
@@ -119,6 +116,9 @@ public class Configurator {
                 .toolsAdd(settings.getPermission().getTools())
                 .disallowedToolsAdd(settings.getPermission().getDisallowedTools())
                 .cacheControl(CacheControl.ofEphemeral())
+                .httpCustomizeSet(http -> {
+                    ProxyConfig.applyIfNeeded(http);
+                })
                 .build();
 
 
@@ -373,7 +373,7 @@ public class Configurator {
         }
     }
 
-    private  void addWebBean(Object bean){
+    private void addWebBean(Object bean) {
         BeanWrap beanWrap = Solon.context().wrapAndPut(bean.getClass(), bean);
         Solon.app().router().add(beanWrap);
     }
