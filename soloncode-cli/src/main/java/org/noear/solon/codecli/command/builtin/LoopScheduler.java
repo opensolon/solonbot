@@ -20,6 +20,7 @@ import org.noear.snack4.ONode;
 import org.noear.snack4.Options;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.talents.cli.TodoTalent;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
 import org.noear.solon.core.util.RunUtil;
@@ -1011,6 +1012,70 @@ public class LoopScheduler {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    /**
+     * 统计当前会话 TODO 清单中的未完成项（`- [ ]` 待办 + `- [/]` 进行中）。
+     *
+     * <p>用于 Goal 完成判定联动：模型声明 goal_update(complete) 时，若清单尚有未完成项，
+     * 应拒绝完成并退回继续执行，避免“清单未清零却宣称目标达成”的语义脱节。
+     *
+     * <p>识别规则与 {@link TodoTalent} 的进度页脚保持一致：仅识别形如 {@code - [x]} 的
+     * checkbox 行，状态字符大小写兼容。若 TODO.md 不存在或无 checkbox 行，返回 0（不拦截）。
+     *
+     * @return 未完成项数量；无清单或解析失败时返回 0
+     */
+    int countUnfinishedTodos(String sessionId) {
+        if (sessionId == null) {
+            return 0;
+        }
+
+        try {
+            TodoTalent todoTalent = engine.getTodoTalent();
+            if (todoTalent == null) {
+                return 0;
+            }
+
+            Path todoPath = todoTalent.getTodoPath(engine.getWorkspace(), sessionId);
+            if (!Files.exists(todoPath)) {
+                return 0;
+            }
+            String content = new String(Files.readAllBytes(todoPath), StandardCharsets.UTF_8);
+            return countUnfinishedCheckboxes(content);
+        } catch (Throwable e) {
+            LOG.debug("countUnfinishedTodos failed for session '{}': {}", sessionId, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 统计 Markdown 文本中的未完成 checkbox 行（`- [ ]` 待办 + `- [/]` 进行中）。
+     *
+     * <p>识别规则与 {@link TodoTalent} 的进度页脚保持一致：仅识别形如 {@code - [x]} 的
+     * checkbox 行，第 4 字符须为 {@code ']'}，状态字符大小写兼容。已完成（{@code x}）
+     * 及非 checkbox 行不计入。提取为静态方法以便独立单元测试。
+     *
+     * @param content TODO.md 文本内容；null 时返回 0
+     * @return 未完成项数量
+     */
+    static int countUnfinishedCheckboxes(String content) {
+        if (content == null) {
+            return 0;
+        }
+
+        int unfinished = 0;
+        for (String line : content.split("\n")) {
+            String trimmed = line.trim();
+            // 仅识别形如 "- [x]" 的 checkbox 行（第 4 字符须为 ']'）
+            if (trimmed.length() < 5 || !trimmed.startsWith("- [") || trimmed.charAt(4) != ']') {
+                continue;
+            }
+            char mark = Character.toLowerCase(trimmed.charAt(3));
+            if (mark == ' ' || mark == '/') {
+                unfinished++;
+            }
+        }
+        return unfinished;
     }
 
     // ==================== 清理过期任务 ====================
