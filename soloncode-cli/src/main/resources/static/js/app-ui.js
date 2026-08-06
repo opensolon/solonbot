@@ -1138,7 +1138,10 @@ initVoice();
         sidebar.toggleClass('collapsed');
         var collapsed = sidebar.hasClass('collapsed');
         btn.toggleClass('collapsed', collapsed);
-        btn.html(collapsed ? '›' : '‹');
+        var svgPath = btn.find('path');
+        if (svgPath.length) {
+            svgPath.attr('d', collapsed ? 'm9 18 6-6-6-6' : 'm15 18-6-6 6-6');
+        }
         btn.prop('title', collapsed ? (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f') : (window.I18n ? window.I18n.t('sidebar.collapse') : '\u6536\u8d77\u4fa7\u8fb9\u680f'));
         localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
     });
@@ -1146,7 +1149,10 @@ initVoice();
     if (localStorage.getItem('sidebar-collapsed') === '1') {
         $('.sidebar').addClass('collapsed');
         btn.addClass('collapsed');
-        btn.html('›');
+        var svgPath = btn.find('path');
+        if (svgPath.length) {
+            svgPath.attr('d', 'm9 18 6-6-6-6');
+        }
         btn.prop('title', (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f'));
     }
 })();
@@ -1223,8 +1229,11 @@ initVoice();
             $sidebar.toggleClass('collapsed');
             var collapsed = $sidebar.hasClass('collapsed');
             $toggleBtn.toggleClass('collapsed', collapsed);
-            $toggleBtn.html(collapsed ? '\u203A' : '\u2039');
-        $toggleBtn.prop('title', collapsed ? (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f') : (window.I18n ? window.I18n.t('sidebar.collapse') : '\u6536\u8d77\u4fa7\u8fb9\u680f'));
+            var $svgPath = $toggleBtn.find('path');
+            if ($svgPath.length) {
+                $svgPath.attr('d', collapsed ? 'm9 18 6-6-6-6' : 'm15 18-6-6 6-6');
+            }
+            $toggleBtn.prop('title', collapsed ? (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f') : (window.I18n ? window.I18n.t('sidebar.collapse') : '\u6536\u8d77\u4fa7\u8fb9\u680f'));
             localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
             syncTogglePosition();
         });
@@ -1233,8 +1242,11 @@ initVoice();
         if (localStorage.getItem('sidebar-collapsed') === '1') {
             $sidebar.addClass('collapsed');
             $toggleBtn.addClass('collapsed');
-            $toggleBtn.html('\u203A');
-        $toggleBtn.prop('title', (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f'));
+            var $svgPath = $toggleBtn.find('path');
+            if ($svgPath.length) {
+                $svgPath.attr('d', 'm9 18 6-6-6-6');
+            }
+            $toggleBtn.prop('title', (window.I18n ? window.I18n.t('sidebar.expand') : '\u5c55\u5f00\u4fa7\u8fb9\u680f'));
             syncTogglePosition();
         }
     }

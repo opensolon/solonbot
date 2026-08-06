@@ -130,23 +130,12 @@
         }
     }
 
-    /** 设置折叠按钮箭头文字，保留内部角标等子节点 */
+    /** 设置折叠按钮箭头 SVG 方向，保留内部角标等子节点 */
     function setToggleBtnArrow(collapsed) {
         if (!$toggleBtn.length) return;
-        var arrow = collapsed ? '\u2039' : '\u203A';
-        // 只更新文本节点，避免 .html() 清掉 .workspace-queue-badge
-        var el = $toggleBtn[0];
-        var textNode = null;
-        for (var i = 0; i < el.childNodes.length; i++) {
-            if (el.childNodes[i].nodeType === 3) {
-                textNode = el.childNodes[i];
-                break;
-            }
-        }
-        if (textNode) {
-            textNode.nodeValue = arrow;
-        } else {
-            el.insertBefore(document.createTextNode(arrow), el.firstChild);
+        var svgPath = $toggleBtn.find('path');
+        if (svgPath.length) {
+            svgPath.attr('d', collapsed ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6');
         }
         $toggleBtn.attr('title', collapsed ? I18n.t('filer.expandFiles') : I18n.t('filer.collapseFiles'));
     }
