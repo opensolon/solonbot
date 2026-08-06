@@ -384,8 +384,6 @@
   "llm.updateFailed": "Update failed",
   "llm.updated": "Updated successfully",
   "llm.workspaceBadge": "Workspace",
-  "llm.selectAll": "Select All",
-  "llm.invertSelect": "Invert Selection",
   "loop.addNew": "New Task",
   "loop.confirmDelete": "Are you sure you want to delete this loop task?",
   "loop.confirmDeleteTitle": "Confirm Delete",

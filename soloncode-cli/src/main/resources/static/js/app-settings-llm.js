@@ -20,7 +20,6 @@
     var $llmListView = $('#llmListView');
     var $llmFormView = $('#llmFormView');
     var llmEditName = null;
-    var llmCachedList = [];
 
     function showLlmListView() { $llmFormView.hide(); $llmListView.addClass('slide-back').show(); setTimeout(function(){ $llmListView.removeClass('slide-back'); }, 260); }
     function showLlmFormView(title, isEdit) { $llmFormTitle.text(title || I18n.t('llm.formTitle.add')); $llmListView.hide(); $llmFormView.show(); $('#llmFormActions').toggle(!!isEdit); }
@@ -56,7 +55,6 @@
     }
 
     function renderLlmList(list, selected) {
-        llmCachedList = list || [];
         var html = '';
         if (!list || list.length === 0) {
             html = '<div class="llm-empty-state">'
@@ -65,11 +63,6 @@
                 + '<div class="llm-empty-desc">' + I18n.t('llm.emptyDesc') + '</div>'
                 + '</div>';
         } else {
-            html += '<div class="llm-batch-actions">'
-                + '<button class="llm-batch-btn" id="llmSelectAllBtn">' + I18n.t('llm.selectAll') + '</button>'
-                + '<button class="llm-batch-btn" id="llmInvertSelectBtn">' + I18n.t('llm.invertSelect') + '</button>'
-                + '</div>';
-
             list.forEach(function (item) {
                 var model = item.model || '';
                 var standard = item.standard || '';
@@ -131,20 +124,6 @@
             var name = $(this).attr('data-name');
             if (!name) name = $(this).closest('.settings-list-item').attr('data-model');
             llmToggleModel(name, this.checked);
-        })
-        // 全选 / 反选
-        .on('click', '#llmSelectAllBtn', function () {
-            llmCachedList.forEach(function (item) {
-                if (item.enabled === false) {
-                    llmToggleModel(item.name, true);
-                }
-            });
-        })
-        .on('click', '#llmInvertSelectBtn', function () {
-            llmCachedList.forEach(function (item) {
-                var newEnabled = item.enabled === false;
-                llmToggleModel(item.name, newEnabled);
-            });
         });
 
     // ==================== LLM 表单 ====================
