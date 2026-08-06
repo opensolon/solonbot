@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.portal.web.market.impl;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.portal.web.market.Market;
 import org.noear.solon.codecli.portal.web.market.MarketDetail;
 import org.noear.solon.codecli.portal.web.market.MarketItem;
@@ -192,10 +193,11 @@ public class SkillhubMarket implements Market {
 
             Path tempZip = Files.createTempFile("skill-", ".zip");
             try {
-                try (HttpResponse httpResp = HttpUtils.http(downloadUrl)
+                HttpUtils httpForDownload = HttpUtils.http(downloadUrl)
                         .header("User-Agent", USER_AGENT)
-                        .timeout(30000)
-                        .exec("GET")) {
+                        .timeout(30000);
+                ProxyConfig.applyIfNeeded(httpForDownload);
+                try (HttpResponse httpResp = httpForDownload.exec("GET")) {
 
                     byte[] zipBytes = httpResp.bodyAsBytes();
                     if (zipBytes == null || zipBytes.length == 0) {
@@ -230,10 +232,11 @@ public class SkillhubMarket implements Market {
     // ==================== 内部工具方法 ====================
 
     private String httpGet(String url) throws Exception {
-        return HttpUtils.http(url)
+        HttpUtils http = HttpUtils.http(url)
                 .header("User-Agent", USER_AGENT)
-                .timeout(15000)
-                .get();
+                .timeout(15000);
+        ProxyConfig.applyIfNeeded(http);
+        return http.get();
     }
 
     /**

@@ -20,6 +20,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.ManagerExtension;
+import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.config.entity.ApiSourceDo;
 import org.noear.solon.codecli.config.entity.McpServerDo;
 import org.noear.solon.codecli.config.entity.ModelDo;
@@ -217,6 +218,9 @@ public class Configurator {
 
     @Init
     public void init() {
+        //初始化 HTTP 代理配置
+        ProxyConfig.update(agentSettings.getGeneral());
+
         //订阅容器扩展
         appContext.subBeansOfType(HarnessExtension.class, extension -> {
             agentRuntime.addExtension(extension);

@@ -3,6 +3,7 @@ package org.noear.solon.codecli.config;
 import org.noear.snack4.ONode;
 import org.noear.solon.core.util.DateUtil;
 import org.noear.solon.core.util.IoUtil;
+import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.net.http.HttpUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,9 +49,10 @@ public class AgentFlags {
     public static String getLastVersion() {
         if (lastVersion == null) {
             try {
-                String json = HttpUtils.http("https://solon.noear.org/soloncode/info.json")
-                        .timeout(2)
-                        .get();
+                HttpUtils http = HttpUtils.http("https://solon.noear.org/soloncode/info.json")
+                        .timeout(2);
+                ProxyConfig.applyIfNeeded(http);
+                String json = http.get();
 
                 lastVersion = ONode.ofJson(json).get("cli_version").getValueAs();
             } catch (Throwable e) {
