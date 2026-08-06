@@ -228,6 +228,11 @@
 .llm-template-btn { padding: 6px 14px; border: 1px dashed var(--border-color); border-radius: 6px; background: none; color: var(--text-secondary); font-size: var(--fs-sm); cursor: pointer; transition: all 0.15s; }
 .llm-template-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
+/* LLM 批量操作工具栏 */
+.llm-batch-actions { display: flex; gap: 8px; padding: 8px 4px 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 8px; }
+.llm-batch-btn { padding: 4px 12px; border: 1px solid var(--border-color); border-radius: 5px; background: var(--bg-card); color: var(--text-secondary); font-size: var(--fs-xs); cursor: pointer; transition: all 0.15s; }
+.llm-batch-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
 /* API Key 密码显示切换 */
 .password-input-group { position: relative; display: flex; align-items: center; }
 .password-input-group input { padding-right: 36px; }

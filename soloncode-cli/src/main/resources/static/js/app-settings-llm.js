@@ -65,6 +65,10 @@
                 + '<div class="llm-empty-desc">' + I18n.t('llm.emptyDesc') + '</div>'
                 + '</div>';
         } else {
+            html += '<div class="llm-batch-actions">'
+                + '<button class="llm-batch-btn" id="llmSelectAllBtn">' + I18n.t('llm.selectAll') + '</button>'
+                + '<button class="llm-batch-btn" id="llmInvertSelectBtn">' + I18n.t('llm.invertSelect') + '</button>'
+                + '</div>';
 
             list.forEach(function (item) {
                 var model = item.model || '';
@@ -127,6 +131,20 @@
             var name = $(this).attr('data-name');
             if (!name) name = $(this).closest('.settings-list-item').attr('data-model');
             llmToggleModel(name, this.checked);
+        })
+        // 全选 / 反选
+        .on('click', '#llmSelectAllBtn', function () {
+            llmCachedList.forEach(function (item) {
+                if (item.enabled === false) {
+                    llmToggleModel(item.name, true);
+                }
+            });
+        })
+        .on('click', '#llmInvertSelectBtn', function () {
+            llmCachedList.forEach(function (item) {
+                var newEnabled = item.enabled === false;
+                llmToggleModel(item.name, newEnabled);
+            });
         });
 
     // ==================== LLM 表单 ====================
