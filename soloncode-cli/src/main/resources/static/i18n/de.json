@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "Vollbild",
   "gitViewer.newMemory": "Neue Erinnerung",
   "gitViewer.previewMd": "Markdown-Vorschau",
+  "gitViewer.addToChat": "Zum Chat hinzufügen",
   "gitdiff.addToGit": "Zu Git hinzufügen",
   "gitdiff.adding": "Wird hinzugefügt",
   "gitdiff.binaryFile": "Dies ist eine Binärdatei",

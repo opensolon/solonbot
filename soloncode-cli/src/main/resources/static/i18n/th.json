@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "เต็มหน้าจอ",
   "gitViewer.newMemory": "สร้างความจำใหม่",
   "gitViewer.previewMd": "ดูตัวอย่าง Markdown",
+  "gitViewer.addToChat": "เพิ่มลงในแชท",
   "gitdiff.addToGit": "เพิ่มไปยัง Git",
   "gitdiff.adding": "กำลังเพิ่ม",
   "gitdiff.binaryFile": "ไฟล์นี้เป็นไฟล์ไบนารี",

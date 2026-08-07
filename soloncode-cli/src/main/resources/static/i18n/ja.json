@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "全画面",
   "gitViewer.newMemory": "新しいメモリ",
   "gitViewer.previewMd": "Markdown をプレビュー",
+  "gitViewer.addToChat": "チャットに追加",
   "gitdiff.addToGit": "Git に追加",
   "gitdiff.adding": "追加中",
   "gitdiff.binaryFile": "このファイルはバイナリファイルです",

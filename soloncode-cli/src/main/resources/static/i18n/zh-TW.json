@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "全螢幕",
   "gitViewer.newMemory": "新增記憶",
   "gitViewer.previewMd": "預覽 Markdown",
+  "gitViewer.addToChat": "加入對話",
   "gitdiff.addToGit": "新增到 Git",
   "gitdiff.adding": "新增中",
   "gitdiff.binaryFile": "該檔案爲二進位檔案",

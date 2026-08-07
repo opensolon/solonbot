@@ -213,7 +213,7 @@
                 this.mode = SYSTEM_LOCALE;
                 document.documentElement.lang = resolved;
                 this.load(resolved, function () {
-                    if (resolved !== DEFAULT_LOCALE) self.apply();
+                    self.apply();
                     document.dispatchEvent(new CustomEvent('i18n:loaded', { detail: { locale: resolved } }));
                 });
                 return;
@@ -226,6 +226,7 @@
             if (saved === DEFAULT_LOCALE) {
                 // 默认语言：HTML 已是中文，预加载 zh-CN 包（供切换回来时使用）
                 this.load(DEFAULT_LOCALE, function () {
+                    self.apply();
                     document.dispatchEvent(new CustomEvent('i18n:loaded', { detail: { locale: DEFAULT_LOCALE } }));
                 });
                 return;

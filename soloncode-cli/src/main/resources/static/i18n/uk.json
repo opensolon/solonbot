@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "Повний екран",
   "gitViewer.newMemory": "Нова пам'ять",
   "gitViewer.previewMd": "Перегляд Markdown",
+  "gitViewer.addToChat": "Додати до чату",
   "gitdiff.addToGit": "Додати до Git",
   "gitdiff.adding": "Додавання",
   "gitdiff.binaryFile": "Це двійковий файл",

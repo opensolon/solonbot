@@ -180,6 +180,7 @@
   "gitViewer.fullscreen": "ফুলস্ক্রিন",
   "gitViewer.newMemory": "নতুন মেমোরি",
   "gitViewer.previewMd": "Markdown প্রিভিউ",
+  "gitViewer.addToChat": "চ্যাটে যোগ করুন",
   "gitdiff.addToGit": "Git-এ যোগ করুন",
   "gitdiff.adding": "যোগ করা হচ্ছে",
   "gitdiff.binaryFile": "ফাইলটি বাইনারি",
