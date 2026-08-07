@@ -876,6 +876,9 @@
 
         if (!startLine || !endLine) {
             // 无法确定行号，直接插入文件路径
+            if (viewerMode === 'diff') {
+                return;
+            }
             insertGitPathToInput(filePath);
             return;
         }
@@ -884,6 +887,10 @@
         var endNum = getLineNumber(endLine);
 
         if (startNum === null || endNum === null) {
+            // diff 视图中行号可能为 null（如选中 @@ 头或 ---/+++ 元信息行），此时不插入路径避免重复
+            if (viewerMode === 'diff') {
+                return;
+            }
             insertGitPathToInput(filePath);
             return;
         }
@@ -926,10 +933,10 @@
         }
     }
 
-    /** 从 DOM 节点向上查找最近的 .file-view-line 元素 */
+    /** 从 DOM 节点向上查找最近的行元素（file-view-line 或 git-diff-line） */
     function findLineElement(node) {
         while (node && node !== gitViewerContent) {
-            if (node.classList && node.classList.contains('file-view-line')) {
+            if (node.classList && (node.classList.contains('file-view-line') || node.classList.contains('git-diff-line'))) {
                 return node;
             }
             node = node.parentNode;
@@ -937,8 +944,24 @@
         return null;
     }
 
-    /** 从 .file-view-line 元素中提取行号 */
+    /** 从行元素中提取行号（支持 file-view-line 和 git-diff-line） */
     function getLineNumber(lineEl) {
+        // diff 行：取第二个 .git-line-num（新行号），没有则取第一个
+        if (lineEl.classList.contains('git-diff-line')) {
+            var numEls = lineEl.querySelectorAll('.git-line-num');
+            if (numEls.length >= 2) {
+                var newNum = parseInt(numEls[1].textContent, 10);
+                if (!isNaN(newNum)) return newNum;
+                var oldNum = parseInt(numEls[0].textContent, 10);
+                return isNaN(oldNum) ? null : oldNum;
+            }
+            if (numEls.length === 1) {
+                var num = parseInt(numEls[0].textContent, 10);
+                return isNaN(num) ? null : num;
+            }
+            return null;
+        }
+        // 普通文件行
         var numEl = lineEl.querySelector('.file-view-num');
         if (!numEl) return null;
         var num = parseInt(numEl.textContent, 10);
@@ -1115,9 +1138,9 @@
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = 'none';
-        // Diff 视图隐藏「加入对话内容」按钮（行号结构不同）
+        // Diff 视图显示「加入对话内容」按钮（支持行号选择）
         var _addToChatDiff = document.getElementById('gitViewerAddToChat');
-        if (_addToChatDiff) _addToChatDiff.style.display = 'none';
+        if (_addToChatDiff) _addToChatDiff.style.display = '';
 
         if (gitViewerLabel) gitViewerLabel.textContent = I18n.t('gitViewer.changeDetails');
         // 如果是挂载工作区，显示路径时带上 @xxx/ 前缀
