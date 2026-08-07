@@ -188,6 +188,8 @@
   "gitViewer.fullscreen": "전체 화면",
   "gitViewer.newMemory": "새 메모리",
   "gitViewer.previewMd": "Markdown 미리보기",
+  "gitViewer.addToChat": "채팅에 추가",
+  "gitViewer.addedToChat": "채팅에 추가됨：{text}",
   "gitdiff.addToGit": "Git에 추가",
   "gitdiff.adding": "추가 중",
   "gitdiff.binaryFile": "이 파일은 바이너리 파일입니다",

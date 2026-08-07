@@ -188,6 +188,8 @@
   "gitViewer.fullscreen": "Fullskjerm",
   "gitViewer.newMemory": "Nytt minne",
   "gitViewer.previewMd": "Forhåndsvis Markdown",
+  "gitViewer.addToChat": "Legg til i chat",
+  "gitViewer.addedToChat": "Lagt til i chat：{text}",
   "gitdiff.addToGit": "Legg til i Git",
   "gitdiff.adding": "Legger til",
   "gitdiff.binaryFile": "Dette er en binærfil",

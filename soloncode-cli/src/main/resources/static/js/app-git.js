@@ -607,6 +607,8 @@
         if (_fullscreen) _fullscreen.style.display = 'none';
         var _memNew = document.getElementById('gitViewerMemNew');
         if (_memNew) _memNew.style.display = 'none';
+        var _addToChatMedia = document.getElementById('gitViewerAddToChat');
+        if (_addToChatMedia) _addToChatMedia.style.display = 'none';
 
         var displayName = escapeHtml(fileName || '');
         var html = '<div class="file-view-media">';
@@ -637,6 +639,8 @@
         if (_fullscreen) _fullscreen.style.display = 'none';
         var _memNew = document.getElementById('gitViewerMemNew');
         if (_memNew) _memNew.style.display = 'none';
+        var _addToChatBin = document.getElementById('gitViewerAddToChat');
+        if (_addToChatBin) _addToChatBin.style.display = 'none';
 
         gitViewerContent.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-secondary)">'
             + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;margin-bottom:16px">'
@@ -689,6 +693,10 @@
         // 隐藏记忆面板专用的「新建」按钮
         var _memNewReset = document.getElementById('gitViewerMemNew');
         if (_memNewReset) _memNewReset.style.display = 'none';
+
+        // 显示「加入对话内容」按钮（文件视图可用）
+        var _addToChat = document.getElementById('gitViewerAddToChat');
+        if (_addToChat) _addToChat.style.display = '';
 
         var lang = guessLang(filePath || fileName);
         var lines = (content || '').split('\n');
@@ -841,6 +849,106 @@
         }
 
         gitViewerContent.scrollTop = 0;
+    }
+
+    // ---- 将选中行/选中内容加入对话输入框 ----
+    function addSelectedLinesToChat() {
+        var filePath = gitViewerFile ? gitViewerFile.textContent : '';
+        if (!filePath) {
+            if (typeof showToast === 'function') showToast('No file open', 'error');
+            return;
+        }
+
+        var selection = window.getSelection();
+        if (!selection || selection.isCollapsed || !selection.rangeCount) {
+            // 没有选中内容，直接插入文件路径引用
+            insertGitPathToInput(filePath);
+            return;
+        }
+
+        var range = selection.getRangeAt(0);
+        var startContainer = range.startContainer;
+        var endContainer = range.endContainer;
+
+        // 查找选中的起始和结束 .file-view-line 元素
+        var startLine = findLineElement(startContainer);
+        var endLine = findLineElement(endContainer);
+
+        if (!startLine || !endLine) {
+            // 无法确定行号，直接插入文件路径
+            insertGitPathToInput(filePath);
+            return;
+        }
+
+        var startNum = getLineNumber(startLine);
+        var endNum = getLineNumber(endLine);
+
+        if (startNum === null || endNum === null) {
+            insertGitPathToInput(filePath);
+            return;
+        }
+
+        // 确保 start <= end
+        if (startNum > endNum) {
+            var tmp = startNum;
+            startNum = endNum;
+            endNum = tmp;
+        }
+
+        var insertText;
+        if (startNum === endNum) {
+            insertText = '[' + filePath + ']L' + startNum;
+        } else {
+            insertText = '[' + filePath + ']L' + startNum + '-L' + endNum;
+        }
+
+        // 插入到输入框（复用 insertGitPathToInput 的模式）
+        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        if (!targetInput) return;
+
+        var currentVal = targetInput.value || '';
+        var cursorPos = targetInput.selectionStart || currentVal.length;
+        var before = currentVal.substring(0, cursorPos);
+        var after = currentVal.substring(cursorPos);
+        var prefix = (before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n')) ? ' ' : '';
+        targetInput.value = before + prefix + insertText + ' ' + after;
+        targetInput.focus();
+        var newPos = cursorPos + prefix.length + insertText.length + 1;
+        targetInput.setSelectionRange(newPos, newPos);
+        if (typeof autoResize === 'function') autoResize(targetInput);
+
+        // 清除选中状态
+        selection.removeAllRanges();
+
+        // 反馈提示
+        if (typeof showToast === 'function') {
+            showToast(I18n.t('gitViewer.addedToChat', { text: insertText }), 'success', 1500);
+        }
+    }
+
+    /** 从 DOM 节点向上查找最近的 .file-view-line 元素 */
+    function findLineElement(node) {
+        while (node && node !== gitViewerContent) {
+            if (node.classList && node.classList.contains('file-view-line')) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    /** 从 .file-view-line 元素中提取行号 */
+    function getLineNumber(lineEl) {
+        var numEl = lineEl.querySelector('.file-view-num');
+        if (!numEl) return null;
+        var num = parseInt(numEl.textContent, 10);
+        return isNaN(num) ? null : num;
+    }
+
+    // 绑定「加入对话内容」按钮
+    var gitViewerAddToChat = document.getElementById('gitViewerAddToChat');
+    if (gitViewerAddToChat) {
+        gitViewerAddToChat.addEventListener('click', addSelectedLinesToChat);
     }
 
     // 复制兜底方法
@@ -1007,6 +1115,9 @@
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = 'none';
+        // Diff 视图隐藏「加入对话内容」按钮（行号结构不同）
+        var _addToChatDiff = document.getElementById('gitViewerAddToChat');
+        if (_addToChatDiff) _addToChatDiff.style.display = 'none';
 
         if (gitViewerLabel) gitViewerLabel.textContent = I18n.t('gitViewer.changeDetails');
         // 如果是挂载工作区，显示路径时带上 @xxx/ 前缀

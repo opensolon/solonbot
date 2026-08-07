@@ -695,6 +695,8 @@ function updateThemeIcon() {
     $(themeBtn).prop('title', currentTheme === 'light' ? (window.I18n ? window.I18n.t('header.switchToDark') : '\u5207\u6362\u81f3\u6697\u8272') : (window.I18n ? window.I18n.t('header.switchToLight') : '\u5207\u6362\u81f3\u6d45\u8272'));
 }
 window.updateThemeIcon = updateThemeIcon;
+document.addEventListener('i18n:loaded', updateThemeIcon);
+document.addEventListener('i18n:switched', updateThemeIcon);
 
 /* ===== Font (user font family + size scale) =====
  * 优先级：用户显式设置（inline style） > 皮肤 CSS > 主题默认（theme.css :root）
