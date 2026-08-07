@@ -116,6 +116,7 @@ public class MountSettingsController extends BaseSettingsController {
         saveSettings();
         engine.addMount(MountDir.builder()
                 .alias(alias)
+                .description(description)
                 .type(type)
                 .path(path)
                 .writeable(writeable)
