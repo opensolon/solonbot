@@ -1179,6 +1179,13 @@ function getCurrentModelMeta() {
                 modelsLoaded = true;
             }
 
+            // 初始加载（sessionId 为空）完成后：刷新恢复路径可能先于 models 返回执行了
+            // setActiveSession，而当时 modelsLoaded=false 会跳过 refreshSessionModel，
+            // 导致输入框模型面板停留在 _default（失真）。此处补拉活动会话的模型/子代理。
+            if (!sessionId && activeSessionId && sessionModelMap[activeSessionId] === undefined) {
+                refreshSessionModel(activeSessionId);
+            }
+
             renderModelUI();
             renderAgentUI();
             if (callback) callback();
@@ -1196,8 +1203,9 @@ function getCurrentModelMeta() {
         // Refresh model & agent UI for a specific session using local cache (no network request)
             function refreshSessionModel(sessionId) {
     if (!sessionId) return;
-    // model 用 falsy 判断（默认模型始终非空）；agent 用 !== undefined 判断（空串表示 main，是有效缓存值）
-    var modelCached = !!sessionModelMap[sessionId];
+    // model 用 !== undefined 判断（空串表示“会话未显式选择、走默认”，也是有效缓存值）；
+    // agent 空串表示 main，同样是有效缓存值。避免对默认模型会话反复发请求。
+    var modelCached = sessionModelMap[sessionId] !== undefined;
     var agentCached = sessionAgentMap[sessionId] !== undefined;
     if (!modelCached || !agentCached) {
         var url = '/web/chat/models?sessionId=' + encodeURIComponent(sessionId);
