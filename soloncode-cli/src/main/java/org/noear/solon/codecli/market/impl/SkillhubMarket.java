@@ -263,9 +263,7 @@ public class SkillhubMarket implements Market {
                             getStringValue(node, "description_zh"),
                             getStringValue(node, "description")))
                     .ownerHandle(getStringValue(node, "owner_name"))
-                    .url(firstNonEmpty(
-                            getStringValue(node, "url"),
-                            "https://skillhub.cn/skills/" + getStringValue(node, "slug")))
+                    .url("https://skillhub.cn/skills/" + getStringValue(node, "slug"))
                     .installs(getLongValue(node, "installs"))
                     .stars(getLongValue(node, "stars"))
                     .version(parseVersion(node));
