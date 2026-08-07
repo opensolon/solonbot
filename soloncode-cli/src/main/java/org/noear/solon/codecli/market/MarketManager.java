@@ -40,8 +40,8 @@ public class MarketManager {
         Market clawhub = new ClawhubMarket();
         register(clawhub);
 
-        Market modelscope = new ModelscopeMarket();
-        register(modelscope);
+//        Market modelscope = new ModelscopeMarket();
+//        register(modelscope);
 
         this.defaultMarket = skillhub;
     }
