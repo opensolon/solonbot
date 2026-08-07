@@ -189,6 +189,7 @@
   "gitViewer.newMemory": "New Memory",
   "gitViewer.previewMd": "Preview Markdown",
   "gitViewer.addToChat": "Add to Chat",
+  "gitViewer.addedToChat": "Added to chat: {text}",
   "gitdiff.addToGit": "Add to Git",
   "gitdiff.adding": "Adding",
   "gitdiff.binaryFile": "This is a binary file",

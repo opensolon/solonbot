@@ -181,6 +181,7 @@
   "gitViewer.newMemory": "Ny hukommelse",
   "gitViewer.previewMd": "Forhåndsvis Markdown",
   "gitViewer.addToChat": "Føj til chat",
+  "gitViewer.addedToChat": "Tilføjet til chat：{text}",
   "gitdiff.addToGit": "Tilføj til Git",
   "gitdiff.adding": "Tilføjer",
   "gitdiff.binaryFile": "Dette er en binær fil",

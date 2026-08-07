@@ -181,6 +181,7 @@
   "gitViewer.newMemory": "新しいメモリ",
   "gitViewer.previewMd": "Markdown をプレビュー",
   "gitViewer.addToChat": "チャットに追加",
+  "gitViewer.addedToChat": "チャットに追加しました：{text}",
   "gitdiff.addToGit": "Git に追加",
   "gitdiff.adding": "追加中",
   "gitdiff.binaryFile": "このファイルはバイナリファイルです",

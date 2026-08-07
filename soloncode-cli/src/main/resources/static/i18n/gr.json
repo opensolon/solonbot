@@ -181,6 +181,7 @@
   "gitViewer.newMemory": "Νέα μνήμη",
   "gitViewer.previewMd": "Προεπισκόπηση Markdown",
   "gitViewer.addToChat": "Προσθήκη στη συνομιλία",
+  "gitViewer.addedToChat": "Προστέθηκε στη συνομιλία：{text}",
   "gitdiff.addToGit": "Προσθήκη στο Git",
   "gitdiff.adding": "Προσθήκη σε εξέλιξη",
   "gitdiff.binaryFile": "Αυτό είναι δυαδικό αρχείο",

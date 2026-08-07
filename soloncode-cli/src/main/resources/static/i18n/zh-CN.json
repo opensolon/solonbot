@@ -189,6 +189,7 @@
   "gitViewer.newMemory": "新建记忆",
   "gitViewer.previewMd": "预览 Markdown",
   "gitViewer.addToChat": "加入对话",
+  "gitViewer.addedToChat": "已加入对话：{text}",
   "gitdiff.addToGit": "添加到 Git",
   "gitdiff.adding": "添加中",
   "gitdiff.binaryFile": "该文件为二进制文件",
