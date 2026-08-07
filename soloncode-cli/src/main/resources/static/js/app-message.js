@@ -27,7 +27,8 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     var row = $('<div>').addClass('msg-row user')[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
-    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" title="' + I18n.t('common.copy') + '">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" title="' + I18n.t('msg.redo') + '" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" title="' + I18n.t('msg.deleteHereAndAfter') + '">' + DELETE_SVG + '</button></div></div>';
+    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
+    if (window.I18n) window.I18n.apply(row);
     var bubble = $(row).find('.msg-bubble')[0];
 
     // 来源标签（仅非空且非 "Web" 时显示；会在时间戳左侧追加）
@@ -218,11 +219,12 @@ function ensureAssistantBubble(sess) {
         row.innerHTML = '<div class="msg-bubble"><div class="msg-content"><div class="md-content"></div></div>'
             + '<div class="msg-time" style="display:none"></div>'
             + '<div class="msg-actions">'
-            + '<button class="user-copy-btn copy-btn" title="' + I18n.t('common.copy') + '">' + COPY_SVG + '</button>'
-            + '<button class="user-copy-btn rerun-btn" title="' + I18n.t('msg.rerun') + '">' + RERUN_SVG + '</button>'
-            + '<button class="user-copy-btn continue-btn" title="' + I18n.t('msg.continue') + '">' + CONTINUE_SVG + '</button>'
-            + '<button class="user-copy-btn del-btn" title="' + I18n.t('msg.deleteHereAndAfter') + '">' + DELETE_SVG + '</button>'
+            + '<button class="user-copy-btn copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button>'
+            + '<button class="user-copy-btn rerun-btn" data-i18n-title="msg.rerun">' + RERUN_SVG + '</button>'
+            + '<button class="user-copy-btn continue-btn" data-i18n-title="msg.continue">' + CONTINUE_SVG + '</button>'
+            + '<button class="user-copy-btn del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button>'
             + '</div></div>';
+        if (window.I18n) window.I18n.apply(row);
         $(sess.container).append(row);
         if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
         sess.currentBubbleEl = $(row).find('.md-content')[0];
@@ -1754,7 +1756,8 @@ function addCodeBlockButtons(container) {
     var pres = $(container).find('pre');
     for (var i = 0; i < pres.length; i++) {
         if ($(pres[i]).find('.code-copy-btn').length) continue;
-        var btn = $('<button>').addClass('code-copy-btn').text(I18n.t('common.copy'))[0];
+        var btn = $('<button>').addClass('code-copy-btn').attr('data-i18n', 'common.copy')[0];
+        if (window.I18n) window.I18n.apply(btn);
         $(btn).on('click', function(e) {
             e.stopPropagation();
             var pre = $(this).closest('pre')[0];

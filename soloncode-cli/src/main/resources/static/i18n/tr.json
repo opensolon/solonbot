@@ -188,6 +188,8 @@
   "gitViewer.fullscreen": "Tam Ekran",
   "gitViewer.newMemory": "Yeni Bellek",
   "gitViewer.previewMd": "Markdown Önizle",
+  "gitViewer.addToChat": "Sohbete Ekle",
+  "gitViewer.addedToChat": "Sohbete eklendi：{text}",
   "gitdiff.addToGit": "Git'e Ekle",
   "gitdiff.adding": "Ekleniyor",
   "gitdiff.binaryFile": "Bu bir ikili dosyadır",

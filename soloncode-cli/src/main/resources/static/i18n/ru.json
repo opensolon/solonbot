@@ -188,6 +188,8 @@
   "gitViewer.fullscreen": "Полный экран",
   "gitViewer.newMemory": "Новая запись памяти",
   "gitViewer.previewMd": "Предпросмотр Markdown",
+  "gitViewer.addToChat": "Добавить в чат",
+  "gitViewer.addedToChat": "Добавлено в чат：{text}",
   "gitdiff.addToGit": "Добавить в Git",
   "gitdiff.adding": "Добавление",
   "gitdiff.binaryFile": "Это бинарный файл",
