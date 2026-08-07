@@ -258,7 +258,6 @@ public class ModelscopeMarket implements Market {
             String displayName = getStringValue(node, "display_name");
             String description = getStringValue(node, "description");
             String developer = getStringValue(node, "developer");
-            String sourceUrl = getStringValue(node, "source_url");
             long downloads = getLongValue(node, "downloads");
             long viewCount = getLongValue(node, "view_count");
 
@@ -275,9 +274,7 @@ public class ModelscopeMarket implements Market {
                 }
             }
 
-            String detailUrl = (sourceUrl != null && !sourceUrl.isEmpty())
-                    ? sourceUrl
-                    : SKILLS_PAGE_URL + "/" + skillId;
+            String detailUrl = SKILLS_PAGE_URL + "/" + skillId;
 
             MarketItem item = new MarketItem()
                     .slug(skillId)

@@ -47,7 +47,7 @@ public class ClawhubMarket implements Market {
     @Override
     public Result<List<MarketItem>> trending(int limit) {
         try {
-            String url = BASE_URL + "/api/v1/skills?limit=" + limit + "&sort=trending";
+            String url = BASE_URL + "/api/v1/trending?kind=skills&limit=" + limit;
             String body = httpGet(url);
             ONode root = ONode.ofJson(body);
 
@@ -74,13 +74,11 @@ public class ClawhubMarket implements Market {
             String body = httpGet(url);
             ONode root = ONode.ofJson(body);
 
-            if (root.hasKey("error")) {
+            // 搜索 API 返回 JSON 数组，直接解析
+            if (root.isArray()) {
+                return Result.succeed(parseNodeArray(root));
+            } else if (root.hasKey("error")) {
                 return Result.failure(root.get("message").getString());
-            }
-
-            ONode resultsNode = root.get("results");
-            if (resultsNode != null && resultsNode.isArray()) {
-                return Result.succeed(parseNodeArray(resultsNode));
             } else {
                 return Result.succeed(parseItems(root));
             }
@@ -204,11 +202,23 @@ public class ClawhubMarket implements Market {
     // ==================== 内部工具方法 ====================
 
     private String httpGet(String url) throws Exception {
-        HttpUtils http = HttpUtils.http(url)
-                .header("User-Agent", USER_AGENT)
-                .timeout(15000);
-        ProxyConfig.applyIfNeeded(http);
-        return http.get();
+        Exception lastEx = null;
+        for (int i = 0; i < 3; i++) {
+            try {
+                HttpUtils http = HttpUtils.http(url)
+                        .header("User-Agent", USER_AGENT)
+                        .timeout(15000);
+                ProxyConfig.applyIfNeeded(http);
+                return http.get();
+            } catch (Exception e) {
+                lastEx = e;
+                LOG.warn("httpGet attempt {} failed: {}", i + 1, e.getMessage());
+                if (i < 2) {
+                    Thread.sleep(1000);
+                }
+            }
+        }
+        throw lastEx;
     }
 
     private List<MarketItem> parseItems(ONode root) {
@@ -223,8 +233,26 @@ public class ClawhubMarket implements Market {
         List<MarketItem> result = new ArrayList<>();
         for (ONode node : arrayNode.getArray()) {
             String slug = getStringValue(node, "slug");
-            String apiUrl = getStringValue(node, "url");
-            String detailUrl = (apiUrl != null) ? apiUrl : BASE_URL + "/skills/" + slug;
+
+            // 构造技能介绍页 URL
+            String canonicalUrl = getStringValue(node, "canonicalUrl");
+            String detailUrl;
+            String ownerHandle = null;
+
+            if (canonicalUrl != null) {
+                // 新 trending API 格式：canonicalUrl 包含完整路径
+                detailUrl = BASE_URL + canonicalUrl;
+                ONode publisher = node.get("publisher");
+                if (publisher != null && !publisher.isNull()) {
+                    ownerHandle = getStringValue(publisher, "handle");
+                }
+            } else {
+                // 旧格式（搜索 API）：通过 ownerHandle + slug 构造
+                ownerHandle = getStringValue(node, "ownerHandle");
+                detailUrl = (ownerHandle != null)
+                        ? BASE_URL + "/" + ownerHandle + "/skills/" + slug
+                        : BASE_URL + "/skills/" + slug;
+            }
 
             MarketItem item = new MarketItem()
                     .slug(slug)
@@ -232,13 +260,13 @@ public class ClawhubMarket implements Market {
                     .displayName(getStringValue(node, "displayName"))
                     .summary(getStringValue(node, "summary"))
                     .description(getStringValue(node, "description"))
-                    .ownerHandle(getStringValue(node, "ownerHandle"))
+                    .ownerHandle(ownerHandle)
                     .url(detailUrl);
 
-            ONode statsNode = node.get("stats");
-            if (statsNode != null && !statsNode.isNull()) {
-                item.installs(getLongValue(statsNode, "installsCurrent"));
-                item.stars(getLongValue(statsNode, "stars"));
+            // 解析安装量：新格式 metrics.lifetimeInstalls
+            ONode metricsNode = node.get("metrics");
+            if (metricsNode != null && !metricsNode.isNull()) {
+                item.installs(getLongValue(metricsNode, "lifetimeInstalls"));
             }
 
             item.version(parseVersion(node));
