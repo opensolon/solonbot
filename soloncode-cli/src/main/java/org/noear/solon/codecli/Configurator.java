@@ -42,6 +42,9 @@ import org.noear.solon.core.AppContext;
 import org.noear.solon.core.BeanWrap;
 import org.noear.solon.core.util.JavaUtil;
 import org.noear.solon.core.util.RunUtil;
+import org.noear.solon.net.http.HttpConfiguration;
+import org.noear.solon.net.http.HttpExtension;
+import org.noear.solon.net.http.HttpUtils;
 import org.noear.solon.net.websocket.WebSocketRouter;
 import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.slf4j.Logger;
@@ -88,6 +91,13 @@ public class Configurator {
                 "  @poweredby: soloncode\n" +
                 "  @build: " + AgentFlags.getVersion() + "\n" +
                 "-->\n\n";
+
+        HttpConfiguration.addExtension(new HttpExtension() {
+            @Override
+            public void onInit(HttpUtils http, String url) {
+                ProxyConfig.applyIfNeeded(http);
+            }
+        });
 
         String workspace = AgentFlags.getUserDir();
 

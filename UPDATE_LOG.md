@@ -1,3 +1,13 @@
+
+### v2026.8.7
+
+* 添加 soloncode web diff 视图（文件路径）加入对话的功能
+* 优化 soloncode proxy 和 user-agent 的传导
+* 修复 soloncode websearch 总是失败的问题（默认 ua 被拦截了）
+* 修复 soloncode web 设置挂载添加时描述信息丢失的问题
+* 修复 soloncode web 初始加载后模型面板失真问题
+* 细节优化
+
 ### v2026.8.6
 
 * 添加 soloncode web http 代理设置
