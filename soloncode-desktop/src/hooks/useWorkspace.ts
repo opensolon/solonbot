@@ -92,7 +92,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
         fileService.writeLog(`Restoring active project: ${lastActive}`);
         setActiveProjectPath(lastActive);
         setChatWorkspacePath(lastActive);
-        setActiveActivity('explorer');
+        setActiveActivity('sessions');
         restoreLastSession(lastActive);
       } catch (err) {
         console.warn('[App] 恢复活跃项目失败:', err);
@@ -132,7 +132,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
         setChatWorkspacePath(selectedPath);
       }
 
-      setActiveActivity('explorer');
+      setActiveActivity('sessions');
 
       // 自动发现 skills
       const allDiscoveredSkills = await settingsService.scanSkillsDir(selectedPath);
@@ -292,7 +292,7 @@ export function useWorkspace(deps: UseWorkspaceDeps) {
       saveLastFolder(projectPath);
       setOpenFiles([]);
       setActiveFilePath(null);
-      setActiveActivity('explorer');
+      setActiveActivity('sessions');
       refreshFileTreeLocal(projectPath);
     } catch (err) {
       console.error('[App] 创建项目失败:', err);
