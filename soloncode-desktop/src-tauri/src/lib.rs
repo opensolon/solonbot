@@ -982,6 +982,7 @@ fn terminal_kill() -> Result<(), String> {
 const BACKEND_READY_ATTEMPTS: u32 = 20;
 const BACKEND_READY_SLEEP_MS: u64 = 500;
 const BACKEND_STARTUP_GRACE: Duration = Duration::from_secs(10);
+const BACKEND_START_TASK_GRACE: Duration = Duration::from_secs(30);
 const LEGACY_SETTINGS_SCHEMA: &str = "https://solon.noear.org/soloncode/settings.schema.json";
 
 struct ManagedBackendProcess {
@@ -995,6 +996,15 @@ struct ManagedBackendProcess {
 static BACKEND_PROCESS: Mutex<Option<ManagedBackendProcess>> = Mutex::new(None);
 /// 由上一桌面进程留下并在本次启动中复用的后端（PID, port）。
 static REUSED_BACKEND_PROCESS: Mutex<Option<(u32, u16)>> = Mutex::new(None);
+
+struct BackendStartTask {
+    workspace_path: String,
+    port: u16,
+    started_at: Instant,
+}
+
+/// 当前正在后台线程中执行的后端启动任务。
+static BACKEND_START_TASK: Mutex<Option<BackendStartTask>> = Mutex::new(None);
 
 /// 启动方式：soloncode 命令 或 java -jar
 enum BackendLaunchMethod {
@@ -1346,12 +1356,16 @@ fn spawn_backend_readiness_watchdog(port: u16, pid: u32) {
 
 /// 检测指定端口是否已经有可复用的 SolonCode 后端。
 #[tauri::command]
-fn detect_backend(port: u16) -> Result<bool, String> {
-    let detected = is_soloncode_desktop_backend(port);
-    if detected {
-        app_log(&format!("[soloncode] Detected existing soloncode backend on port {}", port));
-    }
-    Ok(detected)
+async fn detect_backend(port: u16) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let detected = is_soloncode_desktop_backend(port);
+        if detected {
+            app_log(&format!("[soloncode] Detected existing soloncode backend on port {}", port));
+        }
+        Ok(detected)
+    })
+    .await
+    .map_err(|e| format!("检测后端线程失败: {}", e))?
 }
 
 /// 启动后端 CLI 进程（如果已在运行则复用）
@@ -1613,13 +1627,67 @@ try {{\n\
 }
 
 #[tauri::command]
-fn start_backend(workspace_path: &str, port: u16) -> Result<u32, String> {
+fn start_backend(workspace_path: String, port: u16) -> Result<u32, String> {
+    {
+        let mut task = BACKEND_START_TASK.lock().map_err(|e| format!("锁错误: {}", e))?;
+        if let Some(existing) = task.as_ref() {
+            if existing.port == port
+                && existing.workspace_path == workspace_path
+                && existing.started_at.elapsed() < BACKEND_START_TASK_GRACE
+            {
+                app_log(&format!(
+                    "[soloncode] Backend start already running on background thread for port {}",
+                    port
+                ));
+                return Ok(0);
+            }
+        }
+
+        *task = Some(BackendStartTask {
+            workspace_path: workspace_path.clone(),
+            port,
+            started_at: Instant::now(),
+        });
+    }
+
+    app_log(&format!(
+        "[soloncode] Dispatching backend start to background thread on port {}",
+        port
+    ));
+
+    std::thread::spawn(move || {
+        let result = start_backend_blocking(workspace_path.clone(), port);
+        match result {
+            Ok(pid) => app_log(&format!(
+                "[soloncode] Background backend start finished for port {}, pid={}",
+                port, pid
+            )),
+            Err(error) => app_log(&format!(
+                "[soloncode] Background backend start failed for port {}: {}",
+                port, error
+            )),
+        }
+
+        if let Ok(mut task) = BACKEND_START_TASK.lock() {
+            if matches!(
+                task.as_ref(),
+                Some(active) if active.port == port && active.workspace_path == workspace_path
+            ) {
+                *task = None;
+            }
+        }
+    });
+
+    Ok(0)
+}
+
+fn start_backend_blocking(workspace_path: String, port: u16) -> Result<u32, String> {
     // 空路径时使用用户主目录；项目路径则作为 CLI 的工作目录，以加载项目级配置与 Agent。
     let requested_work_dir = if workspace_path.is_empty() {
         let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
         std::env::var(home_var).unwrap_or_else(|_| ".".to_string())
     } else {
-        workspace_path.to_string()
+        workspace_path
     };
     let work_dir = fs::canonicalize(&requested_work_dir)
         .unwrap_or_else(|_| PathBuf::from(&requested_work_dir));
@@ -2607,7 +2675,13 @@ fn create_agent(name: String, description: String, content: Option<String>) -> R
 
 /// 检查后端进程是否运行中
 #[tauri::command]
-fn backend_status() -> Result<bool, String> {
+async fn backend_status() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(backend_status_blocking)
+        .await
+        .map_err(|e| format!("检查后端状态线程失败: {}", e))?
+}
+
+fn backend_status_blocking() -> Result<bool, String> {
     let mut proc = BACKEND_PROCESS.lock().map_err(|e| format!("锁错误: {}", e))?;
 
     match proc.as_mut() {

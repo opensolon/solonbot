@@ -5,6 +5,15 @@ import { backendService } from '../services/backendService';
 import { setBackendPort as setChatBackendPort } from '../components/ChatView';
 import type { BackendStatus } from '../components/layout/StatusBar';
 
+type HeartbeatWorkerMessage = {
+  type?: string;
+  ok?: boolean;
+  port?: number;
+};
+
+const HEARTBEAT_INTERVAL_MS = 30000;
+const HEARTBEAT_TIMEOUT_MS = 2500;
+
 export function useBackend() {
   const backendPortRef = useRef<number>(4808);
   const [backendPort, setBackendPortState] = useState<number | null>(null);
@@ -15,7 +24,17 @@ export function useBackend() {
   const lastWorkspaceRef = useRef<string>('');
   const lastConnectedAtRef = useRef<number>(0);
   const failedProbeCountRef = useRef<number>(0);
-  const httpProbeInFlightRef = useRef(false);
+  const heartbeatWorkerRef = useRef<Worker | null>(null);
+
+  const configureHeartbeat = useCallback((port: number) => {
+    backendPortRef.current = port;
+    heartbeatWorkerRef.current?.postMessage({
+      type: 'configure',
+      port,
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      timeoutMs: HEARTBEAT_TIMEOUT_MS,
+    });
+  }, []);
 
   const markConnected = useCallback((port: number) => {
     lastConnectedAtRef.current = Date.now();
@@ -44,37 +63,34 @@ export function useBackend() {
 
   useEffect(() => {
     let disposed = false;
+    const worker = new Worker(new URL('../workers/backendHeartbeatWorker.ts', import.meta.url), { type: 'module' });
+    heartbeatWorkerRef.current = worker;
 
-    const checkViaHttp = async (port: number) => {
-      if (httpProbeInFlightRef.current) return;
-      httpProbeInFlightRef.current = true;
-      try {
-        const resp = await fetch(`http://localhost:${port}/desktop/version`, { cache: 'no-store' });
-        if (!disposed && resp.ok) {
-          markConnected(port);
-        } else if (!disposed) {
-          markProbeFailed();
-        }
-      } catch {
-        if (!disposed) markProbeFailed();
-      } finally {
-        httpProbeInFlightRef.current = false;
+    worker.onmessage = (event: MessageEvent<HeartbeatWorkerMessage>) => {
+      if (disposed) return;
+      const message = event.data;
+      if (message?.type !== 'backend-probe-result') return;
+
+      const port = typeof message.port === 'number' && message.port > 0
+        ? message.port
+        : backendPortRef.current;
+      if (message.ok) {
+        markConnected(port);
+      } else {
+        markProbeFailed();
       }
     };
 
-    const heartbeat = () => {
-      const port = backendPortRef.current;
-      checkViaHttp(port);
-    };
-
-    heartbeat();
-
-    const timer = setInterval(heartbeat, 30000);
+    configureHeartbeat(backendPortRef.current);
     return () => {
       disposed = true;
-      clearInterval(timer);
+      worker.postMessage({ type: 'stop' });
+      worker.terminate();
+      if (heartbeatWorkerRef.current === worker) {
+        heartbeatWorkerRef.current = null;
+      }
     };
-  }, [markConnected, markProbeFailed]);
+  }, [configureHeartbeat, markConnected, markProbeFailed]);
 
   const startBackend = useCallback(async (cliPort: number, onSettingsUpdate?: (updater: (prev: any) => any) => void, workspacePath?: string | null) => {
     const workspace = workspacePath?.trim() || '';
@@ -88,6 +104,7 @@ export function useBackend() {
     }
 
     setBackendStatus('connecting');
+    configureHeartbeat(cliPort);
     fileService.writeLog(`Starting backend flow on port ${cliPort}, workspace=${workspace || 'user-home'}`);
 
     const startPromise = (async () => {
@@ -155,7 +172,7 @@ export function useBackend() {
     startWorkspaceRef.current = workspace;
 
     return startPromise;
-  }, [markConnected, markDisconnected]);
+  }, [configureHeartbeat, markConnected, markDisconnected]);
 
   useEffect(() => { setChatBackendPort(backendPort); }, [backendPort]);
 
