@@ -34,6 +34,7 @@ soloncode-ee/
 .vscode
 .claude
 node_modules/
+.mvm/
 CLAUDE.md
 TODO.md
 /soloncode-cli/src/main/resources/config.yml
@@ -45,3 +46,4 @@ soloncode-desktop/src-tauri/target/
 soloncode-desktop/src-tauri/release/
 soloncode-desktop/src-tauri/build/
 soloncode-desktop/src-tauri/resources/
+nul

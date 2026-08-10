@@ -599,6 +599,9 @@ function App() {
     panelOrder: ['editor', 'chat'],
   });
   const [sidebarWidth, setSidebarWidth] = useState(260);
+  const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const [workspaceConversationPercent, setWorkspaceConversationPercent] = useState(30);
+  const [workspaceMenuResizing, setWorkspaceMenuResizing] = useState(false);
 
   useEffect(() => {
     let rafId = 0;
@@ -710,6 +713,30 @@ function App() {
   }, [isResizing, sidebarCollapsed]);
 
   const startResize = useCallback((panel: string, e: React.MouseEvent) => { e.preventDefault(); setIsResizing(panel); }, []);
+
+  useEffect(() => {
+    if (!workspaceMenuResizing) return;
+    const handleMouseMove = (event: MouseEvent) => {
+      const panel = workspaceMenuRef.current;
+      if (!panel) return;
+      const rect = panel.getBoundingClientRect();
+      if (rect.height <= 0) return;
+      const nextPercent = ((event.clientY - rect.top) / rect.height) * 100;
+      setWorkspaceConversationPercent(Math.min(70, Math.max(20, nextPercent)));
+    };
+    const handleMouseUp = () => setWorkspaceMenuResizing(false);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [workspaceMenuResizing]);
+
+  const startWorkspaceMenuResize = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setWorkspaceMenuResizing(true);
+  }, []);
 
   // 文件操作
   const handleNewFile = useCallback(async (projectPath?: string) => {
@@ -1476,33 +1503,62 @@ function App() {
     if (sidebarCollapsed) return null;
     switch (activeActivity) {
       case 'explorer':
+      case 'sessions': {
+        const conversationSectionStyle: React.CSSProperties = { flex: `0 0 ${workspaceConversationPercent}%` };
+        const projectSectionStyle: React.CSSProperties = { flex: '1 1 auto' };
         return (
-          <ExplorerPanel
-            projects={projects} activeProjectPath={activeProjectPath} refreshKey={projectRefreshKey}
-            onFileSelect={handleFileSelect} onOpenFolder={handleOpenFolder} onCreateProject={handleCreateProject}
-            onRemoveProject={handleRemoveProject} onRenameProject={handleRenameProject} onSetActiveProject={handleSelectManagedProject}
-            onRefreshProject={refreshFileTree} onNewFile={handleNewFile} onNewFolder={handleNewFolder}
-            onRename={handleRename} onDelete={handleDelete} onCopy={handleCopy} onMove={handleMove}
-          />
+          <div
+            ref={workspaceMenuRef}
+            className={`workspace-menu-panel${workspaceMenuResizing ? ' resizing' : ''}`}
+          >
+            <div
+              className="workspace-menu-section conversation-section"
+              style={conversationSectionStyle}
+            >
+              <SessionsPanel
+                projects={projects} sessions={sessions} currentSessionId={currentSessionId} currentProjectId={activeProjectPath}
+                backendPort={backendPort}
+                sessionRunStates={sessionRunStates}
+                title="对话"
+                showProjectHeaderActions={false}
+                unlinkedTitle="临时对话"
+                onSelectSession={handleSelectSession} onNewSession={handleCreateSessionInProject} onDeleteSession={handleDeleteSession}
+                onForkSession={handleForkSession}
+                onCreateProject={handleCreateProject} onAddProject={handleAddProject} onRemoveProject={handleRemoveProject} onPinProject={handlePinProject} onRenameProject={(projectId, name) => {
+                  void handleRenameProject(projectId, name).catch(err => {
+                    showToast(err instanceof Error ? err.message : '重命名项目失败');
+                  });
+                }}
+                onSyncSession={handleSyncSession}
+              />
+            </div>
+            <div
+              className={`workspace-menu-resize-handle${workspaceMenuResizing ? ' dragging' : ''}`}
+              role="separator"
+              aria-orientation="horizontal"
+              aria-valuemin={20}
+              aria-valuemax={70}
+              aria-valuenow={Math.round(workspaceConversationPercent)}
+              onMouseDown={startWorkspaceMenuResize}
+            />
+            <div
+              className="workspace-menu-section project-section"
+              style={projectSectionStyle}
+            >
+              <ExplorerPanel
+                projects={projects} activeProjectPath={activeProjectPath} refreshKey={projectRefreshKey}
+                title="项目"
+                onFileSelect={handleFileSelect} onOpenFolder={handleOpenFolder} onCreateProject={handleCreateProject}
+                onRemoveProject={handleRemoveProject} onRenameProject={handleRenameProject} onSetActiveProject={handleSelectManagedProject}
+                onRefreshProject={refreshFileTree} onNewFile={handleNewFile} onNewFolder={handleNewFolder}
+                onRename={handleRename} onDelete={handleDelete} onCopy={handleCopy} onMove={handleMove}
+              />
+            </div>
+          </div>
         );
+      }
       case 'extensions':
         return <ExtensionsPanel extensions={mockExtensions} onInstall={async (id) => console.log('安装:', id)} onUninstall={async (id) => console.log('卸载:', id)} onToggle={(id) => console.log('切换:', id)} />;
-      case 'sessions':
-        return (
-          <SessionsPanel
-            projects={projects} sessions={sessions} currentSessionId={currentSessionId} currentProjectId={activeProjectPath}
-            backendPort={backendPort}
-            sessionRunStates={sessionRunStates}
-            onSelectSession={handleSelectSession} onNewSession={handleCreateSessionInProject} onDeleteSession={handleDeleteSession}
-            onForkSession={handleForkSession}
-            onCreateProject={handleCreateProject} onAddProject={handleAddProject} onRemoveProject={handleRemoveProject} onPinProject={handlePinProject} onRenameProject={(projectId, name) => {
-              void handleRenameProject(projectId, name).catch(err => {
-                showToast(err instanceof Error ? err.message : '重命名项目失败');
-              });
-            }}
-            onSyncSession={handleSyncSession}
-          />
-        );
       case 'automation':
         return (
           <AutomationPanel

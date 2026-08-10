@@ -258,6 +258,73 @@
   gap: 4px;
 }
 
+.workspace-menu-panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cb-vscode-sideBar-background) 96%, var(--cb-accent) 4%),
+      var(--cb-vscode-sideBar-background) 160px
+    );
+}
+
+.workspace-menu-panel.resizing {
+  cursor: row-resize;
+  user-select: none;
+}
+
+.workspace-menu-section {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace-menu-section.project-section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.workspace-menu-section.conversation-section {
+  flex: 0 0 30%;
+  min-height: 120px;
+  background: color-mix(in srgb, var(--cb-vscode-sideBar-background) 88%, var(--cb-vscode-editor-background) 12%);
+}
+
+.workspace-menu-section .explorer-panel,
+.workspace-menu-section .sessions-panel {
+  min-height: 0;
+}
+
+.workspace-menu-resize-handle {
+  position: relative;
+  flex: 0 0 8px;
+  cursor: row-resize;
+  background: transparent;
+}
+
+.workspace-menu-resize-handle::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: color-mix(in srgb, var(--cb-vscode-panel-border) 74%, transparent);
+  transition: height 0.12s ease, background-color 0.12s ease;
+}
+
+.workspace-menu-resize-handle:hover::before,
+.workspace-menu-resize-handle.dragging::before {
+  height: 2px;
+  background: color-mix(in srgb, var(--cb-accent) 72%, var(--cb-vscode-panel-border));
+}
+
 .panel-action {
   width: 22px;
   height: 22px;
@@ -296,6 +363,337 @@
   background-color: var(--cb-vscode-input-background);
   padding: 2px 8px;
   border-radius: 10px;
+}
+
+.workspace-menu-panel .panel-header {
+  min-height: 36px;
+  padding: 7px 12px 5px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.workspace-menu-panel .panel-title,
+.workspace-menu-panel .group-header {
+  color: color-mix(in srgb, var(--cb-text-secondary) 84%, var(--cb-text-primary) 16%);
+  letter-spacing: 0.06em;
+}
+
+.workspace-menu-panel .panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+
+.workspace-menu-panel .panel-title::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--cb-accent);
+}
+
+.workspace-menu-panel .panel-action,
+.workspace-menu-panel .new-session-btn,
+.workspace-menu-panel .chat-add-btn {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+}
+
+.workspace-menu-panel .projects-list,
+.workspace-menu-panel .sessions-list {
+  padding: 0 8px 8px;
+}
+
+.workspace-menu-panel .project-tree-content {
+  margin-left: 12px;
+  padding-left: 0;
+  border-left: 1px solid color-mix(in srgb, var(--cb-vscode-panel-border) 70%, transparent);
+}
+
+.workspace-menu-panel .project-root-header,
+.workspace-menu-panel .project-header,
+.workspace-menu-panel .file-node,
+.workspace-menu-panel .session-item {
+  margin: 1px 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+
+.workspace-menu-panel .project-root-header,
+.workspace-menu-panel .project-header {
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.workspace-menu-panel .project-root-header.active,
+.workspace-menu-panel .project-header.expanded,
+.workspace-menu-panel .session-item.active {
+  border-color: color-mix(in srgb, var(--cb-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--cb-accent) 12%, transparent);
+}
+
+.workspace-menu-panel .project-root-header:hover,
+.workspace-menu-panel .project-header:hover,
+.workspace-menu-panel .file-node:hover,
+.workspace-menu-panel .session-item:hover {
+  background: color-mix(in srgb, var(--cb-vscode-list-hoverBackground) 78%, transparent);
+}
+
+.workspace-menu-panel .file-node {
+  min-height: 27px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.workspace-menu-panel .file-name,
+.workspace-menu-panel .session-title {
+  font-size: 12px;
+}
+
+.workspace-menu-panel .session-info {
+  margin-left: 8px;
+}
+
+.workspace-menu-panel .session-meta {
+  gap: 4px;
+  opacity: 0.68;
+}
+
+.workspace-menu-panel .group-header {
+  margin: 5px 0 2px;
+  padding: 7px 8px 5px;
+  border-bottom: 0;
+  font-size: 10px;
+}
+
+.workspace-menu-panel .project-empty {
+  padding: 10px 8px;
+  opacity: 0.45;
+}
+
+.automation-panel,
+.memory-panel,
+.skills-panel,
+.agents-panel {
+  height: 100%;
+  min-height: 0;
+  color: var(--cb-text-primary);
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--cb-vscode-sideBar-background) 96%, var(--cb-accent) 4%),
+      var(--cb-vscode-sideBar-background) 160px
+    );
+}
+
+.automation-header,
+.memory-panel .panel-header,
+.skills-panel .panel-header,
+.agents-panel .panel-header {
+  min-height: 36px;
+  padding: 7px 12px 5px;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.automation-header-label,
+.memory-panel .panel-title,
+.skills-panel .panel-title,
+.agents-panel .panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: color-mix(in srgb, var(--cb-text-secondary) 84%, var(--cb-text-primary) 16%);
+  letter-spacing: 0.06em;
+}
+
+.automation-header-label::before,
+.memory-panel .panel-title::before,
+.skills-panel .panel-title::before,
+.agents-panel .panel-title::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  flex: 0 0 3px;
+  border-radius: 999px;
+  background: var(--cb-accent);
+}
+
+.automation-header-title,
+.memory-panel .panel-title,
+.skills-panel .panel-title,
+.agents-panel .panel-title {
+  color: color-mix(in srgb, var(--cb-text-secondary) 84%, var(--cb-text-primary) 16%);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.automation-count,
+.memory-panel .group-count,
+.skills-panel .group-count,
+.agents-panel .group-count,
+.agent-scope-heading > span:last-child {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cb-vscode-input-background) 88%, var(--cb-accent) 12%);
+  color: color-mix(in srgb, var(--cb-text-secondary) 74%, var(--cb-text-primary) 26%);
+}
+
+.automation-header-add,
+.automation-delete-btn,
+.memory-panel .panel-action,
+.skills-panel .new-session-btn,
+.agents-panel .new-session-btn {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--cb-text-secondary);
+  background: transparent;
+}
+
+.automation-header-add:hover,
+.automation-delete-btn:hover,
+.memory-panel .panel-action:hover,
+.skills-panel .new-session-btn:hover,
+.agents-panel .new-session-btn:hover {
+  color: var(--cb-text-primary);
+  background: color-mix(in srgb, var(--cb-vscode-list-hoverBackground) 80%, transparent);
+}
+
+.automation-list,
+.memory-list,
+.skills-panel .panel-content,
+.agents-panel .panel-content {
+  padding: 0 8px 10px;
+}
+
+.automation-error,
+.memory-message,
+.skills-panel .resource-action-message,
+.agents-panel .resource-action-message {
+  margin: 0 8px 8px;
+  border-radius: 7px;
+}
+
+.automation-task-row,
+.memory-item,
+.skills-panel .pool-header,
+.skills-panel .file-node,
+.agent-config-row {
+  margin: 1px 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+
+.automation-task-row {
+  min-height: 42px;
+  padding: 6px 8px;
+}
+
+.memory-item {
+  padding: 8px;
+  border-bottom: 0;
+}
+
+.skills-panel .pool-header {
+  padding: 6px 8px;
+}
+
+.skills-panel .file-node {
+  min-height: 27px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.agent-config-row {
+  padding: 5px 8px;
+}
+
+.automation-task-row:hover,
+.automation-task-row:focus-visible,
+.memory-item:hover,
+.skills-panel .pool-header:hover,
+.skills-panel .file-node:hover,
+.agent-config-row:hover,
+.agent-config-row:focus-visible {
+  background: color-mix(in srgb, var(--cb-vscode-list-hoverBackground) 78%, transparent);
+}
+
+.automation-task-row.selected,
+.memory-item.active {
+  border-color: color-mix(in srgb, var(--cb-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--cb-accent) 12%, transparent);
+}
+
+.memory-item.active {
+  box-shadow: none;
+}
+
+.automation-task-title,
+.memory-item-title,
+.skills-panel .file-name,
+.agent-config-name {
+  font-size: 12px;
+}
+
+.automation-task-meta,
+.memory-item-preview,
+.memory-item-time,
+.agent-config-description {
+  opacity: 0.72;
+}
+
+.memory-search {
+  margin: 0 8px 8px;
+  border-color: color-mix(in srgb, var(--cb-vscode-panel-border) 72%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--cb-vscode-input-background) 82%, transparent);
+}
+
+.memory-list {
+  border-top: 0;
+}
+
+.memory-empty,
+.automation-empty,
+.agent-scope-empty,
+.agent-panel-loading,
+.skills-panel .empty-state {
+  color: var(--cb-text-secondary);
+  opacity: 0.64;
+}
+
+.memory-editor {
+  border-top: 1px solid color-mix(in srgb, var(--cb-vscode-panel-border) 72%, transparent);
+  background: color-mix(in srgb, var(--cb-vscode-sideBar-background) 88%, var(--cb-vscode-editor-background) 12%);
+}
+
+.agent-scope {
+  padding: 0 0 10px;
+}
+
+.agent-scope + .agent-scope {
+  border-top: 1px solid color-mix(in srgb, var(--cb-vscode-panel-border) 62%, transparent);
+}
+
+.agent-scope-heading {
+  padding: 7px 8px 5px;
+  color: color-mix(in srgb, var(--cb-text-secondary) 84%, var(--cb-text-primary) 16%);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.skills-panel .pool-section {
+  border-bottom: 0;
+}
+
+.skills-panel .pool-alias {
+  font-size: 12px;
 }
 
 /* 通用输入样式 */

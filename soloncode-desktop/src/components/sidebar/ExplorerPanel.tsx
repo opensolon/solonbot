@@ -45,6 +45,7 @@ interface ExplorerPanelProps {
   onDelete: (path: string, type: 'file' | 'folder') => Promise<void>;
   onCopy: (sourcePath: string, destPath: string) => Promise<void>;
   onMove: (sourcePath: string, destPath: string) => Promise<void>;
+  title?: string;
 }
 
 function getParentDir(filePath: string): string {
@@ -92,6 +93,7 @@ export function ExplorerPanel({
   onDelete,
   onCopy,
   onMove,
+  title = '项目管理',
 }: ExplorerPanelProps) {
   // 每个项目的文件树缓存
   const [projectTrees, setProjectTrees] = useState<Map<string, FileNode[]>>(new Map());
@@ -677,7 +679,7 @@ export function ExplorerPanel({
   return (
     <div className="explorer-panel">
       <div className="panel-header">
-        <span className="panel-title">项目管理</span>
+        <span className="panel-title">{title}</span>
         <div className="panel-actions">
           <DropdownMenu
             align="right"
