@@ -40,7 +40,7 @@
 
         <dependency>
             <groupId>org.noear</groupId>
-            <artifactId>solon-server-smarthttp</artifactId>
+            <artifactId>solon-server-feathttp</artifactId>
         </dependency>
 
         <dependency>
