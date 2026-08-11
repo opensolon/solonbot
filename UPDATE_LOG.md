@@ -1,5 +1,10 @@
 
-### v2026.8.7
+
+### v2026.8.11
+
+* 优化 soloncode proxy 和 user-agent 的传导（改为全局控制）
+
+### v2026.8.07
 
 * 添加 soloncode web diff 视图（文件路径）加入对话的功能
 * 优化 soloncode proxy 和 user-agent 的传导
