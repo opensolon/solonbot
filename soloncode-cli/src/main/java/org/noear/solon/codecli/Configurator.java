@@ -92,6 +92,8 @@ public class Configurator {
                 "  @build: " + AgentFlags.getVersion() + "\n" +
                 "-->\n\n";
 
+        //初始化 HTTP 代理配置
+        ProxyConfig.update(settings.getGeneral());
         HttpConfiguration.addExtension(new HttpExtension() {
             @Override
             public void onInit(HttpUtils http, String url) {
@@ -231,9 +233,6 @@ public class Configurator {
 
     @Init
     public void init() {
-        //初始化 HTTP 代理配置
-        ProxyConfig.update(agentSettings.getGeneral());
-
         //订阅容器扩展
         appContext.subBeansOfType(HarnessExtension.class, extension -> {
             agentRuntime.addExtension(extension);
