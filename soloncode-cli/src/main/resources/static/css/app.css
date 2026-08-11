@@ -1496,7 +1496,7 @@ body {
 }
 .file-node-row:hover { background: var(--bg-hover); }
 .file-node-row:hover::after {
-    content: '双击插入路径';
+    content: '双击加入对话';
     position: absolute;
     right: 10px;
     top: 50%;
@@ -1778,7 +1778,7 @@ body {
 }
 .git-file-item:hover { background: var(--bg-hover); }
 .git-file-item:hover::after {
-    content: '双击插入路径';
+    content: '双击加入对话';
     position: absolute;
     right: 10px;
     top: 50%;

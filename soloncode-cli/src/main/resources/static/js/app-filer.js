@@ -350,7 +350,7 @@
         var $childrenEl = $('<div>').addClass('file-node-children');
         $nodeEl.append($childrenEl);
 
-        // 单击展开/折叠，双击插入路径到输入框
+        // 单击展开/折叠，双击加入对话
         var wsId = ws.id;
         bindClickDblClick($row,
             function() {
@@ -381,7 +381,7 @@
                 var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
                 if (!targetInput) return;
                 var currentVal = targetInput.value || '';
-                var insertText = '[' + wsId + ']';
+                var insertText = (wsId !== 'workspace') ? '[' + wsId + ']' : '[./]';
                 var cursorPos = targetInput.selectionStart || currentVal.length;
                 var before = currentVal.substring(0, cursorPos);
                 var after = currentVal.substring(cursorPos);
@@ -450,7 +450,7 @@
             $nodeEl.append($childrenEl);
         }
 
-        // 目录：单击展开/折叠，双击插入路径到输入框
+        // 目录：单击展开/折叠，双击加入对话
         if (node.type === 'directory') {
             bindClickDblClick($row,
                 function() {
@@ -486,7 +486,7 @@
                     var currentVal = targetInput.value || '';
                     var insertText = (wsId !== 'workspace')
                         ? '[' + wsId + '/' + node.path + ']'
-                        : '[' + node.path + ']';
+                        : '[./' + node.path + ']';
                     var cursorPos = targetInput.selectionStart || currentVal.length;
                     var before = currentVal.substring(0, cursorPos);
                     var after = currentVal.substring(cursorPos);
@@ -499,7 +499,7 @@
                 }
             );
         } else {
-            // 文件：单击打开查看器，双击插入路径到输入框
+            // 文件：单击打开查看器，双击加入对话
             bindClickDblClick($row,
                 function() {
                     var wsId = getNodeWorkspaceId($nodeEl);
@@ -515,7 +515,7 @@
                     var currentVal = targetInput.value || '';
                     var insertText = (wsId !== 'workspace')
                         ? '[' + wsId + '/' + node.path + ']'
-                        : '[' + node.path + ']';
+                        : '[./' + node.path + ']';
                     var cursorPos = targetInput.selectionStart || currentVal.length;
                     var before = currentVal.substring(0, cursorPos);
                     var after = currentVal.substring(cursorPos);
@@ -1034,7 +1034,7 @@
                         var currentVal = targetInput.value || '';
                         var insertText = (wsId !== 'workspace')
                             ? '[' + wsId + '/' + it.path + ']'
-                            : '[' + it.path + ']';
+                            : '[./' + it.path + ']';
                         var cursorPos = targetInput.selectionStart || currentVal.length;
                         var before = currentVal.substring(0, cursorPos);
                         var after = currentVal.substring(cursorPos);

@@ -175,7 +175,7 @@
         if (gitBranch) gitBranch.textContent = branch || '--';
     }
 
-    // ---- 双击插入路径到输入框（复用文件树的插入规则）----
+    // ---- 双击加入对话（复用文件树的插入规则）----
     function insertGitPathToInput(rawPath) {
         if (!rawPath) return;
         var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
@@ -183,7 +183,7 @@
         var relPath = rawPath.replace(/\/$/, '');
         var insertText = (gitWorkspace !== 'workspace')
             ? '[' + gitWorkspace + '/' + relPath + ']'
-            : '[' + relPath + ']';
+            : '[./' + relPath + ']';
         var currentVal = targetInput.value || '';
         var cursorPos = targetInput.selectionStart || currentVal.length;
         var before = currentVal.substring(0, cursorPos);
@@ -302,7 +302,7 @@
             item.setAttribute('data-status', file.status);
             item.setAttribute('data-path', file.path);
 
-            // 点击文件行：目录展开/折叠，文件打开 diff viewer；双击插入路径到输入框
+            // 点击文件行：目录展开/折叠，文件打开 diff viewer；双击加入对话
             bindGitClickDblClick(item,
                 function(e) {
                     // 避免点 checkbox 时也触发
@@ -389,7 +389,7 @@
                     childItem.appendChild(childIconSpan);
                     childItem.appendChild(childPathSpan);
 
-                    // 子项点击：文件打开查看，目录递归展开；双击插入路径到输入框
+                    // 子项点击：文件打开查看，目录递归展开；双击加入对话
                     (function(childNode, childEl) {
                         bindGitClickDblClick(childEl,
                             function() {
@@ -887,7 +887,7 @@
         var endNum = getLineNumber(endLine);
 
         if (startNum === null || endNum === null) {
-            // diff 视图中行号可能为 null（如选中 @@ 头或 ---/+++ 元信息行），此时不插入路径避免重复
+            // diff 视图中行号可能为 null（如选中 @@ 头或 ---/+++ 元信息行），此时不加入对话避免重复
             if (viewerMode === 'diff') {
                 return;
             }
@@ -902,11 +902,14 @@
             endNum = tmp;
         }
 
+        var pathRef = (gitWorkspace !== 'workspace')
+            ? gitWorkspace + '/' + filePath
+            : './' + filePath;
         var insertText;
         if (startNum === endNum) {
-            insertText = '[' + filePath + ']L' + startNum;
+            insertText = '[' + pathRef + ']L' + startNum;
         } else {
-            insertText = '[' + filePath + ']L' + startNum + '-L' + endNum;
+            insertText = '[' + pathRef + ']L' + startNum + '-L' + endNum;
         }
 
         // 插入到输入框（复用 insertGitPathToInput 的模式）
