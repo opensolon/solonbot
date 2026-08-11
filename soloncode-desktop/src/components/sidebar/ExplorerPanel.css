@@ -211,7 +211,7 @@
   padding: 8px 16px;
   font-size: 13px;
   color: var(--cb-text-primary);
-  background: var(--cb-vscode-button-background, #0e639c);
+  background: var(--cb-vscode-button-background, #16845b);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -220,7 +220,7 @@
 
 .open-folder-btn:hover,
 .create-project-btn:hover {
-  background: var(--cb-vscode-button-hoverBackground, #1177bb);
+  background: var(--cb-vscode-button-hoverBackground, #0f6c4a);
 }
 
 /* 内联重命名输入框 */

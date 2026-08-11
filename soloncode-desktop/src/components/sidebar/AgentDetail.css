@@ -165,7 +165,7 @@
 }
 
 .agent-tool-option:hover:not(:disabled) { background-color: var(--cb-vscode-list-hoverBackground); }
-.agent-tool-option.selected { border-color: var(--cb-accent); background-color: rgba(107, 124, 255, 0.12); }
+.agent-tool-option.selected { border-color: var(--cb-accent); background-color: color-mix(in srgb, var(--cb-accent) 12%, transparent); }
 .agent-tool-option:disabled { opacity: 0.58; cursor: default; }
 
 .agent-tool-option-check {

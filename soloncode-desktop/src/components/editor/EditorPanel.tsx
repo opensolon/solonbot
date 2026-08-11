@@ -8,6 +8,9 @@ import { Icon, getFileIconName } from '../common/Icon';
 import { ContextMenu } from '../common/ContextMenu';
 import type { DiffLine } from '../../services/gitService';
 import './EditorPanel.css';
+import { configureMonaco } from './monacoSetup';
+
+configureMonaco();
 
 interface OpenFile {
   path: string;
@@ -77,6 +80,14 @@ function getMonacoLanguage(path: string): string {
 
 function isMarkdownFile(path: string): boolean {
   return /\.(md|markdown|mdx)$/i.test(path);
+}
+
+function countLines(content: string): number {
+  let lines = 1;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.charCodeAt(index) === 10) lines += 1;
+  }
+  return lines;
 }
 
 // 从 DOM 读取当前实际主题
@@ -336,7 +347,7 @@ export function EditorPanel({
 
   const lineCount = useMemo(() => {
     if (!activeFile || activeFile.isImage) return 0;
-    return activeFile.content.split('\n').length;
+    return countLines(activeFile.content);
   }, [activeFile?.content, activeFile?.isImage]);
 
   if (files.length === 0) {

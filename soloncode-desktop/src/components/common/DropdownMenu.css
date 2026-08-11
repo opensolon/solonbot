@@ -59,7 +59,7 @@
 }
 
 .dropdown-item:hover {
-  background: var(--cb-vscode-list-activeSelectionBackground, #094771);
+  background: var(--cb-vscode-list-activeSelectionBackground, #174c3b);
 }
 
 .dropdown-item.disabled {

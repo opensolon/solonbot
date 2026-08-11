@@ -129,7 +129,7 @@
 }
 
 .message.streaming .action-block {
-  border-color: rgba(64, 158, 255, 0.28);
+  border-color: color-mix(in srgb, var(--cb-accent) 28%, transparent);
 }
 
 .action-block-content > :first-child {

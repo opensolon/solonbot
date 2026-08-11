@@ -189,7 +189,7 @@
 }
 
 .message.streaming .action-group {
-  border-color: rgba(64, 158, 255, 0.28);
+  border-color: color-mix(in srgb, var(--cb-accent) 28%, transparent);
 }
 
 .action-group-item-content pre {
