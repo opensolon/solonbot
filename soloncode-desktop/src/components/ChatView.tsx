@@ -193,7 +193,7 @@ interface ChatViewProps {
   onFileSelect?: (path: string) => void;
   reviewFiles?: ChatReviewFile[];
   onReviewFileSelect?: (path: string) => void;
-  onReviewFileDiscard?: (path: string) => void;
+  onReviewFileDiscard?: (path: string) => void | Promise<void>;
   promptCreation?: PromptCreationMode | null;
   onCreateAutomationFromPrompt?: (plan: GeneratedAutomationPlan, options: SendOptions) => Promise<void>;
   automationPrompt?: {
@@ -805,7 +805,8 @@ function getReviewFileActionLabel(status: ChatReviewFile['status']) {
   return '已编辑';
 }
 
-function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[]; onReview?: (path: string) => void; onDiscard?: (path: string) => void }) {
+function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[]; onReview?: (path: string) => void; onDiscard?: (path: string) => void | Promise<void> }) {
+  const [isDiscarding, setIsDiscarding] = useState(false);
   if (files.length === 0) return null;
   const additions = files.reduce((total, file) => total + (file.additions || 0), 0);
   const deletions = files.reduce((total, file) => total + (file.deletions || 0), 0);
@@ -814,7 +815,18 @@ function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[
     ? `${getReviewFileActionLabel(files[0].status)} ${getReviewFileName(files[0].path)}`
     : `${getReviewFileActionLabel(primaryStatus)} ${files.length} 个文件`;
   const handleReviewAll = () => onReview?.(files[0].path);
-  const handleDiscardAll = () => files.forEach(file => onDiscard?.(file.path));
+  const handleDiscardAll = async () => {
+    if (!onDiscard || isDiscarding) return;
+    setIsDiscarding(true);
+    try {
+      // Git 会持有索引锁，逐个撤销可以避免多文件并发操作互相冲突。
+      for (const file of files) await onDiscard(file.path);
+    } catch (error) {
+      console.warn('[ChatView] 撤销文件更改失败:', error);
+    } finally {
+      setIsDiscarding(false);
+    }
+  };
 
   return (
     <div className="chat-review-files-bar">
@@ -831,8 +843,8 @@ function ReviewFilesBar({ files, onReview, onDiscard }: { files: ChatReviewFile[
             </span>
           </button>
           <div className="chat-review-file-actions">
-            <button type="button" className="chat-review-link-btn" onClick={handleDiscardAll} title="撤销">
-              <span>撤销</span>
+            <button type="button" className="chat-review-link-btn" onClick={() => { void handleDiscardAll(); }} title="撤销" disabled={isDiscarding}>
+              <span>{isDiscarding ? '撤销中' : '撤销'}</span>
               <Icon name="undo" size={13} />
             </button>
             <button type="button" className="chat-review-primary-btn" onClick={handleReviewAll}>
@@ -2553,6 +2565,16 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
     return () => window.clearInterval(timer);
   }, [currentConversationIdString, isCurrentConversationLoading]);
   const showReviewFiles = reviewFiles.length > 0 && !isCurrentConversationLoading;
+  const handleReviewFileDiscard = useCallback(async (path: string) => {
+    if (!onReviewFileDiscard) return;
+    try {
+      await onReviewFileDiscard(path);
+    } catch (error) {
+      console.warn('[ChatView] 撤销文件更改失败:', error);
+      onNotify?.('撤销失败，文件未被移除，请重试');
+      throw error;
+    }
+  }, [onNotify, onReviewFileDiscard]);
   const isEmpty = messages.length === 0 && !isCurrentConversationLoading && reviewFiles.length === 0;
   const showHeader = !isEmpty;
   const baseContextTokens = useMemo(() => estimateMessageTokens(messages), [messages]);
@@ -2707,7 +2729,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
             </div>
           </div>
           {showReviewFiles && (
-            <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
+            <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={handleReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'new'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />
@@ -2717,7 +2739,7 @@ export function ChatView({ currentConversation, plugins, workspacePath, projectN
       ) : (
         <>
           {showReviewFiles && (
-            <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={onReviewFileDiscard} />
+            <ReviewFilesBar files={reviewFiles} onReview={onReviewFileSelect} onDiscard={handleReviewFileDiscard} />
           )}
           <ChatTaskList key={currentConversationIdString || 'current'} tasks={currentTodoTasks} />
           <ChatQueueDock items={currentQueue} running={isCurrentConversationLoading} onRemove={removeQueuedMessage} onClear={clearQueuedMessages} onContinue={sendNextQueuedMessage} />

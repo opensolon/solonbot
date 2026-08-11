@@ -3,7 +3,7 @@ mod desktop_ops;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{Read as IoRead, Write as IoWrite};
+use std::io::{Read as IoRead, Seek as IoSeek, SeekFrom, Write as IoWrite};
 use base64::Engine;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -15,6 +15,12 @@ use portable_pty::{native_pty_system, PtySize, CommandBuilder as PtyCommandBuild
 
 /// 应用日志文件
 static APP_LOG: Mutex<Option<std::fs::File>> = Mutex::new(None);
+static APP_LOG_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+const DESKTOP_LOG_FILE: &str = "desktop.log";
+const SERVER_LOG_FILE: &str = "server.log";
+const MAX_LOG_READ_BYTES: usize = 256 * 1024;
+const MAX_LOG_LINES: usize = 500;
 
 /// 写入应用日志
 fn app_log(msg: &str) {
@@ -56,18 +62,123 @@ fn days_to_date(days: u64) -> (u64, u64, u64) {
     (y, m as u64 + 1, remaining + 1)
 }
 
-/// 初始化日志文件（保存在应用目录下，每次启动重置）
+fn user_log_dir() -> PathBuf {
+    let home = user_home_dir();
+    if home.trim().is_empty() {
+        std::env::temp_dir().join("soloncode").join("logs")
+    } else {
+        Path::new(&home).join(".soloncode").join("logs")
+    }
+}
+
+fn legacy_executable_log_path(file_name: &str) -> Option<PathBuf> {
+    std::env::current_exe().ok()?.parent().map(|path| path.join(file_name))
+}
+
+fn create_log_file(file_name: &str, fallback_dir: Option<&Path>) -> Result<(PathBuf, fs::File), String> {
+    let mut directories = vec![user_log_dir()];
+    if let Some(directory) = fallback_dir {
+        directories.push(directory.to_path_buf());
+    }
+    if let Ok(executable) = std::env::current_exe() {
+        if let Some(directory) = executable.parent() {
+            directories.push(directory.to_path_buf());
+        }
+    }
+
+    let mut last_error = String::new();
+    for directory in directories {
+        if let Err(error) = fs::create_dir_all(&directory) {
+            last_error = format!("{}: {}", directory.display(), error);
+            continue;
+        }
+        let path = directory.join(file_name);
+        match fs::OpenOptions::new().create(true).write(true).truncate(true).open(&path) {
+            Ok(file) => return Ok((path, file)),
+            Err(error) => last_error = format!("{}: {}", path.display(), error),
+        }
+    }
+
+    Err(format!("无法创建日志文件: {}", last_error))
+}
+
+/// 初始化日志文件。用户日志目录在开发和安装环境下都可写。
 fn init_app_log() {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(app_dir) = exe.parent() {
-            let log_path = app_dir.join("desktop.log");
-            // 每次启动重置日志文件
-            if let Ok(f) = fs::File::create(&log_path) {
-                if let Ok(mut log_file) = APP_LOG.lock() {
-                    *log_file = Some(f);
-                }
+    match create_log_file(DESKTOP_LOG_FILE, None) {
+        Ok((path, file)) => {
+            if let Ok(mut log_path) = APP_LOG_PATH.lock() {
+                *log_path = Some(path);
+            }
+            if let Ok(mut log_file) = APP_LOG.lock() {
+                *log_file = Some(file);
             }
         }
+        Err(error) => eprintln!("[soloncode] {}", error),
+    }
+}
+
+fn read_log_tail(path: &Path, max_bytes: usize, max_lines: usize) -> Result<String, String> {
+    let mut file = fs::File::open(path)
+        .map_err(|error| format!("读取日志失败: {}", error))?;
+    let file_len = file.metadata()
+        .map_err(|error| format!("读取日志信息失败: {}", error))?
+        .len();
+    let read_len = usize::try_from(file_len.min(max_bytes as u64)).unwrap_or(max_bytes);
+    if read_len == 0 {
+        return Ok(String::new());
+    }
+
+    file.seek(SeekFrom::End(-(read_len as i64)))
+        .map_err(|error| format!("定位日志失败: {}", error))?;
+    let mut bytes = vec![0_u8; read_len];
+    file.read_exact(&mut bytes)
+        .map_err(|error| format!("读取日志失败: {}", error))?;
+
+    let byte_truncated = file_len > read_len as u64;
+    if byte_truncated {
+        if let Some(first_newline) = bytes.iter().position(|byte| *byte == b'\n') {
+            bytes.drain(..=first_newline);
+        } else {
+            bytes.clear();
+        }
+    }
+
+    let content = String::from_utf8_lossy(&bytes);
+    let lines: Vec<&str> = content.lines().collect();
+    let line_truncated = lines.len() > max_lines;
+    let start = lines.len().saturating_sub(max_lines);
+    let tail = lines[start..].join("\n");
+    if byte_truncated || line_truncated {
+        Ok(format!("… 已省略较早日志（仅显示最近 {} 行）\n{}", max_lines, tail))
+    } else {
+        Ok(tail)
+    }
+}
+
+fn newest_existing_log(candidates: Vec<PathBuf>) -> Option<PathBuf> {
+    candidates.into_iter()
+        .filter(|path| path.is_file())
+        .max_by_key(|path| fs::metadata(path).and_then(|metadata| metadata.modified()).ok())
+}
+
+#[cfg(test)]
+mod log_reader_tests {
+    use super::read_log_tail;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn reads_only_the_latest_complete_lines() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("soloncode-log-tail-{unique}.log"));
+        fs::write(&path, "first\nsecond\nthird\nfourth\n").unwrap();
+
+        let result = read_log_tail(&path, 1024, 2).unwrap();
+        assert!(result.starts_with("… 已省略较早日志"));
+        assert!(result.ends_with("third\nfourth"));
+        assert!(!result.contains("first"));
+
+        fs::remove_file(path).unwrap();
     }
 }
 
@@ -153,10 +264,14 @@ pub struct GitLogEntry {
 
 /// 执行 git 命令的辅助函数
 fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
+    let mut command = Command::new("git");
+    command.args(args).current_dir(cwd);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let output = command.output()
         .map_err(|e| format!("执行 git 命令失败: {}", e))?;
 
     if !output.status.success() {
@@ -169,30 +284,42 @@ fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
 
 /// 读取文件内容
 #[tauri::command]
-fn read_file(path: &str) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|e| format!("读取文件失败: {}", e))
+async fn read_file(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        fs::read_to_string(path).map_err(|e| format!("读取文件失败: {}", e))
+    })
+    .await
+    .map_err(|e| format!("读取文件任务失败: {}", e))?
 }
 
 /// 读取文件为 Base64（用于图片等二进制文件预览）
 #[tauri::command]
-fn read_file_binary(path: &str) -> Result<String, String> {
-    let data = fs::read(path).map_err(|e| format!("读取文件失败: {}", e))?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+async fn read_file_binary(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let data = fs::read(path).map_err(|e| format!("读取文件失败: {}", e))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+    })
+    .await
+    .map_err(|e| format!("读取文件任务失败: {}", e))?
 }
 
 /// 读取聊天附件为 Base64，并在分配大块内存前限制文件大小。
 #[tauri::command]
-fn read_attachment_binary(path: &str) -> Result<String, String> {
-    const MAX_ATTACHMENT_BYTES: u64 = 20 * 1024 * 1024;
-    let metadata = fs::metadata(path).map_err(|e| format!("读取附件失败: {}", e))?;
-    if !metadata.is_file() {
-        return Err("只能上传文件".to_string());
-    }
-    if metadata.len() > MAX_ATTACHMENT_BYTES {
-        return Err("附件不能超过 20 MB".to_string());
-    }
-    let data = fs::read(path).map_err(|e| format!("读取附件失败: {}", e))?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+async fn read_attachment_binary(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        const MAX_ATTACHMENT_BYTES: u64 = 20 * 1024 * 1024;
+        let metadata = fs::metadata(&path).map_err(|e| format!("读取附件失败: {}", e))?;
+        if !metadata.is_file() {
+            return Err("只能上传文件".to_string());
+        }
+        if metadata.len() > MAX_ATTACHMENT_BYTES {
+            return Err("附件不能超过 20 MB".to_string());
+        }
+        let data = fs::read(path).map_err(|e| format!("读取附件失败: {}", e))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+    })
+    .await
+    .map_err(|e| format!("读取附件任务失败: {}", e))?
 }
 
 /// 写入文件内容
@@ -203,7 +330,13 @@ fn write_file(path: &str, content: &str) -> Result<(), String> {
 
 /// 列出目录内容
 #[tauri::command]
-fn list_directory(path: &str) -> Result<Vec<FileInfo>, String> {
+async fn list_directory(path: String) -> Result<Vec<FileInfo>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_directory_blocking(&path))
+        .await
+        .map_err(|e| format!("读取目录任务失败: {}", e))?
+}
+
+fn list_directory_blocking(path: &str) -> Result<Vec<FileInfo>, String> {
     let entries = fs::read_dir(path).map_err(|e| format!("读取目录失败: {}", e))?;
 
     let mut files = Vec::new();
@@ -241,7 +374,13 @@ fn list_directory(path: &str) -> Result<Vec<FileInfo>, String> {
 
 /// 递归列出目录树
 #[tauri::command]
-fn list_directory_tree(path: &str, max_depth: usize) -> Result<Vec<FileInfo>, String> {
+async fn list_directory_tree(path: String, max_depth: usize) -> Result<Vec<FileInfo>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_directory_tree_blocking(&path, max_depth))
+        .await
+        .map_err(|e| format!("读取目录树任务失败: {}", e))?
+}
+
+fn list_directory_tree_blocking(path: &str, max_depth: usize) -> Result<Vec<FileInfo>, String> {
     fn build_tree(path: &Path, current_depth: usize, max_depth: usize) -> Option<Vec<FileInfo>> {
         if current_depth > max_depth {
             return None;
@@ -686,19 +825,109 @@ fn git_checkout(cwd: &str, branch: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// 丢弃文件更改
+fn validate_git_relative_path(path: &str) -> Result<&str, String> {
+    let path = path.trim();
+    let candidate = Path::new(path);
+    if path.is_empty()
+        || path.contains('\0')
+        || candidate.is_absolute()
+        || candidate.components().any(|component| matches!(
+            component,
+            std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+                | std::path::Component::ParentDir
+        ))
+    {
+        return Err("只能撤销项目内的相对路径".to_string());
+    }
+    Ok(path)
+}
+
+/// 丢弃指定文件的 Git 更改。未跟踪文件只清理明确传入且经过校验的项目内路径。
 #[tauri::command]
 fn git_discard(cwd: &str, paths: Vec<String>) -> Result<(), String> {
-    for path in &paths {
-        let full_path = Path::new(cwd).join(path);
-        if full_path.exists() {
-            // 已跟踪文件的修改：git checkout -- <file>
-            run_git(&["checkout", "--", path], cwd)?;
+    for requested_path in &paths {
+        let path = validate_git_relative_path(requested_path)?;
+        let status = run_git(
+            &["status", "--porcelain=v1", "--untracked-files=all", "--", path],
+            cwd,
+        )?;
+        let state = status.lines().next().unwrap_or("");
+        if state.is_empty() {
+            continue;
         }
-        // 注意：未跟踪文件无法通过 git checkout 恢复，需要 git clean
-        // 但为了安全，暂不自动删除未跟踪文件
+
+        if state.starts_with("?? ") {
+            run_git(&["clean", "-fd", "--", path], cwd)?;
+        } else if state.as_bytes().first() == Some(&b'A') {
+            // HEAD 中不存在的暂存新增文件需要同时从索引和工作区移除。
+            run_git(&["rm", "-f", "--", path], cwd)?;
+        } else {
+            run_git(
+                &["restore", "--source=HEAD", "--staged", "--worktree", "--", path],
+                cwd,
+            )?;
+        }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod git_discard_tests {
+    use super::{git_discard, run_git};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_repository() -> std::path::PathBuf {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("soloncode-git-discard-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        let cwd = root.to_str().unwrap();
+        run_git(&["init"], cwd).unwrap();
+        run_git(&["config", "user.email", "test@soloncode.local"], cwd).unwrap();
+        run_git(&["config", "user.name", "SolonCode Test"], cwd).unwrap();
+        fs::write(root.join("tracked.txt"), "original").unwrap();
+        run_git(&["add", "--", "tracked.txt"], cwd).unwrap();
+        run_git(&["commit", "-m", "initial"], cwd).unwrap();
+        root
+    }
+
+    #[test]
+    fn restores_tracked_and_removes_new_files() {
+        let root = create_repository();
+        let cwd = root.to_str().unwrap();
+        fs::write(root.join("tracked.txt"), "changed").unwrap();
+        fs::write(root.join("untracked.txt"), "new").unwrap();
+        fs::write(root.join("staged.txt"), "staged").unwrap();
+        run_git(&["add", "--", "staged.txt"], cwd).unwrap();
+
+        git_discard(cwd, vec![
+            "tracked.txt".to_string(),
+            "untracked.txt".to_string(),
+            "staged.txt".to_string(),
+        ]).unwrap();
+
+        assert_eq!(fs::read_to_string(root.join("tracked.txt")).unwrap(), "original");
+        assert!(!root.join("untracked.txt").exists());
+        assert!(!root.join("staged.txt").exists());
+        assert!(run_git(&["status", "--porcelain"], cwd).unwrap().trim().is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rejects_paths_outside_the_repository() {
+        let root = create_repository();
+        let outside_name = format!("{}-outside.txt", root.file_name().unwrap().to_string_lossy());
+        let outside = root.parent().unwrap().join(&outside_name);
+        fs::write(&outside, "keep").unwrap();
+
+        let result = git_discard(root.to_str().unwrap(), vec![format!("../{outside_name}")]);
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "keep");
+
+        fs::remove_file(outside).unwrap();
+        fs::remove_dir_all(root).unwrap();
+    }
 }
 
 // ==================== Git Diff 相关 ====================
@@ -713,13 +942,21 @@ pub struct DiffLine {
 /// 获取单个文件的 git diff（与 HEAD 比较）
 /// 返回行级变更列表
 #[tauri::command]
-fn git_diff_file(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
+async fn git_diff_file(cwd: String, file_path: String) -> Result<Vec<DiffLine>, String> {
+    tauri::async_runtime::spawn_blocking(move || git_diff_file_blocking(&cwd, &file_path))
+        .await
+        .map_err(|e| format!("读取 Git 差异任务失败: {}", e))?
+}
+
+fn git_diff_file_blocking(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
+    const MAX_DIFF_DECORATIONS: usize = 5_000;
+
     // 先尝试与 HEAD 的 diff（已提交后修改）
-    let output = match run_git(&["diff", "HEAD", "--", file_path], cwd) {
+    let output = match run_git(&["diff", "--no-ext-diff", "--unified=0", "HEAD", "--", file_path], cwd) {
         Ok(o) => o,
         Err(_) => {
             // 可能没有 HEAD（新仓库），尝试与暂存区比较
-            match run_git(&["diff", "--", file_path], cwd) {
+            match run_git(&["diff", "--no-ext-diff", "--unified=0", "--", file_path], cwd) {
                 Ok(o) => o,
                 Err(_) => return Ok(Vec::new()),
             }
@@ -752,6 +989,9 @@ fn git_diff_file(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
                 line: new_line,
                 r#type: "added".to_string(),
             });
+            if diff_lines.len() >= MAX_DIFF_DECORATIONS {
+                return Ok(Vec::new());
+            }
             new_line += 1;
         } else if line.starts_with('-') && !line.starts_with("---") {
             // 删除的行，记录在当前位置（用 deleted 标记）
@@ -759,6 +999,9 @@ fn git_diff_file(cwd: &str, file_path: &str) -> Result<Vec<DiffLine>, String> {
                 line: new_line,
                 r#type: "deleted".to_string(),
             });
+            if diff_lines.len() >= MAX_DIFF_DECORATIONS {
+                return Ok(Vec::new());
+            }
             // new_line 不增加（删除行不占新文件行号）
         } else {
             new_line += 1;
@@ -1788,16 +2031,10 @@ fn start_backend_blocking(workspace_path: String, port: u16) -> Result<u32, Stri
         maybe_prepare_legacy_cli_settings();
     }
 
-    // 日志文件（保存在应用根目录）
-    let log_path = if let Ok(exe) = std::env::current_exe() {
-        exe.parent()
-            .map(|d| d.join("server.log"))
-            .ok_or("无法获取应用目录")?
-    } else {
-        work_dir.join(".soloncode").join("server.log")
-    };
-    let log_file = fs::File::create(&log_path)
-        .map_err(|e| format!("创建日志文件失败: {}", e))?;
+    // 安装目录可能只读，服务端日志优先写入用户日志目录。
+    let workspace_log_dir = work_dir.join(".soloncode");
+    let (log_path, log_file) = create_log_file(SERVER_LOG_FILE, Some(&workspace_log_dir))?;
+    app_log(&format!("[soloncode] Backend log: {}", log_path.display()));
     let log_file_clone = log_file.try_clone()
         .map_err(|e| format!("复制文件句柄失败: {}", e))?;
 
@@ -1921,47 +2158,54 @@ fn stop_backend_processes(reason: &str) -> Result<(), String> {
 
 // ==================== 配置文件读写 ====================
 
-/// 读取桌面端日志（从应用目录读取）
 /// 前端写入应用日志
 #[tauri::command]
 fn write_app_log(message: &str) {
     app_log(&format!("[frontend] {}", message));
 }
 
-/// 读取桌面端日志（从应用目录读取）
+/// 在后台线程中读取桌面端日志的尾部，避免大文件阻塞窗口。
 #[tauri::command]
-fn read_desktop_log() -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(|e| format!("无法获取应用路径: {}", e))?;
-    let log_path = exe.parent()
-        .ok_or("无法获取应用目录")?
-        .join("desktop.log");
-    if log_path.exists() {
-        let content = fs::read_to_string(&log_path)
-            .map_err(|e| format!("读取日志失败: {}", e))?;
-        // 返回最后 200 行
-        let lines: Vec<&str> = content.lines().rev().take(200).collect();
-        Ok(lines.into_iter().rev().collect::<Vec<_>>().join("\n"))
-    } else {
-        Ok("日志文件不存在".to_string())
-    }
+async fn read_desktop_log() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let active_path = APP_LOG_PATH.lock().ok().and_then(|path| path.clone());
+        let mut candidates = Vec::new();
+        if let Some(path) = active_path {
+            candidates.push(path);
+        }
+        candidates.push(user_log_dir().join(DESKTOP_LOG_FILE));
+        if let Some(path) = legacy_executable_log_path(DESKTOP_LOG_FILE) {
+            candidates.push(path);
+        }
+        match newest_existing_log(candidates) {
+            Some(path) => read_log_tail(&path, MAX_LOG_READ_BYTES, MAX_LOG_LINES),
+            None => Ok("日志文件不存在".to_string()),
+        }
+    })
+    .await
+    .map_err(|error| format!("读取日志任务失败: {}", error))?
 }
 
-/// 读取服务端日志（从应用根目录读取）
+/// 读取最新的服务端/CLI 日志，兼容旧版日志位置。
 #[tauri::command]
-fn read_cli_log(_workspace_path: &str) -> Result<String, String> {
-    let log_path = std::env::current_exe()
-        .map_err(|e| format!("无法获取应用路径: {}", e))?
-        .parent()
-        .ok_or("无法获取应用目录")?
-        .join("server.log");
-    if log_path.exists() {
-        let content = fs::read_to_string(&log_path)
-            .map_err(|e| format!("读取日志失败: {}", e))?;
-        let lines: Vec<&str> = content.lines().rev().take(200).collect();
-        Ok(lines.into_iter().rev().collect::<Vec<_>>().join("\n"))
-    } else {
-        Ok("CLI 日志文件不存在".to_string())
-    }
+async fn read_cli_log(workspace_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut candidates = vec![user_log_dir().join(SERVER_LOG_FILE)];
+        if !workspace_path.trim().is_empty() {
+            let workspace_logs = Path::new(&workspace_path).join(".soloncode");
+            candidates.push(workspace_logs.join("cli.log"));
+            candidates.push(workspace_logs.join(SERVER_LOG_FILE));
+        }
+        if let Some(path) = legacy_executable_log_path(SERVER_LOG_FILE) {
+            candidates.push(path);
+        }
+        match newest_existing_log(candidates) {
+            Some(path) => read_log_tail(&path, MAX_LOG_READ_BYTES, MAX_LOG_LINES),
+            None => Ok("CLI 日志文件不存在".to_string()),
+        }
+    })
+    .await
+    .map_err(|error| format!("读取 CLI 日志任务失败: {}", error))?
 }
 
 /// 读取 ~/.soloncode/config.yml 中的 chatModel 配置

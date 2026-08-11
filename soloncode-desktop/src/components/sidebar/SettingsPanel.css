@@ -313,7 +313,7 @@
 }
 .provider-card.active {
   border-color: var(--cb-accent);
-  background-color: rgba(0, 122, 204, 0.06);
+  background-color: color-mix(in srgb, var(--cb-accent) 6%, transparent);
 }
 .provider-card.disabled {
   opacity: 0.5;
@@ -380,6 +380,39 @@
   font-weight: 400;
   text-transform: none;
   letter-spacing: normal;
+}
+
+.log-viewer-title {
+  display: flex;
+  align-items: center;
+}
+
+.log-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 8px;
+}
+
+.log-viewer-hint {
+  margin-left: auto;
+  color: var(--cb-text-secondary);
+  font-size: 11px;
+}
+
+.log-viewer-content {
+  contain: content;
+  max-height: 400px;
+  margin: 0 20px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--cb-vscode-panel-border);
+  border-radius: 6px;
+  background: var(--cb-vscode-input-background);
+  color: var(--cb-text-primary);
+  font: 12px/1.55 Consolas, "Courier New", monospace;
+  white-space: pre;
+  tab-size: 2;
 }
 
 .provider-add-item {
@@ -504,7 +537,7 @@
   border: 1px solid var(--cb-vscode-widget-border);
   border-radius: 8px;
   background:
-    radial-gradient(circle at top right, rgba(0, 122, 204, 0.14), transparent 36%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--cb-accent) 14%, transparent), transparent 36%),
     var(--cb-vscode-input-background);
 }
 

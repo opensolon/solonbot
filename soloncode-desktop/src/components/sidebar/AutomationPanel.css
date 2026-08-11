@@ -133,7 +133,7 @@
 
 .automation-task-row.selected {
   border-color: color-mix(in srgb, var(--cb-accent) 45%, transparent);
-  background-color: var(--cb-vscode-list-activeSelectionBackground, rgba(0, 122, 204, 0.18));
+  background-color: var(--cb-vscode-list-activeSelectionBackground, rgba(22, 132, 91, 0.18));
 }
 
 .automation-task-icon {
@@ -293,8 +293,8 @@
 }
 
 .automation-detail-status.scheduled {
-  background-color: rgba(66, 165, 245, 0.14);
-  color: #42a5f5;
+  background-color: color-mix(in srgb, var(--cb-accent) 14%, transparent);
+  color: var(--cb-accent);
 }
 
 .automation-detail-section {
@@ -632,7 +632,7 @@
   background-color: #808080;
 }
 
-.automation-run-status-dot.running { background-color: #42a5f5; }
+.automation-run-status-dot.running { background-color: var(--cb-accent); }
 .automation-run-status-dot.completed { background-color: #4caf50; }
 .automation-run-status-dot.error { background-color: var(--cb-vscode-errorForeground, #f14c4c); }
 
@@ -641,7 +641,7 @@
   white-space: nowrap;
 }
 
-.automation-run-status.running { color: #42a5f5; }
+.automation-run-status.running { color: var(--cb-accent); }
 .automation-run-status.completed { color: #4caf50; }
 .automation-run-status.error { color: var(--cb-vscode-errorForeground, #f14c4c); }
 
