@@ -19,6 +19,7 @@ import {
 import { fileService } from '../../services/fileService';
 import { updateService, type UpdateInfo } from '../../services/updateService';
 import { requestDesktopModels } from '../../services/modelDiscoveryService';
+import { redactLogContent } from '../../utils/logViewer';
 import { ChannelQrBind } from './ChannelQrBind';
 import './SettingsPanel.css';
 import './ChannelPanel.css';
@@ -55,7 +56,7 @@ const menuItems: { key: SettingsMenuKey; icon: IconName; label: string }[] = [
   { key: 'skills', icon: 'skills', label: 'Skills' },
   { key: 'about', icon: 'info', label: '关于' },
   { key: 'prompts', icon: 'edit', label: 'AI 提示词' },
-  ...(import.meta.env.DEV ? [{ key: 'logs' as SettingsMenuKey, icon: 'terminal' as IconName, label: '日志' }] : []),
+  { key: 'logs', icon: 'terminal', label: '日志' },
 ];
 
 export function SettingsPanel({ visible, settings, onSettingsChange, onClose, onSkillInstalled, backendPort, workspacePath, sessionId }: SettingsPanelProps) {
@@ -1533,55 +1534,55 @@ function PromptsSettings({ skillPrompt, agentPrompt, gitPrompt, onPromptChange }
 /* ==================== 日志查看 ==================== */
 function LogsSettings({ workspacePath }: { workspacePath?: string | null }) {
   const [activeLog, setActiveLog] = useState<'desktop' | 'cli'>('desktop');
-  const [desktopLog, setDesktopLog] = useState('');
-  const [cliLog, setCliLog] = useState('');
+  const [logs, setLogs] = useState<Record<'desktop' | 'cli', string>>({ desktop: '', cli: '' });
   const [loading, setLoading] = useState(false);
+  const requestIdRef = useRef(0);
 
   const refreshLogs = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
-      const [dLog, cLog] = await Promise.all([
-        fileService.readDesktopLog(),
-        workspacePath ? fileService.readCliLog(workspacePath) : Promise.resolve(''),
-      ]);
-      setDesktopLog(dLog || '暂无日志');
-      setCliLog(cLog || '暂无日志');
-    } catch {
-      setDesktopLog('读取失败');
-      setCliLog('读取失败');
+      const content = activeLog === 'desktop'
+        ? await fileService.readDesktopLog()
+        : await fileService.readCliLog(workspacePath || '');
+      if (requestId !== requestIdRef.current) return;
+      setLogs(previous => ({
+        ...previous,
+        [activeLog]: redactLogContent(content || '暂无日志'),
+      }));
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      const detail = error instanceof Error ? error.message : String(error || 'unknown error');
+      setLogs(previous => ({
+        ...previous,
+        [activeLog]: redactLogContent(`读取失败：${detail}`),
+      }));
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-    setLoading(false);
-  }, [workspacePath]);
+  }, [activeLog, workspacePath]);
 
-  useEffect(() => { refreshLogs(); }, [refreshLogs]);
+  useEffect(() => {
+    void refreshLogs();
+    return () => { requestIdRef.current += 1; };
+  }, [refreshLogs]);
 
-  const content = activeLog === 'desktop' ? desktopLog : cliLog;
+  const content = loading && !logs[activeLog] ? '读取中...' : (logs[activeLog] || '暂无日志');
 
   return (
     <div className="settings-section-content">
-      <div className="settings-section-title">
+      <div className="settings-section-title log-viewer-title">
         日志
         <button className="settings-btn cancel" style={{ marginLeft: 'auto', padding: '2px 10px', fontSize: 12 }} onClick={refreshLogs} disabled={loading}>
           {loading ? '刷新中...' : '刷新'}
         </button>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <div className="log-viewer-toolbar">
         <button className={`settings-btn ${activeLog === 'desktop' ? 'save' : 'cancel'}`} style={{ padding: '2px 12px', fontSize: 12 }} onClick={() => setActiveLog('desktop')}>桌面端日志</button>
         <button className={`settings-btn ${activeLog === 'cli' ? 'save' : 'cancel'}`} style={{ padding: '2px 12px', fontSize: 12 }} onClick={() => setActiveLog('cli')}>CLI 日志</button>
+        <span className="log-viewer-hint">仅加载最近日志，敏感信息会自动脱敏</span>
       </div>
-      <pre style={{
-        background: 'var(--bg-secondary, #1e1e1e)',
-        color: 'var(--text-primary, #ccc)',
-        padding: 12,
-        borderRadius: 6,
-        fontSize: 12,
-        maxHeight: 400,
-        overflow: 'auto',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-all',
-        margin: 0,
-        fontFamily: 'monospace',
-      }}>
+      <pre className="log-viewer-content">
         {content}
       </pre>
     </div>

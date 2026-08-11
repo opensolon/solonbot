@@ -172,6 +172,41 @@ pnpm install
 pnpm tauri build
 ```
 
+**macOS Universal Binary（Apple Silicon + Intel）：**
+
+Tauri 可以把 `arm64` 与 `x86_64` 两种架构合并到同一个 `.app` 中，并继续生成对应的通用 `.dmg`。该构建必须在 macOS 上执行。
+
+```bash
+# 同时安装 Apple Silicon 与 Intel Rust 目标
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+cd soloncode-desktop
+pnpm install
+pnpm tauri build --target universal-apple-darwin
+```
+
+通用构建产物位于：
+
+```text
+src-tauri/target/universal-apple-darwin/release/bundle/macos/soloncode-desktop.app
+src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+```
+
+使用 `lipo` 验证应用主程序是否同时包含两种架构：
+
+```bash
+lipo -archs \
+  src-tauri/target/universal-apple-darwin/release/bundle/macos/soloncode-desktop.app/Contents/MacOS/soloncode-desktop
+```
+
+正常输出应同时包含：
+
+```text
+x86_64 arm64
+```
+
+> 发布到其他 Mac 前仍需使用 Apple Developer 证书完成代码签名与公证。若以后增加原生 sidecar 或架构相关资源，也必须同时提供 `arm64` 和 `x86_64` 版本或先合并为 Universal Binary。
+
 **Linux:**
 
 ```bash
@@ -189,7 +224,7 @@ pnpm install
 pnpm tauri build
 ```
 
-产物位于 `src-tauri/target/release/bundle/`：
+默认架构的产物位于 `src-tauri/target/release/bundle/`；指定 `--target` 时，产物位于 `src-tauri/target/<target>/release/bundle/`：
 
 | 平台 | 格式 | 文件 |
 |------|------|------|
@@ -197,10 +232,11 @@ pnpm tauri build
 | Windows | NSIS | `soloncode-desktop_0.1.0_x64-setup.exe` |
 | macOS | DMG | `soloncode-desktop_0.1.0_x64.dmg` |
 | macOS | App | `soloncode-desktop.app` |
+| macOS Universal | DMG / App | `src-tauri/target/universal-apple-darwin/release/bundle/` |
 | Linux | Deb | `soloncode-desktop_0.1.0_amd64.deb` |
 | Linux | AppImage | `soloncode-desktop_0.1.0_amd64.AppImage` |
 
-> **注意**：Tauri 不支持交叉编译，需要在对应平台上构建。如需自动化多平台构建，建议使用 GitHub Actions。
+> **注意**：各操作系统的正式安装包应在对应系统上构建；macOS Universal Binary 必须在 macOS 上生成。如需自动化多平台构建，建议使用对应系统的 CI Runner。
 
 ### 后端启动流程
 

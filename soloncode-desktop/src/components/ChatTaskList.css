@@ -182,9 +182,9 @@
 }
 
 .chat-task-item.primary .chat-task-index {
-  border-color: rgba(64, 158, 255, 0.45);
-  color: #409eff;
-  background: rgba(64, 158, 255, 0.1);
+  border-color: color-mix(in srgb, var(--cb-accent) 45%, transparent);
+  color: var(--cb-accent);
+  background: color-mix(in srgb, var(--cb-accent) 10%, transparent);
 }
 
 .chat-task-item.success .chat-task-index {
@@ -240,9 +240,9 @@
 }
 
 .chat-task-status.primary {
-  color: #409eff;
-  border-color: rgba(64, 158, 255, 0.24);
-  background: rgba(64, 158, 255, 0.1);
+  color: var(--cb-accent);
+  border-color: color-mix(in srgb, var(--cb-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--cb-accent) 10%, transparent);
 }
 
 .chat-task-status.success {

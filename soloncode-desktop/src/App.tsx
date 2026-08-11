@@ -556,7 +556,13 @@ function App() {
     setChatWorkspacePath(chatWorkspacePath);
   }, [chatWorkspacePath]);
 
-  const { gitStatus, diffLines, refreshGitStatus, setGitStatus } = useGit(activeProjectPath, activeFilePath, gitPanelVisible);
+  const { gitStatus, diffLines, refreshGitStatus, setGitStatus } = useGit(
+    activeProjectPath,
+    activeFilePath,
+    gitPanelVisible,
+    activeFile?.content.length ?? 0,
+    activeFile?.isImage ?? false,
+  );
 
   useEffect(() => {
     let cancelled = false;

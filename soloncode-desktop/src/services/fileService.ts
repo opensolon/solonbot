@@ -463,23 +463,15 @@ export const fileService = {
    */
   async readDesktopLog(): Promise<string> {
     if (!isTauriEnv()) return '';
-    try {
-      return await invoke<string>('read_desktop_log');
-    } catch {
-      return '';
-    }
+    return invoke<string>('read_desktop_log');
   },
 
   /**
    * 读取工作区的 CLI 日志（.soloncode/cli.log）
    */
-  async readCliLog(workspacePath: string): Promise<string> {
+  async readCliLog(workspacePath = ''): Promise<string> {
     if (!isTauriEnv()) return '';
-    try {
-      return await invoke<string>('read_cli_log', { workspacePath });
-    } catch {
-      return '';
-    }
+    return invoke<string>('read_cli_log', { workspacePath });
   },
 
   /**
