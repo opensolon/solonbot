@@ -37,9 +37,9 @@
 
 .hitl-input-dock {
   width: 100%;
-  max-width: var(--input-max-width, 60%);
-  margin: 0 auto 8px;
-  padding: 0 10px;
+  max-width: min(var(--input-max-width, 60%), 720px);
+  margin: 0 auto 6px;
+  padding: 0 8px;
   box-sizing: border-box;
   position: relative;
   z-index: 7;
@@ -52,9 +52,9 @@
 .hitl-input-popover {
   position: relative;
   border: 1px solid var(--cb-vscode-panel-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--cb-vscode-editor-background);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
 }
 
 .hitl-input-popover::after {
@@ -71,22 +71,22 @@
 }
 
 .hitl-input-list {
-  max-height: min(54vh, 520px);
+  max-height: min(42vh, 360px);
   overflow: auto;
-  padding: 10px;
+  padding: 7px;
 }
 
 .hitl-dock-card {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .hitl-dock-card + .hitl-dock-card,
 .hitl-dock-card + .hitl-dock-collapsed,
 .hitl-dock-collapsed + .hitl-dock-card,
 .hitl-dock-collapsed + .hitl-dock-collapsed {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--cb-vscode-panel-border);
 }
 
@@ -94,9 +94,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   color: var(--cb-text-secondary);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -105,22 +105,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .hitl-dock-comment {
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
   background: rgba(245, 158, 11, 0.08);
   color: var(--cb-text-primary);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .hitl-dock-command {
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
   background: var(--cb-vscode-input-background);
   color: var(--cb-text-primary);
   overflow-x: auto;
@@ -128,24 +128,24 @@
 
 .hitl-dock-command code {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .hitl-dock-options {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .hitl-dock-option {
-  min-height: 46px;
+  min-height: 32px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 9px;
   border: 1px solid var(--cb-vscode-panel-border);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--cb-text-primary);
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   background: color-mix(in srgb, var(--cb-vscode-input-background) 48%, transparent);
 }
@@ -161,22 +161,22 @@
 
 .hitl-dock-output-label {
   color: var(--cb-text-secondary);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .hitl-dock-output {
   width: 100%;
-  min-height: 110px;
+  min-height: 68px;
   resize: vertical;
-  padding: 12px;
+  padding: 7px 9px;
   border: 1px solid var(--cb-vscode-panel-border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--cb-vscode-input-background);
   color: var(--cb-text-primary);
   font-family: inherit;
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   outline: none;
 }
 
@@ -187,15 +187,15 @@
 .hitl-dock-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 6px;
 }
 
 .hitl-dock-submit,
 .hitl-dock-cancel {
-  min-width: 84px;
-  height: 44px;
-  border-radius: 7px;
-  font-size: 14px;
+  min-width: 68px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -214,16 +214,17 @@
 
 .hitl-dock-collapsed {
   width: 100%;
-  min-height: 42px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 9px;
   border: 1px solid rgba(245, 158, 11, 0.34);
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(245, 158, 11, 0.08);
   color: var(--cb-text-primary);
+  font-size: 12px;
   cursor: pointer;
 }
 
