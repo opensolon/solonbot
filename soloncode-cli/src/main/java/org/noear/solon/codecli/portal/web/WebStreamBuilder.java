@@ -22,6 +22,7 @@ import org.noear.solon.ai.agent.react.intercept.HITL;
 import org.noear.solon.ai.agent.react.intercept.HITLPendingEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.*;
+import org.noear.solon.ai.agent.trace.Metrics;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
@@ -210,6 +211,7 @@ public class WebStreamBuilder {
                                 twc.getRealEvent() instanceof ToolCallStartEvent ||
                                 twc.getRealEvent() instanceof ToolCallEndEvent ||
                                 twc.getRealEvent() instanceof ReasonDeltaEvent ||
+                                twc.getRealEvent() instanceof ReasonEndEvent ||
                                 twc.getRealEvent() instanceof RunEndEvent) {
                             // 解包子代理包装：透传父 run / task 元信息
                             runId = twc.getParentRunId();
@@ -662,7 +664,8 @@ public class WebStreamBuilder {
         ReActTrace trace = event.getTrace();
         String sessionId = session.getSessionId();
         String resultContent = event.getAssistantMessage().getResultContent();
-        Long totalTokens = trace.getMetrics() != null ? trace.getMetrics().getTotalTokens() : null;
+
+        Metrics metrics = trace.getMetrics();
 
         if (Assert.isNotEmpty(resultContent)) {
             // 向所有已绑定的 IM 通道回复
@@ -685,8 +688,19 @@ public class WebStreamBuilder {
         }
 
         // ★ 捕获真实 token 消耗，供 LoopScheduler 预算控制使用
-        if (totalTokens != null) {
-            session.attrs().put("_loop_last_total_tokens", totalTokens);
+        if (metrics != null) {
+            session.attrs().put("_loop_last_total_tokens", metrics.getTotalTokens());
+
+            int cacheRate = metrics.getCacheRate();
+            if (cacheRate > 0) {
+                WebChunk wc = new WebChunk();
+                wc.setType("context_status");
+                wc.setSessionId(sessionId);
+                Map<String, Object> args = new HashMap<>();
+                args.put("cacheRate", metrics.getCacheRate());
+                wc.setArgs(args);
+                return wc;
+            }
         }
 
         return WebChunk.EMPTY;

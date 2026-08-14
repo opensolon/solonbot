@@ -803,11 +803,12 @@ function processWebChunkNow(sess, chunk) {
             case 'hitl': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendHitlCard(sess, chunk.toolName, chunk.command, chunk.callId, chunk.args, chunk.toolTitle, chunk.comment); break;
             case 'trace': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendTraceBadge(sess, chunk); break;
             case 'context_size': if (typeof updateContextIndicator === 'function') updateContextIndicator(chunk, sess); break;
+            case 'context_status': if (typeof updateContextStatus === 'function') updateContextStatus(chunk, sess); break;
         }
         // task-group 展开状态尊重用户操作；有输出时刷新状态图标与 meta。
         // task_done 已自行结算状态，不再 mark 回 running。
         if (segment && segment.taskId && chunk.type !== 'task_done') markTaskGroupUpdated(sess, segment);
-        if (chunk.type !== 'rewind' && chunk.type !== 'context_size') {
+        if (chunk.type !== 'rewind' && chunk.type !== 'context_size' && chunk.type !== 'context_status') {
             scrollForStreamEvent(sess, chunk, sourceEl, false);
         }
         sess.silenceTimer = setTimeout(function() {

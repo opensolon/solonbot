@@ -180,7 +180,7 @@
             <div class="msg-nav" id="msgNav" style="display:none" aria-hidden="true"></div>
         </div>
         <div class="input-wrap">
-            <div class="context-status" id="chatContextStatus" style="display:none"><span class="context-status-text">Context: -- / -- (--%)</span><span class="context-status-elapsed" style="display:none"></span></div>
+            <div class="context-status" id="chatContextStatus" style="display:none"><span class="context-status-text">Context: -- / -- (--%)</span><span class="context-status-cache" style="display:none"></span><span class="context-status-elapsed" style="display:none"></span></div>
             <div class="input-box" id="chatDropZone">
                 <div class="drop-overlay" id="chatDropOverlay">
                     <div class="drop-overlay-content">
@@ -1105,7 +1105,7 @@
                                     <label data-i18n="form.standard">接口规范</label>
                                     <select id="llmStandard" class="form-select-custom">
                                         <option value="" data-i18n="llm.standard.fullUrl">FullUrl / 完整地址（自动检测）</option>
-                                        <option value="openai" data-i18n="llm.standard.openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
+                                        <option value="openai" data-i18n="llm.standard.openai">OpenAI Completions BaseUrl / 兼容接口</option>
                                         <option value="openai-responses" data-i18n="llm.standard.openaiResponses">OpenAI Responses BaseUrl / 兼容接口</option>
                                         <option value="anthropic" data-i18n="llm.standard.anthropic">Anthropic BaseUrl / 兼容接口</option>
                                         <option value="gemini" data-i18n="llm.standard.gemini">Gemini Url</option>
@@ -1697,7 +1697,7 @@
                                 <div class="form-group">
                                     <label data-i18n="form.standard">接口规范</label>
                                     <select id="providerStandard" class="form-select-custom">
-                                        <option value="openai" data-i18n="provider.standard.openai">OpenAI Chat Completions BaseUrl / 兼容接口</option>
+                                        <option value="openai" data-i18n="provider.standard.openai">OpenAI Completions BaseUrl / 兼容接口</option>
                                         <option value="openai-responses" data-i18n="provider.standard.openaiResponses">OpenAI Responses BaseUrl / 兼容接口</option>
                                         <option value="anthropic" data-i18n="provider.standard.anthropic">Anthropic BaseUrl / 兼容接口</option>
                                     </select>
