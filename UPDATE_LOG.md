@@ -1,4 +1,8 @@
 
+### v2026.8.16
+
+* 添加 soloncode web 供应商 google 方言支持
+
 ### v2026.8.15
 
 * 添加 soloncode web 缓存率显示
