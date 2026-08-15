@@ -49,7 +49,7 @@ import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
-import org.noear.solon.codecli.util.ReasoningEffortSupport;
+import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
@@ -160,10 +160,10 @@ public class WsGate extends SimpleWebSocketListener {
         }
 
         if (Assert.isNotEmpty(reasoningEffort)
-                && ReasoningEffortSupport.normalizeEffort(reasoningEffort) == null) {
+                && ReasoningSupportUtil.normalizeEffort(reasoningEffort) == null) {
             throw new IllegalArgumentException("Invalid reasoning effort");
         }
-        ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, true);
+        ReasoningSupportUtil.putSessionEffort(session, reasoningEffort, true);
         session.attrs().remove("_plan_mode");
         session.attrs().remove(SESSION_ATTR_RUN_MODE);
     }
@@ -343,7 +343,7 @@ public class WsGate extends SimpleWebSocketListener {
         ChatModel chatModel = engine.getModelOrDefInstance(selectedModel);
         ReActAgent agent = engine.getAgentOrMain(selectedAgent);
         String sessionCwd = String.valueOf(session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, "."));
-        String reasoningEffort = ReasoningEffortSupport.getSessionEffort(session);
+        String reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
 
         Prompt prompt = Prompt.of(input).attrPut("start_time", System.currentTimeMillis());
         applyReasoningEffort(prompt, reasoningEffort);
@@ -623,13 +623,13 @@ public class WsGate extends SimpleWebSocketListener {
             
             session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, modelName);
             if (req.getReasoningEffort() != null) {
-                ReasoningEffortSupport.putSessionEffort(session,
+                ReasoningSupportUtil.putSessionEffort(session,
                         req.getReasoningEffort(), true);
             }
             // 请求显式 effort 优先；否则用会话 context
-            final String reasoningEffort = ReasoningEffortSupport.resolveEffectiveEffort(
+            final String reasoningEffort = ReasoningSupportUtil.resolveEffectiveEffort(
                     req.getReasoningEffort(),
-                    ReasoningEffortSupport.getSessionEffort(session),
+                    ReasoningSupportUtil.getSessionEffort(session),
                     null,
                     req.getReasoningEffort() != null);
 
@@ -987,7 +987,7 @@ public class WsGate extends SimpleWebSocketListener {
             String selectedAgentName = (String) session.attrs().get(SESSION_ATTR_SELECTED_AGENT);
             ReActAgent selectedAgent = engine.getAgentOrMain(selectedAgentName);
             String cwd = session.attrs().getOrDefault(HarnessEngine.ATTR_CWD, ".").toString();
-            String reasoningEffort = ReasoningEffortSupport.getSessionEffort(session);
+            String reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
             
             Prompt hitlPrompt = Prompt.of().attrPut("start_time", System.currentTimeMillis());
             applyReasoningEffort(hitlPrompt, reasoningEffort);
@@ -1193,11 +1193,11 @@ public class WsGate extends SimpleWebSocketListener {
     }
 
     private void applyReasoningEffort(Prompt prompt, String reasoningEffort) {
-        ReasoningEffortSupport.applyToPrompt(prompt, reasoningEffort);
+        ReasoningSupportUtil.applyToPrompt(prompt, reasoningEffort);
     }
 
     private void applyReasoningEffort(ReActOptionsAmend options, String reasoningEffort) {
-        ReasoningEffortSupport.applyToOptions(options, reasoningEffort);
+        ReasoningSupportUtil.applyToOptions(options, reasoningEffort);
     }
 
     /**

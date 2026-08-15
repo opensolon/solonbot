@@ -31,7 +31,7 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.session.SessionMeta;
-import org.noear.solon.codecli.util.ReasoningEffortSupport;
+import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.handle.UploadedFile;
@@ -483,8 +483,8 @@ public class WebController {
                 item.put("description", config.getDescriptionOrModel());
                 item.put("contextLength", config.getContextLength());
                 item.put("standard", config.getStandardOrProvider());
-                ReasoningEffortSupport.ModelCapability cap = ReasoningEffortSupport.resolveCapability(config);
-                item.putAll(ReasoningEffortSupport.toCapabilityMap(cap));
+                ReasoningSupportUtil.ModelCapability cap = ReasoningSupportUtil.resolveCapability(config);
+                item.putAll(ReasoningSupportUtil.toCapabilityMap(cap));
                 list.add(item);
             }
         }
@@ -498,6 +498,7 @@ public class WebController {
 
         String selected = "";
         String reasoningEffort = null;
+        String thinkingMode = null;
         
         if (Assert.isNotEmpty(list)) {
             if (Assert.isNotEmpty(sessionId)) {
@@ -510,7 +511,8 @@ public class WebController {
                     selected = engine.getModelOrDef(null).getNameOrModel();
                 }
                 
-                reasoningEffort = ReasoningEffortSupport.getSessionEffort(session);
+                reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
+                thinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
             } else {
                 selected = engine.getModelOrDef(null).getNameOrModel();
             }
@@ -518,6 +520,7 @@ public class WebController {
             
         data.put("selected", selected);
         data.put("reasoningEffort", reasoningEffort == null ? "" : reasoningEffort);
+        data.put("thinkingMode", thinkingMode == null ? "" : thinkingMode);
 
         // 读取该会话已选中的子代理
         String selectedAgent = "";
@@ -536,12 +539,14 @@ public class WebController {
     }
 
     /**
-     * 切换指定会话的 AI 模型 / 推理水平。
-     * <p>将选项写入会话上下文并更新快照，后续该会话的 AI 交互将使用新配置。</p>
+     * 切换指定会话的 AI 模型 / 推理水平 / 思考模式。
+     * <p>将选项写入会话上下文并更新快照，后续该会话的 AI 交互将使用新配置。
+     * 思考模式（thinkingMode）与推理强度（reasoningEffort）是独立维度。</p>
      *
      * @param sessionId        会话 ID
      * @param modelName        目标模型名称（可选，仅改 effort 时可省略）
      * @param reasoningEffort  推理水平 low|medium|high|max|auto（可选）
+     * @param thinkingMode     思考模式 on|off|auto（可选，独立于推理强度）
      * @return 操作结果
      * @throws Exception 会话操作异常
      */
@@ -549,7 +554,8 @@ public class WebController {
     @Mapping("/web/chat/models/select")
     public Result models_select(@Param("sessionId") String sessionId,
                                 @Param(value = "modelName", required = false) String modelName,
-                                @Param(value = "reasoningEffort", required = false) String reasoningEffort) throws Exception {
+                                @Param(value = "reasoningEffort", required = false) String reasoningEffort,
+                                @Param(value = "thinkingMode", required = false) String thinkingMode) throws Exception {
         AgentSession session = engine.getSession(sessionId);
     
         if (Assert.isNotEmpty(modelName)) {
@@ -558,7 +564,11 @@ public class WebController {
         
         // reasoningEffort 参数出现即写入（含空串表示 auto 清除）
         boolean effortProvided = reasoningEffort != null;
-        ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
+        ReasoningSupportUtil.putSessionEffort(session, reasoningEffort, effortProvided);
+        
+        // thinkingMode 参数出现即写入（含空串表示不干预/清除）
+        boolean modeProvided = thinkingMode != null;
+        ReasoningSupportUtil.putSessionThinkingMode(session, thinkingMode, modeProvided);
         
         session.updateSnapshot();
         
@@ -840,6 +850,7 @@ public class WebController {
     public Result chat_input(Context ctx, String input, UploadedFile[] attachments, String attachmentTypes[],
                              String model, String sessionId,
                              @Param(value = "reasoningEffort", required = false) String reasoningEffort,
+                             @Param(value = "thinkingMode", required = false) String thinkingMode,
                              @Param(value = "selectedAgent", required = false) String selectedAgent) {
         try {
             if (sessionId == null || sessionId.isEmpty()) {
@@ -871,7 +882,7 @@ public class WebController {
 
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
             webGate.onChatInput(sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
-                    reasoningEffort, selectedAgent);
+                    reasoningEffort, thinkingMode, selectedAgent);
                     
             // 返回简单 JSON，前端通过 WebSocket 接收 AI 结果
             return Result.succeed();
@@ -1839,6 +1850,7 @@ public class WebController {
         String modelName = safeQueueString(itemNode.get("modelName"), 200);
         String selectedAgent = safeQueueString(itemNode.get("selectedAgent"), 128);
         String reasoningEffort = safeQueueString(itemNode.get("reasoningEffort"), 50);
+        String thinkingMode = safeQueueString(itemNode.get("thinkingMode"), 50);
 
         long createdAt = System.currentTimeMillis();
         ONode createdNode = itemNode.get("createdAt");
@@ -1872,6 +1884,9 @@ public class WebController {
         }
         if (reasoningEffort != null && !reasoningEffort.isEmpty()) {
             item.put("reasoningEffort", reasoningEffort);
+        }
+        if (thinkingMode != null && !thinkingMode.isEmpty()) {
+            item.put("thinkingMode", thinkingMode);
         }
         item.put("createdAt", createdAt);
         // 附件不持久化；保留 hasFiles 标记，便于前端提示

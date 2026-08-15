@@ -1104,5 +1104,10 @@
   "skills.disabled": "নিষ্ক্রিয়",
   "skills.enabled": "সক্রিয়",
   "skills.toggle.disable": "নিষ্ক্রিয় করুন",
-  "skills.toggle.enable": "সক্রিয় করুন"
+  "skills.toggle.enable": "সক্রিয় করুন",
+  "toolbar.thinkingMode": "Thinking Mode",
+  "toolbar.thinkingModeTitle": "Enable or disable model's deep thinking capability",
+  "toolbar.thinking.auto": "Follow model or provider default",
+  "toolbar.thinking.on": "Enable thinking",
+  "toolbar.thinking.off": "Disable thinking"
 }

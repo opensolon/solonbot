@@ -1104,5 +1104,10 @@
   "skills.disabled": "비활성화됨",
   "skills.enabled": "활성화됨",
   "skills.toggle.disable": "비활성화",
-  "skills.toggle.enable": "활성화"
+  "skills.toggle.enable": "활성화",
+  "toolbar.thinkingMode": "생각 모드",
+  "toolbar.thinkingModeTitle": "모델의 딥 씽킹(추론) 기능 켜기/끄기",
+  "toolbar.thinking.auto": "Follow model or provider default",
+  "toolbar.thinking.on": "Enable thinking",
+  "toolbar.thinking.off": "Disable thinking"
 }

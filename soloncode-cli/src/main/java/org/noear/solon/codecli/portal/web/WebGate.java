@@ -35,7 +35,7 @@ import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.session.SessionMeta;
-import org.noear.solon.codecli.util.ReasoningEffortSupport;
+import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -47,7 +47,6 @@ import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -268,7 +267,7 @@ public class WebGate extends SimpleWebSocketListener {
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source) {
         onChatInput(sessionId, sessionCwd, input, selectedModel, attachments, attachmentTypes,
-                hitlAction, source, null, null);
+                hitlAction, source, null, null, null);
     }
 
     /**
@@ -292,6 +291,7 @@ public class WebGate extends SimpleWebSocketListener {
      * @param hitlAction      HITL 操作类型，取值 "approve" 或 "reject"（可为 null）
      * @param source          消息来源通道标识
      * @param reasoningEffort 请求级推理水平（可选，写入会话后由 StreamBuilder 注入）
+     * @param thinkingMode    请求级思考模式 on|off（可选，独立于推理强度，写入会话后由 StreamBuilder 注入）
      * @param selectedAgent   选择器指定的子代理（可选；空值时使用主 Agent）
      */
     public void onChatInput(String sessionId,
@@ -299,7 +299,7 @@ public class WebGate extends SimpleWebSocketListener {
                             String input, String selectedModel,
                             UploadedFile[] attachments, String[] attachmentTypes,
                             String hitlAction, String source,
-                            String reasoningEffort, String selectedAgent) {
+                            String reasoningEffort, String thinkingMode, String selectedAgent) {
         AgentSession session = null;
         try {
             session = engine.getSession(sessionId);
@@ -312,7 +312,9 @@ public class WebGate extends SimpleWebSocketListener {
             session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED,
                     selectedAgent != null ? selectedAgent : "");
             boolean effortProvided = reasoningEffort != null;
-            ReasoningEffortSupport.putSessionEffort(session, reasoningEffort, effortProvided);
+            ReasoningSupportUtil.putSessionEffort(session, reasoningEffort, effortProvided);
+            boolean modeProvided = thinkingMode != null;
+            ReasoningSupportUtil.putSessionThinkingMode(session, thinkingMode, modeProvided);
 
             String agentName = null;
             String currentInput = input;

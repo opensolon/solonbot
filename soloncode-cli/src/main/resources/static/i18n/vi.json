@@ -1104,5 +1104,10 @@
   "skills.disabled": "Đã tắt",
   "skills.enabled": "Đã bật",
   "skills.toggle.disable": "Tắt",
-  "skills.toggle.enable": "Bật"
+  "skills.toggle.enable": "Bật",
+  "toolbar.thinkingMode": "Thinking Mode",
+  "toolbar.thinkingModeTitle": "Enable or disable model's deep thinking capability",
+  "toolbar.thinking.auto": "Follow model or provider default",
+  "toolbar.thinking.on": "Enable thinking",
+  "toolbar.thinking.off": "Disable thinking"
 }

@@ -1104,5 +1104,10 @@
   "skills.disabled": "無効",
   "skills.enabled": "有効",
   "skills.toggle.disable": "無効化",
-  "skills.toggle.enable": "有効化"
+  "skills.toggle.enable": "有効化",
+  "toolbar.thinkingMode": "思考モード",
+  "toolbar.thinkingModeTitle": "モデルの深層思考機能の有効化/無効化",
+  "toolbar.thinking.auto": "Follow model or provider default",
+  "toolbar.thinking.on": "Enable thinking",
+  "toolbar.thinking.off": "Disable thinking"
 }

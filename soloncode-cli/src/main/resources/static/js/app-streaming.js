@@ -308,6 +308,7 @@ function buildDisplayText(text, filesToSend) {
         hasFiles: filesSnap.length > 0,
         model: typeof getSelectedModel === 'function' ? getSelectedModel() : null,
         reasoningEffort: typeof getSelectedReasoning === 'function' ? getSelectedReasoning() : null,
+        thinkingMode: typeof getSelectedThinking === 'function' ? getSelectedThinking() : '',
         selectedAgent: typeof getSelectedAgent === 'function' ? getSelectedAgent() : '',
         createdAt: Date.now()
     });
@@ -371,6 +372,7 @@ function buildDisplayText(text, filesToSend) {
         displayText: item.displayText,
         model: item.model,
         reasoningEffort: item.reasoningEffort,
+        thinkingMode: item.thinkingMode || '',
         selectedAgent: item.selectedAgent
     });
         }
@@ -712,6 +714,11 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
         ? options.reasoningEffort
         : (typeof getSelectedReasoning === 'function' ? getSelectedReasoning() : '');
     if (effort) formData.append('reasoningEffort', effort);
+    // 思考模式独立参数：仅显式 on/off 时携带（'' 不干预，跟随模型/effort 默认）
+    var thinking = (options.thinkingMode !== undefined && options.thinkingMode !== null)
+        ? options.thinkingMode
+        : (typeof getSelectedThinking === 'function' ? getSelectedThinking() : '');
+    if (thinking) formData.append('thinkingMode', thinking);
     var selectedAgent = options.selectedAgent;
     if (selectedAgent === undefined && typeof getSelectedAgent === 'function') {
         selectedAgent = getSelectedAgent();

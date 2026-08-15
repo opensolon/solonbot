@@ -1064,6 +1064,7 @@ var modelList = [];        // [{name, desc, supportsReasoning, reasoningEfforts,
     var modelsLoaded = false;  // whether model list has been fetched
     var sessionModelMap = {};  // { sessionId: selectedModelName } — 仅会话，无全局
     var sessionReasoningMap = {}; // { sessionId: effort|'' } — 与 model 相同，仅会话
+    var sessionThinkingMap = {}; // { sessionId: 'on'|'off'|'' } — 思考模式开关，独立于推理强度
 
 function getEffortLabels() {
     return {
@@ -1100,6 +1101,13 @@ function getSelectedReasoning() {
     var sid = getSessionKey();
     if (sessionReasoningMap[sid] !== undefined) return sessionReasoningMap[sid] || '';
     return sessionReasoningMap['_default'] || '';
+}
+
+function getSelectedThinking() {
+    var sid = getSessionKey();
+    var v = (sessionThinkingMap[sid] !== undefined) ? sessionThinkingMap[sid] : (sessionThinkingMap['_default'] || '');
+    // '' 表示未显式设置 → UI 显示开（不干预，跟随模型/effort 默认）；发送时为空则不携带参数
+    return v === 'on' || v === 'off' ? v : '';
     }
 
 function getCurrentModelMeta() {
@@ -1151,14 +1159,17 @@ function getCurrentModelMeta() {
             var data = resp.data || {};
             var selected = data.selected || '';
             var effort = data.reasoningEffort || '';
+            var thinking = data.thinkingMode || '';
 
-            // Store selected model / effort per session only (no global sticky)
+            // Store selected model / effort / thinking per session only (no global sticky)
             if (sessionId) {
                 sessionModelMap[sessionId] = selected;
                 sessionReasoningMap[sessionId] = effort;
+                sessionThinkingMap[sessionId] = thinking;
             } else {
                 sessionModelMap['_default'] = selected;
                 sessionReasoningMap['_default'] = effort;
+                sessionThinkingMap['_default'] = thinking;
             }
 
             // 加载子代理选择状态（与模型相同的会话绑定机制）
@@ -1215,6 +1226,7 @@ function getCurrentModelMeta() {
                 if (!modelCached) {
                     sessionModelMap[sessionId] = data.selected || '';
                     sessionReasoningMap[sessionId] = data.reasoningEffort || '';
+                    sessionThinkingMap[sessionId] = data.thinkingMode || '';
                 }
                 if (!agentCached) {
                     sessionAgentMap[sessionId] = data.selectedAgent || '';
@@ -1230,22 +1242,33 @@ function getCurrentModelMeta() {
     }
                 }
 
-function buildTriggerLabel(modelName, effort, showDepth) {
+function buildTriggerLabel(modelName, effort, showDepth, thinkingMode) {
     var parts = [];
     var displayName = modelName ? modelName : I18n.t('history.defaultModel');
     parts.push(displayName);
-    // 支持推理强度调节时始终展示档位，auto 显示英文词以便发现
     if (showDepth) {
+        if (thinkingMode === 'off') {
+            parts.push(I18n.t('history.effortLabelOff', 'off'));
+        } else if (thinkingMode === 'on') {
+            parts.push('on');
+        }
         var _el = getEffortLabels();
-        parts.push((effort && _el[effort]) || _el.auto);
+        if (effort && _el[effort]) {
+            parts.push(_el[effort]);
+        }
     }
     return parts.join(' · ');
 }
 
-function buildTriggerTitle(modelName, effort, showDepth) {
+function buildTriggerTitle(modelName, effort, showDepth, thinkingMode) {
     var bits = [];
     bits.push(I18n.t('history.modelLabel') + (modelName || I18n.t('history.defaultShort')));
     if (showDepth) {
+        if (thinkingMode === 'off') {
+            bits.push(I18n.t('toolbar.thinkingMode') + ': ' + I18n.t('history.effortLabelOff', 'off'));
+        } else if (thinkingMode === 'on') {
+            bits.push(I18n.t('toolbar.thinkingMode') + ': on');
+        }
         var _el = getEffortLabels();
         if (effort && _el[effort]) {
             bits.push(I18n.t('history.reasoningEffortLabel') + _el[effort]);
@@ -1289,8 +1312,9 @@ function renderModelUI() {
     }
 
     var showDepth = !!(meta && meta.supportsReasoning);
-    var label = buildTriggerLabel(currentModel, displayEffort, showDepth);
-    var title = buildTriggerTitle(currentModel, displayEffort, showDepth);
+    var thinkingMode = showDepth ? getSelectedThinking() : '';
+    var label = buildTriggerLabel(currentModel, displayEffort, showDepth, thinkingMode);
+    var title = buildTriggerTitle(currentModel, displayEffort, showDepth, thinkingMode);
     $chatName.text(label).removeAttr('data-i18n');
     $welcomeName.text(label).removeAttr('data-i18n');
     $('#chatModelCurrent').attr('title', title);
@@ -1330,8 +1354,16 @@ function renderModelUI() {
     }
 
 function renderModelOptionRows($dropdown, meta, userEffort) {
+    var $thinkingRow = $dropdown.find('.model-thinking-row');
     var $reasonRow = $dropdown.find('.model-reasoning-row');
     if (meta && meta.supportsReasoning) {
+        $thinkingRow.show();
+        var thinkingMode = getSelectedThinking() || 'auto'; // 'auto' | 'on' | 'off'
+        $thinkingRow.find('button[data-mode]').each(function() {
+            var m = $(this).attr('data-mode');
+            $(this).toggleClass('active', m === thinkingMode);
+        });
+
         $reasonRow.show();
         var allowed = meta.reasoningEfforts && meta.reasoningEfforts.length
             ? meta.reasoningEfforts
@@ -1351,6 +1383,7 @@ function renderModelOptionRows($dropdown, meta, userEffort) {
         var hint = _effortHints[hintKey] || _effortHints.auto;
         $reasonRow.find('.model-option-hint').text(hint);
     } else {
+        $thinkingRow.hide();
         $reasonRow.hide();
     }
 }
@@ -1398,7 +1431,7 @@ function postAgentSelect(payload) {
 function selectReasoning(effort) {
     var sid = getSessionKey();
     var meta = getCurrentModelMeta();
-    var normalized = (effort === 'auto' || !effort) ? '' : effort;
+    var normalized = (effort === 'auto' || !effort || effort === 'none') ? '' : effort;
     var clamped = normalized ? clampEffortForModel(normalized, meta) : '';
     // 仅写会话，无全局 sticky（与 model selected 相同机制）
     sessionReasoningMap[sid] = clamped || '';
@@ -1407,6 +1440,19 @@ function selectReasoning(effort) {
         sessionId: sid,
         modelName: getSelectedModel(),
         reasoningEffort: clamped || ''
+    });
+}
+
+function selectThinking(mode) {
+    var sid = getSessionKey();
+    // 思考模式三态：auto（默认，空值）/ on / off
+    var normalized = (mode === 'on' || mode === 'off') ? mode : '';
+    sessionThinkingMap[sid] = normalized;
+    renderModelUI();
+    postModelSelect({
+        sessionId: sid,
+        modelName: getSelectedModel(),
+        thinkingMode: normalized
     });
 }
 
@@ -1433,11 +1479,20 @@ function selectReasoning(effort) {
     });
 
     $dropdown.on('click', function(e) {
-        var $pill = $(e.target).closest('.model-option-pills button');
-        if ($pill.length) {
+        var $thinkingPill = $(e.target).closest('.model-option-pills[data-kind="thinking"] button');
+        if ($thinkingPill.length) {
             e.stopPropagation();
             e.preventDefault();
-            var effort = $pill.attr('data-effort');
+            var mode = $thinkingPill.attr('data-mode');
+            if (mode) selectThinking(mode);
+            return;
+        }
+
+        var $reasoningPill = $(e.target).closest('.model-option-pills[data-kind="reasoning"] button, .model-option-pills:not([data-kind]) button');
+        if ($reasoningPill.length) {
+            e.stopPropagation();
+            e.preventDefault();
+            var effort = $reasoningPill.attr('data-effort');
             if (effort) selectReasoning(effort);
             return;
         }
@@ -1488,6 +1543,7 @@ function initModelSearch(dropdownId) {
             window.reloadModels = reloadModels;
             window.loadModels = loadModels;
             window.getSelectedReasoning = getSelectedReasoning;
+            window.getSelectedThinking = getSelectedThinking;
 
         // Initial load (no specific session, get default selected)
 loadModels(null);

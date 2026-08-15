@@ -778,15 +778,16 @@ body {
 .model-search-input::placeholder { color: var(--text-secondary); }
 
 /* Model option footer: thinking depth */
-.model-dropdown-footer { border-top: 1px solid var(--border-color); padding: 8px 10px 10px; background: var(--bg-input-box); flex-shrink: 0; }
+.model-dropdown-footer { border-top: 1px solid var(--border-color); padding: 8px 10px 10px; background: var(--bg-input-box); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
 .model-option-row { display: flex; flex-direction: column; gap: 6px; margin-top: 0; }
 .model-option-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.model-option-label { font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); flex-shrink: 0; }
+.model-option-label { font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); flex-shrink: 0; min-width: 52px; }
 .model-option-pills { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .model-option-pills button { border: 1px solid var(--border-color); background: var(--bg-input-box); color: var(--text-secondary); font-size: var(--fs-xs); padding: 3px 8px; border-radius: 999px; cursor: pointer; transition: all 0.15s; line-height: 1.3; }
 .model-option-pills button:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-hover); }
- .model-option-pills button.active { background: var(--accent-fill, var(--accent)); color: #fff; border-color: var(--accent); font-weight: 600; }
+.model-option-pills button.active { background: var(--accent-fill, var(--accent)); color: #fff; border-color: var(--accent); font-weight: 600; }
 .model-option-pills button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .model-option-hint { font-size: var(--fs-2xs); color: var(--text-secondary); opacity: 0.78; line-height: 1.35; }
 .model-name-badge { font-size: var(--fs-xs); color: var(--text-secondary); opacity: 0.85; margin-left: 2px; }
 .model-selector-current .model-name { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }

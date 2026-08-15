@@ -1104,5 +1104,10 @@
   "skills.disabled": "Wyłączony",
   "skills.enabled": "Włączony",
   "skills.toggle.disable": "Wyłącz",
-  "skills.toggle.enable": "Włącz"
+  "skills.toggle.enable": "Włącz",
+  "toolbar.thinkingMode": "Thinking Mode",
+  "toolbar.thinkingModeTitle": "Enable or disable model's deep thinking capability",
+  "toolbar.thinking.auto": "Follow model or provider default",
+  "toolbar.thinking.on": "Enable thinking",
+  "toolbar.thinking.off": "Disable thinking"
 }

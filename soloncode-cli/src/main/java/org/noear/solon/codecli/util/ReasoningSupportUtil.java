@@ -35,26 +35,55 @@ import java.util.Map;
  * <p>会话级选择走 {@link AgentSession#getContext()}，请求级注入走 Prompt attr + optionSet。
  * 不修改 ChatModel 单例状态。</p>
  *
- * <p>语义：
+ * <p>两个独立维度：
  * <ul>
- *   <li>auto：会话无 effort 键 → 不注入 reasoning_effort，交给模型 defaultOptions / Agent Builder / 供应商</li>
- *   <li>user：会话有显式 low|medium|high|max</li>
+ *   <li><b>思考模式</b>（{@link #CTX_THINKING_MODE}）：on|off，映射 {@code options.thinking(true/false)}，
+ *       独立于推理强度，不占用 effort 档位；</li>
+ *   <li><b>推理强度</b>（{@link #CTX_REASONING_EFFORT}）：auto / low|medium|high|max，映射
+ *       {@code options.reasoning_effort(...)}；auto（无 effort 键）时不注入，交给模型 defaultOptions /
+ *       Agent Builder / 供应商。</li>
  * </ul>
- * {@link ModelCapability#defaultReasoningEffort} 仅供 UI 推荐，不得在 auto 时强制注入。</p>
+ * 历史兼容：旧前端把「关闭思考」编码为 {@code reasoningEffort=none}，写入时自动迁移为
+ * thinkingMode=off 并清除 effort 键；读取时若仍遇到 none，同样按 thinking(false) 处理。</p>
  *
  * <p>不再提供独立「速度」轴：方言层无 speed_mode 映射；浅/深响应由推理档（含「低」）直接控制。</p>
  *
  * @author noear
  * @since 2026.7
  */
-public final class ReasoningEffortSupport {
+public final class ReasoningSupportUtil {
+    /** 会话上下文：思考模式开关 on|off（独立于推理强度） */
+    public static final String CTX_THINKING_MODE = "_thinking_mode";
+
     /** 会话上下文：推理水平 low|medium|high|max */
     public static final String CTX_REASONING_EFFORT = "_reasoning_effort";
 
     private static final List<String> ALL_EFFORTS = Collections.unmodifiableList(
             Arrays.asList("low", "medium", "high", "max"));
 
-    private ReasoningEffortSupport() {
+    private ReasoningSupportUtil() {
+    }
+
+    /**
+     * 思考模式归一化：on|enabled|true|1 → "on"；off|disabled|false|0 → "off"；空/auto → null。
+     */
+    public static String normalizeThinkingMode(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty() || "auto".equals(normalized)) {
+            return null;
+        }
+        if ("on".equals(normalized) || "enabled".equals(normalized)
+                || "true".equals(normalized) || "1".equals(normalized)) {
+            return "on";
+        }
+        if ("off".equals(normalized) || "disabled".equals(normalized)
+                || "false".equals(normalized) || "0".equals(normalized)) {
+            return "off";
+        }
+        return null;
     }
 
     public static String normalizeEffort(String value) {
@@ -68,6 +97,9 @@ public final class ReasoningEffortSupport {
         if ("low".equals(normalized) || "medium".equals(normalized)
                 || "high".equals(normalized) || "max".equals(normalized)) {
             return normalized;
+        }
+        if ("none".equals(normalized) || "off".equals(normalized) || "false".equals(normalized)) {
+            return "none";
         }
         return null;
     }
@@ -111,6 +143,9 @@ public final class ReasoningEffortSupport {
         if (normalized == null) {
             return null;
         }
+        if ("none".equals(normalized)) {
+            return "none";
+        }
         if (capability == null || !capability.supportsReasoning) {
             // 能力未知时仍允许下发（对齐 Desktop 行为）；UI 侧会按 supportsReasoning 隐藏
             return normalized;
@@ -140,26 +175,57 @@ public final class ReasoningEffortSupport {
         return null;
     }
 
-    public static void applyToPrompt(Prompt prompt, String reasoningEffort) {
-        if (prompt == null || Assert.isEmpty(reasoningEffort)) {
+    public static void applyToPrompt(Prompt prompt, String thinkingMode, String reasoningEffort) {
+        if (prompt == null) {
             return;
         }
-        prompt.attrPut("reasoning_effort", reasoningEffort);
-        prompt.attrPut("reasoningEffort", reasoningEffort);
+        if (Assert.isNotEmpty(thinkingMode)) {
+            prompt.attrPut("thinking", thinkingMode);
+        }
+        if (Assert.isNotEmpty(reasoningEffort)) {
+            prompt.attrPut("reasoning_effort", reasoningEffort);
+            prompt.attrPut("reasoningEffort", reasoningEffort);
+        }
+    }
+
+    public static void applyToPrompt(Prompt prompt, String reasoningEffort) {
+        applyToPrompt(prompt, null, reasoningEffort);
     }
 
     /**
      * 写入 ReAct/Chat 模型 options（经 ReasonTask 透传到 ChatModel）。
+     * <p>思考模式与推理强度是两个独立维度：</p>
+     * <ul>
+     *   <li>thinkingMode=off → {@code options.thinking(false)}，不写 effort（方言层关闭优先）；</li>
+     *   <li>thinkingMode=on → {@code options.thinking(true)}，再按 effort 写档位；</li>
+     *   <li>thinkingMode 未设置 → 兼容旧路径：effort 为 none（旧会话遗留）时按关闭处理，
+     *       否则只写 effort（多数方言会因 effort 隐式开启思考）。</li>
+     * </ul>
      *
+     * @param thinkingMode   on|off，空则不干预
      * @param reasoningEffort low|medium|high|max，空则不写
      */
-    public static void applyToOptions(ReActOptionsAmend options, String reasoningEffort) {
+    public static void applyToOptions(ReActOptionsAmend options, String thinkingMode, String reasoningEffort) {
         if (options == null) {
             return;
         }
-        if (Assert.isNotEmpty(reasoningEffort)) {
-            options.reasoning_effort(reasoningEffort);
+        String mode = normalizeThinkingMode(thinkingMode);
+        String effort = normalizeEffort(reasoningEffort);
+        if ("off".equals(mode)) {
+            options.thinking(false);
+        } else if ("on".equals(mode)) {
+            options.thinking(true);
         }
+        if (Assert.isNotEmpty(effort) && !"none".equals(effort)) {
+            options.reasoning_effort(effort);
+        }
+    }
+
+    /**
+     * @deprecated 思考模式已独立，请使用 {@link #applyToOptions(ReActOptionsAmend, String, String)}
+     */
+    public static void applyToOptions(ReActOptionsAmend options, String reasoningEffort) {
+        applyToOptions(options, null, reasoningEffort);
     }
 
     public static String getSessionEffort(AgentSession session) {
@@ -170,14 +236,44 @@ public final class ReasoningEffortSupport {
         return v == null ? null : normalizeEffort(String.valueOf(v));
     }
 
+    public static String getSessionThinkingMode(AgentSession session) {
+        if (session == null) {
+            return null;
+        }
+        Object v = session.getContext().get(CTX_THINKING_MODE);
+        return v == null ? null : normalizeThinkingMode(String.valueOf(v));
+    }
+
+    /**
+     * 写入会话；thinkingMode 传空串/"auto"/null 时清除（不干预，跟随模型/effort 默认）。
+     */
+    public static void putSessionThinkingMode(AgentSession session, String thinkingMode, boolean provided) {
+        if (session == null || !provided) {
+            return;
+        }
+        String mode = normalizeThinkingMode(thinkingMode);
+        if (mode == null) {
+            session.getContext().remove(CTX_THINKING_MODE);
+        } else {
+            session.getContext().put(CTX_THINKING_MODE, mode);
+        }
+    }
+
     /**
      * 写入会话；effort 传空串/"auto"/null 时清除。
+     * <p>历史兼容：effort=none（旧前端关闭思考的编码）自动迁移为
+     * thinkingMode=off 并清除 effort 键，保证两个维度职责单一。</p>
      */
     public static void putSessionEffort(AgentSession session, String reasoningEffort, boolean effortProvided) {
         if (session == null || !effortProvided) {
             return;
         }
         String effort = normalizeEffort(reasoningEffort);
+        if ("none".equals(effort)) {
+            session.getContext().remove(CTX_REASONING_EFFORT);
+            session.getContext().put(CTX_THINKING_MODE, "off");
+            return;
+        }
         if (effort == null) {
             session.getContext().remove(CTX_REASONING_EFFORT);
         } else {

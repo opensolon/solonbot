@@ -35,7 +35,7 @@ import org.noear.solon.ai.talents.memory.MemoryTalent;
 import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.channel.wechat.WeChatLink;
 import org.noear.solon.codecli.command.builtin.GoalTalent;
-import org.noear.solon.codecli.util.ReasoningEffortSupport;
+import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,8 +147,9 @@ public class WebStreamBuilder {
 
         // 会话级推理水平：从 context 读取并注入 Prompt + options
         // auto 时不注入 effort，交给模型 defaultOptions / Agent Builder / 供应商
-        String sessionEffort = ReasoningEffortSupport.getSessionEffort(session);
-        ReasoningEffortSupport.ModelCapability cap = null;
+        String sessionEffort = ReasoningSupportUtil.getSessionEffort(session);
+        String sessionThinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
+        ReasoningSupportUtil.ModelCapability cap = null;
         try {
             ChatConfig fullConfig = null;
             if (chatModel != null && chatModel.getConfig() != null) {
@@ -157,13 +158,13 @@ public class WebStreamBuilder {
                 if (Assert.isNotEmpty(key)) {
                     fullConfig = engine.getModelOrNil(key);
                     if (fullConfig == null) {
-                        fullConfig = ReasoningEffortSupport.findEngineConfig(engine.getModels(), key);
+                        fullConfig = ReasoningSupportUtil.findEngineConfig(engine.getModels(), key);
                     }
                 }
                 if (fullConfig == null && Assert.isNotEmpty(chatModel.getConfig().getModel())) {
                     fullConfig = engine.getModelOrNil(chatModel.getConfig().getModel());
                     if (fullConfig == null) {
-                        fullConfig = ReasoningEffortSupport.findEngineConfig(
+                        fullConfig = ReasoningSupportUtil.findEngineConfig(
                                 engine.getModels(), chatModel.getConfig().getModel());
                     }
                 }
@@ -172,10 +173,10 @@ public class WebStreamBuilder {
                 }
             }
             if (fullConfig != null) {
-                cap = ReasoningEffortSupport.resolveCapability(fullConfig);
+                cap = ReasoningSupportUtil.resolveCapability(fullConfig);
             } else if (chatModel != null && chatModel.getConfig() != null) {
                 // 2) 回退：name/model/standard 启发式
-                cap = ReasoningEffortSupport.resolveCapability(
+                cap = ReasoningSupportUtil.resolveCapability(
                         chatModel.getConfig().getName(),
                         chatModel.getConfig().getModel(),
                         chatModel.getConfig().getStandardOrProvider(),
@@ -183,15 +184,15 @@ public class WebStreamBuilder {
             }
         } catch (Throwable ignored) {
         }
-        final String effectiveEffort = ReasoningEffortSupport.resolveEffectiveEffort(
+        final String effectiveEffort = ReasoningSupportUtil.resolveEffectiveEffort(
                 null, sessionEffort, cap, false);
-        ReasoningEffortSupport.applyToPrompt(prompt, effectiveEffort);
+        ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
         return agent.prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.chatModel(chatModel);
-                    ReasoningEffortSupport.applyToOptions(o, effectiveEffort);
+                    ReasoningSupportUtil.applyToOptions(o, sessionThinkingMode, effectiveEffort);
 
                     if (Assert.isNotEmpty(sessionCwd)) {
                         o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
@@ -697,7 +698,7 @@ public class WebStreamBuilder {
                 wc.setType("context_status");
                 wc.setSessionId(sessionId);
                 Map<String, Object> args = new HashMap<>();
-                args.put("cacheRate", metrics.getCacheRate());
+                args.put("cacheRate", cacheRate);
                 wc.setArgs(args);
                 return wc;
             }
