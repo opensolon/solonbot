@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Anbieterdetails konnten nicht geladen werden",
   "provider.loadFailed": "Anbieterliste konnte nicht geladen werden",
   "provider.manualTag": "Manuell",
-  "provider.modelCount": "{n} Modelle",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Modell „{name}“ existiert bereits",
   "provider.modelName": "Modellname",
   "provider.modelNamePlaceholder": "z. B. gpt-4o-mini",

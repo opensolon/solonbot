@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Dohvaćanje detalja dobavljača nije uspjelo",
   "provider.loadFailed": "Učitavanje popisa dobavljača nije uspjelo",
   "provider.manualTag": "Ručno",
-  "provider.modelCount": "{n} modela",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Model „{name}“ već postoji",
   "provider.modelName": "Naziv modela",
   "provider.modelNamePlaceholder": "npr. gpt-4o-mini",

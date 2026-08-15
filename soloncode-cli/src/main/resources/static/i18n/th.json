@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "รับรายละเอียดผู้ให้บริการไม่สำเร็จ",
   "provider.loadFailed": "โหลดรายการผู้ให้บริการล้มเหลว",
   "provider.manualTag": "ด้วยตนเอง",
-  "provider.modelCount": "โมเดล {n}",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "โมเดล “{name}” มีอยู่แล้ว",
   "provider.modelName": "ชื่อโมเดล",
   "provider.modelNamePlaceholder": "เช่น gpt-4o-mini",

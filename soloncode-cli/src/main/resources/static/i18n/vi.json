@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Lấy chi tiết nhà cung cấp thất bại",
   "provider.loadFailed": "Tải danh sách nhà cung cấp thất bại",
   "provider.manualTag": "Thủ công",
-  "provider.modelCount": "{n} mô hình",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Mô hình “{name}” đã tồn tại",
   "provider.modelName": "Tên mô hình",
   "provider.modelNamePlaceholder": "ví dụ: gpt-4o-mini",

@@ -158,18 +158,20 @@
     }
 
     function loadProvidersList() {
-        $.ajax({
-            url: '/web/settings/llm/providers',
-            method: 'GET',
-            success: function (res) {
-                if (res.code === 200) {
-                    providers = res.data || [];
-                    renderProvidersList();
+        loadLlmModelsCache(function () {
+            $.ajax({
+                url: '/web/settings/llm/providers',
+                method: 'GET',
+                success: function (res) {
+                    if (res.code === 200) {
+                        providers = res.data || [];
+                        renderProvidersList();
+                    }
+                },
+                error: function () {
+                    layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
                 }
-            },
-            error: function () {
-                layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
-            }
+            });
         });
     }
 
@@ -186,13 +188,27 @@
     }
 
     function renderProviderItem(provider) {
-        var modelsCount = (provider.models || []).length;
+        var models = provider.models || [];
+        var n = models.length;
+        var m = 0;
+        var providerName = provider.name || '';
+        var providerEnabled = provider.enabled !== false;
+
+        models.forEach(function (model) {
+            var llmName = providerName ? providerName + '-' + model.id : model.id;
+            var syncedModel = llmModelsCache[llmName];
+            var isSynced = !!syncedModel;
+            var enabled = isSynced ? (syncedModel.enabled !== false && syncedModel.visibled !== false) : providerEnabled;
+            if (enabled) {
+                m++;
+            }
+        });
 
         return '<div class="settings-list-item' + (provider.enabled === false ? ' disabled' : '') + '" data-name="' + provider.name + '">' +
             '<div class="settings-list-icon">' + (getStandardAbbr(provider.standard) || 'F') + '</div>' +
             '<div class="settings-list-info">' +
                 '<div class="settings-list-title">' + provider.name + ' <span class="settings-inline-tag">[' + (provider.standard || 'openai') + ']</span></div>' +
-                '<div class="settings-list-desc">' + (provider.apiUrl || I18n.t('provider.notConfigured')) + ' - ' + I18n.t('provider.modelCount', {n: modelsCount}) + '</div>' +
+                '<div class="settings-list-desc">' + (provider.apiUrl || I18n.t('provider.notConfigured')) + ' - ' + I18n.t('provider.modelCount', {m: m, n: n}) + '</div>' +
             '</div>' +
             '<div class="settings-list-actions">' +
                 '<button class="settings-action-btn edit provider-edit-btn" title="' + I18n.t('provider.edit') + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +

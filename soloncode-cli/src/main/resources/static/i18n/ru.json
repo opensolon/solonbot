@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Не удалось загрузить сведения о поставщике",
   "provider.loadFailed": "Не удалось загрузить список поставщиков",
   "provider.manualTag": "Вручную",
-  "provider.modelCount": "Моделей: {n}",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Модель «{name}» уже существует",
   "provider.modelName": "Название модели",
   "provider.modelNamePlaceholder": "например, gpt-4o-mini",

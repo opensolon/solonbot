@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Recupero dettagli fornitore non riuscito",
   "provider.loadFailed": "Caricamento elenco fornitori non riuscito",
   "provider.manualTag": "Manuale",
-  "provider.modelCount": "{n} modelli",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Il modello \"{name}\" esiste già",
   "provider.modelName": "Nome modello",
   "provider.modelNamePlaceholder": "es. gpt-4o-mini",

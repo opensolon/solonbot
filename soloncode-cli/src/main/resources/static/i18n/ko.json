@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "공급업체 상세 정보 가져오기 실패",
   "provider.loadFailed": "공급업체 목록 로드 실패",
   "provider.manualTag": "수동",
-  "provider.modelCount": "모델 {n}개",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "모델 \"{name}\"이(가) 이미 존재합니다",
   "provider.modelName": "모델 이름",
   "provider.modelNamePlaceholder": "예: gpt-4o-mini",

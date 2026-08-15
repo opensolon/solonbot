@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Sağlayıcı ayrıntıları yüklenemedi",
   "provider.loadFailed": "Sağlayıcı listesi yüklenemedi",
   "provider.manualTag": "Manuel",
-  "provider.modelCount": "{n} model",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "\"{name}\" modeli zaten var",
   "provider.modelName": "Model Adı",
   "provider.modelNamePlaceholder": "örn. gpt-4o-mini",

@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Nie udało się pobrać szczegółów dostawcy",
   "provider.loadFailed": "Nie udało się załadować listy dostawców",
   "provider.manualTag": "Ręczny",
-  "provider.modelCount": "{n} modeli",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Model „{name}” już istnieje",
   "provider.modelName": "Nazwa modelu",
   "provider.modelNamePlaceholder": "np. gpt-4o-mini",

@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "プロバイダー詳細の取得に失敗しました",
   "provider.loadFailed": "プロバイダーリストの読み込みに失敗しました",
   "provider.manualTag": "手動",
-  "provider.modelCount": "{n} モデル",
+  "provider.modelCount": "（{m}/{n}）",
   "provider.modelExists": "モデル「{name}」は既に存在します",
   "provider.modelName": "モデル名",
   "provider.modelNamePlaceholder": "例：gpt-4o-mini",

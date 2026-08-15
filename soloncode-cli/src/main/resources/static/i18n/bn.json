@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "প্রোভাইডার বিবরণ লোড ব্যর্থ",
   "provider.loadFailed": "প্রোভাইডার তালিকা লোড ব্যর্থ",
   "provider.manualTag": "ম্যানুয়াল",
-  "provider.modelCount": "{n} মডেল",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "মডেল \"{name}\" ইতিমধ্যে আছে",
   "provider.modelName": "মডেলের নাম",
   "provider.modelNamePlaceholder": "যেমন gpt-4o-mini",

@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Kunne ikke indlæse udbyderdetaljer",
   "provider.loadFailed": "Kunne ikke indlæse udbyderlisten",
   "provider.manualTag": "Manuel",
-  "provider.modelCount": "{n} modeller",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Model “{name}” findes allerede",
   "provider.modelName": "Modelnavn",
   "provider.modelNamePlaceholder": "f.eks. gpt-4o-mini",

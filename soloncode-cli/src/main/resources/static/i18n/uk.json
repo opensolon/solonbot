@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Не вдалося отримати деталі провайдера",
   "provider.loadFailed": "Не вдалося завантажити список провайдерів",
   "provider.manualTag": "Вручну",
-  "provider.modelCount": "{n} моделей",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Модель \"{name}\" уже існує",
   "provider.modelName": "Назва моделі",
   "provider.modelNamePlaceholder": "напр. gpt-4o-mini",

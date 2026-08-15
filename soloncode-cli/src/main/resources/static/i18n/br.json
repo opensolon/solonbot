@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Falha ao carregar os detalhes do provedor",
   "provider.loadFailed": "Falha ao carregar a lista de provedores",
   "provider.manualTag": "Manual",
-  "provider.modelCount": "{n} modelos",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "O modelo \"{name}\" já existe",
   "provider.modelName": "Nome do Modelo",
   "provider.modelNamePlaceholder": "ex.: gpt-4o-mini",

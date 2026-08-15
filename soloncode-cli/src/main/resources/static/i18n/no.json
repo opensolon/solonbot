@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "Kunne ikke hente leverandørinformasjon",
   "provider.loadFailed": "Kunne ikke laste leverandørlisten",
   "provider.manualTag": "Manuell",
-  "provider.modelCount": "{n} modeller",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "Modellen «{name}» finnes allerede",
   "provider.modelName": "Modellnavn",
   "provider.modelNamePlaceholder": "f.eks. gpt-4o-mini",

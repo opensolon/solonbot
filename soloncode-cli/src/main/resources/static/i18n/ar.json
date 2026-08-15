@@ -794,7 +794,7 @@
   "provider.loadDetailFailed": "فشل جلب تفاصيل موفر الخدمة",
   "provider.loadFailed": "فشل تحميل قائمة موفري الخدمة",
   "provider.manualTag": "يدوي",
-  "provider.modelCount": "{n} نموذج",
+  "provider.modelCount": "({m}/{n})",
   "provider.modelExists": "النموذج \"{name}\" موجود بالفعل",
   "provider.modelName": "اسم النموذج",
   "provider.modelNamePlaceholder": "مثل gpt-4o-mini",
