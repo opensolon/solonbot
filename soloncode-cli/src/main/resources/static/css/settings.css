@@ -1505,6 +1505,23 @@ select[disabled] {
     color: #ef4444;
 }
 
+.provider-title-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.provider-models-count {
+    font-size: var(--fs-2xs);
+    color: var(--text-secondary);
+    font-weight: 400;
+    opacity: 0.85;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.provider-models-count.muted {
+    opacity: 0.5;
+}
+
 /* ==================== MCP 导入对话框 ==================== */
 .import-overlay {
     position: fixed;

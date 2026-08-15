@@ -8,6 +8,8 @@
 
     var core = window._settingsCore;
     var postJson = core.postJson;
+    var escapeHtml = core.escapeHtml;
+    var escapeAttr = core.escapeAttr;
 
     // ==================== 状态管理 ====================
     var providers = [];
@@ -83,6 +85,15 @@
         $providerList.on('click', '.provider-edit-btn', function (e) {
             e.stopPropagation();
             var name = $(this).closest('.settings-list-item').data('name');
+            editProvider(name);
+        });
+
+        // 点击列表项整行进入编辑
+        $providerList.on('click', '.settings-list-item', function (e) {
+            if ($(e.target).closest('.toggle-switch, .settings-action-btn, input').length) {
+                return;
+            }
+            var name = $(this).data('name');
             editProvider(name);
         });
 
@@ -204,16 +215,29 @@
             }
         });
 
-        return '<div class="settings-list-item' + (provider.enabled === false ? ' disabled' : '') + '" data-name="' + provider.name + '">' +
-            '<div class="settings-list-icon">' + (getStandardAbbr(provider.standard) || 'F') + '</div>' +
+        var countClass = 'provider-models-count';
+        if (m === 0 && n > 0) {
+            countClass += ' muted';
+        }
+
+        var modelsCountHtml = '<span class="' + countClass + '">' + I18n.t('provider.modelCount', {m: m, n: n}) + '</span>';
+        var scopeBadge = provider.scope === 'workspace' ? '<span class="mounts-scope-badge scope-workspace">' + I18n.t('provider.scope.workspace') + '</span>' : '';
+
+        return '<div class="settings-list-item' + (provider.enabled === false ? ' disabled' : '') + '" data-name="' + escapeAttr(provider.name) + '">' +
+            '<div class="settings-list-icon">' + escapeHtml(getStandardAbbr(provider.standard) || 'F') + '</div>' +
             '<div class="settings-list-info">' +
-                '<div class="settings-list-title">' + provider.name + ' <span class="settings-inline-tag">[' + (provider.standard || 'openai') + ']</span></div>' +
-                '<div class="settings-list-desc">' + (provider.apiUrl || I18n.t('provider.notConfigured')) + ' - ' + I18n.t('provider.modelCount', {m: m, n: n}) + '</div>' +
+                '<div class="settings-list-title">' +
+                    '<span class="provider-title-name">' + escapeHtml(provider.name) + '</span>' +
+                    '<span class="settings-inline-tag">[' + escapeHtml(provider.standard || 'openai') + ']</span>' +
+                    modelsCountHtml +
+                    scopeBadge +
+                '</div>' +
+                '<div class="settings-list-desc">' + escapeHtml(provider.apiUrl || I18n.t('provider.notConfigured')) + '</div>' +
             '</div>' +
             '<div class="settings-list-actions">' +
                 '<button class="settings-action-btn edit provider-edit-btn" title="' + I18n.t('provider.edit') + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>' +
                 '<label class="toggle-switch" title="' + (provider.enabled ? I18n.t('provider.toggle.disable') : I18n.t('provider.toggle.enable')) + '">' +
-                    '<input type="checkbox" ' + (provider.enabled ? 'checked' : '') + ' data-name="' + provider.name + '" class="provider-toggle"/>' +
+                    '<input type="checkbox" ' + (provider.enabled ? 'checked' : '') + ' data-name="' + escapeAttr(provider.name) + '" class="provider-toggle"/>' +
                     '<span class="toggle-slider"></span>' +
                 '</label>' +
             '</div>' +
