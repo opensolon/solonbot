@@ -2,6 +2,10 @@
 ### v2026.8.15
 
 * 添加 soloncode web 缓存率显示
+* 添加 soloncode web 思考模式开关控制
+* 优化 soloncode llm 方言的兼容处理（有些 toolCalls 可能参数格式缺）
+* 优化 soloncode llm 思考与强度的兼容处理
+* 细节优化
 
 ### v2026.8.11
 
