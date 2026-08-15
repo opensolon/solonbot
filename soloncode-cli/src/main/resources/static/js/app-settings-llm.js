@@ -360,6 +360,7 @@
                 $ApiUrl.attr('placeholder', 'https://api.anthropic.com');
                 break;
             case 'gemini':
+            case 'google':
                 $ApiUrl.attr('placeholder', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent');
                 break;
             case 'ollama':
