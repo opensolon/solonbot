@@ -1087,15 +1087,16 @@ function getEffortHints() {
 
 // Get the effective selected model for current context
 function getSelectedModel() {
-    if (activeSessionId && sessionModelMap[activeSessionId]) {
-        return sessionModelMap[activeSessionId];
+    var sid = getSessionKey();
+    if (sessionModelMap[sid]) {
+        return sessionModelMap[sid];
     }
     return sessionModelMap['_default'] || '';
-    }
+}
 
 function getSessionKey() {
     return activeSessionId || SESSION_ID || '_default';
-    }
+}
 
 function getSelectedReasoning() {
     var sid = getSessionKey();
@@ -1115,7 +1116,10 @@ function getCurrentModelMeta() {
     for (var i = 0; i < modelList.length; i++) {
         if (modelList[i].name === name) return modelList[i];
     }
-    return null;
+    // 防御：selected 不在列表（如默认模型被禁用导致 getModelOrDef 返回禁用模型）时，
+    // 回退到第一个可用模型，保证思考模式/推理强度面板不因 meta=null 被隐藏。
+    // 仅影响展示，不改变 sessionModelMap 中的实际选择。
+    return modelList.length ? modelList[0] : null;
 }
 
     function clampEffortForModel(effort, meta) {

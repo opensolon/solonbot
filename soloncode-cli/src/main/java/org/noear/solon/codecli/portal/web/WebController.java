@@ -516,6 +516,13 @@ public class WebController {
             } else {
                 selected = engine.getModelOrDef(null).getNameOrModel();
             }
+
+            // 防御：默认模型可能被禁用（getModelOrDef 不校验 isEnabled），导致 selected
+            // 不在启用列表 list 中，前端 getCurrentModelMeta() 返回 null 后会把
+            // 思考模式/推理强度面板隐藏。此处确保 selected 一定落在 list 内。
+            if (!containsModelName(list, selected)) {
+                selected = (String) list.get(0).get("name");
+            }
         }
             
         data.put("selected", selected);
@@ -536,6 +543,21 @@ public class WebController {
         data.put("selectedAgent", selectedAgent);
         
         return Result.succeed(data);
+    }
+
+    /**
+     * 判断 selected 模型名是否存在于已过滤 enabled 的模型列表中。
+     */
+    private static boolean containsModelName(List<Map> list, String name) {
+        if (name == null || list == null || list.isEmpty()) {
+            return false;
+        }
+        for (Map item : list) {
+            if (name.equals(item.get("name"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
