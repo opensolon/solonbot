@@ -1,5 +1,5 @@
 
-### v2026.8.16
+### v2026.8.17
 
 * 添加 soloncode web 供应商 google 方言支持
 * 优化 soloncode 缓存处理
