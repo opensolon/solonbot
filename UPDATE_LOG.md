@@ -2,6 +2,8 @@
 ### v2026.8.16
 
 * 添加 soloncode web 供应商 google 方言支持
+* 优化 soloncode 缓存处理
+* 细节优化
 
 ### v2026.8.15
 

@@ -41,7 +41,7 @@ public class AgentFlags {
     public final static String SCOPE_LOCAL = "workspace"; //作用域：本地
 
     public static String getVersion() {
-        return "v2026.8.15";
+        return "v2026.8.17";
     }
 
     private static String lastVersion;
