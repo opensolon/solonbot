@@ -17,7 +17,7 @@ package org.noear.solon.codecli.channel.wechat;
 
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.channel.Channel;
-import org.noear.solon.codecli.portal.web.WebChunk;
+import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -208,8 +208,8 @@ public class WeChatLink implements Channel, Runnable {
             LOG.warn("[WeChat] Token expired for session {}, auto-unbinding", sessionId);
             unbindSession(sessionId);
             // 通知前端
-            webGate.emitToClient(sessionId, WebChunk.ofError("微信连接已过期，请重新扫码绑定"));
-            webGate.emitToClient(sessionId, WebChunk.ofDone());
+            webGate.emitToClient(sessionId, WebEvent.ofError("微信连接已过期，请重新扫码绑定"));
+            webGate.emitToClient(sessionId, WebEvent.ofDone());
             return;
         }
 

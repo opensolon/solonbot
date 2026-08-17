@@ -69,7 +69,7 @@ function renderContextStatus(sess) {
 
 /**
  * 更新上下文状态 UI
- * @param {Object} chunk - type 为 context_size 的 WebChunk
+ * @param {Object} chunk - type 为 context_size 的 WebEvent/payload
  * @param {Object} [sess] - 可选；缺省写 activeSession
  */
 function updateContextIndicator(chunk, sess) {
@@ -91,7 +91,7 @@ function updateContextIndicator(chunk, sess) {
 
 /**
  * 更新上下文状态 UI（如缓存命中率等）
- * @param {Object} chunk - type 为 context_status 的 WebChunk
+ * @param {Object} chunk - type 为 context_status 的 WebEvent/payload
  * @param {Object} [sess] - 可选；缺省写 activeSession
  */
 function updateContextStatus(chunk, sess) {

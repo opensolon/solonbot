@@ -329,7 +329,7 @@ function ensureAssistantBubble(sess) {
 }
 
 function streamReasonKey(segment, reasonId) {
-    return segment.id + '::' + reasonId;
+    return segment.id + '::' + (reasonId || '__default__');
 }
 
 function buildTaskGroupAriaLabel(segment, expanded) {
@@ -495,7 +495,7 @@ function finalizeTaskGroups(sess) {
 }
 
 /**
- * 处理后端 task_done WebChunk：子代理任务结束时立即结算对应 task-group。
+ * 处理后端 task_done WebEvent：子代理任务结束时立即结算对应 task-group。
  * status=error → 红叉（可附带错误文本）；其它 → 绿勾。
  * 不依赖主流 done；主流 finalizeTaskGroups 仍作兜底。
  */
@@ -705,7 +705,8 @@ function ensureStreamSegment(sess, taskId, taskDescription, agentName) {
 }
 
 function ensureReasonGroup(sess, segment, reasonId) {
-    if (!reasonId || !segment) return null;
+    if (!segment) return null;
+    reasonId = reasonId || '__default__';
     var key = streamReasonKey(segment, reasonId);
     if (segment.reasonEntries[reasonId]) return segment.reasonEntries[reasonId];
     var group = $('<div>').addClass('reason-group')[0];
@@ -1392,7 +1393,7 @@ function appendActionEndChunk(sess, segment, toolName, text, args, toolTitle, re
     var taskSegment = (segment && segment.taskId) ? segment : resolveTaskSegmentFromCard(sess, card);
     if (taskSegment) {
         recordTaskGroupToolEnd(taskSegment);
-        // onWebChunk 仅在 segment.taskId 时 mark；此处覆盖 action_end 无 taskId 的反查场景
+    // onWebEvent 仅在 segment.taskId 时 mark；此处覆盖 action_end 无 taskId 的反查场景
         if (!segment || !segment.taskId) markTaskGroupUpdated(sess, taskSegment);
     }
     return card;

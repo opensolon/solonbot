@@ -660,7 +660,7 @@ public class WebController {
 
                         if (source != null) {
                             item.put("source", source); //可能有 {source:xxx}
-                            item.put("sourceLabel", WebChunk.toSourceLabel(source));
+                item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
                         }
 
                         // 解析附件元数据（图片文件名等），供历史消息恢复时渲染

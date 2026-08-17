@@ -33,6 +33,9 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
+import org.noear.solon.codecli.portal.web.event.WebEvent;
+import org.noear.solon.codecli.portal.web.event.WebEventNames;
+import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
@@ -176,15 +179,15 @@ public class WebGate extends SimpleWebSocketListener {
      * @param sessionId 会话标识，用于前端路由消息到正确的会话面板
      * @param jsonChunk 待推送的消息块（可为文本流、错误、完成信号等多种类型）
      */
-    public void emitToClient(String sessionId, WebChunk jsonChunk) {
-        if (jsonChunk == null) {
+    public void emitToClient(String sessionId, WebEvent<?> event) {
+        if (event == null) {
             return;
         } else {
-            jsonChunk.setSessionId(sessionId);
+            event.setSessionId(sessionId);
         }
 
         // 确保消息中包含 sessionId
-        String enriched = ONode.serialize(jsonChunk);
+        String enriched = ONode.serialize(event);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("emit: " + enriched);
@@ -220,7 +223,7 @@ public class WebGate extends SimpleWebSocketListener {
             }
             return false;
         }
-        emitToClient(session.getSessionId(), WebChunk.ofDone());
+        emitToClient(session.getSessionId(), WebEvent.ofDone());
         return true;
     }
 
@@ -444,12 +447,12 @@ public class WebGate extends SimpleWebSocketListener {
             }
         } catch (Exception e) {
             LOG.error("Task fail: {}", e.getMessage(), e);
-            emitToClient(sessionId, WebChunk.ofError(e));
+            emitToClient(sessionId, WebEvent.ofError(e));
             // 流可能尚未建立：有 session 走去重出口，否则直接发 done
             if (session != null) {
                 emitDoneOnce(session);
             } else {
-                emitToClient(sessionId, WebChunk.ofDone());
+                emitToClient(sessionId, WebEvent.ofDone());
             }
         } finally {
             if (session != null) {
@@ -538,7 +541,7 @@ public class WebGate extends SimpleWebSocketListener {
                 .doOnError(e -> {
                     LOG.error("Task fail: {}", e.getMessage(), e);
 
-                    emitToClient(sessionId, WebChunk.ofError(e));
+                    emitToClient(sessionId, WebEvent.ofError(e));
                 })
                 .doFinally(s -> {
                     session.attrs().remove("disposable");  // 正常完成时清理
@@ -591,14 +594,17 @@ public class WebGate extends SimpleWebSocketListener {
                 .doOnNext(line -> {
                     emitToClient(sessionId, line);
 
-                    if ("trace".equals(line.getType())) {
-                        finalAnswerRef.set(line.getFinalAnswer());
+                    if (WebEventNames.SYSTEM_TRACE.equals(line.getEvent()) && line.getPayload() instanceof SystemTracePayload) {
+                        SystemTracePayload tracePayload = (SystemTracePayload) line.getPayload();
+                        if (Assert.isNotEmpty(tracePayload.getFinalAnswer())) {
+                            finalAnswerRef.set(tracePayload.getFinalAnswer());
+                        }
                     }
                 })
                 .doOnError(e -> {
                     LOG.error("Task fail: {}", e.getMessage(), e);
 
-                    emitToClient(sessionId, WebChunk.ofError(e));
+                    emitToClient(sessionId, WebEvent.ofError(e));
                 })
                 .doFinally(s -> {
                     session.attrs().remove("disposable");
@@ -677,7 +683,7 @@ public class WebGate extends SimpleWebSocketListener {
                 }
 
                 //加一条删掉自己发出的一条
-                emitToClient(session.getSessionId(), WebChunk.ofRewind(rewindCount + 1));
+        emitToClient(session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
             } else {
                 final String text;
                 if (ctx.getOutputBuffer().length() > 0) {
@@ -686,13 +692,13 @@ public class WebGate extends SimpleWebSocketListener {
                     text = "命令执行完成";
                 }
 
-                emitToClient(session.getSessionId(), WebChunk.ofCommand(text));
+        emitToClient(session.getSessionId(), WebEvent.ofCommand(text));
 
                 // 命令执行后通知所有绑定的 IM 通道（微信/飞书/钉钉等）
                 streamBuilder.replyToBoundChannel(session.getSessionId(), text, true);
             }
 
-            emitToClient(session.getSessionId(), WebChunk.ofDone());
+        emitToClient(session.getSessionId(), WebEvent.ofDone());
         }
 
         return true;
@@ -753,7 +759,7 @@ public class WebGate extends SimpleWebSocketListener {
                     List<String> parts = CmdUtil.parseArguments(input.trim().substring(1));
                     String cmdName = parts.get(0).toLowerCase();
                     if ("interrupt".equals(cmdName) || "exit".equals(cmdName)) {
-                        emitToClient(sessionId, WebChunk.ofUserInput(input, source));
+        emitToClient(sessionId, WebEvent.ofUserInput(input, source));
                         onChatInput(sessionId, null, input, null, null, null, null, source);
                         return true;
                     }
@@ -768,7 +774,7 @@ public class WebGate extends SimpleWebSocketListener {
         }
 
         // 先推送用户消息到前端，确保对话记录中显示用户侧消息
-        emitToClient(sessionId, WebChunk.ofUserInput(input, source));
+        emitToClient(sessionId, WebEvent.ofUserInput(input, source));
 
         onChatInput(sessionId, null, input, null, null, null, null, source);
         return true;
@@ -801,8 +807,8 @@ public class WebGate extends SimpleWebSocketListener {
         }
 
         // Loop/Goal 异步 agent 流开始前重置前端的流状态（_streamClosed → false）
-        emitToClient(sessionId, WebChunk.ofResetStream());
-        emitToClient(sessionId, WebChunk.ofUserInput(input, source));
+        emitToClient(sessionId, WebEvent.ofResetStream());
+        emitToClient(sessionId, WebEvent.ofUserInput(input, source));
 
         String agentName = null;
         String currentInput = input;
@@ -929,11 +935,16 @@ public class WebGate extends SimpleWebSocketListener {
 
             // 1) 取消语义：error + 可选 final/trace
             session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
-            emitToClient(sessionId, WebChunk.ofError("用户已取消任务."));
+        emitToClient(sessionId, WebEvent.ofError("用户已取消任务."));
 
             ReActTrace trace = session.getContext().getAs("__main");
             if (trace != null) {
-                emitToClient(sessionId, streamBuilder.onRunEndEvent(session, trace, true, "用户已取消任务."));
+                Long totalTokens = (trace.getMetrics() != null) ? trace.getMetrics().getTotalTokens() : 0L;
+            long elapsedSeconds = 0L;
+            if (trace.getBeginTimeMs() > 0) {
+                elapsedSeconds = (System.currentTimeMillis() - trace.getBeginTimeMs()) / 1000;
+            }
+            emitToClient(sessionId, WebEvent.ofTrace(null, totalTokens, elapsedSeconds, "用户已取消任务."));
             }
 
             // 2) 同线程先发 done，再 dispose；doFinally 中 emitDoneOnce 因 CAS 跳过

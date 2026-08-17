@@ -1,5 +1,5 @@
 /* ===== app-streaming.js ===== */
-/* 通信与核心流程：发送 + WebChunk + WebSocket */
+/* 通信与核心流程：发送 + WebEvent + WebSocket */
 /* 依赖：app-base.js, app-ui.js, app-history.js, app-message.js */
 
 /* ===== Send from both inputs ===== */
@@ -760,13 +760,33 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
 }
 window.sendWithFormDataGrouped = sendWithFormDataGrouped;
 
-/* ===== WebChunk Handling (Session-Aware) =====
- * 高频 text/reason 先进会话队列，按帧合并后处理，降低主线程压力。
- * 控制类 chunk（tool/error/trace 等）立即处理，避免顺序错乱。
+/* ===== WebEvent / SAEP 2.0 Native Dispatcher (Session-Aware) =====
+ * 基于 SAEP 2.0 规范的原生事件分发架构，直接解构 event + payload
  */
-var _STREAM_BATCH_TYPES = { text: 1, reason: 1, agent: 1 };
+var AgentEventDispatcher = {
+    // 统一将输入归一化为 SAEP 2.0 WebEvent 结构
+    toWebEvent(raw) {
+        if (!raw || !raw.event) return null;
+        return {
+            event: raw.event,
+            sessionId: raw.sessionId,
+            traceId: raw.traceId || raw.runId,
+            taskId: raw.taskId,
+            agentName: raw.agentName,
+            timestamp: raw.timestamp || Date.now(),
+            payload: raw.payload || {}
+        };
+    }
+};
 
-function processWebChunkNow(sess, chunk) {
+var _STREAM_BATCH_EVENTS = {
+    'message.delta': 1,
+    'message.complete': 1,
+    'thought.delta': 1
+};
+
+function processWebEventNow(sess, webEvt) {
+    if (!webEvt || !webEvt.event) return;
     try {
         if (sess.silenceTimer) {
             clearTimeout(sess.silenceTimer);
@@ -774,125 +794,198 @@ function processWebChunkNow(sess, chunk) {
 
         removeInlineThinking(sess);
 
-        // 存储当前 chunk 的 runId，用于后续消息渲染
-        if (chunk.runId) {
-            sess.currentRunId = chunk.runId;
+        var event = webEvt.event;
+        var p = webEvt.payload || {};
+        var taskId = webEvt.taskId;
+        var agentName = webEvt.agentName;
+
+        // 存储当前 traceId (即 runId)
+        if (webEvt.traceId) {
+            sess.currentRunId = webEvt.traceId;
         }
 
-        // 捕获消息来源标识，用于 AI 回复气泡的来源标签显示
-        if (chunk.sourceLabel && !sess.currentSourceLabel) {
-            sess.currentSourceLabel = chunk.sourceLabel;
+        // 捕获消息来源标识
+        if (p.sourceLabel && !sess.currentSourceLabel) {
+            sess.currentSourceLabel = p.sourceLabel;
         }
 
-        // action_end 若能用 callId 找到已展示的 loading 卡，只原位更新该卡；它不应凭空创建新段。
-        // 未收到 action_start 的终态事件才需要在当前到达位置创建一个段。
-        // 但 task 摘要统计仍需拿到既有 task segment（有 taskId 时复用，不新建）。
-        var visualTypes = { reason: 1, text: 1, agent: 1, action_start: 1 };
-        var actionEndNeedsSegment = chunk.type === 'action_end' && !findPendingToolCard(sess, chunk.callId, null).pending;
+        // 确定是否需要创建或定位 streamSegment
+        var isVisualEvent = (event === 'message.delta' || event === 'message.complete' || event === 'thought.delta' || event === 'tool.start');
+        var isActionEndWithoutPending = (event === 'tool.end' && !findPendingToolCard(sess, p.callId, null).pending);
         var segment = null;
-        if (visualTypes[chunk.type] || actionEndNeedsSegment) {
-            segment = ensureStreamSegment(sess, chunk.taskId, chunk.taskDescription, chunk.agentName);
-        } else if (chunk.type === 'action_end' && chunk.taskId && sess.taskSegments[chunk.taskId]) {
-            segment = sess.taskSegments[chunk.taskId];
+
+        if (isVisualEvent || isActionEndWithoutPending) {
+            segment = ensureStreamSegment(sess, taskId, p.taskDescription || p.title, agentName);
+        } else if (event === 'tool.end' && taskId && sess.taskSegments[taskId]) {
+            segment = sess.taskSegments[taskId];
             sess.currentStreamSegment = segment;
         }
+
         var sourceEl = null;
-        switch (chunk.type) {
-            case 'command': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendCommandOutput(sess, chunk.text); break;
-            case 'rewind': finishThinkingBlock(sess); finishPendingTool(sess); handleRewind(sess, parseInt(chunk.text) || 1); break;
-            case 'reason': sourceEl = appendReasonChunk(sess, segment, chunk.text, chunk.reasonId, chunk.agentName); break;
-            case 'text': sourceEl = appendContentChunk(sess, segment, chunk.text, true, chunk.reasonId); break;
-            case 'action_end': sourceEl = appendActionEndChunk(sess, segment, chunk.toolName, chunk.text, chunk.args, chunk.toolTitle, chunk.reasonId, chunk.agentName, chunk.callId); if (window._todoChunkHandlers) window._todoChunkHandlers.forEach(function(h){h(chunk);}); break;
-            case 'action_start': sourceEl = appendActionStartChunk(sess, segment, chunk.toolName, chunk.args, chunk.toolTitle, chunk.reasonId, chunk.agentName, chunk.callId); break;
-            case 'agent': sourceEl = appendContentChunk(sess, segment, chunk.text, false, chunk.reasonId); break;
-            case 'error': finishThinkingBlock(sess); sourceEl = appendErrorChunk(sess, chunk.text, chunk.taskId, chunk.taskDescription, chunk.agentName); break;
-            case 'task_done': if (typeof applyTaskDoneChunk === 'function') applyTaskDoneChunk(sess, chunk); sourceEl = segment && segment.groupEl; break;
-            case 'hitl': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendHitlCard(sess, chunk.toolName, chunk.command, chunk.callId, chunk.args, chunk.toolTitle, chunk.comment); break;
-            case 'trace': finishThinkingBlock(sess); finishPendingTool(sess); sourceEl = appendTraceBadge(sess, chunk); break;
-            case 'context_size': if (typeof updateContextIndicator === 'function') updateContextIndicator(chunk, sess); break;
-            case 'context_status': if (typeof updateContextStatus === 'function') updateContextStatus(chunk, sess); break;
+
+        switch (event) {
+            case 'message.delta':
+            case 'message.complete':
+                sourceEl = appendContentChunk(sess, segment, p.delta || p.content || '', true, p.id);
+                break;
+
+            case 'thought.delta':
+                sourceEl = appendReasonChunk(sess, segment, p.delta || '', p.id, agentName);
+                break;
+
+            case 'thought.end':
+                finishThinkingBlock(sess, p.id);
+                break;
+
+            case 'tool.start':
+                sourceEl = appendActionStartChunk(sess, segment, p.name, p.args, p.title || p.name, p.reasonId, agentName, p.callId);
+                break;
+
+            case 'tool.end':
+                var toolArgs = p.args || (p.diff ? { diff: p.diff } : {});
+                if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
+                sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, p.reasonId, agentName, p.callId);
+                if (window._todoChunkHandlers) {
+                    var todoEvent = { toolName: p.name, text: p.result, args: toolArgs };
+                    window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
+                }
+                break;
+
+            case 'hitl.pending':
+                finishThinkingBlock(sess);
+                finishPendingTool(sess);
+                sourceEl = appendHitlCard(sess, p.toolName || p.name, p.command, p.callId, p.args, p.toolTitle || p.title || p.toolName, p.comment);
+                break;
+
+            case 'task.done':
+                if (typeof applyTaskDoneChunk === 'function') {
+                    applyTaskDoneChunk(sess, {
+                        taskId: p.taskId || taskId,
+                        parentTaskId: p.parentTaskId,
+                        status: p.status,
+                        taskDescription: p.title || p.taskDescription
+                    });
+                }
+                sourceEl = segment && segment.groupEl;
+                break;
+
+            case 'system.trace':
+                finishThinkingBlock(sess);
+                finishPendingTool(sess);
+                sourceEl = appendTraceBadge(sess, { model: p.model, totalTokens: p.totalTokens, elapsedSeconds: p.elapsedSeconds, text: p.finalAnswer });
+                break;
+
+            case 'system.context':
+                if (typeof updateContextIndicator === 'function') {
+                    updateContextIndicator({ totalTokens: p.tokens, reasonId: p.count ? String(p.count) : null, text: p.contextLimit ? String(p.contextLimit) : null }, sess);
+                }
+                break;
+
+            case 'system.command':
+                finishThinkingBlock(sess);
+                finishPendingTool(sess);
+                sourceEl = appendCommandOutput(sess, p.command);
+                break;
+
+            case 'system.rewind':
+                finishThinkingBlock(sess);
+                finishPendingTool(sess);
+                handleRewind(sess, p.count || 1);
+                break;
+
+            case 'system.error':
+                finishThinkingBlock(sess);
+                sourceEl = appendErrorChunk(sess, p.message || '未知错误', taskId, p.title, agentName, p.code);
+                break;
         }
-        // task-group 展开状态尊重用户操作；有输出时刷新状态图标与 meta。
-        // task_done 已自行结算状态，不再 mark 回 running。
-        if (segment && segment.taskId && chunk.type !== 'task_done') markTaskGroupUpdated(sess, segment);
-        if (chunk.type !== 'rewind' && chunk.type !== 'context_size' && chunk.type !== 'context_status') {
-            scrollForStreamEvent(sess, chunk, sourceEl, false);
+
+        // task-group 展开状态更新
+        if (segment && segment.taskId && event !== 'task.done') {
+            markTaskGroupUpdated(sess, segment);
         }
+
+        if (event !== 'system.rewind' && event !== 'system.context') {
+            scrollForStreamEvent(sess, { type: event }, sourceEl, false);
+        }
+
         sess.silenceTimer = setTimeout(function() {
             if (sess.isStreaming && !sess.thinkingBlockEl) showInlineThinking(sess);
         }, 1000);
     } catch (e) {
-        console.warn('[onWebChunk]', e);
+        console.warn('[processWebEventNow]', e);
     }
 }
 
-/* 合并同类型连续 text/reason：减少 DOM 调度次数，保持 chunk 到达顺序 */
-function coalesceQueuedChunks(queue) {
+/* 合并同类型连续 message.delta / thought.delta：减少 DOM 调度次数，保持事件保序 */
+function coalesceQueuedEvents(queue) {
     if (!queue || queue.length <= 1) return queue || [];
     var out = [];
     for (var i = 0; i < queue.length; i++) {
-        var c = queue[i];
+        var e = queue[i];
         var prev = out.length ? out[out.length - 1] : null;
-        if (prev && prev.type === c.type && (c.type === 'text' || c.type === 'reason')
-            && prev.reasonId === c.reasonId
-            && prev.taskId === c.taskId
-            && prev.agentName === c.agentName
-            && prev.runId === c.runId) {
-            prev.text = (prev.text || '') + (c.text || '');
-            // 后到的元数据不要丢（首包常缺，后续补齐）
-            if (!prev.sourceLabel && c.sourceLabel) prev.sourceLabel = c.sourceLabel;
-            if (!prev.runId && c.runId) prev.runId = c.runId;
-            if (!prev.agentName && c.agentName) prev.agentName = c.agentName;
-            if (!prev.taskDescription && c.taskDescription) prev.taskDescription = c.taskDescription;
+        var isMergeable = prev && prev.event === e.event && (e.event === 'message.delta' || e.event === 'thought.delta')
+            && ((prev.payload && prev.payload.id) === (e.payload && e.payload.id))
+            && prev.taskId === e.taskId
+            && prev.agentName === e.agentName
+            && prev.traceId === e.traceId;
+
+        if (isMergeable) {
+            prev.payload.delta = (prev.payload.delta || '') + (e.payload.delta || '');
+            if (!prev.payload.sourceLabel && e.payload.sourceLabel) prev.payload.sourceLabel = e.payload.sourceLabel;
+            if (!prev.traceId && e.traceId) prev.traceId = e.traceId;
+            if (!prev.agentName && e.agentName) prev.agentName = e.agentName;
         } else {
-            out.push(c);
+            out.push(e);
         }
     }
     return out;
 }
 
-function drainWebChunkQueue(sess, flushAll) {
+    function drainWebEventQueue(sess, flushAll) {
     if (!sess || !sess._chunkQueue || !sess._chunkQueue.length) {
         if (sess) sess._chunkDrainScheduled = false;
         return;
     }
     sess._chunkDrainScheduled = false;
-    var batch = coalesceQueuedChunks(sess._chunkQueue);
+    var batch = coalesceQueuedEvents(sess._chunkQueue);
     sess._chunkQueue = [];
     // 非 flush 时每帧最多处理一定数量，避免超长队列堵主线程
     var limit = flushAll ? batch.length : Math.min(batch.length, 40);
     for (var i = 0; i < limit; i++) {
-        processWebChunkNow(sess, batch[i]);
+        processWebEventNow(sess, batch[i]);
     }
     if (limit < batch.length) {
         sess._chunkQueue = batch.slice(limit).concat(sess._chunkQueue || []);
-        scheduleWebChunkDrain(sess);
+        scheduleWebEventDrain(sess);
     }
 }
-window.drainWebChunkQueue = drainWebChunkQueue;
+    window.drainWebEventQueue = drainWebEventQueue;
 
-function scheduleWebChunkDrain(sess) {
-    if (!sess || sess._chunkDrainScheduled) return;
-    sess._chunkDrainScheduled = true;
-    requestAnimationFrame(function() {
-        drainWebChunkQueue(sess, false);
-    });
-}
-
-function onWebChunk(sess, chunk) {
-    if (!sess || !chunk) return;
-    // 高频流式文本走队列批处理；控制类消息立即处理（先排空队列保序）
-    if (_STREAM_BATCH_TYPES[chunk.type]) {
-        if (!sess._chunkQueue) sess._chunkQueue = [];
-        sess._chunkQueue.push(chunk);
-        scheduleWebChunkDrain(sess);
-        return;
+    function scheduleWebEventDrain(sess) {
+        if (!sess || sess._chunkDrainScheduled) return;
+        sess._chunkDrainScheduled = true;
+        requestAnimationFrame(function() {
+            drainWebEventQueue(sess, false);
+        });
     }
-    if (sess._chunkQueue && sess._chunkQueue.length) {
-        drainWebChunkQueue(sess, true);
+    
+    function onWebEvent(sess, raw) {
+        if (!sess || !raw) return;
+        var webEvt = AgentEventDispatcher.toWebEvent(raw);
+        if (!webEvt) return;
+        
+        // 高频流式文本走队列批处理；控制类消息立即处理（先排空队列保序）
+        if (_STREAM_BATCH_EVENTS[webEvt.event]) {
+            if (!sess._chunkQueue) sess._chunkQueue = [];
+            sess._chunkQueue.push(webEvt);
+            scheduleWebEventDrain(sess);
+            return;
+        }
+        if (sess._chunkQueue && sess._chunkQueue.length) {
+            drainWebEventQueue(sess, true);
+        }
+        processWebEventNow(sess, webEvt);
     }
-    processWebChunkNow(sess, chunk);
-}
 
 function finishStream(sess) {
     var wasStreaming = sess.isStreaming;
@@ -912,7 +1005,7 @@ function finishStream(sess) {
     if (sess.silenceTimer) { clearTimeout(sess.silenceTimer); sess.silenceTimer = null; }
 
     // 先排空该会话尚未处理的 chunk 队列，避免丢尾部文本
-    if (typeof drainWebChunkQueue === 'function') drainWebChunkQueue(sess, true);
+        if (typeof drainWebEventQueue === 'function') drainWebEventQueue(sess, true);
 
     // --- 强刷逻辑：必须在 resetStreamState 之前执行 ---
     // 1. 取消还没跑的动画帧
@@ -1174,19 +1267,24 @@ function openStreamFromIncoming(sess) {
     return true;
 }
 
-function handleWebGateChunk(chunk) {
-    if (!chunk) return;
+function handleWebGateChunk(raw) {
+    if (!raw) return;
 
-    var sid = chunk.sessionId;
+    var webEvt = AgentEventDispatcher.toWebEvent(raw);
+    if (!webEvt) return;
+
+    var sid = webEvt.sessionId;
+    var event = webEvt.event;
+    var p = webEvt.payload || {};
 
     // WebSocket 流结束信号
-    if (chunk.type === 'done') {
+    if (event === 'system.done') {
         if (!sid) return;
         var sess = sessionMap[sid] || getOrCreateSession(sid);
-        if (chunk.createdAt) sess._lastCreatedAt = chunk.createdAt;
+        if (p.createdAt) sess._lastCreatedAt = p.createdAt;
         // 历史还在加载：先缓存，加载完再收尾
         if (sess._loadingHistory) {
-            bufferPendingStreamChunk(sess, chunk);
+            bufferPendingStreamChunk(sess, webEvt);
             return;
         }
         if (!sess.isStreaming) return;
@@ -1195,9 +1293,9 @@ function handleWebGateChunk(chunk) {
     }
 
     // 文件变更通知（无 sessionId，系统级广播）
-    if (chunk.type === 'filer_change') {
+    if (event === 'system.filer_change') {
         if (typeof onFilerChange === 'function') {
-            onFilerChange(chunk);
+            onFilerChange(p);
         }
         return;
     }
@@ -1205,14 +1303,15 @@ function handleWebGateChunk(chunk) {
     if (!sid) return;
 
     // 即使 sess 不存在，也优先处理 todowrite（更新左侧 todo 进度）
-    if (chunk.type === 'action_end' && chunk.toolName === 'todowrite') {
+    if (event === 'tool.end' && p.name === 'todowrite') {
         if (window._todoChunkHandlers) {
-            window._todoChunkHandlers.forEach(function(h) { h(chunk); });
+            var todoEvent = { toolName: p.name, text: p.result, args: p.args };
+            window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
         }
     }
 
-    // Loop/Goal 异步 agent 流启动信号：重置流关闭状态，使后续 text/reason chunk 能正常开新气泡
-    if (chunk.type === 'reset_stream') {
+    // Loop/Goal 异步 agent 流启动信号：重置流关闭状态，使后续文本能够正常开新气泡
+    if (event === 'system.reset') {
         var sess = getOrCreateSession(sid);
         sess._streamClosed = false;
         sess.acceptingStream = true;
@@ -1221,15 +1320,15 @@ function handleWebGateChunk(chunk) {
     }
 
     // Loop/微信 等后端推送的用户提示词
-    if (chunk.type === 'user_input') {
+    if (event === 'system.user_input') {
         var userSess = getOrCreateSession(sid);
         userSess._streamClosed = false;
         userSess.acceptingStream = true;
         userSess.stopRequested = false;
         if (typeof ensureChatInHistory === 'function') {
-            ensureChatInHistory(sid, chunk.text, true);
+            ensureChatInHistory(sid, p.text, true);
         }
-        appendUserMessage(userSess, chunk.text, null, null, chunk.createdAt, chunk.sourceLabel);
+        appendUserMessage(userSess, p.text, null, null, p.createdAt, p.sourceLabel);
         if (userSess.sessionId === activeSessionId) {
             if (!inChatMode) switchToChatMode();
             scrollToBottom(true);
@@ -1241,7 +1340,7 @@ function handleWebGateChunk(chunk) {
 
     // 历史加载中：先缓存，避免 loadMessages 重建 DOM 时丢内容
     if (sess2._loadingHistory) {
-        bufferPendingStreamChunk(sess2, chunk);
+        bufferPendingStreamChunk(sess2, webEvt);
         return;
     }
 
@@ -1255,7 +1354,7 @@ function handleWebGateChunk(chunk) {
             return;
         }
     }
-    onWebChunk(sess2, chunk);
+                onWebEvent(sess2, webEvt);
 }
 
 function connectWebGate() {
