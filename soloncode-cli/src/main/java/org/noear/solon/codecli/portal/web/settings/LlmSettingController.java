@@ -56,7 +56,7 @@ public class LlmSettingController extends BaseSettingsController {
 
         List<Map> list = new ArrayList<>();
         for (ModelDo config : settings().getModels().values()) {
-            if (config.isVisibled()) {
+            if (config.isVisibled() && config.isSelected()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("name", config.getNameOrModel());
                 item.put("model", config.getModel());

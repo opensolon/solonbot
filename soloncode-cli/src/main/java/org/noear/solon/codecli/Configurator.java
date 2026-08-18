@@ -338,17 +338,16 @@ public class Configurator {
         //web ws gate
         // 入口单例 WebGate：仅作 WS 路由入口（onOpen 按 workspaceId 分发）与默认工作区 FileWatch 广播。
         // 其连接池与默认工作区上下文共享同一引用，保证默认工作区推送一致。
-        java.util.List<org.noear.solon.net.websocket.WebSocket> defaultConnections =
-                workspaceManager.getOrCreate(null).getConnections();
+        org.noear.solon.codecli.workspace.WorkspaceContext defaultCtx = workspaceManager.getOrCreate(null);
+        java.util.List<org.noear.solon.net.websocket.WebSocket> defaultConnections = defaultCtx.getConnections();
         WebGate webGate = new WebGate(agentRuntime, settings, defaultConnections);
         WebSocketRouter.getInstance().of("/web/gate", webGate);
 
-        // 初始化文件监听服务（提前创建，以便 WebSettingsController 引用）
-        Path workspacePath = Paths.get(agentRuntime.getWorkspace()).toAbsolutePath().normalize();
-        FileWatchService fileWatchService = new FileWatchService();
-        // 默认工作区 → 前端广播
-        fileWatchService.addRoot("workspace", workspacePath)
-                .addHandler(changes -> webGate.broadcastRaw(FileWatchService.buildFrontendJson(changes)));
+        // 复用默认工作区上下文中已创建并启动的 FileWatchService：
+        // 它在 WorkspaceManager.createWorkspaceContext 中已 addRoot("workspace"+挂载点) 并 start()，
+        // 广播走 Context 内部 WebGate.broadcastRaw（与入口单例共享同一默认连接池）。
+        // 此处不再新建/重复监听同一目录，避免默认工作区文件变更向前端重复推送。
+        FileWatchService fileWatchService = defaultCtx.getFileWatchService();
 
         //web
         BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(agentRuntime, webGate, loopScheduler, sessionManager));
@@ -372,30 +371,8 @@ public class Configurator {
         // 启动微信通道
         RunUtil.async((Runnable) webChannel.get());
 
-        // 遍历所有挂载点，按类型分配不同的处理器
-        for (MountDir mount : agentRuntime.getMounts()) {
-            if (!mount.isEnabled()) continue;
-
-            FileWatchService.WatchRoot root = fileWatchService.addRoot(mount.getAlias(), mount.getRealPath());
-
-            switch (mount.getType()) {
-                case FILES:
-                    // FILES 挂载 → 前端广播
-                    root.addHandler(changes -> webGate.broadcastRaw(FileWatchService.buildFrontendJson(changes)));
-                    break;
-                case SKILLS:
-                    // SKILLS 挂载 → 触发技能刷新
-                    root.addHandler(changes -> agentRuntime.getSkillProvider().refreshByGroup(mount.getAlias()));
-                    break;
-                case AGENTS:
-                    // AGENTS 挂载 → 触发代理刷新
-                    root.addHandler(changes -> agentRuntime.getAgentManager().refreshByMountAlias(mount.getAlias()));
-                    break;
-            }
-        }
-
-        fileWatchService.start();
-
+        // 挂载点监听已由默认工作区上下文（WorkspaceManager.createWorkspaceContext）统一装配并 start，
+        // 此处不再重复遗历挂载点与 start，避免重复监听与重复推送。
         if (cliShell != null) {
             String url = "http://localhost:" + Solon.cfg().serverPort() + "/";
             cliShell.printWelcome("Web interface: " + url);

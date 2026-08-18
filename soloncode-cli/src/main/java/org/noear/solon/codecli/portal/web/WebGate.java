@@ -689,7 +689,7 @@ public class WebGate extends SimpleWebSocketListener {
             return false;
         }
 
-        // 构建 context（注入 agentTaskRunner 回调）
+        // 构建 context（注入 agentTaskRunner 回调）；命令执行的工作区语境由本 WebGate 实例已绑定的 engine 确定。
         WebCommandContext ctx = new WebCommandContext(session, engine, input, cmdName, args,
                 (prompt, model) -> {
                     try {

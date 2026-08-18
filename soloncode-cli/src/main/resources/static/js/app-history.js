@@ -418,7 +418,14 @@ function loadMessages(sess) {
                         for (var ai = 0; ai < m.attachments.length; ai++) {
                             var att = m.attachments[ai];
                             if (att.type === 'image') {
-                                historyImages.push('/web/chat/filer/read-raw?path=' + encodeURIComponent(att.name));
+                                // read-raw 由浏览器 <img src> 直发，绕过 fetch/XHR 劫持层，
+                                // 必须显式拼 workspaceId，否则多工作区下会取错工作区（对齐 app-git.js）
+                                var _rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(att.name);
+                                var _wsId = new URLSearchParams(window.location.search).get('workspaceId');
+                                if (_wsId && _wsId !== 'workspace') {
+                                    _rawUrl += '&workspaceId=' + encodeURIComponent(_wsId);
+                                }
+                                historyImages.push(_rawUrl);
                             } else {
                                 historyFileAttachments.push(att);
                             }

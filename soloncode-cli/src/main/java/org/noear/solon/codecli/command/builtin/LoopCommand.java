@@ -18,7 +18,6 @@ package org.noear.solon.codecli.command.builtin;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.harness.command.CommandContext;
-import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
 import reactor.core.Disposable;
 
@@ -246,7 +245,7 @@ public class LoopCommand implements Command {
         }
 
 
-        ctx.println(ctx.color("  " + DIM + "State:" + RESET + " " + Paths.get(AgentFlags.getHarnessLoops(), task.getId())));
+        ctx.println(ctx.color("  " + DIM + "State:" + RESET + " " + Paths.get(workspace, harnessSessions, sessionId, "loop-tasks.json")));
     }
 
     /**
@@ -377,7 +376,7 @@ public class LoopCommand implements Command {
         } else if (loopCfg.getDefaultMaxDurationMsOrDefault() > 0) {
             ctx.println(ctx.color("  " + MAGENTA + "Max Duration:" + RESET + " " + (loopCfg.getDefaultMaxDurationMsOrDefault() / 60000) + "m"));
         }
-        ctx.println(ctx.color("  " + DIM + "State:" + RESET + " " + Paths.get(AgentFlags.getHarnessLoops(), task.getId())));
+        ctx.println(ctx.color("  " + DIM + "State:" + RESET + " " + Paths.get(workspace, harnessSessions, sessionId, "loop-tasks.json")));
     }
 
     private void doList(CommandContext ctx, String sessionId) {

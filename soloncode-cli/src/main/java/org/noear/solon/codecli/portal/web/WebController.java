@@ -156,50 +156,10 @@ public class WebController {
         this.gitService = new GitService(engine.getWorkspace(), engine);
         this.fileService = new FileService(engine.getWorkspace(), engine);
 
-        // 注入 Web 端 Loop 任务执行器：同步等待本轮 AI 响应结束，捕获文本结果用于 goal 检测。
-        if (loopScheduler != null) {
-            // 会话繁忙守卫：session 正在执行任务时，loop 定时触发跳过本次执行
-            loopScheduler.addBusyChecker(sessionId -> {
-                if (sessionId == null || !sessionId.startsWith("web-")) {
-                    return false;
-                }
-                // 使用当前的 webGate
-                WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
-                if (manager != null) {
-                    // 获取当前会话所属的工作区
-                    String wsId = getSessionWorkspaceId(sessionId);
-                    org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(wsId);
-                    if (wctx != null) {
-                        return wctx.getWebGate().isSessionBusy(sessionId);
-                    }
-                }
-                return webGate().isSessionBusy(sessionId);
-            });
-
-            loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
-                if (sessionId.startsWith("web-") == false) {
-                    return null;
-                }
-
-                // 如果指定了 agentName，将 prompt 拼接为 @agentName prompt 格式
-                // WebGate.onChatInput 内部通过 input.startsWith("@") 识别并路由到对应 agent
-                String effectiveInput = prompt;
-                if (agentName != null && !agentName.isEmpty()) {
-                    effectiveInput = "@" + agentName + " " + prompt;
-                }
-
-                // Loop 任务可能长时间执行（数小时），使用 Loop 专用无限等待版本
-                WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
-                if (manager != null) {
-                    String wsId = getSessionWorkspaceId(sessionId);
-                    org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(wsId);
-                    if (wctx != null) {
-                        return wctx.getWebGate().safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
-                    }
-                }
-                return webGate().safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
-            });
-        }
+        // 说明：Web 端 Loop 执行器/繁忙检查器的注册已迁移到
+        // WorkspaceManager.registerWebLoopExecutor()，由每个工作区在创建其 LoopScheduler 时
+        // 就地绑定本工作区的 WebGate 注册，从而保证多工作区下 loop/goal 任务能各自执行并推送到
+        // 正确的连接池（此处不再统一注册，避免只覆盖默认工作区）。
     }
 
     @Get
@@ -256,14 +216,6 @@ public class WebController {
             return Result.succeed(wctx.getMeta());
         }
         return Result.failure("No current workspace");
-    }
-
-    private String getSessionWorkspaceId(String sessionId) {
-        WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
-        if (manager != null) {
-            return manager.getSessionWorkspaceId(sessionId);
-        }
-        return "default";
     }
 
     /**
@@ -840,6 +792,7 @@ public class WebController {
         webGate().interruptSession(sessionId);
 
         // 暂停该 session 的活跃 Goal，防止 Goal 调度器在 interrupt 后立即重新触发
+        LoopScheduler loopScheduler = loopScheduler();
         if (loopScheduler != null) {
             LoopTask activeGoal = loopScheduler.findActiveGoalInSession(sessionId);
             if (activeGoal != null) {
@@ -870,7 +823,7 @@ public class WebController {
         if (count == null || count <= 0) {
             count = 2; // 默认回退2条（用户+助手）
         }
-        if (webGate.isSessionBusy(sessionId)) {
+        if (webGate().isSessionBusy(sessionId)) {
             return Result.failure(409, "Session is running");
         }
 
@@ -1245,7 +1198,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        List<LoopTask> tasks = loopScheduler.listAll(sessionId);
+        List<LoopTask> tasks = loopScheduler().listAll(sessionId);
         List<Map> data = new ArrayList<>();
         for (LoopTask t : tasks) {
             Map<String, Object> item = buildTaskMap(t);
@@ -1261,6 +1214,7 @@ public class WebController {
     @Get
     @Mapping("/web/chat/loop/all")
     public Result<List<Map>> loopAll() {
+        LoopScheduler loopScheduler = loopScheduler();
         loopScheduler.restoreAll();
         Map<String, List<LoopTask>> tasksBySession = loopScheduler.listAll();
         List<Map> data = new ArrayList<>();
@@ -1334,7 +1288,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
-        List<LoopTask> tasks = loopScheduler.listAll(sessionId);
+        List<LoopTask> tasks = loopScheduler().listAll(sessionId);
         for (LoopTask t : tasks) {
             if (t.getId().equals(taskId)) {
                 return Result.succeed(buildTaskMap(t));
@@ -1384,7 +1338,7 @@ public class WebController {
         if (maxDurationMs != null) task.setMaxDurationMs(maxDurationMs);
 
         try {
-            loopScheduler.schedule(sessionId, task);
+            loopScheduler().schedule(sessionId, task);
         } catch (IllegalStateException e) {
             return Result.failure(400, e.getMessage());
         }
@@ -1418,6 +1372,7 @@ public class WebController {
         String workspace = currentEngine.getWorkspace();
         String harnessSessions = currentEngine.getHarnessSessions();
 
+        LoopScheduler loopScheduler = loopScheduler();
         LoopTask existing = loopScheduler.getTaskById(sessionId, taskId);
         if (existing == null) {
             return Result.failure(404, "Task not found");
@@ -1460,6 +1415,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
+        LoopScheduler loopScheduler = loopScheduler();
         LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
         if (task == null) {
             return Result.failure(404, "Task not found");
@@ -1491,6 +1447,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
+        LoopScheduler loopScheduler = loopScheduler();
         LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
         if (task == null) {
             return Result.failure(404, "Task not found");
@@ -1523,6 +1480,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
+        LoopScheduler loopScheduler = loopScheduler();
         LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
         if (task == null) {
             return Result.failure(404, "Task not found");
@@ -1549,7 +1507,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
-        LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
+        LoopTask task = loopScheduler().getTaskById(sessionId, taskId);
         if (task == null) {
             return Result.failure(404, "Task not found");
         }
@@ -1585,6 +1543,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
+        LoopScheduler loopScheduler = loopScheduler();
         LoopTask task = loopScheduler.getTaskById(sessionId, taskId);
         if (task == null) {
             return Result.failure(400, "the task does not exist.");
@@ -1607,7 +1566,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
-        loopScheduler.toggle(sessionId, taskId);
+        loopScheduler().toggle(sessionId, taskId);
         return Result.succeed();
     }
 
@@ -1624,7 +1583,7 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
-        loopScheduler.trigger(sessionId, taskId);
+        loopScheduler().trigger(sessionId, taskId);
         return Result.succeed();
     }
 

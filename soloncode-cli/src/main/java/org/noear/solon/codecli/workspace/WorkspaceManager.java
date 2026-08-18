@@ -426,6 +426,10 @@ public class WorkspaceManager {
         List<WebSocket> connections = new java.util.concurrent.CopyOnWriteArrayList<>();
         WebGate webGate = new WebGate(engine, wsSettings, connections);
 
+        // 为本工作区的 LoopScheduler 就地注册 web 端执行器与忙碌检查（绑定本工作区 webGate），
+        // 避免非默认工作区的 loop/goal 任务因缺少 executor 而无法执行。
+        registerWebLoopExecutor(loopScheduler, webGate);
+
         // FileWatchService
         FileWatchService fileWatchService = new FileWatchService();
         fileWatchService.addRoot("workspace", Paths.get(workspacePath).toAbsolutePath().normalize())
@@ -453,6 +457,39 @@ public class WorkspaceManager {
         GitService gitService = new GitService(workspacePath, engine);
 
         return new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings, connections);
+    }
+
+    /**
+     * 为指定工作区的 LoopScheduler 注册 web 端任务执行器与忙碌检查器。
+     *
+     * <p>每个工作区拥有独立的 LoopScheduler 与 WebGate，执行器必须就地绑定本工作区的
+     * WebGate，以保证定时触发的 AI 响应推送到本工作区的连接池，而非默认工作区。</p>
+     */
+    private void registerWebLoopExecutor(LoopScheduler loopScheduler, WebGate webGate) {
+        if (loopScheduler == null || webGate == null) {
+            return;
+        }
+
+        // 会话繁忙守卫：session 正在执行任务时，loop 定时触发跳过本次执行
+        loopScheduler.addBusyChecker(sessionId -> {
+            if (sessionId == null || !sessionId.startsWith("web-")) {
+                return false;
+            }
+            return webGate.isSessionBusy(sessionId);
+        });
+
+        loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
+            if (sessionId == null || !sessionId.startsWith("web-")) {
+                return null;
+            }
+            // 如果指定了 agentName，将 prompt 拼接为 @agentName prompt 格式
+            String effectiveInput = prompt;
+            if (agentName != null && !agentName.isEmpty()) {
+                effectiveInput = "@" + agentName + " " + prompt;
+            }
+            // Loop 任务可能长时间执行（数小时），使用 Loop 专用无限等待版本
+            return webGate.safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
+        });
     }
 
     private void addServers(HarnessEngine engine, AgentSettings wsSettings) {
@@ -513,26 +550,6 @@ public class WorkspaceManager {
         Path fileName = path.getFileName();
         return fileName == null ? "" : fileName.toString();
     }
-
-    /**
-     * 根据会话 ID 查找其所属的工作区 ID
-     */
-     public String getSessionWorkspaceId(String sessionId) {
-         if (sessionId == null || sessionId.trim().isEmpty()) {
-             return "default";
-         }
-         for (WorkspaceContext wctx : contexts.values()) {
-             HarnessEngine engine = wctx.getEngine();
-             if (engine != null) {
-                 Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
-                 Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
-                 if (Files.exists(sessionPath)) {
-                     return wctx.getMeta().getId();
-                 }
-             }
-         }
-         return "default";
-     }
 
     /**
      * 获取最近的工作区列表
