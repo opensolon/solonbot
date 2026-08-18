@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "File",
   "workspace.tab.review": "Revisione",
   "workspace.tab.tasks": "Attività",
-  "workspace.taskQueue": "Coda attività"
+  "workspace.taskQueue": "Coda attività",
+  "sidebar.openWorkspace": "Apri area di lavoro",
+  "sidebar.workspace": "Area di lavoro",
+  "sidebar.recentWorkspaces": "Aree di lavoro aperte di recente",
+  "sidebar.launchWorkspace": "Directory di avvio",
+  "sidebar.fileMounts": "Montaggi di file",
+  "sidebar.wsLoadFailed": "Caricamento non riuscito",
+  "sidebar.open": "Apri",
+  "sidebar.wsPathPlaceholder": "Inserisci un percorso assoluto locale…",
+  "sidebar.wsEmpty": "Nessun'altra area di lavoro",
+  "sidebar.wsRemove": "Rimuovi",
+  "sidebar.wsRemoveConfirm": "Rimuovere questa area di lavoro dall'elenco? (la directory non verrà eliminata)",
+  "sidebar.wsPathInvalid": "Inserisci un percorso assoluto locale valido (che inizia con / o lettera di unità, senza ..)"
 }

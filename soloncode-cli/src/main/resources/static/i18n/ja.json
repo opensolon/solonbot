@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "ファイル",
   "workspace.tab.review": "レビュー",
   "workspace.tab.tasks": "タスク",
-  "workspace.taskQueue": "タスク待機キュー"
+  "workspace.taskQueue": "タスク待機キュー",
+  "sidebar.openWorkspace": "ワークスペースを開く",
+  "sidebar.workspace": "ワークスペース",
+  "sidebar.recentWorkspaces": "最近開いたワークスペース",
+  "sidebar.launchWorkspace": "起動ディレクトリ",
+  "sidebar.fileMounts": "ファイルマウント",
+  "sidebar.wsLoadFailed": "読み込みに失敗しました",
+  "sidebar.open": "開く",
+  "sidebar.wsPathPlaceholder": "ローカルの絶対パスを入力…",
+  "sidebar.wsEmpty": "他のワークスペースはありません",
+  "sidebar.wsRemove": "削除",
+  "sidebar.wsRemoveConfirm": "このワークスペースをリストから削除しますか？（ディレクトリは削除されません）",
+  "sidebar.wsPathInvalid": "有効なローカル絶対パスを入力してください（/ またはドライブ文字で始まり、.. を含まない）"
 }

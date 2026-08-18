@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Tệp",
   "workspace.tab.review": "Rà soát",
   "workspace.tab.tasks": "Nhiệm vụ",
-  "workspace.taskQueue": "Hàng đợi nhiệm vụ"
+  "workspace.taskQueue": "Hàng đợi nhiệm vụ",
+  "sidebar.openWorkspace": "Mở không gian làm việc",
+  "sidebar.workspace": "Không gian làm việc",
+  "sidebar.recentWorkspaces": "Không gian làm việc mở gần đây",
+  "sidebar.launchWorkspace": "Thư mục khởi chạy",
+  "sidebar.fileMounts": "Gắn kết tệp",
+  "sidebar.wsLoadFailed": "Tải không thành công",
+  "sidebar.open": "Mở",
+  "sidebar.wsPathPlaceholder": "Nhập đường dẫn tuyệt đối cục bộ…",
+  "sidebar.wsEmpty": "Không có không gian làm việc nào khác",
+  "sidebar.wsRemove": "Xóa",
+  "sidebar.wsRemoveConfirm": "Xóa không gian làm việc này khỏi danh sách? (thư mục sẽ không bị xóa)",
+  "sidebar.wsPathInvalid": "Nhập đường dẫn tuyệt đối cục bộ hợp lệ (bắt đầu bằng / hoặc ký tự ổ đĩa, không có ..)"
 }

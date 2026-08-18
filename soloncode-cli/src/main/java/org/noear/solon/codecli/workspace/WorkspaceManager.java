@@ -3,6 +3,7 @@ package org.noear.solon.codecli.workspace;
 import org.noear.snack4.ONode;
 import org.noear.snack4.Feature;
 import org.noear.solon.Solon;
+import org.noear.solon.Utils;
 import org.noear.solon.ai.chat.CacheControl;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.HarnessExtension;
@@ -216,7 +217,8 @@ public class WorkspaceManager {
         try {
             // 先按物理路径回查历史记录，命中则沿用原 meta（稳定 ID），
             // 避免重启/LRU 回收后重开同一目录时生成新 ws- ID，
-            // 导致 home.html 已渲染卡片上的旧 ID 失效而 404 跳回首页
+            // 导致已渲染的旧卡片上的 ID 失效而 404 跳回默认工作区
+            // 注：workspaceId 现已改为路径 md5 生成（幂等），此回查主要用于兼容旧随机 ID 存量
             WorkspaceMeta meta = null;
             for (WorkspaceMeta hist : listWorkspaces()) {
                 // 按归一化绝对路径比较，避免同一路径因尾斜杠/相对段等格式差异
@@ -230,7 +232,8 @@ public class WorkspaceManager {
                 }
             }
             if (meta == null) {
-                String workspaceId = "ws-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+                // 用路径 md5 生成幂等 ID：相同 path 恒得相同 ID，天然避免重开同目录时 ID 漂移
+                String workspaceId = "ws-" + Utils.md5(normalizedPathStr);
                 meta = new WorkspaceMeta(workspaceId, getLastSegment(normalizedPathStr), normalizedPathStr, System.currentTimeMillis(), false);
             }
             String ctxKey = meta.getId();

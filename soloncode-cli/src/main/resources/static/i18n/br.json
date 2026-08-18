@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Arquivos",
   "workspace.tab.review": "Revisão",
   "workspace.tab.tasks": "Tarefas",
-  "workspace.taskQueue": "Fila de Tarefas"
+  "workspace.taskQueue": "Fila de Tarefas",
+  "sidebar.openWorkspace": "Abrir espaço de trabalho",
+  "sidebar.workspace": "Espaço de trabalho",
+  "sidebar.recentWorkspaces": "Espaços de trabalho abertos recentemente",
+  "sidebar.launchWorkspace": "Diretório de inicialização",
+  "sidebar.fileMounts": "Montagens de arquivo",
+  "sidebar.wsLoadFailed": "Falha ao carregar",
+  "sidebar.open": "Abrir",
+  "sidebar.wsPathPlaceholder": "Digite um caminho absoluto local…",
+  "sidebar.wsEmpty": "Nenhum outro espaço de trabalho",
+  "sidebar.wsRemove": "Remover",
+  "sidebar.wsRemoveConfirm": "Remover este espaço de trabalho da lista? (o diretório não será excluído)",
+  "sidebar.wsPathInvalid": "Digite um caminho absoluto local válido (começando com / ou letra de unidade, sem ..)"
 }

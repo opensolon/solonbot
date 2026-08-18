@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Файлы",
   "workspace.tab.review": "Ревью",
   "workspace.tab.tasks": "Задачи",
-  "workspace.taskQueue": "Очередь задач"
+  "workspace.taskQueue": "Очередь задач",
+  "sidebar.openWorkspace": "Открыть рабочую область",
+  "sidebar.workspace": "Рабочая область",
+  "sidebar.recentWorkspaces": "Недавно открытые рабочие области",
+  "sidebar.launchWorkspace": "Каталог запуска",
+  "sidebar.fileMounts": "Монтирования файлов",
+  "sidebar.wsLoadFailed": "Не удалось загрузить",
+  "sidebar.open": "Открыть",
+  "sidebar.wsPathPlaceholder": "Введите локальный абсолютный путь…",
+  "sidebar.wsEmpty": "Нет других рабочих областей",
+  "sidebar.wsRemove": "Удалить",
+  "sidebar.wsRemoveConfirm": "Удалить эту рабочую область из списка? (каталог не будет удалён)",
+  "sidebar.wsPathInvalid": "Введите допустимый локальный абсолютный путь (начинающийся с / или буквы диска, без ..)"
 }

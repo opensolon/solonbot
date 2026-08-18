@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Datoteke",
   "workspace.tab.review": "Pregled",
   "workspace.tab.tasks": "Zadaci",
-  "workspace.taskQueue": "Red čekanja zadataka"
+  "workspace.taskQueue": "Red čekanja zadataka",
+  "sidebar.openWorkspace": "Otvori radni prostor",
+  "sidebar.workspace": "Radni prostor",
+  "sidebar.recentWorkspaces": "Nedavno otvoreni radni prostori",
+  "sidebar.launchWorkspace": "Direktorij pokretanja",
+  "sidebar.fileMounts": "Montiranja datoteka",
+  "sidebar.wsLoadFailed": "Učitavanje nije uspjelo",
+  "sidebar.open": "Otvori",
+  "sidebar.wsPathPlaceholder": "Unesite lokalnu apsolutnu putanju…",
+  "sidebar.wsEmpty": "Nema drugih radnih prostora",
+  "sidebar.wsRemove": "Ukloni",
+  "sidebar.wsRemoveConfirm": "Ukloniti ovaj radni prostor s liste? (direktorij neće biti izbrisan)",
+  "sidebar.wsPathInvalid": "Unesite valjanu lokalnu apsolutnu putanju (počinje s / ili slovom pogona, bez ..)"
 }

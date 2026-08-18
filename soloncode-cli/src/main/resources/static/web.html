@@ -38,15 +38,19 @@
             <span class="sidebar-nav-badge" id="memoryBadge" style="display:none">0</span>
         </button>
         <div class="ws-open-wrap" id="wsOpenWrap">
-            <button class="sidebar-nav-item" id="wsOpenBtn" title="打开工作区" data-i18n-title="sidebar.openWorkspace">
+            <button class="sidebar-nav-item" id="wsOpenBtn" title="工作区" data-i18n-title="sidebar.workspace">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>
-                <span class="sidebar-nav-label" data-i18n="sidebar.openWorkspace">打开</span>
+                <span class="sidebar-nav-label" data-i18n="sidebar.workspace">工作区</span>
             </button>
             <div class="ws-open-panel" id="wsOpenPanel">
-                <div class="ws-open-panel-title" data-i18n="sidebar.openWorkspace">打开工作区</div>
+                <div class="ws-open-panel-title" data-i18n="sidebar.launchWorkspace">启动目录</div>
+                <div class="ws-open-list" id="wsLaunchList"></div>
+                <div class="ws-open-panel-title" data-i18n="sidebar.recentWorkspaces">最近打开的工作区</div>
                 <div class="ws-open-list" id="wsOpenList"></div>
+                <div class="ws-open-panel-title" id="wsMountTitle" data-i18n="sidebar.fileMounts" style="display:none">文件挂载</div>
+                <div class="ws-open-list" id="wsMountList"></div>
                 <div class="ws-open-new">
                     <input type="text" id="wsOpenPathInput" placeholder="输入本地绝对路径…" data-i18n-placeholder="sidebar.wsPathPlaceholder">
                     <button id="wsOpenGoBtn" title="打开" data-i18n-title="sidebar.open">打开</button>
@@ -75,13 +79,6 @@
 <!-- Main -->
 <div class="main-area">
     <div class="main-header">
-        <!-- Home Button -->
-        <a class="im-btn-header" href="/home.html" title="项目列表/返回首页" style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--br-md); border: 1px solid var(--border); color: var(--text-secondary); background: transparent; cursor: pointer; transition: all 0.2s ease; margin-right: 8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-        </a>
         <button class="im-btn-header feishu-btn-header" id="feishuHeaderBtn" title="飞书绑定" data-i18n-title="header.feishu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M12.9238 12.8029C12.9427 12.784 12.9616 12.7682 12.9806 12.7493C13.0184 12.7146 13.0563 12.6767 13.091 12.6389L13.1667 12.5631L13.397 12.336L14.7315 11.0173L15.0659 10.686C15.129 10.6229 15.1952 10.563 15.2615 10.5031C15.3845 10.3926 15.5076 10.2854 15.6369 10.1813C15.7536 10.0866 15.8767 9.99514 15.9997 9.9068C16.1732 9.78376 16.3499 9.67019 16.5329 9.55977C16.7127 9.45251 16.8957 9.35471 17.085 9.26322C17.2616 9.17804 17.4415 9.09917 17.6276 9.02661C17.7317 8.9856 17.8326 8.94774 17.9399 8.91304C17.9935 8.89411 18.044 8.87834 18.0977 8.86256C17.6276 7.00439 16.7632 5.3008 15.5991 3.84959C15.3719 3.56566 15.0249 3.40161 14.6589 3.40161H5.0084C4.83489 3.40161 4.76233 3.6256 4.90114 3.72656C8.18528 6.13997 10.9236 9.24114 12.9017 12.825C12.908 12.8187 12.9175 12.8124 12.9238 12.8029Z" fill="currentColor" opacity="0.5" />
@@ -1811,7 +1808,7 @@
                     var now = Date.now();
                     if (now - lastRedirect < 3000) return;
                     lastRedirect = now;
-                    try { window.location.href = '/home.html'; } catch (e) {}
+                    try { window.location.href = '/'; } catch (e) {}
                 };
             })();
             var originalFetch = window.fetch; // 必须先捕获，否则下面包装器内引用 originalFetch 会抛 ReferenceError，导致页面所有 fetch 全部失败（"跳回 home"的根因之一）
@@ -2179,18 +2176,17 @@
     (function () {
         var wrap = document.getElementById('wsOpenWrap');
         var listEl = document.getElementById('wsOpenList');
+        var mountListEl = document.getElementById('wsMountList');
+        var mountTitleEl = document.getElementById('wsMountTitle');
+        var launchListEl = document.getElementById('wsLaunchList');
         var pathInput = document.getElementById('wsOpenPathInput');
         var goBtn = document.getElementById('wsOpenGoBtn');
-        var currentId = new URLSearchParams(location.search).get('workspaceId') || 'default';
         var hideTimer = null;
 
-        function t(key, def) { return (window.I18n && I18n.t(key)) !== key && I18n.t(key) || def; }
-
-        function fmtTime(ts) {
-            if (!ts) return '';
-            try { var d = new Date(ts), now = new Date();
-                if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-                return d.toLocaleDateString(); } catch (e) { return ''; }
+        function t(key, def) {
+            if (!window.I18n || typeof I18n.t !== 'function') return def;
+            var v = I18n.t(key);
+            return (v && v !== key) ? v : def;
         }
 
         function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -2198,16 +2194,53 @@
         function load() {
             fetch('/web/workspace/list').then(function (r) { return r.json(); }).then(function (res) {
                 if (res.code !== 200 || !res.data) { listEl.innerHTML = '<div class="ws-open-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>'; return; }
+                var data = res.data;
+
+                // 1. 启动目录（同最近工作区风格：name(path 末段) + path，点击回默认工作区）
+                if (launchListEl) {
+                    var lp = (data.launch && data.launch.path) ? data.launch.path : '';
+                    if (lp) {
+                        var lseg = lp.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || lp;
+                        launchListEl.innerHTML = '<a class="ws-open-item" href="/">' +
+                            '<div class="ws-open-item-info">' +
+                            '<div class="ws-open-item-name">' + esc(lseg) + '</div>' +
+                            '<div class="ws-open-item-path" title="' + esc(lp) + '">' + esc(lp) + '</div></div></a>';
+                    } else {
+                        launchListEl.innerHTML = '';
+                    }
+                }
+
+                // 2. 最近的工作区
+                var workspaces = data.workspaces || [];
                 var html = '';
-                res.data.forEach(function (item) {
-                    var cur = item.id === currentId ? ' current' : '';
-                    html += '<div class="ws-open-item' + cur + '" data-id="' + esc(item.id) + '">' +
-                        '<div class="ws-open-item-info"><div class="ws-open-item-path" title="' + esc(item.path) + '">' + esc(item.name || item.path) + '</div>' +
-                        '<div class="ws-open-item-time">' + esc(fmtTime(item.openedAt)) + '</div></div>' +
+                workspaces.forEach(function (item) {
+                    html += '<div class="ws-open-item" data-id="' + esc(item.id) + '">' +
+                        '<div class="ws-open-item-info">' +
+                        '<div class="ws-open-item-name">' + esc(item.name || item.path) + '</div>' +
+                        '<div class="ws-open-item-path" title="' + esc(item.path) + '">' + esc(item.path) + '</div></div>' +
                         '<button class="btn-icon" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">✕</button></div>';
                 });
                 listEl.innerHTML = html || '<div class="ws-open-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
-            }).catch(function () { listEl.innerHTML = '<div class="ws-open-empty">' + t('sidebar.wsEmpty', '加载失败') + '</div>'; });
+
+                // 3. 文件挂载（点击传 alias 走后端 @ 解析，效果同工作区）
+                var mounts = data.mounts || [];
+                if (mounts.length > 0) {
+                    var mhtml = '';
+                    mounts.forEach(function (m) {
+                        mhtml += '<div class="ws-open-item" data-alias="' + esc(m.alias) + '">' +
+                            '<div class="ws-open-item-info">' +
+                            '<div class="ws-open-item-name">' + esc(m.alias) + '</div>' +
+                            '<div class="ws-open-item-path" title="' + esc(m.path) + '">' + esc(m.path) + '</div></div></div>';
+                    });
+                    mountListEl.innerHTML = mhtml;
+                    mountTitleEl.style.display = '';
+                    mountListEl.style.display = '';
+                } else {
+                    mountListEl.innerHTML = '';
+                    mountTitleEl.style.display = 'none';
+                    mountListEl.style.display = 'none';
+                }
+            }).catch(function () { listEl.innerHTML = '<div class="ws-open-empty">' + t('sidebar.wsLoadFailed', '加载失败') + '</div>'; });
         }
 
         listEl.addEventListener('click', function (e) {
@@ -2223,8 +2256,23 @@
             var item = e.target.closest ? e.target.closest('.ws-open-item') : null;
             if (item) {
                 var id = item.getAttribute('data-id');
-                window.open('/web.html?workspaceId=' + encodeURIComponent(id), '_blank');
+                window.open('/?workspaceId=' + encodeURIComponent(id), '_blank');
             }
+        });
+
+        // 文件挂载点击：传 alias 走 open 接口（后端 @ 解析→落历史→跳转）
+        mountListEl.addEventListener('click', function (e) {
+            var item = e.target.closest ? e.target.closest('.ws-open-item') : null;
+            if (!item) return;
+            var alias = item.getAttribute('data-alias');
+            if (!alias) return;
+            fetch('/web/workspace/open', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'path=' + encodeURIComponent(alias) })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); }
+                    else alert(res.description || res.message || 'open failed');
+                })
+                .catch(function () { alert('open failed'); });
         });
 
         function openNew() {
@@ -2237,7 +2285,7 @@
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     goBtn.disabled = false;
-                    if (res.code === 200 && res.data && res.data.id) { window.open('/web.html?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); }
+                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); }
                     else alert(res.description || res.message || 'open failed');
                 })
                 .catch(function () { goBtn.disabled = false; alert('open failed'); });

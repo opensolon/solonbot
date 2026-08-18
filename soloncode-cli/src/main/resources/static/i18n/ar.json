@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "الملفات",
   "workspace.tab.review": "المراجعة",
   "workspace.tab.tasks": "المهام",
-  "workspace.taskQueue": "قائمة انتظار المهام"
+  "workspace.taskQueue": "قائمة انتظار المهام",
+  "sidebar.openWorkspace": "فتح مساحة العمل",
+  "sidebar.workspace": "مساحة العمل",
+  "sidebar.recentWorkspaces": "مساحات العمل المفتوحة مؤخرًا",
+  "sidebar.launchWorkspace": "دليل الإطلاق",
+  "sidebar.fileMounts": "نقاط تحميل الملفات",
+  "sidebar.wsLoadFailed": "فشل التحميل",
+  "sidebar.open": "فتح",
+  "sidebar.wsPathPlaceholder": "أدخل مسارًا مطلقًا محليًا…",
+  "sidebar.wsEmpty": "لا توجد مساحات عمل أخرى",
+  "sidebar.wsRemove": "إزالة",
+  "sidebar.wsRemoveConfirm": "إزالة مساحة العمل هذه من القائمة؟ (لن يتم حذف الدليل)",
+  "sidebar.wsPathInvalid": "أدخل مسارًا مطلقًا محليًا صالحًا (يبدأ بـ / أو حرف محرك أقراص، دون ..)"
 }

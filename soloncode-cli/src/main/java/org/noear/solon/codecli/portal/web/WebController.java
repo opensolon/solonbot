@@ -164,12 +164,49 @@ public class WebController {
 
     @Get
     @Mapping("/web/workspace/list")
-    public Result<List<org.noear.solon.codecli.workspace.WorkspaceMeta>> listWorkspaces() {
+    public Result<Map<String, Object>> listWorkspaces() {
         org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
-        if (manager != null) {
-            return Result.succeed(manager.listWorkspaces());
+        if (manager == null) {
+            return Result.failure("WorkspaceManager not found");
         }
-        return Result.failure("WorkspaceManager not found");
+
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        // 1. 启动目录（默认工作区，虚拟条目：随 user.dir 变化，不落 workspaces.json）
+        try {
+            org.noear.solon.codecli.workspace.WorkspaceContext defCtx = manager.getOrCreate("default");
+            if (defCtx != null && defCtx.getMeta() != null) {
+                org.noear.solon.codecli.workspace.WorkspaceMeta dm = defCtx.getMeta();
+                Map<String, Object> launch = new LinkedHashMap<>();
+                launch.put("id", dm.getId());
+                launch.put("name", dm.getName());
+                launch.put("path", dm.getPath());
+                data.put("launch", launch);
+            }
+        } catch (Exception e) {
+            LOG.warn("[Workspace] Failed to resolve launch workspace", e);
+        }
+
+        // 2. 最近的工作区（历史列表，不含 default）
+        data.put("workspaces", manager.listWorkspaces());
+
+        // 3. 文件挂载（仅启用的 FILES 类型，每项：别名 + realPath）
+        List<Map<String, Object>> mounts = new ArrayList<>();
+        try {
+            for (org.noear.solon.ai.talents.mount.MountDir entry : engine().getMounts()) {
+                if (entry.getType() != org.noear.solon.ai.talents.mount.MountType.FILES) continue;
+                if (!entry.isEnabled()) continue;
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("alias", entry.getAlias());
+                item.put("path", entry.getRealPath() != null ? entry.getRealPath().toString() : "");
+                mounts.add(item);
+            }
+        } catch (Exception e) {
+            LOG.warn("[Workspace] Failed to collect file mounts", e);
+        }
+        data.put("mounts", mounts);
+
+        return Result.succeed(data);
     }
 
     @Post
@@ -178,6 +215,29 @@ public class WebController {
         if (path == null || path.isEmpty()) {
             return Result.failure("Path is required");
         }
+
+        // 挂载别名转真实路径：@alias/sub → 解析到挂载 realPath，后续走工作区同等链路（打开过即落历史）
+        if (path.startsWith("@")) {
+            try {
+                int slash = path.indexOf('/');
+                String alias = slash < 0 ? path : path.substring(0, slash);
+                org.noear.solon.ai.talents.mount.MountDir mount = engine().getMount(alias);
+                if (mount == null || mount.getRealPath() == null) {
+                    return Result.failure("挂载不存在: " + alias);
+                }
+                Path realBase = mount.getRealPath();
+                Path real = slash < 0 ? realBase : realBase.resolve(path.substring(slash + 1));
+                real = real.toAbsolutePath().normalize();
+                // 防越权：解析后路径必须仍在挂载目录下
+                if (!real.startsWith(realBase.toAbsolutePath().normalize())) {
+                    return Result.failure("非法路径: " + path);
+                }
+                path = real.toString();
+            } catch (Exception e) {
+                return Result.failure("挂载路径解析失败: " + e.getMessage());
+            }
+        }
+
         org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
         if (manager != null) {
             try {

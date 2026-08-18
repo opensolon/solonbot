@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Dateien",
   "workspace.tab.review": "Überprüfung",
   "workspace.tab.tasks": "Aufgaben",
-  "workspace.taskQueue": "Aufgabenwarteschlange"
+  "workspace.taskQueue": "Aufgabenwarteschlange",
+  "sidebar.openWorkspace": "Arbeitsbereich öffnen",
+  "sidebar.workspace": "Arbeitsbereich",
+  "sidebar.recentWorkspaces": "Zuletzt geöffnete Arbeitsbereiche",
+  "sidebar.launchWorkspace": "Startverzeichnis",
+  "sidebar.fileMounts": "Datei-Einbindungen",
+  "sidebar.wsLoadFailed": "Laden fehlgeschlagen",
+  "sidebar.open": "Öffnen",
+  "sidebar.wsPathPlaceholder": "Lokalen absoluten Pfad eingeben…",
+  "sidebar.wsEmpty": "Keine weiteren Arbeitsbereiche",
+  "sidebar.wsRemove": "Entfernen",
+  "sidebar.wsRemoveConfirm": "Diesen Arbeitsbereich aus der Liste entfernen? (Verzeichnis wird nicht gelöscht)",
+  "sidebar.wsPathInvalid": "Geben Sie einen gültigen lokalen absoluten Pfad ein (beginnend mit / oder Laufwerksbuchstaben, ohne ..)"
 }

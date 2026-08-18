@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Файли",
   "workspace.tab.review": "Рев'ю",
   "workspace.tab.tasks": "Завдання",
-  "workspace.taskQueue": "Черга завдань"
+  "workspace.taskQueue": "Черга завдань",
+  "sidebar.openWorkspace": "Відкрити робочу область",
+  "sidebar.workspace": "Робоча область",
+  "sidebar.recentWorkspaces": "Нещодавно відкриті робочі області",
+  "sidebar.launchWorkspace": "Каталог запуску",
+  "sidebar.fileMounts": "Монтування файлів",
+  "sidebar.wsLoadFailed": "Не вдалося завантажити",
+  "sidebar.open": "Відкрити",
+  "sidebar.wsPathPlaceholder": "Введіть локальний абсолютний шлях…",
+  "sidebar.wsEmpty": "Немає інших робочих областей",
+  "sidebar.wsRemove": "Видалити",
+  "sidebar.wsRemoveConfirm": "Видалити цю робочу область зі списку? (каталог не буде видалено)",
+  "sidebar.wsPathInvalid": "Введіть дійсний локальний абсолютний шлях (починається з / або літери диска, без ..)"
 }

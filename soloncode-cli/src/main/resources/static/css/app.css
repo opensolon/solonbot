@@ -3194,12 +3194,11 @@ pre:hover .code-copy-btn { opacity: 1; }
 .ws-open-wrap:hover .ws-open-panel, .ws-open-panel:hover { display: block; }
 .ws-open-panel-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); padding: 2px 4px 8px; }
 .ws-open-list { display: flex; flex-direction: column; gap: 2px; }
-.ws-open-item { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+.ws-open-item { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; text-decoration: none; color: inherit; }
 .ws-open-item:hover { background: var(--accent-light); }
-.ws-open-item.current { border-left: 2px solid var(--accent); }
 .ws-open-item-info { flex: 1; min-width: 0; }
-.ws-open-item-path { font-size: var(--fs-sm); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-open-item-time { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ws-open-item-name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-open-item-path { font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .ws-open-item .btn-icon { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 6px; flex-shrink: 0; }
 .ws-open-item .btn-icon:hover { color: #e55; background: rgba(229,85,85,.12); }
 .ws-open-empty { font-size: var(--fs-xs); color: var(--text-secondary); text-align: center; padding: 12px 0; }

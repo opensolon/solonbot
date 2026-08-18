@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "ไฟล์",
   "workspace.tab.review": "ตรวจสอบ",
   "workspace.tab.tasks": "งาน",
-  "workspace.taskQueue": "คิวงาน"
+  "workspace.taskQueue": "คิวงาน",
+  "sidebar.openWorkspace": "เปิดพื้นที่ทำงาน",
+  "sidebar.workspace": "พื้นที่ทำงาน",
+  "sidebar.recentWorkspaces": "พื้นที่ทำงานที่เปิดล่าสุด",
+  "sidebar.launchWorkspace": "ไดเรกทอรีเริ่มต้น",
+  "sidebar.fileMounts": "การเมานต์ไฟล์",
+  "sidebar.wsLoadFailed": "โหลดไม่สำเร็จ",
+  "sidebar.open": "เปิด",
+  "sidebar.wsPathPlaceholder": "ป้อนพาธสัมบูรณ์ในเครื่อง…",
+  "sidebar.wsEmpty": "ไม่มีพื้นที่ทำงานอื่น",
+  "sidebar.wsRemove": "ลบออก",
+  "sidebar.wsRemoveConfirm": "ลบพื้นที่ทำงานนี้ออกจากรายการ? (จะไม่ลบไดเรกทอรี)",
+  "sidebar.wsPathInvalid": "ป้อนพาธสัมบูรณ์ในเครื่องที่ถูกต้อง (ขึ้นต้นด้วย / หรืออักษรไดรฟ์ ไม่มี ..)"
 }

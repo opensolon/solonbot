@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Αρχεία",
   "workspace.tab.review": "Αναθεώρηση",
   "workspace.tab.tasks": "Εργασίες",
-  "workspace.taskQueue": "Ουρά εργασιών"
+  "workspace.taskQueue": "Ουρά εργασιών",
+  "sidebar.openWorkspace": "Άνοιγμα χώρου εργασίας",
+  "sidebar.workspace": "Χώρος εργασίας",
+  "sidebar.recentWorkspaces": "Πρόσφατα ανοιγμένοι χώροι εργασίας",
+  "sidebar.launchWorkspace": "Κατάλογος εκκίνησης",
+  "sidebar.fileMounts": "Προσαρτήσεις αρχείων",
+  "sidebar.wsLoadFailed": "Αποτυχία φόρτωσης",
+  "sidebar.open": "Άνοιγμα",
+  "sidebar.wsPathPlaceholder": "Εισαγάγετε τοπική απόλυτη διαδρομή…",
+  "sidebar.wsEmpty": "Δεν υπάρχουν άλλοι χώροι εργασίας",
+  "sidebar.wsRemove": "Κατάργηση",
+  "sidebar.wsRemoveConfirm": "Κατάργηση αυτού του χώρου εργασίας από τη λίστα; (ο κατάλογος δεν θα διαγραφεί)",
+  "sidebar.wsPathInvalid": "Εισαγάγετε έγκυρη τοπική απόλυτη διαδρομή (ξεκινά με / ή γράμμα μονάδας δίσκου, χωρίς ..)"
 }

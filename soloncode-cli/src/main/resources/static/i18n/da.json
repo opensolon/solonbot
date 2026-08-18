@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Filer",
   "workspace.tab.review": "Gennemgang",
   "workspace.tab.tasks": "Opgaver",
-  "workspace.taskQueue": "Opgavekø"
+  "workspace.taskQueue": "Opgavekø",
+  "sidebar.openWorkspace": "Åbn arbejdsområde",
+  "sidebar.workspace": "Arbejdsområde",
+  "sidebar.recentWorkspaces": "Senest åbnede arbejdsområder",
+  "sidebar.launchWorkspace": "Startmappe",
+  "sidebar.fileMounts": "Filmonteringer",
+  "sidebar.wsLoadFailed": "Indlæsning mislykkedes",
+  "sidebar.open": "Åbn",
+  "sidebar.wsPathPlaceholder": "Indtast en lokal absolut sti…",
+  "sidebar.wsEmpty": "Ingen andre arbejdsområder",
+  "sidebar.wsRemove": "Fjern",
+  "sidebar.wsRemoveConfirm": "Fjern dette arbejdsområde fra listen? (mappen slettes ikke)",
+  "sidebar.wsPathInvalid": "Indtast en gyldig lokal absolut sti (starter med / eller drevbogstav, uden ..)"
 }

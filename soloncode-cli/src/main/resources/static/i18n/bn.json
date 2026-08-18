@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "ফাইল",
   "workspace.tab.review": "রিভিউ",
   "workspace.tab.tasks": "টাস্ক",
-  "workspace.taskQueue": "টাস্ক সারি"
+  "workspace.taskQueue": "টাস্ক সারি",
+  "sidebar.openWorkspace": "ওয়ার্কস্পেস খুলুন",
+  "sidebar.workspace": "ওয়ার্কস্পেস",
+  "sidebar.recentWorkspaces": "সম্প্রতি খোলা ওয়ার্কস্পেস",
+  "sidebar.launchWorkspace": "লঞ্চ ডিরেক্টরি",
+  "sidebar.fileMounts": "ফাইল মাউন্ট",
+  "sidebar.wsLoadFailed": "লোড করা ব্যর্থ হয়েছে",
+  "sidebar.open": "খুলুন",
+  "sidebar.wsPathPlaceholder": "স্থানীয় পরম পথ লিখুন…",
+  "sidebar.wsEmpty": "অন্য কোনো ওয়ার্কস্পেস নেই",
+  "sidebar.wsRemove": "সরান",
+  "sidebar.wsRemoveConfirm": "তালিকা থেকে এই ওয়ার্কস্পেসটি সরাবেন? (ডিরেক্টরি মুছে ফেলা হবে না)",
+  "sidebar.wsPathInvalid": "একটি বৈধ স্থানীয় পরম পথ লিখুন (/ বা ড্রাইভ অক্ষর দিয়ে শুরু, .. ছাড়া)"
 }

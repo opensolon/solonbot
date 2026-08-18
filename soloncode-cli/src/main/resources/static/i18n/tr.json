@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Dosyalar",
   "workspace.tab.review": "İnceleme",
   "workspace.tab.tasks": "Görevler",
-  "workspace.taskQueue": "Görev Kuyruğu"
+  "workspace.taskQueue": "Görev Kuyruğu",
+  "sidebar.openWorkspace": "Çalışma alanını aç",
+  "sidebar.workspace": "Çalışma alanı",
+  "sidebar.recentWorkspaces": "Son açılan çalışma alanları",
+  "sidebar.launchWorkspace": "Başlatma dizini",
+  "sidebar.fileMounts": "Dosya bağlamaları",
+  "sidebar.wsLoadFailed": "Yükleme başarısız",
+  "sidebar.open": "Aç",
+  "sidebar.wsPathPlaceholder": "Yerel mutlak yol girin…",
+  "sidebar.wsEmpty": "Başka çalışma alanı yok",
+  "sidebar.wsRemove": "Kaldır",
+  "sidebar.wsRemoveConfirm": "Bu çalışma alanını listeden kaldır? (dizin silinmez)",
+  "sidebar.wsPathInvalid": "Geçerli bir yerel mutlak yol girin (/ veya sürücü harfiyle başlar, .. içermez)"
 }

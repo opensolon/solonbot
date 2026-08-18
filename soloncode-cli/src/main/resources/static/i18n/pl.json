@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Pliki",
   "workspace.tab.review": "Przegląd",
   "workspace.tab.tasks": "Zadania",
-  "workspace.taskQueue": "Kolejka zadań"
+  "workspace.taskQueue": "Kolejka zadań",
+  "sidebar.openWorkspace": "Otwórz obszar roboczy",
+  "sidebar.workspace": "Obszar roboczy",
+  "sidebar.recentWorkspaces": "Ostatnio otwierane obszary robocze",
+  "sidebar.launchWorkspace": "Katalog uruchamiania",
+  "sidebar.fileMounts": "Montowania plików",
+  "sidebar.wsLoadFailed": "Ładowanie nie powiodło się",
+  "sidebar.open": "Otwórz",
+  "sidebar.wsPathPlaceholder": "Wprowadź lokalną ścieżkę bezwzględną…",
+  "sidebar.wsEmpty": "Brak innych obszarów roboczych",
+  "sidebar.wsRemove": "Usuń",
+  "sidebar.wsRemoveConfirm": "Usunąć ten obszar roboczy z listy? (katalog nie zostanie usunięty)",
+  "sidebar.wsPathInvalid": "Wprowadź prawidłową lokalną ścieżkę bezwzględną (zaczynającą się od / lub litery dysku, bez ..)"
 }

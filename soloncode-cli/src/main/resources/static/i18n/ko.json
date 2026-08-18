@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "파일",
   "workspace.tab.review": "리뷰",
   "workspace.tab.tasks": "작업",
-  "workspace.taskQueue": "작업 대기열"
+  "workspace.taskQueue": "작업 대기열",
+  "sidebar.openWorkspace": "작업 공간 열기",
+  "sidebar.workspace": "작업 공간",
+  "sidebar.recentWorkspaces": "최근에 연 작업 공간",
+  "sidebar.launchWorkspace": "시작 디렉터리",
+  "sidebar.fileMounts": "파일 마운트",
+  "sidebar.wsLoadFailed": "로드 실패",
+  "sidebar.open": "열기",
+  "sidebar.wsPathPlaceholder": "로컬 절대 경로 입력…",
+  "sidebar.wsEmpty": "다른 작업 공간이 없습니다",
+  "sidebar.wsRemove": "제거",
+  "sidebar.wsRemoveConfirm": "이 작업 공간을 목록에서 제거하시겠습니까? (디렉터리는 삭제되지 않음)",
+  "sidebar.wsPathInvalid": "유효한 로컬 절대 경로를 입력하세요 (/ 또는 드라이브 문자로 시작, .. 미포함)"
 }

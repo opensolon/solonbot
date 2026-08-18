@@ -1115,5 +1115,17 @@
   "workspace.tab.files": "Filer",
   "workspace.tab.review": "Gjennomgang",
   "workspace.tab.tasks": "Oppgaver",
-  "workspace.taskQueue": "Oppgavekø"
+  "workspace.taskQueue": "Oppgavekø",
+  "sidebar.openWorkspace": "Åpne arbeidsområde",
+  "sidebar.workspace": "Arbeidsområde",
+  "sidebar.recentWorkspaces": "Nylig åpnede arbeidsområder",
+  "sidebar.launchWorkspace": "Oppstartsmappe",
+  "sidebar.fileMounts": "Filmonteringer",
+  "sidebar.wsLoadFailed": "Kunne ikke laste",
+  "sidebar.open": "Åpne",
+  "sidebar.wsPathPlaceholder": "Skriv inn en lokal absolutt bane…",
+  "sidebar.wsEmpty": "Ingen andre arbeidsområder",
+  "sidebar.wsRemove": "Fjern",
+  "sidebar.wsRemoveConfirm": "Fjerne dette arbeidsområdet fra listen? (mappen slettes ikke)",
+  "sidebar.wsPathInvalid": "Skriv inn en gyldig lokal absolutt bane (starter med / eller stasjonsbokstav, uten ..)"
 }

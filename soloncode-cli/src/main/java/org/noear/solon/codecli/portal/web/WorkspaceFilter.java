@@ -16,7 +16,7 @@ import org.noear.solon.Solon;
  * 避免挂载别名被误当成工作区路径处理。</p>
  *
  * <p>若 Header 携带的 ws-xxx ID 在历史记录中不存在，返回 404，
- * 引导前端回退到 home.html（对齐 hub.md 场景 C）。</p>
+ * 引导前端回退到默认工作区（根路由 /）。</p>
  *
  * @author noear
  */
@@ -45,20 +45,20 @@ public class WorkspaceFilter implements Filter {
             if (manager != null) {
                 if (wsId != null && !wsId.isEmpty()
                         && !manager.isValidWorkspaceId(wsId)) {
-                    // 场景 C：失效的工作区 ID，返回 404 引导前端回 home
+                    // 场景 C：失效的工作区 ID，返回 404 引导前端回默认工作区
                     ctx.status(404);
                     ctx.contentType("application/json;charset=utf-8");
-                    ctx.output("{\"code\":1,\"description\":\"WORKSPACE_NOT_FOUND\",\"redirect\":\"/home.html\"}");
+                    ctx.output("{\"code\":1,\"description\":\"WORKSPACE_NOT_FOUND\",\"redirect\":\"/\"}");
                     return;
                 }
 
                 WorkspaceContext wctx = manager.getOrCreate(wsId);
                 if (wctx == null) {
                     // getOrCreate 收紧语义后可能返回 null（目录不存在/非法 ID/加载失败），
-                    // 同样返回 404 引导前端回 home，避免后续控制器 NPE 或静默路由到错误工作区
+                    // 同样返回 404 引导前端回默认工作区，避免后续控制器 NPE 或静默路由到错误工作区
                     ctx.status(404);
                     ctx.contentType("application/json;charset=utf-8");
-                    ctx.output("{\"code\":1,\"description\":\"WORKSPACE_NOT_FOUND\",\"redirect\":\"/home.html\"}");
+                    ctx.output("{\"code\":1,\"description\":\"WORKSPACE_NOT_FOUND\",\"redirect\":\"/\"}");
                     return;
                 }
                 ctx.attrSet("WORKSPACE_CTX", wctx);
