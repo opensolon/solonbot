@@ -1079,10 +1079,20 @@
                                 </div>
                                 <div class="form-group">
                                     <label data-i18n="agents.model">运行模型</label>
-                                    <select id="agentsModel" class="form-select-custom">
-                                        <option value="" data-i18n="agents.modelFollowDefault">跟随全局默认</option>
-                                    </select>
-                                    <div class="form-hint" data-i18n="agents.modelHint">留空时该智能体使用全局默认模型运行。</div>
+                                    <input type="hidden" id="agentsModel" value=""/>
+                                    <div class="model-selector agents-model-selector" id="agentsModelSelector">
+                                        <div class="model-selector-current" id="agentsModelCurrent" tabindex="0" role="button" title="选择运行模型" data-i18n-title="agents.modelSelect">
+                                            <span class="model-name" id="agentsModelName" data-i18n="agents.modelFollowDefault">跟随对话</span>
+                                            <i class="layui-icon layui-icon-down model-arrow"></i>
+                                        </div>
+                                        <div class="model-dropdown" id="agentsModelDropdown">
+                                            <div class="model-search-wrap">
+                                                <input type="text" class="model-search-input" placeholder="搜索模型..." data-i18n-placeholder="toolbar.searchModel"/>
+                                            </div>
+                                            <div class="model-dropdown-items"></div>
+                                        </div>
+                                    </div>
+                                    <div class="form-hint" data-i18n="agents.modelHint">留空时该智能体跟随对话选择的模型运行。</div>
                                 </div>
                                 <div class="form-group">
                                     <label data-i18n="agents.systemPrompt">系统提示词 <span class="required">*</span></label>

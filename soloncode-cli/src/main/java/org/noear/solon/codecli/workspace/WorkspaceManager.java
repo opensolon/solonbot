@@ -558,71 +558,82 @@ public class WorkspaceManager {
      * 获取最近的工作区列表
      */
     public List<WorkspaceMeta> listWorkspaces() {
+        // 读取原始条目（map 已按 id 天然唯一，无需再去重）
+        Collection<WorkspaceMeta> raw = readWorkspaceEntries();
+
+        // 默认工作区（启动目录）物理路径：用于过滤早期 bug 在默认工作区内部误建目录的脏条目
+        String defaultPathStr;
+        try {
+            defaultPathStr = Paths.get(AgentFlags.getUserDir()).toAbsolutePath().normalize().toString();
+        } catch (Exception e) {
+            defaultPathStr = null;
+        }
+
+        List<WorkspaceMeta> result = new ArrayList<>();
+        for (WorkspaceMeta w : raw) {
+            // 归一化路径，避免同路径因格式差异比较失败
+            String normalized;
+            try {
+                normalized = Paths.get(w.getPath()).toAbsolutePath().normalize().toString();
+            } catch (Exception e) {
+                continue;
+            }
+            w.setPath(normalized);
+            // 展示层过滤（不回写文件）：
+            // a) 物理目录已不存在的脏条目（不删目录本身，只从列表隐去）
+            if (!Files.isDirectory(Paths.get(normalized))) {
+                LOG.debug("[Workspace] Filter entry (dir missing): {} -> {}", w.getId(), normalized);
+                continue;
+            }
+            // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目
+            if (defaultPathStr != null && !w.isDefault()
+                    && normalized.startsWith(defaultPathStr + File.separator)) {
+                LOG.debug("[Workspace] Filter entry (inside default dir): {} -> {}", w.getId(), normalized);
+                continue;
+            }
+            result.add(w);
+        }
+
+        // 按最近访问时间倒序返回（MRU），不再依赖存储的插入顺序
+        result.sort((a, b) -> Long.compare(b.getLastAccessed(), a.getLastAccessed()));
+        return result;
+    }
+
+    /**
+     * 从 workspaces.json 读取工作区条目。
+     * 存储格式为 object/map：{ "ws-xxx": { name, path, lastAccessed }, ... }，key 即工作区 id。
+     */
+    private Collection<WorkspaceMeta> readWorkspaceEntries() {
         List<WorkspaceMeta> list = new ArrayList<>();
         try {
             Path file = Paths.get(WORKSPACES_FILE_PATH);
-            if (Files.exists(file)) {
-                String json = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
-                ONode node = ONode.ofJson(json);
-                if (node.isArray()) {
-                    // 默认工作区（启动目录）物理路径：用于过滤早期 bug 在默认工作区内部误建目录的脏条目
-                    String defaultPathStr;
-                    try {
-                        defaultPathStr = Paths.get(AgentFlags.getUserDir()).toAbsolutePath().normalize().toString();
-                    } catch (Exception e) {
-                        defaultPathStr = null;
+            if (!Files.exists(file)) {
+                return list;
+            }
+            String json = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+            ONode node = ONode.ofJson(json);
+            if (node.isObject()) {
+                for (Map.Entry<String, ONode> entry : node.getObject().entrySet()) {
+                    String id = entry.getKey();
+                    ONode item = entry.getValue();
+                    // default 是虚拟工作区，持久化文件中不允许存在（存量脏数据自动清洗）
+                    if (item == null || id == null || "default".equals(id)) {
+                        continue;
                     }
-                    for (ONode item : node.getArray()) {
-                        WorkspaceMeta w = new WorkspaceMeta();
-                        w.setId(item.get("id").getString());
-                        w.setName(item.get("name").getString());
-                        w.setPath(item.get("path").getString());
-                        w.setLastAccessed(item.get("lastAccessed").getLong());
-                        w.setDefault(item.get("isDefault").getBoolean());
-                        if (w.getPath() == null || w.getId() == null) {
-                            continue;
-                        }
-                        // default 是虚拟概念，持久化文件中不允许存在 id=default 的记录（存量脏数据自动清洗）
-                        if ("default".equals(w.getId())) {
-                            LOG.debug("[Workspace] Filter entry (virtual default): {}", w.getId());
-                            continue;
-                        }
-                        // 归一化路径，避免同路径因格式差异比较失败
-                        String normalized;
-                        try {
-                            normalized = Paths.get(w.getPath()).toAbsolutePath().normalize().toString();
-                        } catch (Exception e) {
-                            continue;
-                        }
-                        w.setPath(normalized);
-                        // 展示层过滤（不回写文件）：
-                        // a) 物理目录已不存在的脏条目（不删目录本身，只从列表隐去）
-                        if (!Files.isDirectory(Paths.get(normalized))) {
-                            LOG.debug("[Workspace] Filter entry (dir missing): {} -> {}", w.getId(), normalized);
-                            continue;
-                        }
-                        // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目
-                        if (defaultPathStr != null && !w.isDefault()
-                                && normalized.startsWith(defaultPathStr + File.separator)) {
-                            LOG.debug("[Workspace] Filter entry (inside default dir): {} -> {}", w.getId(), normalized);
-                            continue;
-                        }
+                    WorkspaceMeta w = new WorkspaceMeta();
+                    w.setId(id);
+                    w.setName(item.get("name").getString());
+                    w.setPath(item.get("path").getString());
+                    w.setLastAccessed(item.get("lastAccessed").getLong());
+                    if (w.getPath() != null) {
                         list.add(w);
                     }
                 }
             }
         } catch (Exception e) {
-            LOG.warn("Failed to list workspaces", e);
+            LOG.warn("Failed to read workspaces", e);
         }
-        // 按 id 去重（历史多次启动可能写入多个 default 同 id 条目），保留 lastAccessed 最新的一条
-        Map<String, WorkspaceMeta> dedup = new LinkedHashMap<>();
-        for (WorkspaceMeta m : list) {
-            WorkspaceMeta old = dedup.get(m.getId());
-            if (old == null || m.getLastAccessed() > old.getLastAccessed()) {
-                dedup.put(m.getId(), m);
-            }
-        }
-        return new ArrayList<>(dedup.values());
+        return list;
     }
 
     /**
@@ -639,44 +650,19 @@ public class WorkspaceManager {
                 Files.createDirectories(file.getParent());
             }
 
-            List<WorkspaceMeta> list = new ArrayList<>();
-            if (Files.exists(file)) {
-                String json = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
-                try {
-                    ONode node = ONode.ofJson(json);
-                    if (node.isArray()) {
-                        for (ONode item : node.getArray()) {
-                            WorkspaceMeta w = new WorkspaceMeta();
-                            w.setId(item.get("id").getString());
-                            w.setName(item.get("name").getString());
-                            w.setPath(item.get("path").getString());
-                            w.setLastAccessed(item.get("lastAccessed").getLong());
-                            w.setDefault(item.get("isDefault").getBoolean());
-                            if (w.getPath() != null && !"default".equals(w.getId())) {
-                                list.add(w);
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {
+            // 以 map 形式组织：key=工作区 id（ws-md5(path)，与路径 1:1），value=元数据。
+            // id 已与路径幂等，同 id 直接覆盖，无需再按路径 removeIf 去重。
+            Map<String, WorkspaceMeta> map = new LinkedHashMap<>();
+            for (WorkspaceMeta w : readWorkspaceEntries()) {
+                if (w.getId() != null && w.getPath() != null && !"default".equals(w.getId())) {
+                    map.put(w.getId(), w);
                 }
             }
 
-            // 移除已存在的同路径（按归一化路径比较，避免格式差异残留重复条目）
-            String metaPathNorm = Paths.get(meta.getPath()).toAbsolutePath().normalize().toString();
-            list.removeIf(w -> {
-                try {
-                    return w.getPath() != null
-                            && Paths.get(w.getPath()).toAbsolutePath().normalize().toString().equals(metaPathNorm);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
+            map.put(meta.getId(), meta);
 
-            // 插入到最前面
-            list.add(0, meta);
-
-            // 写入
-            String newJson = ONode.ofBean(list, Feature.Write_PrettyFormat).toJson();
+            // 序列化为 object：{ "ws-xxx": { name, path, lastAccessed } }（isDefault 为 transient 不落盘）
+            String newJson = ONode.ofBean(map, Feature.Write_PrettyFormat).toJson();
             Files.write(file, newJson.getBytes(StandardCharsets.UTF_8));
         } catch (Throwable e) {
             LOG.warn("Failed to save workspace to history: " + meta.getPath(), e);

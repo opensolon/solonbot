@@ -10,7 +10,7 @@ public class WorkspaceMeta {
     private String name;
     private String path;
     private long lastAccessed;
-    private boolean isDefault;
+    private transient boolean isDefault;
 
     public WorkspaceMeta() {
     }

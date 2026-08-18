@@ -792,6 +792,15 @@ body {
 .model-name-badge { font-size: var(--fs-xs); color: var(--text-secondary); opacity: 0.85; margin-left: 2px; }
 .model-selector-current .model-name { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 
+/* Agents form model selector — reuse toolbar model-selector visuals, but as a full-width form control dropping downward */
+.agents-model-selector { display: block; width: 100%; }
+.agents-model-selector .model-selector-current { width: 100%; max-width: 100%; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input); color: var(--text-primary); min-height: 38px; }
+.agents-model-selector .model-selector-current:hover { border-color: var(--accent); background: var(--bg-input); }
+.agents-model-selector.open .model-selector-current { border-color: var(--accent); }
+.agents-model-selector .model-selector-current .model-name { max-width: none; flex: 1; }
+.agents-model-selector .model-dropdown { top: 100%; bottom: auto; left: 0; right: 0; margin-top: 6px; margin-bottom: 0; min-width: 0; width: 100%; max-width: 100%; animation: none; }
+.agents-model-selector.open .model-dropdown { display: flex; flex-direction: column; }
+
 /* Attachments Preview */
 .attachments-wrap { padding: 8px 14px 0; display: none; }
 .attachments-wrap.has-items { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }

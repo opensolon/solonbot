@@ -46,26 +46,65 @@
     var sourceScope = null;
     var selectedTools = [];
     var modelOptions = null;
+    var currentModelValue = '';
 
-    // 填充“运行模型”下拉：跟随全局默认 + 已配置模型列表；保留当前选中值即使不在列表内。
-    function populateModelOptions(current, cb) {
-        var $sel = $('#agentsModel');
-        function render(list) {
-            var selected = current || '';
-            var html = '<option value="">' + escapeHtml(I18n.t('agents.modelFollowDefault')) + '</option>';
-            var seen = {};
-            (list || []).forEach(function (item) {
-                var name = (item && (item.name || item.model)) || '';
-                if (!name || seen[name]) return;
-                seen[name] = true;
-                html += '<option value="' + escapeAttr(name) + '">' + escapeHtml(name) + '</option>';
-            });
-            if (selected && !seen[selected]) {
-                html += '<option value="' + escapeAttr(selected) + '">' + escapeHtml(selected) + '</option>';
-            }
-            $sel.html(html).val(selected);
-            if (typeof cb === 'function') cb();
+    function fmtCtxLen(len) {
+        if (!len) return '';
+        if (len >= 1000000 && len % 1000000 === 0) return (len / 1000000) + 'm';
+        if (len >= 1000) return (len / 1000) + 'k';
+        return '' + len;
+    }
+
+    // 同步触发器文案：留空显示“跟随对话”，否则显示模型名。
+    function renderModelTrigger() {
+        var $name = $('#agentsModelName');
+        if (currentModelValue) {
+            $name.text(currentModelValue).removeAttr('data-i18n');
+        } else {
+            $name.text(I18n.t('agents.modelFollowDefault')).attr('data-i18n', 'agents.modelFollowDefault');
         }
+    }
+
+    // 渲染下拉项：首项“跟随对话”（空值）+ 已配置模型列表；保留当前选中值即使不在列表内。
+    function renderModelDropdown(list) {
+        var seen = {};
+        var html = '<div class="model-dropdown-item' + (currentModelValue ? '' : ' active') + '" data-model="">'
+            + '<span class="model-item-name">' + escapeHtml(I18n.t('agents.modelFollowDefault')) + '</span>'
+            + '<span class="model-item-desc">' + escapeHtml(I18n.t('agents.modelHint')) + '</span>'
+            + '</div>';
+        (list || []).forEach(function (item) {
+            var name = (item && (item.name || item.model)) || '';
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            var standard = (item && item.standard) || 'openai';
+            var ctxLen = fmtCtxLen(item && item.contextLength);
+            var descParts = [];
+            if (item && item.desc) descParts.push(escapeHtml(item.desc));
+            descParts.push('<span class="model-item-standard">[' + escapeHtml(standard) + ']</span>');
+            var cls = name === currentModelValue ? ' active' : '';
+            html += '<div class="model-dropdown-item' + cls + '" data-model="' + escapeAttr(name) + '">'
+                + '<span class="model-item-name">' + escapeHtml(name) + (ctxLen ? '<span class="model-item-ctx">' + ctxLen + '</span>' : '') + '</span>'
+                + '<span class="model-item-desc">' + descParts.join(' ') + '</span>'
+                + '</div>';
+        });
+        if (currentModelValue && !seen[currentModelValue]) {
+            html += '<div class="model-dropdown-item active" data-model="' + escapeAttr(currentModelValue) + '">'
+                + '<span class="model-item-name">' + escapeHtml(currentModelValue) + '</span>'
+                + '<span class="model-item-desc"><span class="model-item-standard">[?]</span></span>'
+                + '</div>';
+        }
+        var $dropdown = $('#agentsModelDropdown');
+        $dropdown.find('.model-dropdown-items').html(html);
+        $dropdown.find('.model-search-input').val('');
+        $dropdown.find('.model-dropdown-items').children().show();
+    }
+
+    // 填充“运行模型”选择器；保留当前选中值即使不在列表内。
+    function populateModelOptions(current) {
+        currentModelValue = current || '';
+        $('#agentsModel').val(currentModelValue);
+        renderModelTrigger();
+        function render(list) { renderModelDropdown(list); }
         if (modelOptions) { render(modelOptions); return; }
         $.get('/web/settings/llm/models', function (resp) {
             var list = [];
@@ -76,6 +115,64 @@
             modelOptions = list;
             render(list);
         }).fail(function () { render([]); });
+    }
+
+    function selectModelValue(name) {
+        currentModelValue = name || '';
+        $('#agentsModel').val(currentModelValue);
+        renderModelTrigger();
+        // 重置 active 样式
+        var $items = $('#agentsModelDropdown').find('.model-dropdown-item');
+        $items.removeClass('active');
+        $items.filter(function () { return ($(this).attr('data-model') || '') === currentModelValue; }).addClass('active');
+    }
+
+    // 初始化模型选择器交互（自包含，不依赖会话状态）
+    function initModelSelector() {
+        var $selector = $('#agentsModelSelector');
+        var $current = $('#agentsModelCurrent');
+        var $dropdown = $('#agentsModelDropdown');
+        if (!$selector.length) return;
+
+        $current.on('click keydown', function (e) {
+            if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            var opening = !$selector.hasClass('open');
+            $('.model-selector.open').removeClass('open');
+            $selector.toggleClass('open', opening);
+            if (opening) {
+                requestAnimationFrame(function () {
+                    var active = $dropdown.find('.model-dropdown-item.active').get(0);
+                    if (active) active.scrollIntoView({ block: 'nearest' });
+                    $dropdown.find('.model-search-input').val('').trigger('input').focus();
+                });
+            }
+        });
+
+        $dropdown.on('click', function (e) {
+            var $item = $(e.target).closest('.model-dropdown-item');
+            if (!$item.length) return;
+            e.stopPropagation();
+            selectModelValue($item.attr('data-model') || '');
+            $selector.removeClass('open');
+        });
+
+        $dropdown.find('.model-search-input').on('input', function () {
+            var query = ($(this).val() || '').toLowerCase().trim();
+            var $items = $dropdown.find('.model-dropdown-items').children();
+            $items.each(function () {
+                if (!query) { $(this).show(); return; }
+                var name = ($(this).attr('data-model') || '').toLowerCase();
+                var text = ($(this).text() || '').toLowerCase();
+                $(this).toggle(name.indexOf(query) !== -1 || text.indexOf(query) !== -1);
+            });
+        });
+
+        $(document).on('click', function (e) {
+            if ($(e.target).closest('#agentsModelSelector').length) return;
+            $selector.removeClass('open');
+        });
     }
 
     function showListView() {
@@ -334,6 +431,8 @@
             } else showToast(resp.message || I18n.t('toast.saveFailed'), 'error');
         }, function () { $saveBtn.prop('disabled', false); });
     });
+
+    initModelSelector();
 
     window._settingsAgents = { load: loadList, reset: resetForm, showList: showListView };
 })();
