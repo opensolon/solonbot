@@ -912,7 +912,8 @@ public class WebController {
             }
 
             // 丢弃内存会话，下一次请求从已回退的持久化记录重建上下文。
-            sessionManager.removeSession(sessionId);
+            // 多工作区隔离：用当前工作区的 sessionManager()，避免命中默认工作区的会话管理器。
+            sessionManager().removeSession(sessionId);
 
             return Result.succeed();
         } catch (Exception e) {

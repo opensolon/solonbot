@@ -56,6 +56,14 @@ public class AgentSettings implements Serializable {
     private Map<String, ProviderDo> providers = new LinkedHashMap<>();
 
     /**
+     * 本实例所属工作区的物理目录（local settings.json 落盘根）。
+     * <p>多工作区隔离关键：默认取启动目录 user.dir；由 {@link #loadForWorkspace(String)}
+     * 按工作区目录赋值，确保 scope=workspace 的配置写回其所属工作区目录，而非启动目录。</p>
+     * <p>transient：不参与 JSON 序列化，仅运行期路由用。</p>
+     */
+    private transient String workspaceDir = AgentFlags.getUserDir();
+
+    /**
      * 与 HarnessProperties（即 AgentProperties）双向合并。
      * <p>如果 settings 有数据，以 settings 为准同步到 props；
      * 如果 settings 为空，则从 props 补充到 settings。</p>
@@ -161,6 +169,8 @@ public class AgentSettings implements Serializable {
             boolean isLocalAsGlobal = localFile.toString().equals(globalFile.toString());
 
             AgentSettings agentSettings = new AgentSettings();
+            // 记录本实例所属工作区目录，供 saveToFile 对称写回（而非启动目录）。
+            agentSettings.workspaceDir = workspaceDir;
 
             if (Files.exists(globalFile)) {
                 bindSettingsFile(globalFile, agentSettings);
@@ -391,11 +401,15 @@ public class AgentSettings implements Serializable {
      */
     public synchronized void saveToFile() {
         try {
+            // 多工作区隔离：local 目录取本实例所属工作区（workspaceDir），而非启动目录；
+            // 确保非默认工作区的 scope=workspace 配置能写回其所属目录（与 loadForWorkspace 对称）。
+            String localDir = (workspaceDir != null && workspaceDir.length() > 0) ? workspaceDir : AgentFlags.getUserDir();
+
             Path globalFileOld = Paths.get(AgentFlags.getUserHome(), ".soloncode", "config.yml").toAbsolutePath();
-            Path localFileOld = Paths.get(AgentFlags.getUserDir(), ".soloncode", "config.yml").toAbsolutePath();
+            Path localFileOld = Paths.get(localDir, ".soloncode", "config.yml").toAbsolutePath();
 
             Path globalFile = Paths.get(AgentFlags.getUserHome(), ".soloncode", "settings.json").toAbsolutePath();
-            Path localFile = Paths.get(AgentFlags.getUserDir(), ".soloncode", "settings.json").toAbsolutePath();
+            Path localFile = Paths.get(localDir, ".soloncode", "settings.json").toAbsolutePath();
             boolean isLocalAsGlobal = localFile.toString().equals(globalFile.toString());
 
             // 原子写入：先写临时文件再原子移动，防止写入过程中崩溃导致文件损坏

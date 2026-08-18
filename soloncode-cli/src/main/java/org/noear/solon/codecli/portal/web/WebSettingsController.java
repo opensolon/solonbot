@@ -108,20 +108,22 @@ public class WebSettingsController extends BaseSettingsController {
             Map<String, LspServerDo> oldLsp;
             boolean changed;
 
-            synchronized (settings) {
-                oldDefaultModel = settings.getDefaultModel();
-                oldGeneralFp = configFingerprint(settings.getGeneral());
-                oldPermissionFp = configFingerprint(settings.getPermission());
-                oldLoopFp = configFingerprint(settings.getLoop());
-                oldProvidersFp = configFingerprint(settings.getProviders());
-                oldModels = new LinkedHashMap<>(settings.getModels());
-                oldMcp = new LinkedHashMap<>(settings.getMcpServers());
-                oldApi = new LinkedHashMap<>(settings.getApiServers());
-                oldMounts = new LinkedHashMap<>(settings.getMountPools());
-                oldLsp = new LinkedHashMap<>(settings.getLspServers());
+            // 锁当前工作区的 settings 实例（同一请求内 currentContext 稳定返回同一 WorkspaceContext）
+            AgentSettings curSettings = settings();
+            synchronized (curSettings) {
+                oldDefaultModel = settings().getDefaultModel();
+                oldGeneralFp = configFingerprint(settings().getGeneral());
+                oldPermissionFp = configFingerprint(settings().getPermission());
+                oldLoopFp = configFingerprint(settings().getLoop());
+                oldProvidersFp = configFingerprint(settings().getProviders());
+                oldModels = new LinkedHashMap<>(settings().getModels());
+                oldMcp = new LinkedHashMap<>(settings().getMcpServers());
+                oldApi = new LinkedHashMap<>(settings().getApiServers());
+                oldMounts = new LinkedHashMap<>(settings().getMountPools());
+                oldLsp = new LinkedHashMap<>(settings().getLspServers());
 
                 // 2) 读盘 in-place（parse 成功后才 mutate；含 null→默认回落）
-                changed = settings.reloadInPlace();
+                changed = settings().reloadInPlace();
             }
 
             Map<String, Object> data = new LinkedHashMap<>();
@@ -136,22 +138,22 @@ public class WebSettingsController extends BaseSettingsController {
             }
 
             // 3) 变更摘要（按内容指纹；group 也按指纹，避免无变仍强制 apply）
-            boolean generalChanged = !Objects.equals(oldGeneralFp, configFingerprint(settings.getGeneral()));
-            boolean permissionChanged = !Objects.equals(oldPermissionFp, configFingerprint(settings.getPermission()));
-            boolean loopChanged = !Objects.equals(oldLoopFp, configFingerprint(settings.getLoop()));
-            boolean providersChanged = !Objects.equals(oldProvidersFp, configFingerprint(settings.getProviders()));
-            boolean defaultModelChanged = !Objects.equals(oldDefaultModel, settings.getDefaultModel());
+            boolean generalChanged = !Objects.equals(oldGeneralFp, configFingerprint(settings().getGeneral()));
+            boolean permissionChanged = !Objects.equals(oldPermissionFp, configFingerprint(settings().getPermission()));
+            boolean loopChanged = !Objects.equals(oldLoopFp, configFingerprint(settings().getLoop()));
+            boolean providersChanged = !Objects.equals(oldProvidersFp, configFingerprint(settings().getProviders()));
+            boolean defaultModelChanged = !Objects.equals(oldDefaultModel, settings().getDefaultModel());
 
             Map<String, Object> changedMap = new LinkedHashMap<>();
             changedMap.put("general", generalChanged);
             changedMap.put("permission", permissionChanged);
             changedMap.put("loop", loopChanged);
             changedMap.put("defaultModel", defaultModelChanged);
-            List<String> modelChanges = diffConfigMap(oldModels, settings.getModels());
-            List<String> mcpChanges = diffConfigMap(oldMcp, settings.getMcpServers());
-            List<String> apiChanges = diffConfigMap(oldApi, settings.getApiServers());
-            List<String> mountChanges = diffConfigMap(oldMounts, settings.getMountPools());
-            List<String> lspChanges = diffConfigMap(oldLsp, settings.getLspServers());
+            List<String> modelChanges = diffConfigMap(oldModels, settings().getModels());
+            List<String> mcpChanges = diffConfigMap(oldMcp, settings().getMcpServers());
+            List<String> apiChanges = diffConfigMap(oldApi, settings().getApiServers());
+            List<String> mountChanges = diffConfigMap(oldMounts, settings().getMountPools());
+            List<String> lspChanges = diffConfigMap(oldLsp, settings().getLspServers());
             changedMap.put("models", modelChanges);
             changedMap.put("mcpServers", mcpChanges);
             changedMap.put("apiServers", apiChanges);
@@ -166,22 +168,22 @@ public class WebSettingsController extends BaseSettingsController {
             // 4) apply engine（仅对真正变更的分组）
             if (apply) {
                 if (generalChanged) {
-                    applyGeneralToEngine(settings.getGeneral(), applied, warnings);
+                    applyGeneralToEngine(settings().getGeneral(), applied, warnings);
                 }
                 if (permissionChanged) {
-                    applyPermissionToEngine(settings.getPermission(), applied, warnings);
+                    applyPermissionToEngine(settings().getPermission(), applied, warnings);
                 }
                 if (loopChanged) {
                     applied.add("loop"); // loop 仅内存，LoopScheduler 读 settings
                 }
 
                 if (defaultModelChanged) {
-                    applyDefaultModel(settings.getDefaultModel(), settings.getModels(), applied, warnings);
+                    applyDefaultModel(settings().getDefaultModel(), settings().getModels(), applied, warnings);
                 }
 
-                applyModelsDiff(oldModels, settings.getModels(), applied, warnings);
-                applyMcpDiff(oldMcp, settings.getMcpServers(), applied, warnings);
-                applyApiDiff(oldApi, settings.getApiServers(), applied, warnings);
+                applyModelsDiff(oldModels, settings().getModels(), applied, warnings);
+                applyMcpDiff(oldMcp, settings().getMcpServers(), applied, warnings);
+                applyApiDiff(oldApi, settings().getApiServers(), applied, warnings);
 
                 if (!mountChanges.isEmpty()) {
                     warnings.add("mountPools changed; memory updated, restart recommended for full runtime effect");
@@ -194,13 +196,14 @@ public class WebSettingsController extends BaseSettingsController {
             data.put("applied", applied);
             data.put("warnings", warnings);
 
-            // 5) 通知前端
-            if (webGate != null) {
+            // 5) 通知前端（广播通道与内容均取当前工作区）
+            WebGate curWebGate = webGate();
+            if (curWebGate != null) {
                 try {
                     ONode evt = new ONode().asObject()
                             .set("type", "settings_reloaded")
                             .set("changed", changedMap);
-                    webGate().broadcastRaw(evt.toJson());
+                    curWebGate.broadcastRaw(evt.toJson());
                 } catch (Exception e) {
                     LOG.debug("[Settings] broadcast settings_reloaded failed: {}", e.getMessage());
                 }
@@ -216,7 +219,8 @@ public class WebSettingsController extends BaseSettingsController {
 
     private Map<String, Object> buildReloadSourceInfo() {
         Path globalFile = Paths.get(AgentFlags.getUserHome(), ".soloncode", "settings.json").toAbsolutePath();
-        Path localFile = Paths.get(AgentFlags.getUserDir(), ".soloncode", "settings.json").toAbsolutePath();
+        // 多工作区隔离：local 取当前工作区目录，而非启动目录
+        Path localFile = Paths.get(engine().getWorkspace(), ".soloncode", "settings.json").toAbsolutePath();
         Map<String, Object> source = new LinkedHashMap<>();
         source.put("global", globalFile.toString());
         source.put("local", localFile.toString());
@@ -266,7 +270,7 @@ public class WebSettingsController extends BaseSettingsController {
                 warnings.add("defaultModel points to missing model: " + defaultModel);
                 return;
             }
-            engine.setDefaultModel(defaultModel);
+            engine().setDefaultModel(defaultModel);
             applied.add("defaultModel");
         } catch (Exception e) {
             warnings.add("defaultModel apply failed: " + e.getMessage());
@@ -279,37 +283,37 @@ public class WebSettingsController extends BaseSettingsController {
      */
     private void applyGeneralToEngine(GeneralGroupDo g, List<String> applied, List<String> warnings) {
         try {
-            engine.setCompressionThreshold(g.getCompressionThresholdMessages(), g.getCompressionThresholdPercent() / 100.0D);
-            engine.setSessionWindowSize(g.getSessionWindowSize());
-            engine.setModelRetries(g.getModelRetries());
-            engine.setMcpRetries(g.getMcpRetries());
-            engine.setApiRetries(g.getApiRetries());
-            engine.setSandboxEnabled(g.isSandboxMode());
-            engine.setSandboxAllowUserHome(g.isSandboxAllowUserHome());
-            engine.setSandboxSystemRestrict(g.isSandboxSystemRestrict());
-            engine.setBashAsyncEnabled(g.isBashAsyncEnabled());
-            engine.setMemoryEnabled(g.isMemoryEnabled());
-            engine.setMemoryRelevanceCount(g.getMemoryRelevanceCount());
-            engine.setMemoryPriorityCount(g.getMemoryPriorityCount());
-            engine.setMemorySummaryLength(g.getMemorySummaryLength());
-            engine.setSubagentEnabled(g.isSubagentEnabled());
-            engine.setMaxTurns(g.getMaxTurns());
-            engine.setHitlEnabled(g.isHitlEnabled());
+            engine().setCompressionThreshold(g.getCompressionThresholdMessages(), g.getCompressionThresholdPercent() / 100.0D);
+            engine().setSessionWindowSize(g.getSessionWindowSize());
+            engine().setModelRetries(g.getModelRetries());
+            engine().setMcpRetries(g.getMcpRetries());
+            engine().setApiRetries(g.getApiRetries());
+            engine().setSandboxEnabled(g.isSandboxMode());
+            engine().setSandboxAllowUserHome(g.isSandboxAllowUserHome());
+            engine().setSandboxSystemRestrict(g.isSandboxSystemRestrict());
+            engine().setBashAsyncEnabled(g.isBashAsyncEnabled());
+            engine().setMemoryEnabled(g.isMemoryEnabled());
+            engine().setMemoryRelevanceCount(g.getMemoryRelevanceCount());
+            engine().setMemoryPriorityCount(g.getMemoryPriorityCount());
+            engine().setMemorySummaryLength(g.getMemorySummaryLength());
+            engine().setSubagentEnabled(g.isSubagentEnabled());
+            engine().setMaxTurns(g.getMaxTurns());
+            engine().setHitlEnabled(g.isHitlEnabled());
 
-            if (engine.getMcpGatewayTalent() != null) {
-                engine.getMcpGatewayTalent().setEnabled(g.isMcpEnabled());
+            if (engine().getMcpGatewayTalent() != null) {
+                engine().getMcpGatewayTalent().setEnabled(g.isMcpEnabled());
             }
-            if (engine.getOpenApiGatewayTalent() != null) {
-                engine.getOpenApiGatewayTalent().setEnabled(g.isOpenApiEnabled());
+            if (engine().getOpenApiGatewayTalent() != null) {
+                engine().getOpenApiGatewayTalent().setEnabled(g.isOpenApiEnabled());
             }
-            if (engine.getLspTalent() != null) {
-                engine.getLspTalent().setEnabled(g.isLspEnabled());
+            if (engine().getLspTalent() != null) {
+                engine().getLspTalent().setEnabled(g.isLspEnabled());
             }
 
             // goalsEnabled：热更新 GoalTalent
             try {
                 boolean goalsEnabled = g.isGoalsEnabled();
-                for (HarnessExtension ext : engine.getExtensions()) {
+                for (HarnessExtension ext : engine().getExtensions()) {
                     if (ext instanceof GoalExtension) {
                         ((GoalExtension) ext).getGoalTalent().setEnabled(goalsEnabled);
                         break;
@@ -343,11 +347,11 @@ public class WebSettingsController extends BaseSettingsController {
         try {
             // 白名单 + 黑名单一次重置，只重建一次主 Agent（避免双次 createMainAgent）
             try {
-                engine.toolPermissionReset(p.getTools(), p.getDisallowedTools());
+                engine().toolPermissionReset(p.getTools(), p.getDisallowedTools());
             } catch (NoSuchMethodError | AbstractMethodError err) {
                 // 兼容尚未升级 harness 的运行环境
-                engine.allowToolReset(p.getTools());
-                engine.disallowToolReset(p.getDisallowedTools());
+                engine().allowToolReset(p.getTools());
+                engine().disallowToolReset(p.getDisallowedTools());
             }
             applied.add("permission");
         } catch (Exception e) {
@@ -368,7 +372,7 @@ public class WebSettingsController extends BaseSettingsController {
             for (String name : oldModels.keySet()) {
                 if (!newModels.containsKey(name)) {
                     try {
-                        engine.removeModel(name);
+                        engine().removeModel(name);
                         any = true;
                     } catch (Exception e) {
                         warnings.add("remove model " + name + " failed: " + e.getMessage());
@@ -383,12 +387,12 @@ public class WebSettingsController extends BaseSettingsController {
                 try {
                     if (old == null) {
                         // 新增：与启动路径一致，始终 add（引擎按 enabled 过滤使用）
-                        engine.addModel(config);
+                        engine().addModel(config);
                         any = true;
                     } else if (!modelRuntimeFingerprint(old).equals(modelRuntimeFingerprint(config))) {
                         // 连接/身份等实质内容变更：先删后加
-                        engine.removeModel(name);
-                        engine.addModel(config);
+                        engine().removeModel(name);
+                        engine().addModel(config);
                         any = true;
                     }
                     // 仅 enabled/visibled/scope 等 UI 标志变化：与 toggle 一致，不 rebuild
@@ -429,7 +433,7 @@ public class WebSettingsController extends BaseSettingsController {
             for (String name : oldMap.keySet()) {
                 if (!newMap.containsKey(name)) {
                     try {
-                        engine.removeMcpServer(name);
+                        engine().removeMcpServer(name);
                         any = true;
                     } catch (Exception e) {
                         warnings.add("remove mcp " + name + " failed: " + e.getMessage());
@@ -444,13 +448,13 @@ public class WebSettingsController extends BaseSettingsController {
                 try {
                     if (old == null) {
                         if (params.isEnabled()) {
-                            engine.addMcpServer(name, params);
+                            engine().addMcpServer(name, params);
                             any = true;
                         }
                     } else if (!configFingerprint(old).equals(configFingerprint(params))) {
-                        engine.removeMcpServer(name);
+                        engine().removeMcpServer(name);
                         if (params.isEnabled()) {
-                            engine.addMcpServer(name, params);
+                            engine().addMcpServer(name, params);
                         }
                         any = true;
                     }
@@ -477,7 +481,7 @@ public class WebSettingsController extends BaseSettingsController {
                     try {
                         ApiSourceDo src = e.getValue();
                         if (src != null && Assert.isNotEmpty(src.getDocUrl())) {
-                            engine.removeApiServer(src.getDocUrl());
+                            engine().removeApiServer(src.getDocUrl());
                             any = true;
                         }
                     } catch (Exception ex) {
@@ -493,15 +497,15 @@ public class WebSettingsController extends BaseSettingsController {
                 try {
                     if (old == null) {
                         if (source != null && source.isEnabled()) {
-                            engine.addApiServer(source);
+                            engine().addApiServer(source);
                             any = true;
                         }
                     } else if (!configFingerprint(old).equals(configFingerprint(source))) {
                         if (Assert.isNotEmpty(old.getDocUrl())) {
-                            engine.removeApiServer(old.getDocUrl());
+                            engine().removeApiServer(old.getDocUrl());
                         }
                         if (source != null && source.isEnabled()) {
-                            engine.addApiServer(source);
+                            engine().addApiServer(source);
                         }
                         any = true;
                     }
@@ -525,7 +529,7 @@ public class WebSettingsController extends BaseSettingsController {
     @Get
     @Mapping("/web/settings/general")
     public Result<GeneralGroupDo> generalGet() {
-        return Result.succeed(settings.getGeneral());
+        return Result.succeed(settings().getGeneral());
     }
 
     /**
@@ -536,49 +540,49 @@ public class WebSettingsController extends BaseSettingsController {
     public Result generalSave(@Body String json) throws Exception {
         ONode tmp = ONode.ofJson(json);
         if (tmp.isObject()) {
-            tmp.bindTo(settings.getGeneral());
+            tmp.bindTo(settings().getGeneral());
 
             // 处理 webAuthUser/webAuthPass 清空：bindTo 遇到 null 值会跳过，需要手动处理
             if (tmp.get("webAuthUser").isNull()) {
-                settings.getGeneral().setWebAuthUser(null);
+                settings().getGeneral().setWebAuthUser(null);
             }
             if (tmp.get("webAuthPass").isNull()) {
-                settings.getGeneral().setWebAuthPass(null);
+                settings().getGeneral().setWebAuthPass(null);
             }
 
             // 处理 proxyHost/proxyPort/noProxy 清空：bindTo 遇到 null 值会跳过，需要手动处理
             if (tmp.get("proxyHost").isNull()) {
-                settings.getGeneral().setProxyHost(null);
+                settings().getGeneral().setProxyHost(null);
             }
             if (tmp.get("noProxy").isNull()) {
-                settings.getGeneral().setNoProxy(null);
+                settings().getGeneral().setNoProxy(null);
             }
             if (tmp.get("proxyPort").isNull()) {
-                settings.getGeneral().setProxyPort(0);
+                settings().getGeneral().setProxyPort(0);
             }
 
-            engine.setCompressionThreshold(settings.getGeneral().getCompressionThresholdMessages(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D);
-            engine.setSessionWindowSize(settings.getGeneral().getSessionWindowSize());
+            engine().setCompressionThreshold(settings().getGeneral().getCompressionThresholdMessages(), settings().getGeneral().getCompressionThresholdPercent() / 100.0D);
+            engine().setSessionWindowSize(settings().getGeneral().getSessionWindowSize());
 
-            engine.setModelRetries(settings.getGeneral().getModelRetries());
-            engine.setMcpRetries(settings.getGeneral().getMcpRetries());
-            engine.setApiRetries(settings.getGeneral().getApiRetries());
+            engine().setModelRetries(settings().getGeneral().getModelRetries());
+            engine().setMcpRetries(settings().getGeneral().getMcpRetries());
+            engine().setApiRetries(settings().getGeneral().getApiRetries());
 
-            engine.setSandboxEnabled(settings.getGeneral().isSandboxMode());
-            engine.setSandboxAllowUserHome(settings.getGeneral().isSandboxAllowUserHome());
-            engine.setSandboxSystemRestrict(settings.getGeneral().isSandboxSystemRestrict());
+            engine().setSandboxEnabled(settings().getGeneral().isSandboxMode());
+            engine().setSandboxAllowUserHome(settings().getGeneral().isSandboxAllowUserHome());
+            engine().setSandboxSystemRestrict(settings().getGeneral().isSandboxSystemRestrict());
 
-            engine.setBashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled());
-            engine.setMemoryEnabled(settings.getGeneral().isMemoryEnabled());
-            engine.setMemoryRelevanceCount(settings.getGeneral().getMemoryRelevanceCount());
-            engine.setMemoryPriorityCount(settings.getGeneral().getMemoryPriorityCount());
-            engine.setMemorySummaryLength(settings.getGeneral().getMemorySummaryLength());
-            engine.setSubagentEnabled(settings.getGeneral().isSubagentEnabled());
+            engine().setBashAsyncEnabled(settings().getGeneral().isBashAsyncEnabled());
+            engine().setMemoryEnabled(settings().getGeneral().isMemoryEnabled());
+            engine().setMemoryRelevanceCount(settings().getGeneral().getMemoryRelevanceCount());
+            engine().setMemoryPriorityCount(settings().getGeneral().getMemoryPriorityCount());
+            engine().setMemorySummaryLength(settings().getGeneral().getMemorySummaryLength());
+            engine().setSubagentEnabled(settings().getGeneral().isSubagentEnabled());
 
 
-            engine.getMcpGatewayTalent().setEnabled(settings.getGeneral().isMcpEnabled());
-            engine.getOpenApiGatewayTalent().setEnabled(settings.getGeneral().isOpenApiEnabled());
-            engine.getLspTalent().setEnabled(settings.getGeneral().isLspEnabled());
+            engine().getMcpGatewayTalent().setEnabled(settings().getGeneral().isMcpEnabled());
+            engine().getOpenApiGatewayTalent().setEnabled(settings().getGeneral().isOpenApiEnabled());
+            engine().getLspTalent().setEnabled(settings().getGeneral().isLspEnabled());
 
             // 动态应用日志级别
             if (tmp.hasKey("logLevel") && !tmp.get("logLevel").isNull()) {
@@ -595,7 +599,7 @@ public class WebSettingsController extends BaseSettingsController {
             }
 
             // 字体设置：字族名过滤（前端已过滤，这里做服务端兜底，防 CSS 注入）
-            GeneralGroupDo g = settings.getGeneral();
+            GeneralGroupDo g = settings().getGeneral();
             g.setUiFontFamily(sanitizeFontFamily(g.getUiFontFamily()));
             g.setUiFontMono(sanitizeFontFamily(g.getUiFontMono()));
             g.setUiFontScale(clampFontScale(g.getUiFontScale()));
@@ -611,7 +615,7 @@ public class WebSettingsController extends BaseSettingsController {
         }
 
         // 更新 HTTP 代理配置（热生效）
-        ProxyConfig.update(settings.getGeneral());
+        ProxyConfig.update(settings().getGeneral());
 
         saveSettings();
         return Result.succeed();
@@ -669,7 +673,7 @@ public class WebSettingsController extends BaseSettingsController {
                 {"eyecare", "护眼", "柔和暖绿，长时间阅读更舒适"},
                 {"contrast", "高对比", "强化可读性，无装饰背景"}
         };
-        String active = normalizeActiveSkin(settings.getGeneral().getActiveSkin());
+        String active = normalizeActiveSkin(settings().getGeneral().getActiveSkin());
         for (String[] b : builtins) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", b[0]);
@@ -750,7 +754,7 @@ public class WebSettingsController extends BaseSettingsController {
             throw new IllegalArgumentException("仅支持 .zip 皮肤包");
         }
 
-        Path workspace = Paths.get(engine.getWorkspace()).toAbsolutePath().normalize();
+        Path workspace = Paths.get(engine().getWorkspace()).toAbsolutePath().normalize();
         Path zipPath = workspace.resolve(rel).normalize();
         if (!zipPath.startsWith(workspace)) {
             throw new IllegalArgumentException("非法文件路径");
@@ -776,7 +780,7 @@ public class WebSettingsController extends BaseSettingsController {
             return Result.failure("皮肤不存在: " + name);
         }
 
-        settings.getGeneral().setActiveSkin("default".equals(name) ? null : name);
+        settings().getGeneral().setActiveSkin("default".equals(name) ? null : name);
         saveSettings();
 
         Map<String, Object> data = new LinkedHashMap<>();
@@ -801,9 +805,9 @@ public class WebSettingsController extends BaseSettingsController {
             return Result.failure(e.getMessage());
         }
 
-        String active = normalizeActiveSkin(settings.getGeneral().getActiveSkin());
+        String active = normalizeActiveSkin(settings().getGeneral().getActiveSkin());
         if (name.equals(active)) {
-            settings.getGeneral().setActiveSkin(null);
+            settings().getGeneral().setActiveSkin(null);
             active = "default";
             saveSettings();
         }
@@ -905,7 +909,7 @@ public class WebSettingsController extends BaseSettingsController {
     @Get
     @Mapping("/web/settings/loop")
     public Result<LoopGroupDo> loopGet() {
-        return Result.succeed(settings.getLoop());
+        return Result.succeed(settings().getLoop());
     }
 
     /**
@@ -916,7 +920,7 @@ public class WebSettingsController extends BaseSettingsController {
     public Result loopSave(@Body String json) throws Exception {
         ONode tmp = ONode.ofJson(json);
         if (tmp.isObject()) {
-            tmp.bindTo(settings.getLoop());
+            tmp.bindTo(settings().getLoop());
         }
         saveSettings();
         return Result.succeed();
@@ -930,7 +934,7 @@ public class WebSettingsController extends BaseSettingsController {
     @Get
     @Mapping("/web/settings/permission")
     public Result<PermissionGroupDo> permissionGet() {
-        return Result.succeed(settings.getPermission());
+        return Result.succeed(settings().getPermission());
     }
 
     /**
@@ -958,11 +962,11 @@ public class WebSettingsController extends BaseSettingsController {
         }
 
         // 先清空再写入，避免 final List 叠加导致重复
-        settings.getPermission().getDisallowedTools().clear();
-        settings.getPermission().getDisallowedTools().addAll(disallowedTools);
+        settings().getPermission().getDisallowedTools().clear();
+        settings().getPermission().getDisallowedTools().addAll(disallowedTools);
 
         // 热更新到引擎（会重建主 Agent 即时生效）
-        engine.disallowToolReset(settings.getPermission().getDisallowedTools());
+        engine().disallowToolReset(settings().getPermission().getDisallowedTools());
 
         saveSettings();
         LOG.info("[Settings] Permission updated: disallowedTools={}", disallowedTools);

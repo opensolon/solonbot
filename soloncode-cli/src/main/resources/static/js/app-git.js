@@ -552,6 +552,13 @@
                 if (fileWorkspace !== 'workspace') {
                     rawUrl += '&mount=' + encodeURIComponent(fileWorkspace);
                 }
+                // 多工作区隔离：<img>/<video> 的 src 由浏览器直发，绕过了 fetch/XHR 劫持层，
+                // 必须显式在 URL 携带 workspaceId，否则会取错工作区的文件。
+                var _wsParams = new URLSearchParams(window.location.search);
+                var _wsId = _wsParams.get('workspaceId');
+                if (_wsId && _wsId !== 'workspace') {
+                    rawUrl += '&workspaceId=' + encodeURIComponent(_wsId);
+                }
                 renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
