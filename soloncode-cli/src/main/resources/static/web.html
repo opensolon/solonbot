@@ -1078,6 +1078,13 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
+                                    <label data-i18n="agents.model">运行模型</label>
+                                    <select id="agentsModel" class="form-select-custom">
+                                        <option value="" data-i18n="agents.modelFollowDefault">跟随全局默认</option>
+                                    </select>
+                                    <div class="form-hint" data-i18n="agents.modelHint">留空时该智能体使用全局默认模型运行。</div>
+                                </div>
+                                <div class="form-group">
                                     <label data-i18n="agents.systemPrompt">系统提示词 <span class="required">*</span></label>
                                      <textarea id="agentsSystemPrompt" class="agents-prompt-editor" rows="5" spellcheck="false" placeholder="你是一位专项智能体。请说明职责、工作方式和输出要求。" data-i18n-placeholder="agents.promptPlaceholder"></textarea>
                                      <div class="form-hint" data-i18n="agents.formHint">这里只填写智能体的角色、职责与工作要求，配置头由系统自动生成。内置智能体可复制到用户或工作区进行覆盖。</div>

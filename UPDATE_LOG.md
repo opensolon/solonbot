@@ -2,6 +2,7 @@
 ### v2026.8.19
 
 * 添加 soloncode web 多工作区支持（一个工作区一个浏览器tab）
+* 添加 soloncode web 智能体选择模型支持
 * 优化 soloncode web 设置/供应商/模型管理体验
 * 优化 soloncode web 流式输出模式（更规范）
 * 细节优化

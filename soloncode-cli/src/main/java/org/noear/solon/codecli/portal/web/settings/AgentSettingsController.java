@@ -239,6 +239,8 @@ public class AgentSettingsController extends BaseSettingsController {
             String name = root.get("name").getString();
             String description = root.get("description").getString();
             String systemPrompt = root.get("systemPrompt").getString();
+            String model = root.get("model").getString();
+            if (model != null) model = model.trim();
             List<String> tools = readStringList(root.get("tools"));
             String originalName = root.get("originalName").getString();
             String originalScopeValue = root.get("originalScope").getString();
@@ -280,7 +282,7 @@ public class AgentSettingsController extends BaseSettingsController {
                 }
             }
 
-            String markdown = buildMarkdown(name, description, tools, systemPrompt, originalMarkdown);
+            String markdown = buildMarkdown(name, description, tools, model, systemPrompt, originalMarkdown);
             if (markdown.getBytes(StandardCharsets.UTF_8).length > MAX_FILE_SIZE) return Result.failure("智能体文件最大允许 512 KB");
             parseAndValidate(markdown, name);
 
@@ -422,13 +424,18 @@ public class AgentSettingsController extends BaseSettingsController {
     }
 
     private String buildMarkdown(String name, String description, List<String> tools,
-                                 String systemPrompt, String originalMarkdown) {
-        List<String> preservedLines = extractPreservedFrontMatter(originalMarkdown);
+                                 String model, String systemPrompt, String originalMarkdown) {
+        // model != null 表示前端明确接管模型设置（含清空）；null 表示保留旧 front matter 中的 model
+        boolean takeoverModel = model != null;
+        List<String> preservedLines = extractPreservedFrontMatter(originalMarkdown, takeoverModel);
         StringBuilder markdown = new StringBuilder();
         markdown.append("---\n");
         markdown.append("name: ").append(ONode.ofBean(name).toJson()).append('\n');
         markdown.append("description: ").append(ONode.ofBean(description).toJson()).append('\n');
         markdown.append("tools: ").append(ONode.ofBean(tools).toJson()).append('\n');
+        if (!Assert.isEmpty(model)) {
+            markdown.append("model: ").append(ONode.ofBean(model).toJson()).append('\n');
+        }
         for (String line : preservedLines) {
             markdown.append(line).append('\n');
         }
@@ -474,6 +481,10 @@ public class AgentSettingsController extends BaseSettingsController {
     }
 
     private List<String> extractPreservedFrontMatter(String markdown) {
+        return extractPreservedFrontMatter(markdown, true);
+    }
+
+    private List<String> extractPreservedFrontMatter(String markdown, boolean takeoverModel) {
         List<String> result = new ArrayList<>();
         if (Assert.isEmpty(markdown)) return result;
         String normalized = markdown.replace("\r\n", "\n").replace('\r', '\n');
@@ -487,7 +498,8 @@ public class AgentSettingsController extends BaseSettingsController {
                     && TOP_LEVEL_KEY_PATTERN.matcher(line).matches();
             if (topLevel) {
                 String key = line.substring(0, line.indexOf(':')).trim();
-                skip = "name".equals(key) || "description".equals(key) || "tools".equals(key);
+                skip = "name".equals(key) || "description".equals(key)
+                        || "tools".equals(key) || (takeoverModel && "model".equals(key));
             }
             if (!skip) result.add(line);
         }

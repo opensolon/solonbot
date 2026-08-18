@@ -45,6 +45,38 @@
     var sourceName = null;
     var sourceScope = null;
     var selectedTools = [];
+    var modelOptions = null;
+
+    // 填充“运行模型”下拉：跟随全局默认 + 已配置模型列表；保留当前选中值即使不在列表内。
+    function populateModelOptions(current, cb) {
+        var $sel = $('#agentsModel');
+        function render(list) {
+            var selected = current || '';
+            var html = '<option value="">' + escapeHtml(I18n.t('agents.modelFollowDefault')) + '</option>';
+            var seen = {};
+            (list || []).forEach(function (item) {
+                var name = (item && (item.name || item.model)) || '';
+                if (!name || seen[name]) return;
+                seen[name] = true;
+                html += '<option value="' + escapeAttr(name) + '">' + escapeHtml(name) + '</option>';
+            });
+            if (selected && !seen[selected]) {
+                html += '<option value="' + escapeAttr(selected) + '">' + escapeHtml(selected) + '</option>';
+            }
+            $sel.html(html).val(selected);
+            if (typeof cb === 'function') cb();
+        }
+        if (modelOptions) { render(modelOptions); return; }
+        $.get('/web/settings/llm/models', function (resp) {
+            var list = [];
+            if (resp.code === 200 && resp.data) {
+                var data = resp.data;
+                list = data.list || (Array.isArray(data) ? data : []);
+            }
+            modelOptions = list;
+            render(list);
+        }).fail(function () { render([]); });
+    }
 
     function showListView() {
         $('#agentsToolsSelector').hide();
@@ -153,6 +185,7 @@
         $('#agentsToolsBtn').removeClass('is-open');
         $('#agentsToolsSelector').hide().removeClass('is-open');
         setSelectedTools([]);
+        populateModelOptions('');
         setScopeValue('agentsScope', 'user');
         setScopeReadonly('agentsScope', false);
         $('#agentsFormActions, #agentsFormDeleteBtn').hide();
@@ -180,6 +213,7 @@
             $('#agentsToolsBtn').removeClass('is-open');
             $('#agentsToolsSelector').hide().removeClass('is-open');
             setSelectedTools(data.tools || []);
+            populateModelOptions(data.model || '');
             if (data.valid === false) showToast(I18n.t('agents.configParseError') + (data.parseError || ''), 'error');
             setScopeValue('agentsScope', scope);
             setScopeReadonly('agentsScope', false);
@@ -286,7 +320,8 @@
         if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(name)) { showToast(I18n.t('agents.nameInvalid'), 'error'); return; }
         if (!description) { showToast(I18n.t('agents.descriptionRequired'), 'error'); return; }
         if (!systemPrompt) { showToast(I18n.t('agents.systemPromptRequired'), 'error'); return; }
-        var body = { name: name, scope: scope, description: description, tools: selectedTools, systemPrompt: systemPrompt };
+        var model = ($('#agentsModel').val() || '').trim();
+        var body = { name: name, scope: scope, description: description, tools: selectedTools, model: model, systemPrompt: systemPrompt };
         if (sourceName && sourceScope) { body.sourceName = sourceName; body.sourceScope = sourceScope; body.sourceBuiltin = builtinSource; }
         var isEdit = !!editName && !builtinSource;
         if (isEdit) { body.originalName = editName; body.originalScope = editScope; }
