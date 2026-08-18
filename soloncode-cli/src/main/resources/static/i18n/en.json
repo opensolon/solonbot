@@ -898,7 +898,6 @@
   "provider.scope.user": "User (Global)",
   "provider.scope.workspace": "Workspace (Local)",
   "provider.selectAll": "Select All",
-  "provider.selectNone": "None",
   "provider.showHide": "Show/Hide",
   "provider.standard": "API Standard",
   "provider.standard.anthropic": "Anthropic BaseUrl (compatible)",

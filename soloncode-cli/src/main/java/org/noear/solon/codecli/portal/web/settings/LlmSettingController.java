@@ -375,23 +375,6 @@ public class LlmSettingController extends BaseSettingsController {
         // 解析模型列表（直接存储 ModelInfo）
         if (root.hasKey("models") && root.get("models").isArray()) {
             List<ModelInfo> models = parseProviderModels(root);
-            for (ONode modelNode : java.util.Collections.<ONode>emptyList()) {
-                ModelInfo modelInfo = new ModelInfo();
-                modelInfo.setId(modelNode.get("id").getString());
-                if (modelNode.hasKey("displayName")) {
-                    modelInfo.setDisplayName(modelNode.get("displayName").getString());
-                }
-                if (modelNode.hasKey("maxTokens")) {
-                    modelInfo.setMaxTokens(modelNode.get("maxTokens").getLong());
-                }
-                if (modelNode.hasKey("maxInputTokens")) {
-                    modelInfo.setMaxInputTokens(modelNode.get("maxInputTokens").getLong());
-                }
-                if (modelNode.hasKey("manual")) {
-                    modelInfo.setManual(modelNode.get("manual").getBoolean());
-                }
-                models.add(modelInfo);
-            }
             // 防御性：补回前端可能遗漏的手动模型
             if (existing.getModels() != null) {
                 Set<String> newModelIds = new HashSet<>();
@@ -563,12 +546,15 @@ public class LlmSettingController extends BaseSettingsController {
 
         // 获取供应商的模型列表（现在是 ModelInfo 类型）
         List<ModelInfo> providerModels = provider.getModels();
-        if (providerModels == null || providerModels.isEmpty()) {
-            return Result.succeed(0);
+        if (providerModels == null) {
+            providerModels = new ArrayList<>();
         }
 
         int syncCount = 0;
         String prefix = providerName + "-";
+
+        // 本次期望保留的模型名集合（用于对账清理孤儿模型）
+        Set<String> expectedNames = new HashSet<>();
 
         for (ModelInfo modelInfo : providerModels) {
             // 剥离模型名中的 [1m]/[256k] 后缀，实际请求使用纯模型 id
@@ -578,6 +564,7 @@ public class LlmSettingController extends BaseSettingsController {
             }
 
             String modelName = prefix + modelId;
+            expectedNames.add(modelName);
 
             // 如果模型不存在，创建新模型配置
             if (!settings().getModels().containsKey(modelName)) {
@@ -590,6 +577,7 @@ public class LlmSettingController extends BaseSettingsController {
                 modelDo.setScope(provider.getScope());
                 modelDo.setProvider(providerName);
                 modelDo.setVisibled(provider.isEnabled());
+                modelDo.setSelected(modelInfo.isSelected());
 
                 // 设置 contextLength：优先模型名后缀，其次 maxInputTokens，再次 maxTokens，最后从 models.json 查询
                 long suffixLength = parseContextLengthSuffix(modelInfo.getId());
@@ -617,6 +605,7 @@ public class LlmSettingController extends BaseSettingsController {
                     syncCount++;
 
                     existingModel.setVisibled(provider.isEnabled());
+                    existingModel.setSelected(modelInfo.isSelected());
 
                     // 更新 contextLength：优先模型名后缀，其次 maxInputTokens，再次 maxTokens，最后从 models.json 查询
                     long newContextLength = 0;
@@ -646,11 +635,26 @@ public class LlmSettingController extends BaseSettingsController {
             }
         }
 
-        if (syncCount > 0) {
+        // 对账清理：该 provider 名下、属于 sync 命名格式、但已不在供应商模型列表中的孤儿模型，
+        // 不物理删除，仅将 selected 置为 false（保留历史配置，从可选列表中隐藏）
+        int deselectCount = 0;
+        for (Map.Entry<String, ModelDo> entry : settings().getModels().entrySet()) {
+            String name = entry.getKey();
+            ModelDo m = entry.getValue();
+            if (providerName.equals(m.getProvider())
+                    && name.startsWith(prefix)
+                    && !expectedNames.contains(name)
+                    && m.isSelected()) {
+                m.setSelected(false);
+                deselectCount++;
+            }
+        }
+
+        if (syncCount > 0 || deselectCount > 0) {
             saveSettings();
         }
 
-        LOG.info("[Settings] Synced {} models from provider: {}", syncCount, providerName);
+        LOG.info("[Settings] Synced {} models from provider: {} (deselected {} orphans)", syncCount, providerName, deselectCount);
         return Result.succeed(syncCount);
     }
 
@@ -683,6 +687,8 @@ public class LlmSettingController extends BaseSettingsController {
             if (modelNode.hasKey("manual")) {
                 modelInfo.setManual(modelNode.get("manual").getBoolean());
             }
+            // 勾选状态：默认选中
+            modelInfo.setSelected(modelNode.hasKey("selected") ? modelNode.get("selected").getBoolean() : true);
 
             // 模型名带 [1m]/[256k] 后缀时，自动用后缀解析值填充 maxInputTokens（用户显式指定，优先级最高）
             if (suffixLength > 0) {

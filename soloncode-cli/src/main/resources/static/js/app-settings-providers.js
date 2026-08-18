@@ -65,8 +65,10 @@
             addManualModel();
         });
 
-        // 模型列表 - 删除手动模型
-        $modelsList.on('click', '.provider-model-remove-btn', function () {
+        // 模型列表 - 删除手动模型（阻止冒泡触发 label 勾选）
+        $modelsList.on('click', '.provider-model-remove-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             var modelId = $(this).closest('.provider-model-item').data('model-id');
             removeManualModel(modelId);
         });
@@ -104,50 +106,26 @@
             toggleProvider(name, enabled);
         });
 
-        // 模型列表 - 启用/禁用开关
-        $modelsList.on('change', '.provider-model-toggle', function () {
+        // 模型列表 - 选中/取消复选框（纯前端状态，保存供应商时统一提交）
+        $modelsList.on('change', '.provider-model-check', function () {
             var modelId = $(this).closest('.provider-model-item').data('model-id');
-            var enabled = $(this).prop('checked');
-            var llmName = $(this).data('llm-name');
-            var isSynced = $(this).data('synced') === true || $(this).data('synced') === 'true';
-            toggleProviderModel(modelId, enabled, llmName, isSynced);
+            var selected = $(this).prop('checked');
+            setModelSelected(modelId, selected);
+            $(this).closest('.provider-model-item').toggleClass('unselected', !selected);
         });
 
-        // 批量选择菜单
-        $('#providerModelsSelectToggle').on('click', function (e) {
-            e.stopPropagation();
-            $('#providerModelsActionMenu').toggleClass('show');
-        });
-
-        $(document).on('click', function (e) {
-            if ($(e.target).closest('.provider-model-menu-wrap').length === 0) {
-                $('#providerModelsActionMenu').removeClass('show');
-            }
-        });
-
-        $('#providerModelsSelectAll, #providerModelsSelectNone, #providerModelsInvert').on('click', function () {
+        // 批量选择：全选 / 反选（纯前端操作，保存时统一提交）
+        $('#providerModelsSelectAll, #providerModelsInvert').on('click', function () {
             var action = this.id;
-            var changed = false;
-
-            $modelsList.find('.provider-model-toggle').each(function () {
-                var $toggle = $(this);
-                var nextChecked = $toggle.prop('checked');
-
+            fetchedModels.forEach(function (m) {
+                var cur = m.selected !== false;
                 if (action === 'providerModelsSelectAll') {
-                    nextChecked = true;
-                } else if (action === 'providerModelsSelectNone') {
-                    nextChecked = false;
+                    m.selected = true;
                 } else if (action === 'providerModelsInvert') {
-                    nextChecked = !$toggle.prop('checked');
-                }
-
-                if ($toggle.prop('checked') !== nextChecked) {
-                    changed = true;
-                    $toggle.prop('checked', nextChecked).trigger('change');
+                    m.selected = !cur;
                 }
             });
-
-            $('#providerModelsActionMenu').removeClass('show');
+            renderModelsList();
         });
 
         // 作用域切换
@@ -496,17 +474,14 @@
         $modelsList.show();
 
         var providerName = $('#providerName').val() || '';
-        var providerStandard = $('#providerStandard').val();
-        var providerStandardAbbr = getStandardAbbr(providerStandard) || 'F';
-        var providerEnabled = currentProvider ? currentProvider.enabled !== false : true;
         var html = '';
         fetchedModels.forEach(function (model) {
             // 检查是否已同步到 LLM
             var llmName = providerName ? providerName + '-' + model.id : model.id;
             var syncedModel = llmModelsCache[llmName];
             var isSynced = !!syncedModel;
-            // 使用 LLM 缓存的启用状态，如果未同步则使用供应商的启用状态
-            var enabled = isSynced ? (syncedModel.enabled !== false && syncedModel.visibled !== false) : providerEnabled;
+            // 选中状态为前端内存状态（model.selected），默认选中
+            var selected = model.selected !== false;
 
             var manualTag = model.manual ? ' <span class="provider-model-manual-tag">' + I18n.t('provider.manualTag') + '</span>' : '';
             var removeBtn = model.manual
@@ -526,42 +501,25 @@
                 }
                 contextTag = ' <span class="provider-model-context">' + clStr + '</span>';
             }
-            html += '<div class="provider-model-item' + (!enabled ? ' disabled' : '') + '" data-model-id="' + model.id + '">' +
-                '<div class="provider-model-icon">' + providerStandardAbbr + '</div>' +
+            var actionsHtml = removeBtn ? '<div class="provider-model-actions">' + removeBtn + '</div>' : '';
+            html += '<label class="provider-model-item' + (!selected ? ' unselected' : '') + '" data-model-id="' + escapeAttr(model.id) + '">' +
+                '<input type="checkbox" ' + (selected ? 'checked' : '') + ' class="provider-model-check"/>' +
                 '<div class="provider-model-info">' +
-                    '<div class="provider-model-name">' + model.id + contextTag + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
+                    '<div class="provider-model-name">' + escapeHtml(model.id) + contextTag + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
                 '</div>' +
-                '<div class="provider-model-actions">' +
-                    removeBtn +
-                    '<label class="toggle-switch" title="' + (enabled ? I18n.t('provider.toggle.disable') : I18n.t('provider.toggle.enable')) + '">' +
-                        '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' class="provider-model-toggle" data-synced="' + isSynced + '" data-llm-name="' + llmName + '"/>' +
-                        '<span class="toggle-slider"></span>' +
-                    '</label>' +
-                '</div>' +
-            '</div>';
+                actionsHtml +
+            '</label>';
         });
         $modelsList.html(html);
     }
 
-    function toggleProviderModel(modelId, enabled, llmName, isSynced) {
-        // 如果已同步到 LLM，直接调用 LLM 接口更新
-        if (isSynced && llmName) {
-            postJson('/web/settings/llm/models/toggle', { name: llmName, enabled: enabled }, function (resp) {
-                if (resp.code === 200) {
-                    // 更新缓存
-                    if (llmModelsCache[llmName]) {
-                        llmModelsCache[llmName].enabled = enabled;
-                    }
-                    // 刷新 LLM 模型列表
-                    if (window._settingsLlm) {
-                        window._settingsLlm.load();
-                    }
-                } else {
-                    layui.layer.msg(I18n.t('toast.operateFailed') + ': ' + (resp.message || I18n.t('toast.unknownError')), { icon: 2 });
-                    // 回滚状态
-                    renderModelsList();
-                }
-            });
+    // 更新指定模型的选中状态（仅内存，保存供应商时随模型列表一并提交）
+    function setModelSelected(modelId, selected) {
+        for (var i = 0; i < fetchedModels.length; i++) {
+            if (fetchedModels[i].id === modelId) {
+                fetchedModels[i].selected = selected;
+                break;
+            }
         }
     }
 
@@ -607,6 +565,7 @@
             if (m.maxTokens) {
                 model.maxTokens = m.maxTokens;
             }
+            model.selected = m.selected !== false;
             return model;
         });
 

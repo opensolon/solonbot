@@ -898,7 +898,6 @@
   "provider.scope.user": "Korisnik (globalno)",
   "provider.scope.workspace": "Radni prostor (lokalno)",
   "provider.selectAll": "Odaberi sve",
-  "provider.selectNone": "Poništi odabir svih",
   "provider.showHide": "Prikaži/Sakrij",
   "provider.standard": "Standard sučelja",
   "provider.standard.anthropic": "Anthropic BaseUrl / kompatibilno sučelje",

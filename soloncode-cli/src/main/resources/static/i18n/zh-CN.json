@@ -898,7 +898,6 @@
   "provider.scope.user": "用户（全局）",
   "provider.scope.workspace": "工作区（本地）",
   "provider.selectAll": "全选",
-  "provider.selectNone": "全不选",
   "provider.showHide": "显示/隐藏",
   "provider.standard": "接口规范",
   "provider.standard.anthropic": "Anthropic BaseUrl / 兼容接口",

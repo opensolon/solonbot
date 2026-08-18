@@ -898,7 +898,6 @@
   "provider.scope.user": "Użytkownik (globalny)",
   "provider.scope.workspace": "Przestrzeń robocza (lokalna)",
   "provider.selectAll": "Zaznacz wszystkie",
-  "provider.selectNone": "Odznacz wszystkie",
   "provider.showHide": "Pokaż/ukryj",
   "provider.standard": "Standard interfejsu",
   "provider.standard.anthropic": "Anthropic BaseUrl / zgodny interfejs",

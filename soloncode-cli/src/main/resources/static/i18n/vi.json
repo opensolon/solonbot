@@ -898,7 +898,6 @@
   "provider.scope.user": "Người dùng (Toàn cục)",
   "provider.scope.workspace": "Không gian làm việc (Cục bộ)",
   "provider.selectAll": "Chọn tất cả",
-  "provider.selectNone": "Bỏ chọn tất cả",
   "provider.showHide": "Hiện/Ẩn",
   "provider.standard": "Chuẩn API",
   "provider.standard.anthropic": "Anthropic BaseUrl / API tương thích",

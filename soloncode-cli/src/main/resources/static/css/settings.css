@@ -1323,32 +1323,39 @@ select[disabled] {
     border-radius: 8px;
 }
 
-.provider-model-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--bg-hover), var(--bg-primary));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--fs-base);
-    font-weight: 600;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-    margin-right: 10px;
-}
-
-.provider-model-item.disabled .provider-model-icon {
-    opacity: 0.5;
-}
-
+/* item 为 <label>，需高于全局 .form-group label{display:block} (0,1,1) 的特异性，否则会被强制块级导致复选框与文字换行 */
+.form-group .provider-model-item,
 .provider-model-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
     padding: 10px 12px;
+    margin-bottom: 0;
+    font-weight: 400;
     border-bottom: 1px solid var(--border-color);
     transition: background 0.15s;
+    cursor: pointer;
+}
+
+/* 模型列表项左侧复选框（需彻底覆盖 .form-group input 的 width/padding/border 等全局规则） */
+.form-group .provider-model-check,
+.provider-model-check {
+    flex-shrink: 0;
+    width: 16px !important;
+    height: 16px;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    cursor: pointer;
+    accent-color: var(--accent);
+    box-sizing: content-box;
+    line-height: 1;
+}
+
+.provider-model-item.unselected {
+    opacity: 0.55;
 }
 
 .provider-model-item:last-child {
@@ -1357,10 +1364,6 @@ select[disabled] {
 
 .provider-model-item:hover {
     background: var(--bg-hover);
-}
-
-.provider-model-item.disabled {
-    opacity: 0.5;
 }
 
 .provider-model-info {
@@ -1411,6 +1414,27 @@ select[disabled] {
 .provider-model-header-actions {
     display: flex;
     gap: 4px;
+    align-items: center;
+}
+
+/* 全选 / 反选文字按钮 */
+.provider-model-text-btn {
+    padding: 0 10px;
+    height: 28px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: var(--fs-xs);
+    line-height: 1;
+    transition: all 0.15s;
+}
+
+.provider-model-text-btn:hover {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    background: var(--bg-hover);
 }
 
 .provider-model-menu-wrap {

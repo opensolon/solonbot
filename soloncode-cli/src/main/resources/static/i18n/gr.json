@@ -898,7 +898,6 @@
   "provider.scope.user": "Χρήστης (Καθολικό)",
   "provider.scope.workspace": "Χώρος εργασίας (Τοπικό)",
   "provider.selectAll": "Επιλογή όλων",
-  "provider.selectNone": "Αποεπιλογή όλων",
   "provider.showHide": "Εμφάνιση/Απόκρυψη",
   "provider.standard": "Προδιαγραφή διεπαφής",
   "provider.standard.anthropic": "Anthropic BaseUrl / συμβατή διεπαφή",

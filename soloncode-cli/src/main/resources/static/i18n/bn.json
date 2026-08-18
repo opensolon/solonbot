@@ -898,7 +898,6 @@
   "provider.scope.user": "ব্যবহারকারী (গ্লোবাল)",
   "provider.scope.workspace": "কর্মক্ষেত্র (লোকাল)",
   "provider.selectAll": "সব নির্বাচন",
-  "provider.selectNone": "কিছুই নির্বাচন করবেন না",
   "provider.showHide": "দেখান/লুকান",
   "provider.standard": "ইন্টারফেস স্পেসিফিকেশন",
   "provider.standard.anthropic": "Anthropic BaseUrl / সামঞ্জস্যপূর্ণ ইন্টারফেস",

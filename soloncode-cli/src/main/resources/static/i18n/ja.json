@@ -898,7 +898,6 @@
   "provider.scope.user": "ユーザー（全体）",
   "provider.scope.workspace": "ワークスペース（ローカル）",
   "provider.selectAll": "すべて選択",
-  "provider.selectNone": "すべて選択解除",
   "provider.showHide": "表示/非表示",
   "provider.standard": "API 仕様",
   "provider.standard.anthropic": "Anthropic BaseUrl / 互換インターフェース",

@@ -898,7 +898,6 @@
   "provider.scope.user": "Користувач (глобально)",
   "provider.scope.workspace": "Робоча область (локально)",
   "provider.selectAll": "Вибрати все",
-  "provider.selectNone": "Жодного",
   "provider.showHide": "Показати/сховати",
   "provider.standard": "Стандарт API",
   "provider.standard.anthropic": "Anthropic BaseUrl / сумісний інтерфейс",

@@ -898,7 +898,6 @@
   "provider.scope.user": "المستخدم (العالمي)",
   "provider.scope.workspace": "مساحة العمل (المحلية)",
   "provider.selectAll": "تحديد الكل",
-  "provider.selectNone": "إلغاء تحديد الكل",
   "provider.showHide": "إظهار/إخفاء",
   "provider.standard": "معيار الواجهة",
   "provider.standard.anthropic": "Anthropic BaseUrl / واجهة متوافقة",

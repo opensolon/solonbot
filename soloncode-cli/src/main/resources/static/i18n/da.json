@@ -898,7 +898,6 @@
   "provider.scope.user": "Bruger (global)",
   "provider.scope.workspace": "Arbejdsområde (lokal)",
   "provider.selectAll": "Vælg alle",
-  "provider.selectNone": "Fravælg alle",
   "provider.showHide": "Vis/skjul",
   "provider.standard": "API-standard",
   "provider.standard.anthropic": "Anthropic BaseUrl (kompatibel)",

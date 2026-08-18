@@ -898,7 +898,6 @@
   "provider.scope.user": "사용자(전역)",
   "provider.scope.workspace": "작업 공간(로컬)",
   "provider.selectAll": "전체 선택",
-  "provider.selectNone": "전체 해제",
   "provider.showHide": "표시/숨기기",
   "provider.standard": "인터페이스 규격",
   "provider.standard.anthropic": "Anthropic BaseUrl / 호환 인터페이스",

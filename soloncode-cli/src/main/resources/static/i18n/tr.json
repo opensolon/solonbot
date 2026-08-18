@@ -898,7 +898,6 @@
   "provider.scope.user": "Kullanıcı (Genel)",
   "provider.scope.workspace": "Çalışma alanı (Yerel)",
   "provider.selectAll": "Tümünü Seç",
-  "provider.selectNone": "Hiçbiri",
   "provider.showHide": "Göster/Gizle",
   "provider.standard": "API Standardı",
   "provider.standard.anthropic": "Anthropic BaseUrl (uyumlu)",

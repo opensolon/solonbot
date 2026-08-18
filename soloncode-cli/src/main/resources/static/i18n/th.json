@@ -898,7 +898,6 @@
   "provider.scope.user": "ผู้ใช้ (ทั่วโลก)",
   "provider.scope.workspace": "พื้นที่ทำงาน (ในเครื่อง)",
   "provider.selectAll": "เลือกทั้งหมด",
-  "provider.selectNone": "ไม่เลือกทั้งหมด",
   "provider.showHide": "แสดง/ซ่อน",
   "provider.standard": "มาตรฐานอินเทอร์เฟซ",
   "provider.standard.anthropic": "Anthropic BaseUrl / อินเทอร์เฟซที่เข้ากันได้",
