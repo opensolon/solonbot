@@ -27,14 +27,18 @@ public class WebEvent<T> implements Serializable {
     /** 点分命名空间事件名，例如 "message.delta", "tool.start" */
     private String event;
 
-    /** 单次任务运行的跟踪 ID */
-    private String traceId;
-
     /** 会话 ID */
     private String sessionId;
 
-    /** 子任务 ID (可选) */
+    /** 单次任务运行的跟踪 ID（对应底层 AgentEvent 的 runId） */
+    private String runId;
+
+    /** 子任务 ID (可选)：有值代表该事件归属某个 task 组（子代理任务） */
     private String taskId;
+
+    /** 推理轮次标识 (可选)：同一 reasonId 的思考/正文/工具事件归属同一 reason 组，
+     *  前端据此将同一轮输出分组，避免后一轮最终消息错接到前一轮分组。 */
+    private String reasonId;
 
     /** 触发该事件的代理名称 (可选) */
     private String agentName;
@@ -78,11 +82,19 @@ public class WebEvent<T> implements Serializable {
     }
 
     public static WebEvent<MessagePayload> ofText(String text) {
-        return of(WebEventNames.MESSAGE_DELTA, MessagePayload.builder().delta(text).build());
+        return ofText(null, text);
+    }
+
+    public static WebEvent<MessagePayload> ofText(String reasonId, String text) {
+        WebEvent<MessagePayload> evt = of(WebEventNames.MESSAGE_DELTA, MessagePayload.builder().delta(text).build());
+        evt.setReasonId(reasonId);
+        return evt;
     }
 
     public static WebEvent<ThoughtPayload> ofReason(String reasonId, String text) {
-        return of(WebEventNames.THOUGHT_DELTA, ThoughtPayload.builder().id(reasonId).delta(text).build());
+        WebEvent<ThoughtPayload> evt = of(WebEventNames.THOUGHT_DELTA, ThoughtPayload.builder().delta(text).build());
+        evt.setReasonId(reasonId);
+        return evt;
     }
 
     public static WebEvent<ThoughtPayload> ofReason(String text) {

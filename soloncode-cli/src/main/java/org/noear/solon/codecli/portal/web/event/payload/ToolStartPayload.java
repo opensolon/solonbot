@@ -14,7 +14,6 @@ import java.util.Map;
 @AllArgsConstructor
 public class ToolStartPayload implements Serializable {
     private String callId;
-    private String reasonId;
     private String name;
     private String title;
     private Map<String, Object> args;

@@ -426,10 +426,16 @@ public class FileWatchService {
             changesNode.add(item);
         }
 
-        return new ONode()
-                .set("type", "filer_change")
+        // SAEP 2.0 信封：前端 AgentEventDispatcher.toWebEvent 依赖 event 字段，
+        // 缺失时会被判为 null 直接丢弃（文件树将不再自动刷新）。changes 放入 payload。
+        long now = System.currentTimeMillis();
+        ONode payload = new ONode()
                 .set("changes", changesNode)
-                .set("createdAt", System.currentTimeMillis())
+                .set("createdAt", now);
+        return new ONode()
+                .set("event", "system.filer_change")
+                .set("timestamp", now)
+                .set("payload", payload)
                 .toJson();
     }
 

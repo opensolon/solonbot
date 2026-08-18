@@ -40,7 +40,7 @@ public class WebEventMapper {
     }
 
     public List<WebEvent<?>> mapEvent(AgentEvent event) {
-        String runId = null;
+        String parentRunId = null;
         String taskAgentName = null;
         String taskId = null;
         String taskDescription = null;
@@ -54,7 +54,7 @@ public class WebEventMapper {
                     twc.getRealEvent() instanceof ReasonDeltaEvent ||
                     twc.getRealEvent() instanceof ReasonEndEvent ||
                     twc.getRealEvent() instanceof RunEndEvent) {
-                runId = twc.getParentRunId();
+                parentRunId = twc.getParentRunId();
                 taskId = twc.getTaskId();
                 taskAgentName = twc.getTaskAgentName();
                 taskDescription = twc.getTaskDescription();
@@ -63,60 +63,89 @@ public class WebEventMapper {
             }
         }
 
+        // 推理轮次标识：仅 Reason/Action 类事件携带，统一提取后注入信封层（与 taskId 平级），
+        // 前端据此将同一轮的思考/正文/工具事件归入同一 reason 组。
+        String reasonId = extractReasonId(event);
+
         List<WebEvent<?>> result = new ArrayList<>();
 
         if (event instanceof ContextSizeEvent) {
             WebEvent<?> evt = onContextSizeEvent(chatModel, (ContextSizeEvent) event);
-            fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);
         } else if (event instanceof ReasonDeltaEvent) {
             WebEvent<?> evt = onReasonDeltaEvent((ReasonDeltaEvent) event, taskAgentName);
-            fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);
         } else if (event instanceof HITLPendingEvent) {
             List<WebEvent<?>> hitlEvents = onHITLPendingEvent(session, (HITLPendingEvent) event);
             for (WebEvent<?> evt : hitlEvents) {
-                fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+                fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
                 result.add(evt);
             }
         } else if (event instanceof ToolCallStartEvent) {
             WebEvent<?> evt = onToolCallStartEvent((ToolCallStartEvent) event, taskAgentName);
-            fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);
         } else if (event instanceof ToolCallEndEvent) {
             WebEvent<?> evt = onToolCallEndEvent((ToolCallEndEvent) event, taskAgentName);
-            fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);
         } else if (event instanceof ReasonEndEvent) {
             WebEvent<?> evt = onReasonEndEvent(session, (ReasonEndEvent) event, taskAgentName, isMultitask);
-            fillMeta(evt, session, runId, taskId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);
         } else if (event instanceof RunEndEvent) {
             if (taskId != null) {
-                WebEvent<?> taskDone = onTaskDoneEvent((RunEndEvent) event, runId, taskId, taskAgentName, taskDescription, isMultitask);
-                fillMeta(taskDone, session, runId, taskId, taskAgentName, event.getRunId());
+                // 子代理 ReAct 结束：仅发 task.done 让前端结算对应 task-group，
+                // 绝不输出 system.trace —— trace 是整轮主代理的收尾统计，子代理输出会导致
+                // 前端在 task-group 外多渲染一条 trace 徽标（“子代理任务完成后也输出 trace”）。
+                WebEvent<?> taskDone = onTaskDoneEvent((RunEndEvent) event, parentRunId, taskId, taskAgentName, taskDescription, isMultitask);
+                fillMeta(taskDone, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
                 result.add(taskDone);
+            } else {
+                // 主代理整轮结束：输出 system.trace（模型/token/耗时/最终答案）
+                WebEvent<?> trace = onRunEndEvent(session, (RunEndEvent) event);
+                fillMeta(trace, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+                result.add(trace);
             }
-            WebEvent<?> trace = onRunEndEvent(session, (RunEndEvent) event);
-            fillMeta(trace, session, runId, taskId, taskAgentName, event.getRunId());
-            result.add(trace);
         }
 
         return result;
     }
 
-    private void fillMeta(WebEvent<?> evt, AgentSession session, String runId, String taskId, String agentName, String fallbackRunId) {
+    /**
+     * 统一提取事件的 reasonId（仅 Reason 与 Action 类事件携带）。
+     */
+    private String extractReasonId(AgentEvent event) {
+        if (event instanceof ReasonDeltaEvent) {
+            return ((ReasonDeltaEvent) event).getReasonId();
+        } else if (event instanceof ReasonEndEvent) {
+            return ((ReasonEndEvent) event).getReasonId();
+        } else if (event instanceof ToolCallStartEvent) {
+            return ((ToolCallStartEvent) event).getReasonId();
+        } else if (event instanceof ToolCallEndEvent) {
+            return ((ToolCallEndEvent) event).getReasonId();
+        }
+        return null;
+    }
+
+    private void fillMeta(WebEvent<?> evt, AgentSession session, String parentRunId, String taskId,
+                          String reasonId, String agentName, String fallbackRunId) {
         if (evt == null) return;
         if (session != null && evt.getSessionId() == null) {
             evt.setSessionId(session.getSessionId());
         }
-        if (runId != null) {
-            evt.setTraceId(runId);
-        } else if (fallbackRunId != null && evt.getTraceId() == null) {
-            evt.setTraceId(fallbackRunId);
+        if (parentRunId != null) {
+            evt.setRunId(parentRunId);
+        } else if (fallbackRunId != null && evt.getRunId() == null) {
+            evt.setRunId(fallbackRunId);
         }
         if (taskId != null && evt.getTaskId() == null) {
             evt.setTaskId(taskId);
+        }
+        if (reasonId != null && evt.getReasonId() == null) {
+            evt.setReasonId(reasonId);
         }
         if (agentName != null && evt.getAgentName() == null) {
             evt.setAgentName(agentName);
@@ -124,14 +153,25 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onContextSizeEvent(ChatModel chatModel, ContextSizeEvent chunk) {
-        Integer limit = null;
-        if (chatModel != null && chatModel.getConfig() != null && chatModel.getConfig().getContextLength() > 0) {
+        int limit = 0;
+        if (chatModel != null && chatModel.getConfig() != null) {
             limit = (int) chatModel.getConfig().getContextLength();
+        }
+        if (limit <= 0) {
+            limit = 128_000; // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
+        }
+        Integer cacheRate = null;
+        if (chunk.getTrace() != null && chunk.getTrace().getMetrics() != null) {
+            int cr = chunk.getTrace().getMetrics().getCacheRate();
+            if (cr > 0) {
+                cacheRate = cr;
+            }
         }
         return WebEvent.of(WebEventNames.SYSTEM_CONTEXT, SystemContextPayload.builder()
                 .tokens(chunk.getTokenCount())
                 .count(chunk.getMessageCount())
                 .contextLimit(limit)
+                .cacheRate(cacheRate)
                 .build());
     }
 
@@ -139,7 +179,9 @@ public class WebEventMapper {
         if (chunk.isThinking()) {
             return WebEvent.ofReason(chunk.getReasonId(), chunk.getContent());
         } else {
-            return WebEvent.ofText(chunk.getContent());
+            // 正文必须携带 reasonId，前端据此将同一轮正文分组；
+            // 丢失后多轮正文会塔缩到同一 __default__ 分组，导致最终消息错接到前一组。
+            return WebEvent.ofText(chunk.getReasonId(), chunk.getContent());
         }
     }
 
@@ -182,7 +224,6 @@ public class WebEventMapper {
         Map<String, Object> args = event.getArgs();
         WebEvent<org.noear.solon.codecli.portal.web.event.payload.ToolStartPayload> evt = WebEvent.ofToolCallStart(toolName, toolTitle, args);
         evt.getPayload().setCallId(event.getCallId());
-        evt.getPayload().setReasonId(event.getReasonId());
         return evt;
     }
 
@@ -202,7 +243,6 @@ public class WebEventMapper {
 
         return WebEvent.of(WebEventNames.TOOL_END, ToolEndPayload.builder()
                 .callId(event.getCallId())
-                .reasonId(event.getReasonId())
                 .name(toolName)
                 .title(toolTitle)
                 .result(event.getContent())
@@ -213,7 +253,7 @@ public class WebEventMapper {
 
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
         if (isMultitask) {
-            return WebEvent.ofText(event.getContent());
+            return WebEvent.ofText(event.getReasonId(), event.getContent());
         }
         return WebEvent.EMPTY;
     }

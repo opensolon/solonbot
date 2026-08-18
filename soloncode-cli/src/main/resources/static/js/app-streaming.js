@@ -770,8 +770,9 @@ var AgentEventDispatcher = {
         return {
             event: raw.event,
             sessionId: raw.sessionId,
-            traceId: raw.traceId || raw.runId,
+            runId: raw.runId,
             taskId: raw.taskId,
+            reasonId: raw.reasonId,
             agentName: raw.agentName,
             timestamp: raw.timestamp || Date.now(),
             payload: raw.payload || {}
@@ -797,11 +798,12 @@ function processWebEventNow(sess, webEvt) {
         var event = webEvt.event;
         var p = webEvt.payload || {};
         var taskId = webEvt.taskId;
+        var reasonId = webEvt.reasonId;
         var agentName = webEvt.agentName;
 
-        // 存储当前 traceId (即 runId)
-        if (webEvt.traceId) {
-            sess.currentRunId = webEvt.traceId;
+        // 存储当前 runId
+        if (webEvt.runId) {
+            sess.currentRunId = webEvt.runId;
         }
 
         // 捕获消息来源标识
@@ -826,25 +828,25 @@ function processWebEventNow(sess, webEvt) {
         switch (event) {
             case 'message.delta':
             case 'message.complete':
-                sourceEl = appendContentChunk(sess, segment, p.delta || p.content || '', true, p.id);
+                sourceEl = appendContentChunk(sess, segment, p.delta || p.content || '', true, reasonId);
                 break;
 
             case 'thought.delta':
-                sourceEl = appendReasonChunk(sess, segment, p.delta || '', p.id, agentName);
+                sourceEl = appendReasonChunk(sess, segment, p.delta || '', reasonId, agentName);
                 break;
 
             case 'thought.end':
-                finishThinkingBlock(sess, p.id);
+                finishThinkingBlock(sess, reasonId);
                 break;
 
             case 'tool.start':
-                sourceEl = appendActionStartChunk(sess, segment, p.name, p.args, p.title || p.name, p.reasonId, agentName, p.callId);
+                sourceEl = appendActionStartChunk(sess, segment, p.name, p.args, p.title || p.name, reasonId, agentName, p.callId);
                 break;
 
             case 'tool.end':
                 var toolArgs = p.args || (p.diff ? { diff: p.diff } : {});
                 if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
-                sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, p.reasonId, agentName, p.callId);
+                sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId);
                 if (window._todoChunkHandlers) {
                     var todoEvent = { toolName: p.name, text: p.result, args: toolArgs };
                     window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
@@ -877,7 +879,15 @@ function processWebEventNow(sess, webEvt) {
 
             case 'system.context':
                 if (typeof updateContextIndicator === 'function') {
-                    updateContextIndicator({ totalTokens: p.tokens, reasonId: p.count ? String(p.count) : null, text: p.contextLimit ? String(p.contextLimit) : null }, sess);
+                    // updateContextIndicator 读取 totalTokens 与 args.contextLength/args.cacheRate，
+                    // 必须按该结构透传，否则上下文条恒显 "/ 0 (0%)" 且 Cache% 丢失。
+                    updateContextIndicator({
+                        totalTokens: p.tokens,
+                        args: {
+                            contextLength: p.contextLimit,
+                            cacheRate: p.cacheRate
+                        }
+                    }, sess);
                 }
                 break;
 
@@ -924,15 +934,15 @@ function coalesceQueuedEvents(queue) {
         var e = queue[i];
         var prev = out.length ? out[out.length - 1] : null;
         var isMergeable = prev && prev.event === e.event && (e.event === 'message.delta' || e.event === 'thought.delta')
-            && ((prev.payload && prev.payload.id) === (e.payload && e.payload.id))
+            && prev.reasonId === e.reasonId
             && prev.taskId === e.taskId
             && prev.agentName === e.agentName
-            && prev.traceId === e.traceId;
+            && prev.runId === e.runId;
 
         if (isMergeable) {
             prev.payload.delta = (prev.payload.delta || '') + (e.payload.delta || '');
             if (!prev.payload.sourceLabel && e.payload.sourceLabel) prev.payload.sourceLabel = e.payload.sourceLabel;
-            if (!prev.traceId && e.traceId) prev.traceId = e.traceId;
+            if (!prev.runId && e.runId) prev.runId = e.runId;
             if (!prev.agentName && e.agentName) prev.agentName = e.agentName;
         } else {
             out.push(e);

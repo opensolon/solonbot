@@ -12,6 +12,5 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ThoughtPayload implements Serializable {
-    private String id;
     private String delta;
 }
