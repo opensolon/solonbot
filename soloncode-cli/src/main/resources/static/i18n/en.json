@@ -1110,5 +1110,14 @@
   "workspace.tab.files": "Files",
   "workspace.tab.review": "Review",
   "workspace.tab.tasks": "Tasks",
-  "workspace.taskQueue": "Task Queue"
+  "workspace.taskQueue": "Task Queue",
+  "sidebar": {
+    "sidebar.openWorkspace": "Open Workspace",
+    "sidebar.open": "Open",
+    "sidebar.wsPathPlaceholder": "Enter local absolute path…",
+    "sidebar.wsEmpty": "No other workspaces",
+    "sidebar.wsRemove": "Remove",
+    "sidebar.wsRemoveConfirm": "Remove this workspace from the list? (directory is not deleted)",
+    "sidebar.wsPathInvalid": "Enter a valid local absolute path (starting with / or drive letter, no ..)"
+  }
 }

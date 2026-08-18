@@ -38,6 +38,9 @@ import org.noear.solon.codecli.portal.web.WebSettingsController;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.settings.*;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.portal.web.WorkspaceFilter;
 import org.noear.solon.core.AppContext;
 import org.noear.solon.core.BeanWrap;
 import org.noear.solon.core.util.JavaUtil;
@@ -76,9 +79,17 @@ public class Configurator {
     AgentSettings agentSettings;
 
     @Inject
+    WorkspaceManager workspaceManager;
+
+    @Inject
     SessionManager sessionManager;
 
     private LoopScheduler loopScheduler;
+
+    @Bean
+    public WorkspaceManager workspaceManager(AgentSettings settings) {
+        return new WorkspaceManager(settings);
+    }
 
     @Bean
     public SessionManager sessionManager() {
@@ -233,6 +244,11 @@ public class Configurator {
 
     @Init
     public void init() {
+        // 初始化默认工作区
+        if (workspaceManager != null) {
+            workspaceManager.initDefaultWorkspace();
+        }
+
         //订阅容器扩展
         appContext.subBeansOfType(HarnessExtension.class, extension -> {
             agentRuntime.addExtension(extension);
@@ -320,7 +336,11 @@ public class Configurator {
 
     private void runWebServe(HarnessEngine agentRuntime, AgentSettings settings, CliShell cliShell, SessionManager sessionManager) {
         //web ws gate
-        WebGate webGate = new WebGate(agentRuntime, settings);
+        // 入口单例 WebGate：仅作 WS 路由入口（onOpen 按 workspaceId 分发）与默认工作区 FileWatch 广播。
+        // 其连接池与默认工作区上下文共享同一引用，保证默认工作区推送一致。
+        java.util.List<org.noear.solon.net.websocket.WebSocket> defaultConnections =
+                workspaceManager.getOrCreate(null).getConnections();
+        WebGate webGate = new WebGate(agentRuntime, settings, defaultConnections);
         WebSocketRouter.getInstance().of("/web/gate", webGate);
 
         // 初始化文件监听服务（提前创建，以便 WebSettingsController 引用）

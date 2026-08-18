@@ -200,7 +200,7 @@ public class WebSettingsController extends BaseSettingsController {
                     ONode evt = new ONode().asObject()
                             .set("type", "settings_reloaded")
                             .set("changed", changedMap);
-                    webGate.broadcastRaw(evt.toJson());
+                    webGate().broadcastRaw(evt.toJson());
                 } catch (Exception e) {
                     LOG.debug("[Settings] broadcast settings_reloaded failed: {}", e.getMessage());
                 }

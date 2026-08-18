@@ -9,6 +9,8 @@ import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.market.MarketManager;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 
+import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import java.util.List;
 import java.util.Map;
 
@@ -61,6 +63,24 @@ public class BaseSettingsController {
      */
     protected final WebGate webGate;
 
+    // 动态提取所属工作区的引擎和服务
+    protected org.noear.solon.codecli.workspace.WorkspaceContext currentContext() {
+        org.noear.solon.core.handle.Context ctx = org.noear.solon.core.handle.Context.current();
+        org.noear.solon.codecli.workspace.WorkspaceContext wctx = null;
+        if (ctx != null) {
+            wctx = ctx.attr("WORKSPACE_CTX");
+        }
+        if (wctx == null) {
+            wctx = org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class).getOrCreate(null);
+        }
+        return wctx;
+    }
+
+    protected HarnessEngine engine() { return currentContext().getEngine(); }
+    protected AgentSettings settings() { return currentContext().getSettings(); }
+    protected FileWatchService fileWatchService() { return currentContext().getFileWatchService(); }
+    protected WebGate webGate() { return currentContext().getWebGate(); }
+
     /**
      * 构造函数：支持自定义所有依赖。
      */
@@ -80,7 +100,7 @@ public class BaseSettingsController {
      * 将当前配置保存到 settings.json
      */
     protected void saveSettings() {
-        settings.saveToFile();
+        settings().saveToFile();
     }
 
     /**

@@ -25,6 +25,8 @@ import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
@@ -102,6 +104,42 @@ public class WebController {
     /** 文件业务逻辑服务，封装工作区文件浏览、搜索、读取操作 */
     private final FileService fileService;
 
+    private org.noear.solon.codecli.workspace.WorkspaceContext currentContext() {
+        Context ctx = Context.current();
+        org.noear.solon.codecli.workspace.WorkspaceContext wctx = null;
+        if (ctx != null) {
+            wctx = ctx.attr("WORKSPACE_CTX");
+        }
+        if (wctx == null) {
+            wctx = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class).getOrCreate(null); // 回退默认
+        }
+        return wctx;
+    }
+
+    private HarnessEngine engine() {
+        return currentContext().getEngine();
+    }
+
+    private WebGate webGate() {
+        return currentContext().getWebGate();
+    }
+
+    private LoopScheduler loopScheduler() {
+        return currentContext().getLoopScheduler();
+    }
+
+    private SessionManager sessionManager() {
+        return currentContext().getSessionManager();
+    }
+
+    private FileService fileService() {
+        return currentContext().getFileService();
+    }
+
+    private GitService gitService() {
+        return currentContext().getGitService();
+    }
+
     /**
      * 构造函数：初始化核心依赖并注册 Web 端 Loop 任务执行器。
      *
@@ -125,7 +163,17 @@ public class WebController {
                 if (sessionId == null || !sessionId.startsWith("web-")) {
                     return false;
                 }
-                return webGate.isSessionBusy(sessionId);
+                // 使用当前的 webGate
+                WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
+                if (manager != null) {
+                    // 获取当前会话所属的工作区
+                    String wsId = getSessionWorkspaceId(sessionId);
+                    org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(wsId);
+                    if (wctx != null) {
+                        return wctx.getWebGate().isSessionBusy(sessionId);
+                    }
+                }
+                return webGate().isSessionBusy(sessionId);
             });
 
             loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
@@ -141,9 +189,81 @@ public class WebController {
                 }
 
                 // Loop 任务可能长时间执行（数小时），使用 Loop 专用无限等待版本
-                return webGate.safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
+                WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
+                if (manager != null) {
+                    String wsId = getSessionWorkspaceId(sessionId);
+                    org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(wsId);
+                    if (wctx != null) {
+                        return wctx.getWebGate().safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
+                    }
+                }
+                return webGate().safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
             });
         }
+    }
+
+    @Get
+    @Mapping("/web/workspace/list")
+    public Result<List<org.noear.solon.codecli.workspace.WorkspaceMeta>> listWorkspaces() {
+        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
+        if (manager != null) {
+            return Result.succeed(manager.listWorkspaces());
+        }
+        return Result.failure("WorkspaceManager not found");
+    }
+
+    @Post
+    @Mapping("/web/workspace/open")
+    public Result<org.noear.solon.codecli.workspace.WorkspaceMeta> openWorkspace(String path) {
+        if (path == null || path.isEmpty()) {
+            return Result.failure("Path is required");
+        }
+        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
+        if (manager != null) {
+            try {
+                org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(path);
+                if (wctx != null) {
+                    return Result.succeed(wctx.getMeta());
+                }
+                // getOrCreate 已收紧：目录不存在/非法路径返回 null
+                return Result.failure("目录不存在: " + path);
+            } catch (Exception e) {
+                return Result.failure(e.getMessage());
+            }
+        }
+        return Result.failure("Failed to open workspace");
+    }
+
+    @Post
+    @Mapping("/web/workspace/remove")
+    public Result<Void> removeWorkspace(String id) {
+        if (id == null || id.isEmpty()) {
+            return Result.failure("Id is required");
+        }
+        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
+        if (manager != null) {
+            manager.closeWorkspace(id);
+            return Result.succeed();
+        }
+        return Result.failure("WorkspaceManager not found");
+    }
+
+    @Get
+    @Mapping("/web/workspace/current")
+    public Result<org.noear.solon.codecli.workspace.WorkspaceMeta> currentWorkspace() {
+        org.noear.solon.codecli.workspace.WorkspaceContext wctx = currentContext();
+        if (wctx != null) {
+            return Result.succeed(wctx.getMeta());
+        }
+        return Result.failure("No current workspace");
+    }
+
+    private String getSessionWorkspaceId(String sessionId) {
+        WorkspaceManager manager = Solon.context().getBean(WorkspaceManager.class);
+        if (manager != null) {
+            return manager.getSessionWorkspaceId(sessionId);
+        }
+        return "default";
     }
 
     /**
@@ -167,11 +287,12 @@ public class WebController {
     @Get
     @Mapping("/web/chat/meta")
     public Result<Map> meta() {
+        HarnessEngine currentEngine = engine();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("appTitle", Solon.cfg().appTitle());
         data.put("appVersion", AgentFlags.getVersion());
-        data.put("workspace", engine.getWorkspace());
-        data.put("workname", getLastSegment(engine.getWorkspace()));
+        data.put("workspace", currentEngine.getWorkspace());
+        data.put("workname", getLastSegment(currentEngine.getWorkspace()));
         return Result.succeed(data);
     }
 
@@ -201,7 +322,8 @@ public class WebController {
     @Get
     @Mapping("/web/chat/sessions")
     public Result<List<Map>> sessions() throws Exception {
-        Path sessionsPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         File sessionsDir = sessionsPath.toFile();
         List<Map> data = new ArrayList<>();
 
@@ -240,7 +362,7 @@ public class WebController {
                     data.add(item);
 
                     //恢复定时任务
-                    loopScheduler.restore(sid);
+                    loopScheduler().restore(sid);
                 }
 
                 // 排序：置顶优先（按 time/createdAt 降序），非置顶在后（按 time/createdAt 降序）
@@ -272,15 +394,16 @@ public class WebController {
     @Post
     @Mapping("/web/chat/sessions/delete")
     public Result deleteSession(@Param("sessionId") String sessionId,
-                                @Param(value = "workspace", required = false) String workspace) throws Exception {
+                               @Param(value = "workspace", required = false) String workspace) throws Exception {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
 
+        HarnessEngine currentEngine = engine();
         Path workspaceRoot;
         try {
             if (Assert.isEmpty(workspace)) {
-                workspaceRoot = Paths.get(engine.getWorkspace()).toAbsolutePath().normalize();
+                workspaceRoot = Paths.get(currentEngine.getWorkspace()).toAbsolutePath().normalize();
             } else {
                 Path requestedWorkspace = Paths.get(workspace);
                 if (!requestedWorkspace.isAbsolute()) {
@@ -296,7 +419,7 @@ public class WebController {
             return Result.failure(404, "Workspace not found");
         }
 
-        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = workspaceRoot.resolve(currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsRoot.startsWith(workspaceRoot) || !sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -306,18 +429,18 @@ public class WebController {
             return Result.failure(409, "Session path is not a directory");
         }
 
-        Path activeWorkspace = Paths.get(engine.getWorkspace()).toAbsolutePath().normalize();
+        Path activeWorkspace = Paths.get(currentEngine.getWorkspace()).toAbsolutePath().normalize();
         boolean activeWorkspaceSession = workspaceRoot.equals(activeWorkspace);
-        if (activeWorkspaceSession && webGate.isSessionBusy(sessionId)) {
+        if (activeWorkspaceSession && webGate().isSessionBusy(sessionId)) {
             return Result.failure(409, "Session is running");
         }
 
         // 仅清理当前运行时工作区的内存状态，避免数字会话 ID 在不同项目间碰撞。
         if (activeWorkspaceSession) {
-            if (loopScheduler != null) {
-                loopScheduler.stopAll(sessionId);
+            if (loopScheduler() != null) {
+                loopScheduler().stopAll(sessionId);
             }
-            sessionManager.removeSession(sessionId);
+            sessionManager().removeSession(sessionId);
         }
 
         if (sessionPathExists) {
@@ -349,7 +472,8 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         Path sourcePath = sessionsRoot.resolve(sessionId).normalize();
         File sourceDir = sourcePath.toFile();
 
@@ -416,7 +540,8 @@ public class WebController {
             label = label.substring(0, 50);
         }
 
-        Path sessionPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
 
         if (!sessionPath.toFile().exists() || !sessionPath.toFile().isDirectory()) {
             return Result.failure(404, "Session not found");
@@ -444,7 +569,8 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -475,7 +601,8 @@ public class WebController {
         Map<String, Object> data = new LinkedHashMap<>();
         List<Map> list = new ArrayList<>();
 
-        for (ChatConfig config : engine.getModels()) {
+        HarnessEngine currentEngine = engine();
+        for (ChatConfig config : currentEngine.getModels()) {
             if (config.isEnabled()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("model", config.getModel());
@@ -502,19 +629,19 @@ public class WebController {
         
         if (Assert.isNotEmpty(list)) {
             if (Assert.isNotEmpty(sessionId)) {
-                AgentSession session = engine.getSession(sessionId);
+                AgentSession session = currentEngine.getSession(sessionId);
                 selected = session.getContext().getAs(HarnessEngine.CTX_MODEL_SELECTED);
                 
                 if (selected != null) {
-                    selected = engine.getModelOrDef(selected).getNameOrModel();
+                    selected = currentEngine.getModelOrDef(selected).getNameOrModel();
                 } else {
-                    selected = engine.getModelOrDef(null).getNameOrModel();
+                    selected = currentEngine.getModelOrDef(null).getNameOrModel();
                 }
                 
                 reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
                 thinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
             } else {
-                selected = engine.getModelOrDef(null).getNameOrModel();
+                selected = currentEngine.getModelOrDef(null).getNameOrModel();
             }
 
             // 防御：默认模型可能被禁用（getModelOrDef 不校验 isEnabled），导致 selected
@@ -533,7 +660,7 @@ public class WebController {
         String selectedAgent = "";
         if (Assert.isNotEmpty(sessionId)) {
             try {
-                AgentSession session = engine.getSession(sessionId);
+                AgentSession session = currentEngine.getSession(sessionId);
                 String agentVal = session.getContext().getAs(HarnessEngine.CTX_AGENT_SELECTED);
                 selectedAgent = (agentVal != null) ? agentVal : "";
             } catch (Exception ignored) {
@@ -578,7 +705,7 @@ public class WebController {
                                 @Param(value = "modelName", required = false) String modelName,
                                 @Param(value = "reasoningEffort", required = false) String reasoningEffort,
                                 @Param(value = "thinkingMode", required = false) String thinkingMode) throws Exception {
-        AgentSession session = engine.getSession(sessionId);
+        AgentSession session = engine().getSession(sessionId);
     
         if (Assert.isNotEmpty(modelName)) {
             session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, modelName);
@@ -609,7 +736,7 @@ public class WebController {
     @Mapping("/web/chat/agents/select")
     public Result agents_select(@Param("sessionId") String sessionId,
                                 @Param(value = "agentName", required = false) String agentName) throws Exception {
-        AgentSession session = engine.getSession(sessionId);
+        AgentSession session = engine().getSession(sessionId);
         session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED, agentName != null ? agentName : "");
         session.updateSnapshot();
         return Result.succeed();
@@ -631,7 +758,8 @@ public class WebController {
         }
 
         List<Map> data = new ArrayList<>();
-        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -708,7 +836,8 @@ public class WebController {
             return Result.failure();
         }
 
-        webGate.interruptSession(sessionId);
+        // 按当前请求工作区上下文取 WebGate，避免非默认工作区会话中断时推送串到默认工作区
+        webGate().interruptSession(sessionId);
 
         // 暂停该 session 的活跃 Goal，防止 Goal 调度器在 interrupt 后立即重新触发
         if (loopScheduler != null) {
@@ -746,8 +875,8 @@ public class WebController {
         }
 
         try {
-            // 只操作 ndjson 文件（内存中的 AgentSession 在重新生成时会通过新的 prompt 重建上下文）
-            Path sessionsPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+            HarnessEngine currentEngine = engine();
+            Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
             File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
             if (msgFile.exists()) {
                 // 读取现有消息
@@ -803,7 +932,8 @@ public class WebController {
     @Mapping("/web/chat/hints")
     public Result<List<Map>> hints() {
         List<Map> data = new ArrayList<>();
-        for (Command cmd : engine.getCommandRegistry().all()) {
+        HarnessEngine currentEngine = engine();
+        for (Command cmd : currentEngine.getCommandRegistry().all()) {
             if (cmd.cliOnly()) {
                 continue;
             }
@@ -814,7 +944,7 @@ public class WebController {
             data.add(item);
         }
 
-        for (AgentDefinition definition : engine.getAgentManager().getAgents()) {
+        for (AgentDefinition definition : currentEngine.getAgentManager().getAgents()) {
             Map<String, String> item = new LinkedHashMap<>();
             item.put("name", definition.getName());
             item.put("description", definition.getDescription());
@@ -823,7 +953,7 @@ public class WebController {
         }
 
         Set<String> added = new HashSet<>();
-        for (SkillDir skill : engine.getSkills()) {
+        for (SkillDir skill : currentEngine.getSkills()) {
             if (added.contains(skill.getName())) {
                 continue;
             } else {
@@ -899,11 +1029,11 @@ public class WebController {
 
             // HITL 审批时，将前端回传的 callUuid 写入 session context，供 WebGate 精确定位决策
             if (Assert.isNotEmpty(hitlAction) && Assert.isNotEmpty(hitlCallId)) {
-                engine.getSession(sessionId).getContext().put(WebGate.CTX_HITL_CALL_ID, hitlCallId);
+                engine().getSession(sessionId).getContext().put(WebGate.CTX_HITL_CALL_ID, hitlCallId);
             }
 
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
-            webGate.onChatInput(sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
+            webGate().onChatInput(sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
                     reasoningEffort, thinkingMode, selectedAgent);
                     
             // 返回简单 JSON，前端通过 WebSocket 接收 AI 结果
@@ -932,20 +1062,21 @@ public class WebController {
      * @throws Exception Git 命令执行异常
      */
 
-    /**
-     * 执行带工作区切换的 Git 操作。
-     * <p>临时切换 gitService 的工作目录到指定挂载点，执行操作后恢复默认。</p>
-     */
-    private Result<Map> withGitWorkspace(String workspaceId, GitOperation op) throws Exception {
-        File originalDir = gitService.getDefaultWorkspaceDir();
-        if (workspaceId != null && !workspaceId.isEmpty() && !"workspace".equals(workspaceId)) {
-            File targetDir = gitService.resolveGitDir(workspaceId);
-            gitService.setWorkspaceDir(targetDir);
-        }
-        try {
-            return op.execute();
-        } finally {
-            gitService.setWorkspaceDir(originalDir);
+    private Result<Map> withGitWorkspace(String mount, GitOperation op) throws Exception {
+        GitService currentGitService = gitService(); // 已按当前物理工作区隔离（WorkspaceContext 持有独立实例）
+        String targetWsId = (mount == null || mount.isEmpty()) ? "workspace" : mount;
+        File originalDir = currentGitService.getDefaultWorkspaceDir();
+        // 同一工作区内挂载切换存在共享 workspaceDir 的并发风险，用服务实例锁串行化
+        synchronized (currentGitService) {
+            if (!"workspace".equals(targetWsId)) {
+                File targetDir = currentGitService.resolveGitDir(targetWsId);
+                currentGitService.setWorkspaceDir(targetDir);
+            }
+            try {
+                return op.execute();
+            } finally {
+                currentGitService.setWorkspaceDir(originalDir);
+            }
         }
     }
 
@@ -956,60 +1087,67 @@ public class WebController {
 
     @Get
     @Mapping("/web/chat/git/status")
-    public Result<Map> gitStatus(@Param(value = "workspace", required = false) String workspace) throws Exception {
-        return withGitWorkspace(workspace, () -> gitService.status());
+    public Result<Map> gitStatus(@Param(value = "mount", required = false) String mount) throws Exception {
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().status());
     }
 
     @Post
     @Mapping("/web/chat/git/init")
-    public Result<Map> gitInit(@Param(value = "workspace", required = false) String workspace,
+    public Result<Map> gitInit(@Param(value = "mount", required = false) String mount,
                                @Param(value = "initialCommit", required = false) Boolean initialCommit) throws Exception {
-        return withGitWorkspace(workspace, () -> gitService.init(initialCommit));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().init(initialCommit));
     }
 
     @Get
     @Mapping("/web/chat/git/diff")
-    public Result<Map> gitDiff(@Param(value = "workspace", required = false) String workspace,
+    public Result<Map> gitDiff(@Param(value = "mount", required = false) String mount,
                                @Param(value = "path", required = false) String path) throws Exception {
-        return withGitWorkspace(workspace, () -> gitService.diff(path));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().diff(path));
     }
 
     @Post
     @Mapping("/web/chat/git/stage")
     public Result<Map> gitStage(@Body String body,
-                                @Param(value = "workspace", required = false) String workspace) throws Exception {
+                                @Param(value = "mount", required = false) String mount) throws Exception {
         String path = parseJsonPath(body);
-        return withGitWorkspace(workspace, () -> gitService.stage(path));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().stage(path));
     }
 
     @Post
     @Mapping("/web/chat/git/unstage")
     public Result<Map> gitUnstage(@Body String body,
-                                  @Param(value = "workspace", required = false) String workspace) throws Exception {
+                                  @Param(value = "mount", required = false) String mount) throws Exception {
         String path = parseJsonPath(body);
-        return withGitWorkspace(workspace, () -> gitService.unstage(path));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().unstage(path));
     }
 
     @Post
     @Mapping("/web/chat/git/discard")
     public Result<Map> gitDiscard(@Body String body,
-                                  @Param(value = "workspace", required = false) String workspace) throws Exception {
+                                  @Param(value = "mount", required = false) String mount) throws Exception {
         String path = parseJsonPath(body);
-        return withGitWorkspace(workspace, () -> gitService.discard(path));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().discard(path));
     }
-
+    
     @Get
     @Mapping("/web/chat/git/file-content")
-    public Result<Map> gitFileContent(@Param(value = "workspace", required = false) String workspace,
+    public Result<Map> gitFileContent(@Param(value = "mount", required = false) String mount,
                                       @Param("path") String path,
                                       @Param(value = "ref", required = false) String ref) throws Exception {
-        return withGitWorkspace(workspace, () -> gitService.fileContent(path, ref));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().fileContent(path, ref));
     }
-
+    
     @Post
     @Mapping("/web/chat/git/commit")
     public Result<Map> gitCommit(@Body String body,
-                                 @Param(value = "workspace", required = false) String workspace) throws Exception {
+                                 @Param(value = "mount", required = false) String mount) throws Exception {
         String message = null;
         List<String> files = null;
         if (body != null && !body.trim().isEmpty()) {
@@ -1033,12 +1171,13 @@ public class WebController {
         }
         final String finalMsg = message;
         final List<String> finalFiles = files;
-        return withGitWorkspace(workspace, () -> gitService.commit(finalMsg, finalFiles));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().commit(finalMsg, finalFiles));
     }
-
+    
     @Post
     @Mapping("/web/chat/git/summary")
-    public Result<Map> gitSummary(@Param(value = "workspace", required = false) String workspace,
+    public Result<Map> gitSummary(@Param(value = "mount", required = false) String mount,
                                   @Param("sessionId") String sessionId,
                                   @Param("paths") String paths) throws Exception {
         if (sessionId == null || sessionId.isEmpty()) {
@@ -1047,7 +1186,7 @@ public class WebController {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
-
+        
         // 解析文件路径列表
         List<String> files = new ArrayList<>();
         if (paths != null && !paths.trim().isEmpty()) {
@@ -1066,7 +1205,8 @@ public class WebController {
             }
         }
 
-        return withGitWorkspace(workspace, () -> gitService.summary(sessionId, files));
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        return withGitWorkspace(wsId, () -> gitService().summary(sessionId, files));
     }
 
     /**
@@ -1222,8 +1362,9 @@ public class WebController {
             return Result.failure(400, "prompt is required");
         }
 
-        String workspace = engine.getWorkspace();
-        String harnessSessions = engine.getHarnessSessions();
+        HarnessEngine currentEngine = engine();
+        String workspace = currentEngine.getWorkspace();
+        String harnessSessions = currentEngine.getHarnessSessions();
 
         // 确定任务类型
         LoopTask.TaskType taskType = (type != null && "GOAL".equalsIgnoreCase(type))
@@ -1272,8 +1413,9 @@ public class WebController {
             return Result.failure(400, "taskId is required");
         }
 
-        String workspace = engine.getWorkspace();
-        String harnessSessions = engine.getHarnessSessions();
+        HarnessEngine currentEngine = engine();
+        String workspace = currentEngine.getWorkspace();
+        String harnessSessions = currentEngine.getHarnessSessions();
 
         LoopTask existing = loopScheduler.getTaskById(sessionId, taskId);
         if (existing == null) {
@@ -1570,7 +1712,8 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        Path todoPath = engine.getTodoTalent().getTodoPath(engine.getWorkspace(), sessionId);
+        HarnessEngine currentEngine = engine();
+        Path todoPath = currentEngine.getTodoTalent().getTodoPath(currentEngine.getWorkspace(), sessionId);
 
         Map<String, Object> data = new LinkedHashMap<>();
 
@@ -1840,7 +1983,8 @@ public class WebController {
      * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
      */
     private Path resolveSessionQueuePath(String sessionId) {
-        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
+        HarnessEngine currentEngine = engine();
+        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return null;
@@ -1953,13 +2097,10 @@ public class WebController {
 
     // ==================== 文件浏览（委派给 FileService） ====================
 
-    /**
-     * 列出可用工作区列表。
-     */
     @Get
     @Mapping("/web/chat/filer/workspaces")
     public Result<List<Map>> fileWorkspaces() throws Exception {
-        return fileService.listWorkspaces();
+        return fileService().listWorkspaces();
     }
 
     /**
@@ -1967,10 +2108,10 @@ public class WebController {
      */
     @Get
     @Mapping("/web/chat/filer/tree")
-    public Result<List<Map>> fileTree(@Param(value = "workspace", required = false) String workspace,
+    public Result<List<Map>> fileTree(@Param(value = "mount", required = false) String workspace,
                                       @Param(value = "path", required = false) String path,
                                       @Param(value = "depth", required = false) Integer depth) throws Exception {
-        return fileService.tree(workspace, path, depth);
+        return fileService().tree(workspace, path, depth);
     }
 
     /**
@@ -1978,9 +2119,9 @@ public class WebController {
      */
     @Get
     @Mapping("/web/chat/filer/search")
-    public Result<List<Map>> fileSearch(@Param(value = "workspace", required = false) String workspace,
+    public Result<List<Map>> fileSearch(@Param(value = "mount", required = false) String workspace,
                                         @Param("keyword") String keyword) throws Exception {
-        return fileService.search(workspace, keyword);
+        return fileService().search(workspace, keyword);
     }
 
     /**
@@ -1988,9 +2129,9 @@ public class WebController {
      */
     @Get
     @Mapping("/web/chat/filer/read")
-    public Result<Map> fileRead(@Param(value = "workspace", required = false) String workspace,
+    public Result<Map> fileRead(@Param(value = "mount", required = false) String workspace,
                                 @Param("path") String path) throws Exception {
-        return fileService.read(workspace, path);
+        return fileService().read(workspace, path);
     }
 
     /**
@@ -2002,7 +2143,7 @@ public class WebController {
     @Get
     @Mapping("/web/chat/filer/read-raw")
     public void fileReadRaw(Context ctx,
-                            @Param(value = "workspace", required = false) String workspace,
+                            @Param(value = "mount", required = false) String mount,
                             @Param("path") String path) throws Exception {
         if (path == null || path.trim().isEmpty()) {
             ctx.status(400);
@@ -2010,7 +2151,7 @@ public class WebController {
             return;
         }
         try {
-            Path targetPath = fileService.resolveFilePath(workspace, path);
+            Path targetPath = fileService().resolveFilePath(mount, path);
             byte[] bytes = Files.readAllBytes(targetPath);
             String contentType = guessContentType(path);
             ctx.contentType(contentType);

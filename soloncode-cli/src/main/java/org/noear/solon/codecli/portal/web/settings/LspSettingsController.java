@@ -47,7 +47,7 @@ public class LspSettingsController extends BaseSettingsController{
     @Mapping("/web/settings/lsp/servers")
     public Result<List<Map>> lspServers() throws Exception {
         List<Map> list = new ArrayList<>();
-        for (Map.Entry<String, LspServerDo> entry : settings.getLspServers().entrySet()) {
+        for (Map.Entry<String, LspServerDo> entry : settings().getLspServers().entrySet()) {
             String name = entry.getKey();
             LspServerDo params = entry.getValue();
             Map<String, Object> item = new LinkedHashMap<>();
@@ -101,7 +101,7 @@ public class LspSettingsController extends BaseSettingsController{
         if (Assert.isEmpty(name)) {
             return Result.failure("name is required");
         }
-        if (settings.getLspServers().containsKey(name)) {
+        if (settings().getLspServers().containsKey(name)) {
             return Result.failure("Server name already exists: " + name);
         }
 
@@ -146,10 +146,10 @@ public class LspSettingsController extends BaseSettingsController{
             params.setEnv(envMap);
         }
 
-        settings.getLspServers().put(name, params);
+        settings().getLspServers().put(name, params);
 
         if (enabled) {
-            engine.addLspServer(name, params);
+            engine().addLspServer(name, params);
         }
 
         saveSettings();
@@ -171,16 +171,16 @@ public class LspSettingsController extends BaseSettingsController{
         }
 
         String lookupName = (originalName != null && !originalName.isEmpty()) ? originalName : name;
-        LspServerDo existing = settings.getLspServers().get(lookupName);
+        LspServerDo existing = settings().getLspServers().get(lookupName);
         if (existing == null) {
             return Result.failure("Server not found: " + lookupName);
         }
 
         if (!lookupName.equals(name)) {
-            settings.getLspServers().remove(lookupName);
-            engine.removeLspServer(lookupName);
+            settings().getLspServers().remove(lookupName);
+            engine().removeLspServer(lookupName);
         } else {
-            engine.removeLspServer(name);
+            engine().removeLspServer(name);
         }
 
         boolean enabled = root.hasKey("enabled") ? root.get("enabled").getBoolean(true) : true;
@@ -230,10 +230,10 @@ public class LspSettingsController extends BaseSettingsController{
             params.setEnv(existing.getEnv());
         }
 
-        settings.getLspServers().put(name, params);
+        settings().getLspServers().put(name, params);
 
         if (enabled) {
-            engine.addLspServer(name, params);
+            engine().addLspServer(name, params);
         }
 
         saveSettings();
@@ -252,10 +252,10 @@ public class LspSettingsController extends BaseSettingsController{
         if (Assert.isEmpty(name)) {
             return Result.failure("name is required");
         }
-        LspServerDo params = settings.getLspServers().get(name);
-        settings.getLspServers().remove(name);
+        LspServerDo params = settings().getLspServers().get(name);
+        settings().getLspServers().remove(name);
         saveSettings();
-        engine.removeLspServer(name);
+        engine().removeLspServer(name);
         LOG.info("[Settings] LSP server removed: {}", name);
         return Result.succeed();
     }
@@ -270,7 +270,7 @@ public class LspSettingsController extends BaseSettingsController{
             return Result.failure("name is required");
         }
 
-        LspServerParameters params = settings.getLspServers().get(name);
+        LspServerParameters params = settings().getLspServers().get(name);
         if (params == null) {
             return Result.failure("Server not found: " + name);
         } else {
@@ -278,9 +278,9 @@ public class LspSettingsController extends BaseSettingsController{
         }
 
         if (enabled) {
-            engine.addLspServer(name, params);
+            engine().addLspServer(name, params);
         } else {
-            engine.removeLspServer(name);
+            engine().removeLspServer(name);
         }
 
         saveSettings();

@@ -150,6 +150,43 @@ public class AgentSettings implements Serializable {
         return agentSettings;
     }
                     
+    /**
+     * 按指定工作区目录加载配置（多工作区场景）。
+     * <p>语义：先 global（~/.soloncode/settings.json），再以 workspaceDir/.soloncode/settings.json 覆盖。</p>
+     */
+    public static AgentSettings loadForWorkspace(String workspaceDir) {
+        try {
+            Path globalFile = Paths.get(AgentFlags.getUserHome(), ".soloncode", "settings.json").toAbsolutePath();
+            Path localFile = Paths.get(workspaceDir, ".soloncode", "settings.json").toAbsolutePath();
+            boolean isLocalAsGlobal = localFile.toString().equals(globalFile.toString());
+
+            AgentSettings agentSettings = new AgentSettings();
+
+            if (Files.exists(globalFile)) {
+                bindSettingsFile(globalFile, agentSettings);
+            }
+
+            // 多工作区隔离：全局配置中 scope=user 的 FILES 类挂载点属于“数据目录”，
+            // 不应泄入其他物理工作区（否则文件树会显示默认项目目录）；
+            // SKILLS/AGENTS 类属于能力注入，保留继承。工作区自己的挂载由下方 local 文件提供。
+            if (isLocalAsGlobal == false) {
+                agentSettings.getMountPools().values().removeIf(mount ->
+                        mount.getType() == org.noear.solon.ai.talents.mount.MountType.FILES
+                                && AgentFlags.SCOPE_LOCAL.equals(mount.getScope()) == false);
+            }
+
+            if (isLocalAsGlobal == false && Files.exists(localFile)) {
+                bindSettingsFile(localFile, agentSettings);
+            }
+
+            agentSettings.mergeFrom();
+            return agentSettings;
+        } catch (Exception e) {
+            LOG.warn("[Settings] Failed to load settings for workspace {}: {}", workspaceDir, e.getMessage());
+            return new AgentSettings();
+        }
+    }
+
     private static void bindSettingsFile(Path file, AgentSettings agentSettings) throws Exception {
         String json = new String(Files.readAllBytes(file), "UTF-8");
         ONode oNode = ONode.ofJson(json);

@@ -56,7 +56,7 @@ public class MountSettingsController extends BaseSettingsController {
     public Result mountsList(Context ctx) {
         List<Map<String, Object>> list = new ArrayList<>();
 
-        for (MountDir entry : engine.getMounts()) {
+        for (MountDir entry : engine().getMounts()) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("alias", entry.getAlias());
             item.put("type", entry.getType());
@@ -68,7 +68,7 @@ public class MountSettingsController extends BaseSettingsController {
             item.put("description", entry.getDescription());
 
 
-            MountDo mountDo = settings.getMountPools().get(entry.getAlias());
+            MountDo mountDo = settings().getMountPools().get(entry.getAlias());
             if (mountDo == null) {
                 item.put("scope", AgentFlags.SCOPE_USER);
             } else {
@@ -95,7 +95,7 @@ public class MountSettingsController extends BaseSettingsController {
             alias = "@" + alias;
         }
 
-        if (engine.hasMount(alias)) return Result.failure("别名已存在");
+        if (engine().hasMount(alias)) return Result.failure("别名已存在");
 
 
         if (type == null) {
@@ -112,9 +112,9 @@ public class MountSettingsController extends BaseSettingsController {
                 type,
                 path,
                 false, true, writeable);
-        settings.getMountPools().put(alias, mountDo);
+        settings().getMountPools().put(alias, mountDo);
         saveSettings();
-        engine.addMount(MountDir.builder()
+        engine().addMount(MountDir.builder()
                 .alias(alias)
                 .description(description)
                 .type(type)
@@ -123,7 +123,7 @@ public class MountSettingsController extends BaseSettingsController {
                 .build());
 
         // 同步注册文件监听
-        MountDir newMount = engine.getMount(alias);
+        MountDir newMount = engine().getMount(alias);
         if (newMount != null) {
             registerMountWatch(newMount);
         }
@@ -143,17 +143,17 @@ public class MountSettingsController extends BaseSettingsController {
             alias = "@" + alias;
         }
 
-        if (!engine.hasMount(alias)) return Result.failure("挂载池不存在");
+        if (!engine().hasMount(alias)) return Result.failure("挂载池不存在");
 
         // 更新配置中的数据
-        MountDo mountDo = settings.getMountPools().get(alias);
+        MountDo mountDo = settings().getMountPools().get(alias);
         if (mountDo != null) {
             mountDo.setDescription(description);
             mountDo.setWriteable(writeable);
         }
 
         // 更新运行时挂载
-        for (MountDir entry : engine.getMounts()) {
+        for (MountDir entry : engine().getMounts()) {
             if (alias.equals(entry.getAlias())) {
                 entry.setDescription(description);
                 entry.setWriteable(writeable);
@@ -175,7 +175,7 @@ public class MountSettingsController extends BaseSettingsController {
             return Result.failure("alias is required");
         }
 
-        MountDir mountDir = engine.getMount(alias);
+        MountDir mountDir = engine().getMount(alias);
         if (mountDir == null) {
             return Result.failure("挂载池不存在: " + alias);
         } else {
@@ -183,7 +183,7 @@ public class MountSettingsController extends BaseSettingsController {
         }
 
         // 更新配置
-        MountDo mountDo = settings.getMountPools().get(alias);
+        MountDo mountDo = settings().getMountPools().get(alias);
         if (mountDo != null) {
             mountDo.setEnabled(enabled);
         }
@@ -195,7 +195,7 @@ public class MountSettingsController extends BaseSettingsController {
             if (Boolean.TRUE.equals(enabled)) {
                 registerMountWatch(mountDir);
             } else {
-                fileWatchService.removeRoot(alias);
+                fileWatchService().removeRoot(alias);
             }
         }
 
@@ -209,7 +209,7 @@ public class MountSettingsController extends BaseSettingsController {
     @Post
     @Mapping("/web/settings/mounts/remove")
     public Result mountsRemove(@Param("alias") String alias) {
-        MountDir mountDir = engine.getMount(alias);
+        MountDir mountDir = engine().getMount(alias);
         if (mountDir == null) {
             return Result.failure("挂载池不存在");
         }
@@ -218,13 +218,13 @@ public class MountSettingsController extends BaseSettingsController {
             return Result.failure("系统挂载池不可移除");
         }
 
-        settings.getMountPools().remove(alias);
+        settings().getMountPools().remove(alias);
         saveSettings();
-        engine.removeMount(alias);
+        engine().removeMount(alias);
 
         // 同步移除文件监听
         if (fileWatchService != null) {
-            fileWatchService.removeRoot(alias);
+            fileWatchService().removeRoot(alias);
         }
 
         return Result.succeed("移除成功");
@@ -236,7 +236,7 @@ public class MountSettingsController extends BaseSettingsController {
     @Get
     @Mapping("/web/settings/mounts/content")
     public Result mountsContent(@Param("alias") String alias, @Param("type") String type) {
-        if (engine.hasMount(alias) == false) {
+        if (engine().hasMount(alias) == false) {
             return Result.failure("挂载池不存在: " + alias);
         }
 
@@ -251,7 +251,7 @@ public class MountSettingsController extends BaseSettingsController {
 
 
     private Result loadSkillsContent(String alias) {
-        Collection<SkillDir> skillDirList = engine.getSkillsByMount(alias);
+        Collection<SkillDir> skillDirList = engine().getSkillsByMount(alias);
         List<Map<String, Object>> skills = new ArrayList<>();
 
         for (SkillDir subDir : skillDirList) {
@@ -261,7 +261,7 @@ public class MountSettingsController extends BaseSettingsController {
             skillItem.put("realPath", subDir.getRealPath() != null ? subDir.getRealPath().toString() : "");
             skillItem.put("version", subDir.getVersion());
             skillItem.put("aliasPath", subDir.getAliasPath());
-            skillItem.put("enabled", engine.isSkillDisallowed(subDir.getAliasPath()) == false);
+            skillItem.put("enabled", engine().isSkillDisallowed(subDir.getAliasPath()) == false);
             skills.add(skillItem);
         }
 
@@ -269,7 +269,7 @@ public class MountSettingsController extends BaseSettingsController {
     }
 
     private Result loadAgentsContent(String alias) {
-        Collection<AgentMd> agentList = engine.getAgentsByMount(alias);
+        Collection<AgentMd> agentList = engine().getAgentsByMount(alias);
         List<Map<String, String>> agents = new ArrayList<>();
 
         for (AgentMd agent : agentList) {
@@ -327,7 +327,7 @@ public class MountSettingsController extends BaseSettingsController {
     @Post
     @Mapping("/web/settings/mounts/skills/remove")
     public Result mountsSkillsRemove(@Param("alias") String alias, @Param("skillName") String skillName) {
-        MountDir mountDir = engine.getMount(alias);
+        MountDir mountDir = engine().getMount(alias);
         if (mountDir == null) return Result.failure("挂载池不存在: " + alias);
 
 
@@ -341,7 +341,7 @@ public class MountSettingsController extends BaseSettingsController {
 
         try {
             deleteRecursively(skillDir);
-            engine.refreshMount(alias);
+            engine().refreshMount(alias);
             return Result.succeed("删除成功");
         } catch (Exception e) {
             LOG.warn("[Settings] Failed to delete skill: {}", e.getMessage());
@@ -373,17 +373,17 @@ public class MountSettingsController extends BaseSettingsController {
     private void registerMountWatch(MountDir mount) {
         if (fileWatchService == null || !mount.isEnabled()) return;
 
-        FileWatchService.WatchRoot root = fileWatchService.addRoot(mount.getAlias(), mount.getRealPath());
+        FileWatchService.WatchRoot root = fileWatchService().addRoot(mount.getAlias(), mount.getRealPath());
 
         switch (mount.getType()) {
             case FILES:
-                root.addHandler(changes -> webGate.broadcastRaw(FileWatchService.buildFrontendJson(changes)));
+                root.addHandler(changes -> webGate().broadcastRaw(FileWatchService.buildFrontendJson(changes)));
                 break;
             case SKILLS:
-                root.addHandler(changes -> engine.getSkillProvider().refreshByGroup(mount.getAlias()));
+                root.addHandler(changes -> engine().getSkillProvider().refreshByGroup(mount.getAlias()));
                 break;
             case AGENTS:
-                root.addHandler(changes -> engine.getAgentManager().refreshByMountAlias(mount.getAlias()));
+                root.addHandler(changes -> engine().getAgentManager().refreshByMountAlias(mount.getAlias()));
                 break;
         }
     }

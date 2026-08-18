@@ -222,8 +222,8 @@ public class AgentSettingsController extends BaseSettingsController {
     @Mapping("/web/settings/agents/refresh")
     public Result agentsRefresh() {
         try {
-            engine.getAgentManager().refreshByMountAlias(USER_ALIAS);
-            engine.getAgentManager().refreshByMountAlias(WORKSPACE_ALIAS);
+            engine().getAgentManager().refreshByMountAlias(USER_ALIAS);
+            engine().getAgentManager().refreshByMountAlias(WORKSPACE_ALIAS);
             return Result.succeed("刷新成功");
         } catch (Exception e) {
             LOG.warn("[Settings] Failed to refresh agents: {}", e.getMessage());
@@ -549,7 +549,7 @@ public class AgentSettingsController extends BaseSettingsController {
     }
 
     private Path workspaceRoot() {
-        return Paths.get(engine.getWorkspace(), AgentFlags.getHarnessAgents()).toAbsolutePath().normalize();
+        return Paths.get(engine().getWorkspace(), AgentFlags.getHarnessAgents()).toAbsolutePath().normalize();
     }
 
     private Path resolveFile(String scope, String name) {
@@ -577,7 +577,7 @@ public class AgentSettingsController extends BaseSettingsController {
     }
 
     private void refresh(String scope) {
-        engine.getAgentManager().refreshByMountAlias(AgentFlags.SCOPE_USER.equals(scope) ? USER_ALIAS : WORKSPACE_ALIAS);
+        engine().getAgentManager().refreshByMountAlias(AgentFlags.SCOPE_USER.equals(scope) ? USER_ALIAS : WORKSPACE_ALIAS);
     }
 
     private void moveReplace(Path source, Path target) throws Exception {

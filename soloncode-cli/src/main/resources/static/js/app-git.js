@@ -36,7 +36,7 @@
     function gitUrl(basePath, params) {
         var query = params || '';
         if (gitWorkspace !== 'workspace') {
-            query += (query ? '&' : '') + 'workspace=' + encodeURIComponent(gitWorkspace);
+            query += (query ? '&' : '') + 'mount=' + encodeURIComponent(gitWorkspace);
         }
         return basePath + (query ? '?' + query : '');
     }
@@ -67,7 +67,7 @@
         list.forEach(function(ws) {
         var label = ws.name === '__current_workspace__' ? I18n.t('gitdiff.currentWorkspace') : (ws.name || ws.id);
             if (ws.id === gitWorkspace) currentLabel = label;
-            html += '<div class="git-workspace-dropdown-item" data-workspace="' + ws.id + '">' + escapeHtml(label) + '</div>';
+            html += '<div class="git-workspace-dropdown-item" data-workspace-id="' + ws.id + '">' + escapeHtml(label) + '</div>';
         });
         $items.innerHTML = html;
         $name.textContent = currentLabel || I18n.t('gitdiff.workspace');
@@ -354,7 +354,7 @@
 
         var treeUrl = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath.replace(/\/$/, '')) + '&depth=1';
         if (gitWorkspace !== 'workspace') {
-            treeUrl += '&workspace=' + encodeURIComponent(gitWorkspace);
+            treeUrl += '&mount=' + encodeURIComponent(gitWorkspace);
         }
 
         fetch(treeUrl)
@@ -535,7 +535,7 @@
 
         var readUrl = '/web/chat/filer/read?path=' + encodeURIComponent(apiPath);
         if (fileWorkspace !== 'workspace') {
-            readUrl += '&workspace=' + encodeURIComponent(fileWorkspace);
+            readUrl += '&mount=' + encodeURIComponent(fileWorkspace);
         }
         fetch(readUrl)
             .then(function(r) { return r.json(); })
@@ -550,7 +550,7 @@
                 // 构造原始二进制读取 URL（用于图片/视频）
                 var rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(apiPath);
                 if (fileWorkspace !== 'workspace') {
-                    rawUrl += '&workspace=' + encodeURIComponent(fileWorkspace);
+                    rawUrl += '&mount=' + encodeURIComponent(fileWorkspace);
                 }
                 renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
@@ -1169,7 +1169,7 @@
             // 加载目录内容
             var dirTreeUrl = '/web/chat/filer/tree?path=' + encodeURIComponent(path.replace(/\/$/, '')) + '&depth=1';
             if (gitWorkspace !== 'workspace') {
-                dirTreeUrl += '&workspace=' + encodeURIComponent(gitWorkspace);
+                dirTreeUrl += '&mount=' + encodeURIComponent(gitWorkspace);
             }
             fetch(dirTreeUrl)
                 .then(function(r) { return r.json(); })
@@ -1756,7 +1756,7 @@
         var $item = $(e.target).closest('.git-workspace-dropdown-item');
         if ($item.length) {
             e.stopPropagation();
-            var ws = $item.attr('data-workspace');
+            var ws = $item.attr('data-workspace-id');
             if (ws && ws !== gitWorkspace) {
                 gitWorkspace = ws;
                 // 更新显示名称

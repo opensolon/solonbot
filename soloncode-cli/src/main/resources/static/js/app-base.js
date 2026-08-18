@@ -1,6 +1,12 @@
 /* ===== app-base.js ===== */
 /* DOM引用 + 状态 + 工具函数（最先加载，无依赖） */
 
+(function() {
+    // 工作区请求头的注入已统一由 web.html 首屏脚本完成（fetch + XMLHttpRequest 原型劫持，
+    // 已覆盖 jQuery $.get/$.ajax），此处不再重复设置，
+    // 避免双重 setRequestHeader 导致浏览器合并出 "id, id" 的非法头值
+})();
+
 /* ===== DOM ===== */
 var welcomeView = document.getElementById('welcomeView');
 var chatView = document.getElementById('chatView');

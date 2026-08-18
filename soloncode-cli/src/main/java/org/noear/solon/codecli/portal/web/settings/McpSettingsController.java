@@ -55,7 +55,7 @@ public class McpSettingsController extends BaseSettingsController{
     @Mapping("/web/settings/mcp/servers")
     public Result<List<Map>> mcpServers() throws Exception {
         List<Map> list = new ArrayList<>();
-        for (Map.Entry<String, McpServerDo> entry : settings.getMcpServers().entrySet()) {
+        for (Map.Entry<String, McpServerDo> entry : settings().getMcpServers().entrySet()) {
             String name = entry.getKey();
             McpServerDo params = entry.getValue();
             Map<String, Object> item = new LinkedHashMap<>();
@@ -110,7 +110,7 @@ public class McpSettingsController extends BaseSettingsController{
         }
 
         // 检查重名
-        if (settings.getMcpServers().containsKey(name)) {
+        if (settings().getMcpServers().containsKey(name)) {
             return Result.failure("Server name already exists: " + name);
         }
 
@@ -154,11 +154,11 @@ public class McpSettingsController extends BaseSettingsController{
             }
         }
 
-        settings.getMcpServers().put(name, params);
+        settings().getMcpServers().put(name, params);
 
         // 如果启用，同步到引擎
         if (enabled) {
-            engine.addMcpServer(name, params);
+            engine().addMcpServer(name, params);
         }
 
         saveSettings();
@@ -179,9 +179,9 @@ public class McpSettingsController extends BaseSettingsController{
             return Result.failure("name is required");
         }
 
-        settings.getMcpServers().remove(name);
+        settings().getMcpServers().remove(name);
         saveSettings();
-        engine.removeMcpServer(name);
+        engine().removeMcpServer(name);
         LOG.info("[Settings] MCP server removed: {}", name);
         return Result.succeed();
     }
@@ -203,18 +203,18 @@ public class McpSettingsController extends BaseSettingsController{
         // 如果 name 变了，使用 originalName 查找旧记录
         String lookupName = (originalName != null && !originalName.isEmpty()) ? originalName : name;
 
-        McpServerDo existing = settings.getMcpServers().get(lookupName);
+        McpServerDo existing = settings().getMcpServers().get(lookupName);
         if (existing == null) {
             return Result.failure("Server not found: " + lookupName);
         }
 
         // 如果名称变更，先从引擎移除旧名称
         if (!lookupName.equals(name)) {
-            settings.getMcpServers().remove(lookupName);
-            engine.removeMcpServer(lookupName);
+            settings().getMcpServers().remove(lookupName);
+            engine().removeMcpServer(lookupName);
         } else {
             // 名称没变，仍然先从引擎移除（稍后重新添加）
-            engine.removeMcpServer(name);
+            engine().removeMcpServer(name);
         }
 
         // 构建新参数
@@ -271,11 +271,11 @@ public class McpSettingsController extends BaseSettingsController{
             }
         }
 
-        settings.getMcpServers().put(name, params);
+        settings().getMcpServers().put(name, params);
 
         // 如果启用，同步到引擎
         if (enabled) {
-            engine.addMcpServer(name, params);
+            engine().addMcpServer(name, params);
         }
 
         saveSettings();
@@ -293,7 +293,7 @@ public class McpSettingsController extends BaseSettingsController{
             return Result.failure("name is required");
         }
 
-        McpServerParameters params = settings.getMcpServers().get(name);
+        McpServerParameters params = settings().getMcpServers().get(name);
         if (params == null) {
             return Result.failure("Server not found: " + name);
         } else {
@@ -302,10 +302,10 @@ public class McpSettingsController extends BaseSettingsController{
 
         if (enabled) {
             // 启用：添加到引擎
-            engine.addMcpServer(name, params);
+            engine().addMcpServer(name, params);
         } else {
             // 停用：从引擎移除
-            engine.removeMcpServer(name);
+            engine().removeMcpServer(name);
         }
 
         saveSettings();
@@ -661,13 +661,13 @@ public class McpSettingsController extends BaseSettingsController{
     @Get
     @Mapping("/web/settings/mcp/servers/tools")
     public Result mcpServerTools(String name) throws IOException {
-        McpServerParameters serverParameters = settings.getMcpServers().get(name);
+        McpServerParameters serverParameters = settings().getMcpServers().get(name);
         if (serverParameters == null) {
             return Result.failure("Server not found: " + name);
         }
 
         final Collection<FunctionTool> allTools;
-        McpClientProvider provider = engine.getMcpServer(name);
+        McpClientProvider provider = engine().getMcpServer(name);
         if (provider == null) {
             provider = McpClientProviders.fromMcpServer(serverParameters);
             try {
@@ -698,13 +698,13 @@ public class McpSettingsController extends BaseSettingsController{
 
     /**
      * 更新指定 MCP 服务器的工具权限（disallowedTools）
-     * <p>通过 engine.refreshMcpServer 影子交换策略热重载，无需重启。</p>
+     * <p>通过 engine().refreshMcpServer 影子交换策略热重载，无需重启。</p>
      */
     @Post
     @Mapping("/web/settings/mcp/servers/tools/save")
     public Result mcpServerToolsSave(@Param("serverName") String serverName,
                                      @Param(value = "disallowedTools", required = false) String[] disallowedTools) throws IOException {
-        McpServerDo serverParameters = settings.getMcpServers().get(serverName);
+        McpServerDo serverParameters = settings().getMcpServers().get(serverName);
         if (serverParameters == null) {
             return Result.failure("Server not found: " + serverName);
         }
@@ -714,10 +714,10 @@ public class McpSettingsController extends BaseSettingsController{
                 : Arrays.asList(disallowedTools));
 
         // 同步到引擎 provider 并热重载
-        McpClientProvider provider = engine.getMcpServer(serverName);
+        McpClientProvider provider = engine().getMcpServer(serverName);
         if (provider != null) {
             provider.setDisallowedTools(serverParameters.getDisallowedTools());
-            engine.refreshMcpServer(serverName);
+            engine().refreshMcpServer(serverName);
         }
 
         saveSettings();

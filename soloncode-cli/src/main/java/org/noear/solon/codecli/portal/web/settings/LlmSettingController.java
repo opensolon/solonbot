@@ -55,7 +55,7 @@ public class LlmSettingController extends BaseSettingsController {
         Map<String, Object> data = new LinkedHashMap<>();
 
         List<Map> list = new ArrayList<>();
-        for (ModelDo config : settings.getModels().values()) {
+        for (ModelDo config : settings().getModels().values()) {
             if (config.isVisibled()) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("name", config.getNameOrModel());
@@ -74,7 +74,7 @@ public class LlmSettingController extends BaseSettingsController {
         sortByName(list, "name");
 
         data.put("list", list);
-        data.put("default", settings.getDefaultModel());
+        data.put("default", settings().getDefaultModel());
 
         return Result.succeed(data);
     }
@@ -90,7 +90,7 @@ public class LlmSettingController extends BaseSettingsController {
         }
 
         ModelDo config = null;
-        for (ModelDo c : settings.getModels().values()) {
+        for (ModelDo c : settings().getModels().values()) {
             if (name.equals(c.getNameOrModel())) {
                 config = c;
                 break;
@@ -118,7 +118,7 @@ public class LlmSettingController extends BaseSettingsController {
         if (config.getContextLength() > 0) {
             item.put("contextLength", String.valueOf(config.getContextLength()));
         }
-        item.put("isDefault", settings.getDefaultModel() != null && settings.getDefaultModel().equals(config.getNameOrModel()));
+        item.put("isDefault", settings().getDefaultModel() != null && settings().getDefaultModel().equals(config.getNameOrModel()));
 
         return Result.succeed(item);
     }
@@ -138,7 +138,7 @@ public class LlmSettingController extends BaseSettingsController {
                     .apiKey(apiKey)
                     .standard(standard)
                     .model(model)
-                    .userAgent(settings.getGeneral().getUserAgent())
+                    .userAgent(settings().getGeneral().getUserAgent())
                     .build();
 
             chatModel.prompt("hi").call();
@@ -163,13 +163,13 @@ public class LlmSettingController extends BaseSettingsController {
         applyModelContextSuffix(config);
         ModelApiUrl.normalize(config);
 
-        engine.addModel(config);
+        engine().addModel(config);
 
         if (isDefaultModel) {
-            settings.setDefaultModel(config.getNameOrModel());
+            settings().setDefaultModel(config.getNameOrModel());
         }
 
-        settings.getModels().put(config.getNameOrModel(), config);
+        settings().getModels().put(config.getNameOrModel(), config);
         saveSettings();
 
         LOG.info("[Settings] Model added: {}", config.getNameOrModel());
@@ -186,9 +186,9 @@ public class LlmSettingController extends BaseSettingsController {
             return Result.failure("name is required");
         }
 
-        engine.removeModel(name);
+        engine().removeModel(name);
 
-        settings.getModels().remove(name);
+        settings().getModels().remove(name);
         saveSettings();
 
         LOG.info("[Settings] Model removed: {}", name);
@@ -210,21 +210,21 @@ public class LlmSettingController extends BaseSettingsController {
 
         // 编辑时保持 provider 关联（防止前端遗漏 provider 字段）
         if (config.getProvider() == null) {
-            ChatConfig oldConfig = settings.getModels().get(originalName);
+            ChatConfig oldConfig = settings().getModels().get(originalName);
             if (oldConfig != null && oldConfig.getProvider() != null) {
                 config.setProvider(oldConfig.getProvider());
             }
         }
 
         // 先移除旧配置
-        engine.removeModel(originalName);
-        engine.addModel(config);
+        engine().removeModel(originalName);
+        engine().addModel(config);
 
-        settings.getModels().remove(originalName);
-        settings.getModels().put(config.getNameOrModel(), config);
+        settings().getModels().remove(originalName);
+        settings().getModels().put(config.getNameOrModel(), config);
         if (isDefaultModel) {
-            settings.setDefaultModel(config.getNameOrModel());
-            engine.setDefaultModel(config.getNameOrModel());
+            settings().setDefaultModel(config.getNameOrModel());
+            engine().setDefaultModel(config.getNameOrModel());
         }
         saveSettings();
 
@@ -241,7 +241,7 @@ public class LlmSettingController extends BaseSettingsController {
         if (Assert.isEmpty(name) || enabled == null) {
             return Result.failure("name and enabled are required");
         }
-        for (ChatConfig config : settings.getModels().values()) {
+        for (ChatConfig config : settings().getModels().values()) {
             if (name.equals(config.getNameOrModel())) {
                 config.setEnabled(enabled);
                 saveSettings();
@@ -261,7 +261,7 @@ public class LlmSettingController extends BaseSettingsController {
     @Mapping("/web/settings/llm/providers")
     public Result<List<Map>> providersList() {
         List<Map> list = new ArrayList<>();
-        for (Map.Entry<String, ProviderDo> entry : settings.getProviders().entrySet()) {
+        for (Map.Entry<String, ProviderDo> entry : settings().getProviders().entrySet()) {
             String name = entry.getKey();
             ProviderDo provider = entry.getValue();
             Map<String, Object> item = new LinkedHashMap<>();
@@ -289,7 +289,7 @@ public class LlmSettingController extends BaseSettingsController {
             return Result.failure("name is required");
         }
 
-        ProviderDo provider = settings.getProviders().get(name);
+        ProviderDo provider = settings().getProviders().get(name);
         if (provider == null) {
             return Result.failure("Provider not found: " + name);
         }
@@ -319,7 +319,7 @@ public class LlmSettingController extends BaseSettingsController {
         }
 
         // 检查重名
-        if (settings.getProviders().containsKey(name)) {
+        if (settings().getProviders().containsKey(name)) {
             return Result.failure("Provider name already exists: " + name);
         }
 
@@ -333,7 +333,7 @@ public class LlmSettingController extends BaseSettingsController {
         provider.setModels(parseProviderModels(root));
 
         // 解析模型列表（直接存储 ModelInfo）
-        settings.getProviders().put(name, provider);
+        settings().getProviders().put(name, provider);
         saveSettings();
         LOG.info("[Settings] Provider added: {}", name);
         return Result.succeed();
@@ -354,14 +354,14 @@ public class LlmSettingController extends BaseSettingsController {
         }
 
         String lookupName = (originalName != null && !originalName.isEmpty()) ? originalName : name;
-        ProviderDo existing = settings.getProviders().get(lookupName);
+        ProviderDo existing = settings().getProviders().get(lookupName);
         if (existing == null) {
             return Result.failure("Provider not found: " + lookupName);
         }
 
         // 如果名称变更，移除旧 key
         if (!lookupName.equals(name)) {
-            settings.getProviders().remove(lookupName);
+            settings().getProviders().remove(lookupName);
         }
 
         ProviderDo provider = new ProviderDo();
@@ -409,7 +409,7 @@ public class LlmSettingController extends BaseSettingsController {
             provider.setModels(existing.getModels());
         }
 
-        settings.getProviders().put(name, provider);
+        settings().getProviders().put(name, provider);
         saveSettings();
         LOG.info("[Settings] Provider updated: {}", name);
         return Result.succeed();
@@ -428,25 +428,25 @@ public class LlmSettingController extends BaseSettingsController {
         // 级联删除该供应商下的所有模型
         int removedModels = 0;
         List<String> modelNamesToRemove = new ArrayList<>();
-        for (Map.Entry<String, ModelDo> entry : settings.getModels().entrySet()) {
+        for (Map.Entry<String, ModelDo> entry : settings().getModels().entrySet()) {
             ModelDo model = entry.getValue();
             if (name.equals(model.getProvider())) {
                 modelNamesToRemove.add(entry.getKey());
             }
         }
         for (String modelName : modelNamesToRemove) {
-            engine.removeModel(modelName);
-            settings.getModels().remove(modelName);
+            engine().removeModel(modelName);
+            settings().getModels().remove(modelName);
             removedModels++;
         }
 
         // 若默认模型属于该供应商，一并清空
-        String defaultModel = settings.getDefaultModel();
+        String defaultModel = settings().getDefaultModel();
         if (Assert.isNotEmpty(defaultModel) && modelNamesToRemove.contains(defaultModel)) {
-            settings.setDefaultModel(null);
+            settings().setDefaultModel(null);
         }
 
-        settings.getProviders().remove(name);
+        settings().getProviders().remove(name);
         saveSettings();
         LOG.info("[Settings] Provider removed: {}, cascaded models: {}", name, removedModels);
         return Result.succeed();
@@ -462,7 +462,7 @@ public class LlmSettingController extends BaseSettingsController {
             return Result.failure("name and enabled are required");
         }
 
-        ProviderDo provider = settings.getProviders().get(name);
+        ProviderDo provider = settings().getProviders().get(name);
         if (provider == null) {
             return Result.failure("Provider not found: " + name);
         }
@@ -470,7 +470,7 @@ public class LlmSettingController extends BaseSettingsController {
         provider.setEnabled(enabled);
 
         // 同步关联模型的启用状态
-        for (ModelDo model : settings.getModels().values()) {
+        for (ModelDo model : settings().getModels().values()) {
             if (name.equals(model.getProvider())) {
                 model.setVisibled(enabled);
             }
@@ -503,7 +503,7 @@ public class LlmSettingController extends BaseSettingsController {
             }
 
             // 调用提供商获取模型列表
-            List<ModelInfo> models = provider.fetchModels(settings.getGeneral().getUserAgent(), baseUrl, headers, apiKey);
+            List<ModelInfo> models = provider.fetchModels(settings().getGeneral().getUserAgent(), baseUrl, headers, apiKey);
 
             // 按 id 排序，保证每次返回顺序一致
             models.sort(Comparator.comparing(ModelInfo::getId, Comparator.nullsLast(String::compareTo)));
@@ -556,7 +556,7 @@ public class LlmSettingController extends BaseSettingsController {
             return Result.failure("providerName is required");
         }
 
-        ProviderDo provider = settings.getProviders().get(providerName);
+        ProviderDo provider = settings().getProviders().get(providerName);
         if (provider == null) {
             return Result.failure("Provider not found: " + providerName);
         }
@@ -580,7 +580,7 @@ public class LlmSettingController extends BaseSettingsController {
             String modelName = prefix + modelId;
 
             // 如果模型不存在，创建新模型配置
-            if (!settings.getModels().containsKey(modelName)) {
+            if (!settings().getModels().containsKey(modelName)) {
                 ModelDo modelDo = new ModelDo();
                 modelDo.setName(modelName);
                 modelDo.setModel(modelId);
@@ -607,12 +607,12 @@ public class LlmSettingController extends BaseSettingsController {
                     }
                 }
 
-                settings.getModels().put(modelName, modelDo);
-                engine.addModel(modelDo);
+                settings().getModels().put(modelName, modelDo);
+                engine().addModel(modelDo);
                 syncCount++;
             } else {
                 // 模型已存在，检查是否需要同步状态
-                ModelDo existingModel = settings.getModels().get(modelName);
+                ModelDo existingModel = settings().getModels().get(modelName);
                 if (existingModel != null) { //providerName.equals(existingModel.getProvider())
                     syncCount++;
 
@@ -818,7 +818,7 @@ public class LlmSettingController extends BaseSettingsController {
             String modelName = prefix + modelId;
 
             // 检查是否已存在同名模型
-            if (settings.getModels().containsKey(modelName)) {
+            if (settings().getModels().containsKey(modelName)) {
                 LOG.warn("[Settings] Model already exists, skipping: {}", modelName);
                 continue;
             }
@@ -844,10 +844,10 @@ public class LlmSettingController extends BaseSettingsController {
             }
 
             // 保存模型配置
-            settings.getModels().put(modelName, modelDo);
+            settings().getModels().put(modelName, modelDo);
 
             // 注入运行时引擎（即时生效，无需重启）
-            engine.addModel(modelDo);
+            engine().addModel(modelDo);
 
             // 记录生成的模型信息
             Map<String, Object> item = new LinkedHashMap<>();
@@ -863,7 +863,7 @@ public class LlmSettingController extends BaseSettingsController {
         // 如果设置了默认模型，更新默认模型
         if (setDefault && !generatedModels.isEmpty()) {
             String firstModelName = (String) generatedModels.get(0).get("name");
-            settings.setDefaultModel(firstModelName);
+            settings().setDefaultModel(firstModelName);
             LOG.info("[Settings] Default model set to: {}", firstModelName);
         }
 

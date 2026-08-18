@@ -1110,5 +1110,14 @@
   "workspace.tab.files": "文件",
   "workspace.tab.review": "审查",
   "workspace.tab.tasks": "任务",
-  "workspace.taskQueue": "任务排队"
+  "workspace.taskQueue": "任务排队",
+  "sidebar": {
+    "sidebar.openWorkspace": "打开工作区",
+    "sidebar.open": "打开",
+    "sidebar.wsPathPlaceholder": "输入本地绝对路径…",
+    "sidebar.wsEmpty": "暂无其他工作区",
+    "sidebar.wsRemove": "移除",
+    "sidebar.wsRemoveConfirm": "确定从列表移除该工作区？（不会删除目录）",
+    "sidebar.wsPathInvalid": "请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）"
+  }
 }

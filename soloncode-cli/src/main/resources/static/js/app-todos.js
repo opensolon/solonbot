@@ -12,7 +12,14 @@
         var sid = typeof SESSION_ID !== 'undefined' ? SESSION_ID : null;
         if (!sid) return;
 
-        fetch('/web/chat/todos?sessionId=' + encodeURIComponent(sid))
+        var url = '/web/chat/todos?sessionId=' + encodeURIComponent(sid);
+        var urlParams = new URLSearchParams(window.location.search);
+        var workspaceId = urlParams.get('workspaceId');
+        if (workspaceId && workspaceId !== 'workspace') {
+            url += '&workspaceId=' + encodeURIComponent(workspaceId);
+        }
+
+        fetch(url)
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 renderTodos(sid, res && res.data ? res.data : {});

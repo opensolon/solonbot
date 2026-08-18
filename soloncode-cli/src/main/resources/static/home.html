@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>项目列表 - SolonCode</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.png"/>
+    <link rel="icon" sizes="any" type="image/x-icon" href="/img/favicon.png"/>
+    <link rel="stylesheet" href="/layui/css/layui.css"/>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --primary: #1e80ff;
+            --primary-hover: #1b72e2;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header img {
+            width: 48px;
+            height: 48px;
+            margin-right: 16px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            padding: 30px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-group input {
+            flex: 1;
+            height: 42px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            padding: 0 16px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            height: 42px;
+            line-height: 42px;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .current-workspace {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f0f7ff;
+            border: 1px solid #d8eaff;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+
+        .current-workspace-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .current-workspace-name {
+            font-weight: 600;
+            color: #1e80ff;
+        }
+
+        .current-workspace-path {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .workspace-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .workspace-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .workspace-item:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+            background-color: #fafbfc;
+        }
+
+        .workspace-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+            margin-right: 16px;
+        }
+
+        .workspace-path {
+            font-size: 14px;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .workspace-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .workspace-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background-color: #f1f5f9;
+            color: #ef4444;
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 30px 0;
+            font-size: 14px;
+        }
+
+        .lang-switch {
+            text-align: right;
+            margin-bottom: 12px;
+        }
+
+        .lang-switch span {
+            cursor: pointer;
+            color: var(--primary);
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
+        .lang-switch span:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="lang-switch">
+            <span onclick="setLang('zh')">简体中文</span> | <span onclick="setLang('en')">English</span>
+        </div>
+        <div class="header">
+            <img src="/img/favicon.png" alt="SolonCode Logo"/>
+            <h1 data-key="title">工作区控制台</h1>
+        </div>
+
+        <!-- Current Workspace -->
+        <div class="section">
+            <h3 class="section-title" data-key="current_title">当前运行工作区</h3>
+            <div class="current-workspace">
+                <div class="current-workspace-info">
+                    <span class="current-workspace-name" data-key="default_workspace_name">默认工作区 (Default)</span>
+                    <span class="current-workspace-path" data-key="default_workspace_path">内置系统目录</span>
+                </div>
+                <button class="btn-primary" onclick="openWorkspace('')" data-key="direct_open">直接打开</button>
+            </div>
+        </div>
+
+        <!-- Open New Workspace -->
+        <div class="section">
+            <h3 class="section-title" data-key="open_title">打开物理项目工作区</h3>
+            <div class="form-group">
+                <input type="text" id="workspacePathInput" placeholder="输入本地物理项目根目录的绝对路径，例如: /path/to/project"/>
+                <button class="btn-primary" onclick="openNewWorkspace()" data-key="open_btn">打开项目</button>
+            </div>
+        </div>
+
+        <!-- Recent Workspaces -->
+        <div class="section">
+            <h3 class="section-title" data-key="recent_title">最近打开的项目</h3>
+            <div id="recentList" class="workspace-list">
+                <div class="no-data" data-key="loading">正在加载...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/layui/layui.js"></script>
+    <script>
+        var currentLang = localStorage.getItem('home_lang') || 'zh';
+
+        var locales = {
+            zh: {
+                title: "工作区控制台",
+                current_title: "当前运行工作区",
+                default_workspace_name: "默认工作区 (Default)",
+                default_workspace_path: "系统内置默认工作区",
+                direct_open: "直接打开",
+                open_title: "打开物理项目工作区",
+                open_btn: "打开项目",
+                recent_title: "最近打开的项目",
+                loading: "正在加载...",
+                no_recent: "暂无最近打开的项目",
+                path_placeholder: "输入本地物理项目根目录的绝对路径，例如: /path/to/project",
+                path_required: "请输入物理路径！",
+                path_invalid: "请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）",
+                open_failed: "打开工作区失败：",
+                remove_failed: "移除工作区失败：",
+                remove_confirm: "确定要从历史记录中移除该工作区吗？"
+            },
+            en: {
+                title: "Workspace Console",
+                current_title: "Current Running Workspace",
+                default_workspace_name: "Default Workspace",
+                default_workspace_path: "System built-in default workspace",
+                direct_open: "Open Directly",
+                open_title: "Open Physical Project Workspace",
+                open_btn: "Open Project",
+                recent_title: "Recently Opened Projects",
+                loading: "Loading...",
+                no_recent: "No recently opened projects",
+                path_placeholder: "Enter absolute path of local project root, e.g., /path/to/project",
+                path_required: "Please enter the physical path!",
+                path_invalid: "Please enter a valid absolute local path (starting with / or a drive letter, no '..')",
+                open_failed: "Failed to open workspace: ",
+                remove_failed: "Failed to remove workspace: ",
+                remove_confirm: "Are you sure you want to remove this workspace from history?"
+            }
+        };
+
+        function updateLocale() {
+            var items = document.querySelectorAll('[data-key]');
+            items.forEach(function(item) {
+                var key = item.getAttribute('data-key');
+                if (locales[currentLang][key]) {
+                    item.textContent = locales[currentLang][key];
+                }
+            });
+            document.getElementById('workspacePathInput').placeholder = locales[currentLang].path_placeholder;
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('home_lang', lang);
+            updateLocale();
+            loadWorkspaces();
+        }
+
+        function openWorkspace(id) {
+            if (id) {
+                window.open('/web.html?workspaceId=' + encodeURIComponent(id));
+            } else {
+                window.open('/web.html');
+            }
+        }
+
+        function openNewWorkspace() {
+            var pathInput = document.getElementById('workspacePathInput');
+            var path = pathInput.value.trim();
+            if (!path) {
+                layui.use('layer', function() {
+                    layui.layer.msg(locales[currentLang].path_required, {icon: 5, shift: 6});
+                });
+                return;
+            }
+            // 校验必须是绝对路径（类 Unix / 开头或 Windows 盘符），否则提示错误、不发请求
+            if (!/^([\\/]|[A-Za-z]:[\\/])/.test(path) || path.indexOf('..') >= 0) {
+                layui.use('layer', function() {
+                    layui.layer.msg(locales[currentLang].path_invalid || '请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）', {icon: 5, shift: 6});
+                });
+                return;
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/web/workspace/open', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var res = JSON.parse(xhr.responseText);
+                            if (res.code === 200 && res.data && res.data.id) {
+                                openWorkspace(res.data.id);
+                                pathInput.value = '';
+                                loadWorkspaces();
+                            } else {
+                                var msg = res.description || res.message || locales[currentLang].open_failed;
+                                layui.use('layer', function() {
+                                    layui.layer.msg(msg, {icon: 2});
+                                });
+                            }
+                        } catch (e) {
+                            layui.use('layer', function() {
+                                layui.layer.msg(locales[currentLang].open_failed + e.message, {icon: 2});
+                            });
+                        }
+                    } else {
+                        layui.use('layer', function() {
+                            layui.layer.msg(locales[currentLang].open_failed + 'HTTP ' + xhr.status, {icon: 2});
+                        });
+                    }
+                }
+            };
+            xhr.send('path=' + encodeURIComponent(path));
+        }
+
+        function removeWorkspace(e, id) {
+            e.stopPropagation();
+            layui.use('layer', function() {
+                var layer = layui.layer;
+                layer.confirm(locales[currentLang].remove_confirm, {
+                    title: currentLang === 'zh' ? '提示' : 'Confirm',
+                    btn: currentLang === 'zh' ? ['确定', '取消'] : ['Confirm', 'Cancel']
+                }, function(index) {
+                    layer.close(index);
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/web/workspace/remove', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState === 4) {
+                            if (xhr.status === 200) {
+                                try {
+                                    var res = JSON.parse(xhr.responseText);
+                                    if (res.code === 200) {
+                                        loadWorkspaces();
+                                    } else {
+                                        layer.msg(res.description || res.message || locales[currentLang].remove_failed, {icon: 2});
+                                    }
+                                } catch (e) {
+                                    layer.msg(locales[currentLang].remove_failed + e.message, {icon: 2});
+                                }
+                            } else {
+                                layer.msg(locales[currentLang].remove_failed + 'HTTP ' + xhr.status, {icon: 2});
+                            }
+                        }
+                    };
+                    xhr.send('id=' + encodeURIComponent(id));
+                });
+            });
+        }
+
+        function loadWorkspaces() {
+            var recentList = document.getElementById('recentList');
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/web/workspace/list', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var res = JSON.parse(xhr.responseText);
+                            if (res.code === 200 && res.data && res.data.length > 0) {
+                                var html = '';
+                                res.data.forEach(function(item) {
+                                    var timeStr = item.openedAt ? new Date(item.openedAt).toLocaleString() : '';
+                                    html += '<div class="workspace-item" onclick="openWorkspace(\'' + item.id + '\')">' +
+                                        '<div class="workspace-info">' +
+                                            '<div class="workspace-path" title="' + item.path + '">' + item.path + '</div>' +
+                                            '<div class="workspace-time">' + timeStr + '</div>' +
+                                        '</div>' +
+                                        '<div class="workspace-actions">' +
+                                            '<button class="btn-icon" onclick="removeWorkspace(event, \'' + item.id + '\')" title="移除">' +
+                                                '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                                                    '<polyline points="3 6 5 6 21 6"></polyline>' +
+                                                    '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>' +
+                                                    '<line x1="10" y1="11" x2="10" y2="17"></line>' +
+                                                    '<line x1="14" y1="11" x2="14" y2="17"></line>' +
+                                                '</svg>' +
+                                            '</button>' +
+                                        '</div>' +
+                                    '</div>';
+                                });
+                                recentList.innerHTML = html;
+                            } else {
+                                recentList.innerHTML = '<div class="no-data">' + locales[currentLang].no_recent + '</div>';
+                            }
+                        } catch (e) {
+                            recentList.innerHTML = '<div class="no-data">' + locales[currentLang].no_recent + '</div>';
+                        }
+                    } else {
+                        recentList.innerHTML = '<div class="no-data">' + locales[currentLang].no_recent + '</div>';
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        updateLocale();
+        loadWorkspaces();
+    </script>
+</body>
+</html>

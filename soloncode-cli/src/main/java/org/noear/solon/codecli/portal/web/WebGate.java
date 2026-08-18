@@ -16,6 +16,7 @@
 package org.noear.solon.codecli.portal.web;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActTrace;
@@ -51,6 +52,8 @@ import reactor.core.Disposables;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -84,27 +87,34 @@ public class WebGate extends SimpleWebSocketListener {
     private final WebStreamBuilder streamBuilder;
 
     /**
-     * WebSocket 连接池。
+     * WebSocket 连接池（与所属 {@link org.noear.solon.codecli.workspace.WorkspaceContext} 共享同一引用）。
      *
-     * <p>每个浏览器 Tab 建立一个独立的 WebSocket 连接并注册到此列表中。
-     * 所有出站消息（AI 响应、命令输出、系统事件）均通过遍历此列表广播，
-     * 每条消息携带 sessionId 由前端自行路由到对应会话面板。</p>
+     * <p>每个浏览器 Tab 建立一个独立的 WebSocket 连接。连接在握手时由入口网关
+     * （注册于 /web/gate 的单例）按 workspaceId 分发到<b>目标工作区上下文</b>的连接池，
+     * 因此本实例的 {@code connections} 恒等于其所属工作区上下文的连接集合。</p>
+     *
+     * <p>出站消息（AI 响应、命令输出、系统事件）只遍历本工作区连接池推送，
+     * 从而实现「推送严格按 socket 所属工作区分组」，不依赖请求线程的 {@link Context#current()}，
+     * 消除 AI 流式响应异步线程（boundedElastic）下的跨工作区串流风险。</p>
      *
      * <p>使用 {@link CopyOnWriteArrayList} 保证并发读写安全。</p>
      */
-    private final List<WebSocket> connections = new CopyOnWriteArrayList<>();
+    private final List<WebSocket> connections;
 
 
     /**
      * 构造网关实例。
      *
-     * @param engine     AI 引擎，提供会话、模型、Agent、命令等核心服务
+     * @param engine      AI 引擎，提供会话、模型、Agent、命令等核心服务
+     * @param settings    工作区配置
+     * @param connections 所属工作区上下文的连接池（共享引用；推送只作用于此集合）
      */
     private final AgentSettings settings;
 
-    public WebGate(HarnessEngine engine, AgentSettings settings) {
+    public WebGate(HarnessEngine engine, AgentSettings settings, List<WebSocket> connections) {
         this.engine = engine;
         this.settings = settings;
+        this.connections = connections;
         this.streamBuilder = new WebStreamBuilder(engine);
     }
 
@@ -132,8 +142,26 @@ public class WebGate extends SimpleWebSocketListener {
      */
     @Override
     public void onOpen(WebSocket socket) {
-        connections.add(socket);
-        LOG.info("[WebGate] WebSocket opened: {}", socket.id());
+        String wsId = socket.param("workspaceId"); // 统一：只认 workspaceId；旧参数 workspace 已废弃
+        // 入口单例：按 workspaceId 将连接分发到目标工作区上下文的连接池（即该工作区 WebGate 实例的 connections）。
+        // 本实例可能就是默认工作区的 WebGate，也可能是入口单例（两者共享默认工作区的 connections）。
+        List<WebSocket> target = resolveConnections(wsId);
+        target.add(socket);
+        LOG.info("[WebGate] WebSocket opened: {}, workspace: {}", socket.id(), wsId);
+    }
+
+    /**
+     * 按 workspaceId 解析目标连接池：命中工作区上下文则用其共享连接池，否则回退本实例 connections。
+     */
+    private List<WebSocket> resolveConnections(String wsId) {
+        org.noear.solon.codecli.workspace.WorkspaceManager manager = org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
+        if (manager != null) {
+            org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(wsId);
+            if (wctx != null) {
+                return wctx.getConnections();
+            }
+        }
+        return connections;
     }
 
     /**
@@ -145,6 +173,9 @@ public class WebGate extends SimpleWebSocketListener {
      */
     @Override
     public void onClose(WebSocket socket) {
+        String wsId = socket.param("workspaceId");
+        // 与 onOpen 对称：从目标工作区连接池中移除；兵底同时从本实例 connections 移除（共享引用时为同一列表，重复 remove 无害）。
+        resolveConnections(wsId).remove(socket);
         connections.remove(socket);
         LOG.info("[WebGate] WebSocket closed: {}", socket.id());
     }
@@ -193,7 +224,8 @@ public class WebGate extends SimpleWebSocketListener {
             LOG.debug("emit: " + enriched);
         }
 
-        // 广播给所有连接（每条消息都带 sessionId，前端自行路由）
+        // 推送严格按 socket 所属工作区分组：直接遍历本实例（= 所属工作区上下文）的连接池，
+        // 不再依赖 Context.current() 猜测（异步流线程下为 null 会回退到默认工作区而串流）。
         for (WebSocket socket : connections) {
             if (socket != null) {
                 try {
@@ -246,6 +278,7 @@ public class WebGate extends SimpleWebSocketListener {
      * @param json 待广播的原始 JSON 字符串
      */
     public void broadcastRaw(String json) {
+        // 推送严格按 socket 所属工作区分组：只广播到本工作区连接池，不依赖 Context.current()。
         for (WebSocket socket : connections) {
             if (socket != null) {
                 try {
@@ -305,7 +338,10 @@ public class WebGate extends SimpleWebSocketListener {
                             String reasoningEffort, String thinkingMode, String selectedAgent) {
         AgentSession session = null;
         try {
-            session = engine.getSession(sessionId);
+            // 本 WebGate 实例已绑定所属工作区的引擎（与 connections 同一上下文），
+            // 无需再从 Context.current()/sessionId 猜测引擎，避免异步线程下回退默认引擎。
+            HarnessEngine currentEngine = engine;
+            session = currentEngine.getSession(sessionId);
 
             // 写入会话级模型 / 推理（后续 StreamBuilder 与旁路任务均可读取）
             if (Assert.isNotEmpty(selectedModel)) {

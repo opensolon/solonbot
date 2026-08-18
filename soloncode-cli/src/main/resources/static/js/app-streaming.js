@@ -1362,6 +1362,11 @@ function connectWebGate() {
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/web/gate';
+        var urlParams = new URLSearchParams(window.location.search);
+        var workspace = urlParams.get('workspaceId');
+        if (workspace) {
+            wsUrl += "?workspaceId=" + encodeURIComponent(workspace);
+        }
         webGateSocket = new WebSocket(wsUrl);
     } catch(e) {
         console.error('[WebGate] create failed:', e);

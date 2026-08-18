@@ -94,28 +94,28 @@ public class SkillSettingsController extends BaseSettingsController{
         // 确定安装目标目录：若指定了挂载别名，则安装到对应池目录；否则默认 workspace/skills
         Path skillsDir;
         if (!Assert.isEmpty(mountAlias)) {
-            MountDir poolDir = engine.getMount(mountAlias);
+            MountDir poolDir = engine().getMount(mountAlias);
             if (poolDir == null) {
                 return Result.failure("挂载池不存在: " + mountAlias);
             }
 
             skillsDir = poolDir.getRealPath();
         } else {
-            skillsDir = Paths.get(engine.getWorkspace(), "skills");
+            skillsDir = Paths.get(engine().getWorkspace(), "skills");
         }
 
         Result<String> result = market.install(slug, skillsDir);
 
         // 安装成功后刷新技能池
         if (result.getCode() == 200) {
-            engine.refreshMount(mountAlias);
+            engine().refreshMount(mountAlias);
         }
 
         return result;
     }
 
     /**
-     * 切换技能启用/停用（按 aliasPath 记录到 settings.permission.disallowedSkills）
+     * 切换技能启用/停用（按 aliasPath 记录到 settings().permission.disallowedSkills）
      *
      * @param aliasPath 技能唯一路径标识（如 @user-skills/foo）
      * @param enabled   是否启用
@@ -132,13 +132,13 @@ public class SkillSettingsController extends BaseSettingsController{
 
         // 更新运行时禁用集
         if (enabled) {
-            engine.allowSkill(aliasPath);
+            engine().allowSkill(aliasPath);
         } else {
-            engine.disallowSkill(aliasPath);
+            engine().disallowSkill(aliasPath);
         }
 
-        // 持久化到 settings.permission.disallowedSkills
-        List<String> disallowedSkills = settings.getPermission().getDisallowedSkills();
+        // 持久化到 settings().permission.disallowedSkills
+        List<String> disallowedSkills = settings().getPermission().getDisallowedSkills();
         disallowedSkills.remove(aliasPath);
         if (enabled == false) {
             disallowedSkills.add(aliasPath);

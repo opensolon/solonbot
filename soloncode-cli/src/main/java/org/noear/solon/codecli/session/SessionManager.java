@@ -20,6 +20,13 @@ public class SessionManager implements AgentSessionProvider {
     private String workspace = AgentFlags.getUserDir();
     private Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
+    public SessionManager() {
+    }
+
+    public SessionManager(String workspace) {
+        this.workspace = workspace;
+    }
+
     @Override
     public @NonNull AgentSession getSession(String sessionId) {
         // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/

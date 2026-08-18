@@ -24,7 +24,7 @@
     function filerUrl(basePath, params) {
         var query = params || '';
         if (window.activeFilerWorkspace !== 'workspace') {
-            query += (query ? '&' : '') + 'workspace=' + encodeURIComponent(window.activeFilerWorkspace);
+            query += (query ? '&' : '') + 'mount=' + encodeURIComponent(window.activeFilerWorkspace);
         }
         return basePath + (query ? '?' + query : '');
     }
@@ -261,7 +261,7 @@
 
         var url = '/web/chat/filer/tree?path=' + encodeURIComponent(path) + '&depth=1';
         if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
-            url += '&workspace=' + encodeURIComponent(wsId);
+            url += '&mount=' + encodeURIComponent(wsId);
         }
 
         $.get(url, function(res) {
@@ -366,7 +366,7 @@
                     if (!$childrenEl.children().length) {
                         var url = '/web/chat/filer/tree?depth=1';
                         if (wsId !== 'workspace') {
-                            url += '&workspace=' + encodeURIComponent(wsId);
+                            url += '&mount=' + encodeURIComponent(wsId);
                         }
                         $.get(url, function(res) {
                             var data = (res && res.data) ? res.data : [];
@@ -470,7 +470,7 @@
                             var wsId = getNodeWorkspaceId($nodeEl);
                             var url = '/web/chat/filer/tree?path=' + encodeURIComponent(node.path) + '&depth=1';
                             if (wsId !== 'workspace') {
-                                url += '&workspace=' + encodeURIComponent(wsId);
+                                url += '&mount=' + encodeURIComponent(wsId);
                             }
                             $.get(url, function(res) {
                                 var subData = (res && res.data) ? res.data : [];
@@ -726,7 +726,7 @@
             url = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1';
         }
         if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
-            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'workspace=' + encodeURIComponent(wsId);
+            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'mount=' + encodeURIComponent(wsId);
         }
         $.get(url, function(res) {
             var data = (res && res.data) ? res.data : [];
@@ -838,7 +838,7 @@
 
                 var url = '/web/chat/filer/tree?depth=1';
                 if (ws.id !== 'workspace') {
-                    url += '&workspace=' + encodeURIComponent(ws.id);
+                    url += '&mount=' + encodeURIComponent(ws.id);
                 }
 
                 $.get(url, function(res2) {
