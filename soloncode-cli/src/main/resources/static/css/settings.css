@@ -1367,11 +1367,16 @@ select[disabled] {
 }
 
 .provider-model-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     flex: 1;
     min-width: 0;
 }
 
 .provider-model-name {
+    flex: 1;
+    min-width: 0;
     font-size: var(--fs-base);
     font-weight: 500;
     color: var(--text-primary);
@@ -1380,34 +1385,95 @@ select[disabled] {
     text-overflow: ellipsis;
 }
 
-.provider-model-context {
-    display: inline-block;
+/* 上下文长度：只读显示（作为 info 区的模型属性字段，不可点击） */
+.provider-model-ctx-view {
+    flex-shrink: 0;
     font-size: var(--fs-2xs);
     font-weight: 400;
     color: var(--text-secondary);
-    background: var(--bg-hover);
-    padding: 1px 5px;
-    border-radius: 3px;
-    margin-left: 4px;
-    vertical-align: 1px;
+    font-variant-numeric: tabular-nums;
+}
+
+.provider-model-ctx-empty {
+    opacity: 0.45;
+}
+
+/* 上下文长度编辑弹框 */
+.provider-ctx-editor {
+    padding: 16px;
+}
+
+.provider-ctx-input {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: var(--fs-base);
+    box-sizing: border-box;
+}
+
+.provider-ctx-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #4a7dff);
+}
+
+.provider-ctx-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.provider-ctx-preset {
+    padding: 3px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.provider-ctx-preset:hover {
+    border-color: var(--primary-color, #4a7dff);
+    color: var(--primary-color, #4a7dff);
+}
+
+.provider-ctx-hint {
+    margin-top: 10px;
+    font-size: var(--fs-2xs);
+    color: var(--text-secondary);
+    line-height: 1.5;
 }
 
 .provider-model-actions {
     display: flex;
-    gap: 8px;
+    gap: 2px;
     align-items: center;
     flex-shrink: 0;
 }
 
-.provider-model-synced {
-    display: inline-block;
-    font-size: var(--fs-2xs);
-    color: #22c55e;
-    background: rgba(34,197,94,0.1);
-    padding: 1px 4px;
-    border-radius: 3px;
-    margin-left: 4px;
-    vertical-align: middle;
+/* 上下文长度：编辑按钮（纯操作图标按钮，与删除按钮同区、同尺寸） */
+.provider-model-ctx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.provider-model-ctx-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 /* 模型列表标题栏操作按钮 */
@@ -1505,13 +1571,12 @@ select[disabled] {
 /* 手动模型标签 */
 .provider-model-manual-tag {
     display: inline-block;
+    flex-shrink: 0;
     font-size: var(--fs-2xs);
     color: #f59e0b;
     background: rgba(245, 158, 11, 0.1);
     padding: 1px 4px;
     border-radius: 3px;
-    margin-left: 4px;
-    vertical-align: middle;
 }
 
 /* 手动模型的删除按钮 */

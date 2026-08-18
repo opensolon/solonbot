@@ -73,6 +73,14 @@
             removeManualModel(modelId);
         });
 
+        // 模型列表 - 点击编辑按钮就地编辑上下文长度（阻止冒泡触发 label 勾选）
+        $modelsList.on('click', '.provider-model-ctx-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var modelId = $(this).closest('.provider-model-item').data('model-id');
+            editModelContextLength(modelId);
+        });
+
         // 保存按钮
         $('#providerSaveBtn').on('click', function () {
             saveProvider();
@@ -380,14 +388,23 @@
                         var manualModels = fetchedModels.filter(function (m) {
                             return m.manual === true;
                         });
+                        // 旧模型索引：拉取时继承用户已设置的值（上下文长度手填值、勾选状态）
+                        var prevById = {};
+                        fetchedModels.forEach(function (m) { prevById[m.id] = m; });
                         var fetchedMapped = models.map(function (m) {
+                            var id = m.id || m.name || m;
+                            var incomingMax = m.maxInputTokens || m.max_input_tokens || m.contextLength || m.context_length || 0;
+                            var incomingMaxOut = m.maxTokens || m.max_tokens || 0;
+                            var prev = prevById[id];
                             return {
-                                id: m.id || m.name || m,
+                                id: id,
                                 displayName: m.displayName || m.display_name || '',
                                 ownedBy: m.ownedBy || m.owned_by || '',
                                 type: m.type || '',
-                                maxInputTokens: m.maxInputTokens || m.max_input_tokens || m.contextLength || m.context_length || 0,
-                                maxTokens: m.maxTokens || m.max_tokens || 0,
+                                // 拉来的值为空则保留用户此前设置的值，避免手填的上下文长度被清空
+                                maxInputTokens: incomingMax || (prev ? prev.maxInputTokens : 0) || 0,
+                                maxTokens: incomingMaxOut || (prev ? prev.maxTokens : 0) || 0,
+                                selected: prev ? prev.selected : undefined,
                                 manual: false
                             };
                         });
@@ -441,41 +458,29 @@
         $modelsEmpty.hide();
         $modelsList.show();
 
-        // 已保存到当前供应商的模型 id 集合（用于标记「已同步」徽标，不依赖 /models 接口）
-        var savedIds = {};
-        if (currentProvider && currentProvider.models) {
-            currentProvider.models.forEach(function (sm) { savedIds[sm.id] = true; });
-        }
         var html = '';
         fetchedModels.forEach(function (model) {
-            // 已同步 = 该模型已随当前供应商保存过
-            var isSynced = !!savedIds[model.id];
             // 选中状态为前端内存状态（model.selected），默认选中
             var selected = model.selected !== false;
 
-            var manualTag = model.manual ? ' <span class="provider-model-manual-tag">' + I18n.t('provider.manualTag') + '</span>' : '';
+            var manualTag = model.manual ? '<span class="provider-model-manual-tag">' + I18n.t('provider.manualTag') + '</span>' : '';
             var removeBtn = model.manual
                 ? '<button class="provider-model-remove-btn" title="' + I18n.t('provider.remove') + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
                 : '';
-            // 上下文长度标识（如 1m / 256k）
-            var contextTag = '';
-            if (model.maxInputTokens && model.maxInputTokens > 0) {
-                var cl = model.maxInputTokens;
-                var clStr;
-                if (cl >= 1000000 && cl % 1000000 === 0) {
-                    clStr = (cl / 1000000) + 'm';
-                } else if (cl >= 1000) {
-                    clStr = (cl % 1000 === 0 ? (cl / 1000) + 'k' : (cl / 1000).toFixed(1).replace(/\.0$/, '') + 'k');
-                } else {
-                    clStr = String(cl);
-                }
-                contextTag = ' <span class="provider-model-context">' + clStr + '</span>';
-            }
-            var actionsHtml = removeBtn ? '<div class="provider-model-actions">' + removeBtn + '</div>' : '';
+            // 上下文长度：只读显示（info 区的模型属性字段），有值显示如 1m/256k，无值显示占位
+            var contextView = (model.maxInputTokens && model.maxInputTokens > 0)
+                ? '<span class="provider-model-ctx-view">' + escapeHtml(formatContextLength(model.maxInputTokens)) + '</span>'
+                : '<span class="provider-model-ctx-view provider-model-ctx-empty">—</span>';
+            // 上下文长度：编辑按钮（actions 区的纯操作动作）
+            var ctxEditBtn = '<button class="provider-model-ctx-btn" title="' + escapeAttr(I18n.t('provider.contextEditTip')) + '"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
+            // actions 区回归纯按钮：编辑长度 + 删除
+            var actionsHtml = '<div class="provider-model-actions">' + ctxEditBtn + removeBtn + '</div>';
             html += '<label class="provider-model-item' + (!selected ? ' unselected' : '') + '" data-model-id="' + escapeAttr(model.id) + '">' +
                 '<input type="checkbox" ' + (selected ? 'checked' : '') + ' class="provider-model-check"/>' +
                 '<div class="provider-model-info">' +
-                    '<div class="provider-model-name">' + escapeHtml(model.id) + contextTag + manualTag + (isSynced ? ' <span class="provider-model-synced">' + I18n.t('provider.syncedBadge') + '</span>' : '') + '</div>' +
+                    '<span class="provider-model-name">' + escapeHtml(model.id) + '</span>' +
+                    manualTag +
+                    contextView +
                 '</div>' +
                 actionsHtml +
             '</label>';
@@ -491,6 +496,96 @@
                 break;
             }
         }
+    }
+
+    // 将 token 数格式化为紧凑显示（如 1000000 -> 1m，256000 -> 256k）
+    function formatContextLength(cl) {
+        if (cl >= 1000000 && cl % 1000000 === 0) {
+            return (cl / 1000000) + 'm';
+        } else if (cl >= 1000) {
+            return (cl % 1000 === 0 ? (cl / 1000) + 'k' : (cl / 1000).toFixed(1).replace(/\.0$/, '') + 'k');
+        }
+        return String(cl);
+    }
+
+    // 解析用户输入的上下文长度，支持 128k / 1m / 1M / 32000 等写法，返回 token 数（非法返回 null）
+    function parseContextLength(input) {
+        if (input == null) return null;
+        var s = String(input).trim().toLowerCase().replace(/[,_\s]/g, '');
+        if (s === '') return 0; // 空 = 清除
+        var m = s.match(/^(\d+(?:\.\d+)?)(k|m)?$/);
+        if (!m) return null;
+        var num = parseFloat(m[1]);
+        if (isNaN(num)) return null;
+        if (m[2] === 'k') num *= 1000;
+        else if (m[2] === 'm') num *= 1000000;
+        num = Math.round(num);
+        return num < 0 ? null : num;
+    }
+
+    // 更新指定模型的上下文长度（0 或 null 视为清除）
+    function setModelContextLength(modelId, tokens) {
+        for (var i = 0; i < fetchedModels.length; i++) {
+            if (fetchedModels[i].id === modelId) {
+                if (tokens && tokens > 0) {
+                    fetchedModels[i].maxInputTokens = tokens;
+                } else {
+                    delete fetchedModels[i].maxInputTokens;
+                }
+                break;
+            }
+        }
+    }
+
+    // 弹出上下文长度编辑框（支持 128k / 1m 等简写，空值清除，内置常用预设）
+    function editModelContextLength(modelId) {
+        var cur = null;
+        for (var i = 0; i < fetchedModels.length; i++) {
+            if (fetchedModels[i].id === modelId) {
+                cur = fetchedModels[i].maxInputTokens || null;
+                break;
+            }
+        }
+        var curStr = cur ? formatContextLength(cur) : '';
+        var presets = ['128k', '256k', '512k', '1m'];
+        var presetHtml = presets.map(function (p) {
+            return '<button type="button" class="provider-ctx-preset" data-val="' + p + '">' + p + '</button>';
+        }).join('');
+        var content = '<div class="provider-ctx-editor">' +
+            '<input type="text" id="providerCtxInput" class="provider-ctx-input" value="' + escapeAttr(curStr) + '" placeholder="' + escapeAttr(I18n.t('provider.contextPlaceholder')) + '" autocomplete="off"/>' +
+            '<div class="provider-ctx-presets">' + presetHtml + '</div>' +
+            '<div class="provider-ctx-hint">' + escapeHtml(I18n.t('provider.contextHint')) + '</div>' +
+        '</div>';
+        layui.layer.open({
+            type: 1,
+            title: I18n.t('provider.contextEditTitle'),
+            content: content,
+            area: ['320px', 'auto'],
+            btn: [I18n.t('common.confirm'), I18n.t('common.cancel')],
+            success: function (layero) {
+                var $input = layero.find('#providerCtxInput');
+                $input.focus();
+                layero.find('.provider-ctx-preset').on('click', function () {
+                    $input.val($(this).data('val'));
+                });
+                $input.on('keydown', function (e) {
+                    if (e.keyCode === 13) {
+                        layero.find('.layui-layer-btn0').trigger('click');
+                    }
+                });
+            },
+            yes: function (index, layero) {
+                var raw = layero.find('#providerCtxInput').val();
+                var tokens = parseContextLength(raw);
+                if (tokens === null) {
+                    layui.layer.msg(I18n.t('provider.contextInvalid'), { icon: 2 });
+                    return;
+                }
+                setModelContextLength(modelId, tokens);
+                layui.layer.close(index);
+                renderModelsList();
+            }
+        });
     }
 
     // ==================== CRUD 操作 ====================
