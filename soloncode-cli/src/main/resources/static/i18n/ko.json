@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "무엇이든 물어보세요...",
   "common.back": "뒤로",
   "common.cancel": "취소",
+  "common.close": "닫기",
   "common.confirm": "확인",
   "common.copy": "복사",
   "common.delete": "삭제",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "파일 마운트",
   "sidebar.wsLoadFailed": "로드 실패",
   "sidebar.open": "열기",
-  "sidebar.wsPathPlaceholder": "로컬 절대 경로 입력…",
   "sidebar.wsEmpty": "다른 작업 공간이 없습니다",
   "sidebar.wsRemove": "제거",
   "sidebar.wsRemoveConfirm": "이 작업 공간을 목록에서 제거하시겠습니까? (디렉터리는 삭제되지 않음)",
-  "sidebar.wsPathInvalid": "유효한 로컬 절대 경로를 입력하세요 (/ 또는 드라이브 문자로 시작, .. 미포함)"
+  "sidebar.wsPathInvalid": "유효한 로컬 절대 경로를 입력하세요 (/ 또는 드라이브 문자로 시작, .. 미포함)",
+  "sidebar.wsOmniPlaceholder": "워크스페이스 검색 또는 절대 경로 입력 후 열기…"
 }

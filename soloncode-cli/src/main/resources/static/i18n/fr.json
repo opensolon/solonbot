@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Posez votre question...",
   "common.back": "Retour",
   "common.cancel": "Annuler",
+  "common.close": "Fermer",
   "common.confirm": "Confirmer",
   "common.copy": "Copier",
   "common.delete": "Supprimer",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Montages de fichiers",
   "sidebar.wsLoadFailed": "Échec du chargement",
   "sidebar.open": "Ouvrir",
-  "sidebar.wsPathPlaceholder": "Saisissez un chemin absolu local…",
   "sidebar.wsEmpty": "Aucun autre espace de travail",
   "sidebar.wsRemove": "Supprimer",
   "sidebar.wsRemoveConfirm": "Supprimer cet espace de travail de la liste ? (le répertoire ne sera pas supprimé)",
-  "sidebar.wsPathInvalid": "Saisissez un chemin absolu local valide (commençant par / ou une lettre de lecteur, sans ..)"
+  "sidebar.wsPathInvalid": "Saisissez un chemin absolu local valide (commençant par / ou une lettre de lecteur, sans ..)",
+  "sidebar.wsOmniPlaceholder": "Rechercher des espaces de travail ou saisir un chemin absolu à ouvrir…"
 }

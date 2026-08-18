@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Bir şey sorun...",
   "common.back": "Geri",
   "common.cancel": "İptal",
+  "common.close": "Kapat",
   "common.confirm": "Onayla",
   "common.copy": "Kopyala",
   "common.delete": "Sil",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Dosya bağlamaları",
   "sidebar.wsLoadFailed": "Yükleme başarısız",
   "sidebar.open": "Aç",
-  "sidebar.wsPathPlaceholder": "Yerel mutlak yol girin…",
   "sidebar.wsEmpty": "Başka çalışma alanı yok",
   "sidebar.wsRemove": "Kaldır",
   "sidebar.wsRemoveConfirm": "Bu çalışma alanını listeden kaldır? (dizin silinmez)",
-  "sidebar.wsPathInvalid": "Geçerli bir yerel mutlak yol girin (/ veya sürücü harfiyle başlar, .. içermez)"
+  "sidebar.wsPathInvalid": "Geçerli bir yerel mutlak yol girin (/ veya sürücü harfiyle başlar, .. içermez)",
+  "sidebar.wsOmniPlaceholder": "Çalışma alanlarında ara veya açmak için mutlak yol girin…"
 }

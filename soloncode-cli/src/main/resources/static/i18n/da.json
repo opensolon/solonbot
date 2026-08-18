@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Spørg om hvad som helst...",
   "common.back": "Tilbage",
   "common.cancel": "Annuller",
+  "common.close": "Luk",
   "common.confirm": "Bekræft",
   "common.copy": "Kopier",
   "common.delete": "Slet",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Filmonteringer",
   "sidebar.wsLoadFailed": "Indlæsning mislykkedes",
   "sidebar.open": "Åbn",
-  "sidebar.wsPathPlaceholder": "Indtast en lokal absolut sti…",
   "sidebar.wsEmpty": "Ingen andre arbejdsområder",
   "sidebar.wsRemove": "Fjern",
   "sidebar.wsRemoveConfirm": "Fjern dette arbejdsområde fra listen? (mappen slettes ikke)",
-  "sidebar.wsPathInvalid": "Indtast en gyldig lokal absolut sti (starter med / eller drevbogstav, uden ..)"
+  "sidebar.wsPathInvalid": "Indtast en gyldig lokal absolut sti (starter med / eller drevbogstav, uden ..)",
+  "sidebar.wsOmniPlaceholder": "Søg i arbejdsområder, eller indtast en absolut sti for at åbne…"
 }

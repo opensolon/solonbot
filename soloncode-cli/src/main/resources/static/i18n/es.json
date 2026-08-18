@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Pregunte lo que quiera...",
   "common.back": "Volver",
   "common.cancel": "Cancelar",
+  "common.close": "Cerrar",
   "common.confirm": "Confirmar",
   "common.copy": "Copiar",
   "common.delete": "Eliminar",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Montajes de archivos",
   "sidebar.wsLoadFailed": "Error al cargar",
   "sidebar.open": "Abrir",
-  "sidebar.wsPathPlaceholder": "Ingrese una ruta absoluta local…",
   "sidebar.wsEmpty": "No hay otros espacios de trabajo",
   "sidebar.wsRemove": "Eliminar",
   "sidebar.wsRemoveConfirm": "¿Eliminar este espacio de trabajo de la lista? (no se eliminará el directorio)",
-  "sidebar.wsPathInvalid": "Ingrese una ruta absoluta local válida (que comience con / o letra de unidad, sin ..)"
+  "sidebar.wsPathInvalid": "Ingrese una ruta absoluta local válida (que comience con / o letra de unidad, sin ..)",
+  "sidebar.wsOmniPlaceholder": "Buscar espacios de trabajo o ingresar una ruta absoluta para abrir…"
 }

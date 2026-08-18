@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "なんでも聞いてください...",
   "common.back": "戻る",
   "common.cancel": "キャンセル",
+  "common.close": "閉じる",
   "common.confirm": "確認",
   "common.copy": "コピー",
   "common.delete": "削除",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "ファイルマウント",
   "sidebar.wsLoadFailed": "読み込みに失敗しました",
   "sidebar.open": "開く",
-  "sidebar.wsPathPlaceholder": "ローカルの絶対パスを入力…",
   "sidebar.wsEmpty": "他のワークスペースはありません",
   "sidebar.wsRemove": "削除",
   "sidebar.wsRemoveConfirm": "このワークスペースをリストから削除しますか？（ディレクトリは削除されません）",
-  "sidebar.wsPathInvalid": "有効なローカル絶対パスを入力してください（/ またはドライブ文字で始まり、.. を含まない）"
+  "sidebar.wsPathInvalid": "有効なローカル絶対パスを入力してください（/ またはドライブ文字で始まり、.. を含まない）",
+  "sidebar.wsOmniPlaceholder": "ワークスペースを検索、または絶対パスを入力して開く…"
 }

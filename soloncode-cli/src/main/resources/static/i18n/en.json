@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Ask anything...",
   "common.back": "Back",
   "common.cancel": "Cancel",
+  "common.close": "Close",
   "common.confirm": "Confirm",
   "common.copy": "Copy",
   "common.delete": "Delete",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "File Mounts",
   "sidebar.wsLoadFailed": "Failed to load",
   "sidebar.open": "Open",
-  "sidebar.wsPathPlaceholder": "Enter local absolute path…",
   "sidebar.wsEmpty": "No other workspaces",
   "sidebar.wsRemove": "Remove",
   "sidebar.wsRemoveConfirm": "Remove this workspace from the list? (directory is not deleted)",
-  "sidebar.wsPathInvalid": "Enter a valid local absolute path (starting with / or drive letter, no ..)"
+  "sidebar.wsPathInvalid": "Enter a valid local absolute path (starting with / or drive letter, no ..)",
+  "sidebar.wsOmniPlaceholder": "Search workspaces, or enter an absolute path to open…"
 }

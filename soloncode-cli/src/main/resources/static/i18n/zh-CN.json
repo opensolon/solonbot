@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "随便问...",
   "common.back": "返回",
   "common.cancel": "取消",
+  "common.close": "关闭",
   "common.confirm": "确认",
   "common.copy": "复制",
   "common.delete": "删除",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "文件挂载",
   "sidebar.wsLoadFailed": "加载失败",
   "sidebar.open": "打开",
-  "sidebar.wsPathPlaceholder": "输入本地绝对路径…",
   "sidebar.wsEmpty": "暂无其他工作区",
   "sidebar.wsRemove": "移除",
   "sidebar.wsRemoveConfirm": "确定从列表移除该工作区？（不会删除目录）",
-  "sidebar.wsPathInvalid": "请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）"
+  "sidebar.wsPathInvalid": "请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）",
+  "sidebar.wsOmniPlaceholder": "搜索工作区，或输入绝对路径打开…"
 }

@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Hỏi bất cứ điều gì...",
   "common.back": "Quay lại",
   "common.cancel": "Hủy",
+  "common.close": "Đóng",
   "common.confirm": "Xác nhận",
   "common.copy": "Sao chép",
   "common.delete": "Xóa",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Gắn kết tệp",
   "sidebar.wsLoadFailed": "Tải không thành công",
   "sidebar.open": "Mở",
-  "sidebar.wsPathPlaceholder": "Nhập đường dẫn tuyệt đối cục bộ…",
   "sidebar.wsEmpty": "Không có không gian làm việc nào khác",
   "sidebar.wsRemove": "Xóa",
   "sidebar.wsRemoveConfirm": "Xóa không gian làm việc này khỏi danh sách? (thư mục sẽ không bị xóa)",
-  "sidebar.wsPathInvalid": "Nhập đường dẫn tuyệt đối cục bộ hợp lệ (bắt đầu bằng / hoặc ký tự ổ đĩa, không có ..)"
+  "sidebar.wsPathInvalid": "Nhập đường dẫn tuyệt đối cục bộ hợp lệ (bắt đầu bằng / hoặc ký tự ổ đĩa, không có ..)",
+  "sidebar.wsOmniPlaceholder": "Tìm kiếm không gian làm việc hoặc nhập đường dẫn tuyệt đối để mở…"
 }

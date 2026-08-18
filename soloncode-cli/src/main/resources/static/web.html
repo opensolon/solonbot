@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/css/theme.css"/>
     <link rel="stylesheet" href="/css/app.css"/>
     <link rel="stylesheet" href="/css/settings.css"/>
+    <link rel="stylesheet" href="/css/ws-home.css"/>
     <!-- 当前皮肤：由 app-ui.js 按 static/skin/<name>/skin.css 动态加载 -->
     <script>window._i18nVer = '20260802';</script>
     <script src="/js/i18n.js"></script>
@@ -37,26 +38,12 @@
             <span class="sidebar-nav-label" data-i18n="sidebar.memory">心智记忆</span>
             <span class="sidebar-nav-badge" id="memoryBadge" style="display:none">0</span>
         </button>
-        <div class="ws-open-wrap" id="wsOpenWrap">
-            <button class="sidebar-nav-item" id="wsOpenBtn" title="工作区" data-i18n-title="sidebar.workspace">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                <span class="sidebar-nav-label" data-i18n="sidebar.workspace">工作区</span>
-            </button>
-            <div class="ws-open-panel" id="wsOpenPanel">
-                <div class="ws-open-panel-title" data-i18n="sidebar.launchWorkspace">启动目录</div>
-                <div class="ws-open-list" id="wsLaunchList"></div>
-                <div class="ws-open-panel-title" data-i18n="sidebar.recentWorkspaces">最近打开的工作区</div>
-                <div class="ws-open-list" id="wsOpenList"></div>
-                <div class="ws-open-panel-title" id="wsMountTitle" data-i18n="sidebar.fileMounts" style="display:none">文件挂载</div>
-                <div class="ws-open-list" id="wsMountList"></div>
-                <div class="ws-open-new">
-                    <input type="text" id="wsOpenPathInput" placeholder="输入本地绝对路径…" data-i18n-placeholder="sidebar.wsPathPlaceholder">
-                    <button id="wsOpenGoBtn" title="打开" data-i18n-title="sidebar.open">打开</button>
-                </div>
-            </div>
-        </div>
+        <button class="sidebar-nav-item" id="wsOpenBtn" title="工作区" data-i18n-title="sidebar.workspace">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="sidebar-nav-label" data-i18n="sidebar.workspace">工作区</span>
+        </button>
     </div>
     <div class="sidebar-title" data-i18n="sidebar.recentChats">最近对话</div>
     <div class="sidebar-list" id="historyList"></div>
@@ -522,6 +509,34 @@
     </div>
 
 
+</div>
+
+<!-- 工作区全屏 Home（放在 body 最外层，铺满视口，盖在当前工作区之上，ESC/关闭退回） -->
+<div class="ws-home-overlay" id="wsHomeOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="工作区" data-i18n-aria-label="sidebar.workspace">
+    <div class="ws-home">
+        <header class="ws-home-header">
+            <div class="ws-home-brand" data-i18n="sidebar.workspace">工作区</div>
+            <div class="ws-home-omni">
+                <input type="text" class="ws-home-search" id="wsHomeSearch" placeholder="搜索工作区，或输入绝对路径打开…" data-i18n-placeholder="sidebar.wsOmniPlaceholder" autocomplete="off">
+                <button class="ws-home-omni-go" id="wsHomeGoBtn" data-i18n="sidebar.open">打开</button>
+            </div>
+            <button class="ws-home-close" id="wsHomeCloseBtn" title="关闭" data-i18n-title="common.close" aria-label="关闭" data-i18n-aria-label="common.close">✕</button>
+        </header>
+        <div class="ws-home-body" id="wsHomeBody">
+            <section class="ws-home-section" id="wsHomeRecentSection">
+                <h3 class="ws-home-section-title" data-i18n="sidebar.recentWorkspaces">最近打开的工作区</h3>
+                <div class="ws-home-grid" id="wsHomeRecentGrid"></div>
+            </section>
+            <section class="ws-home-section" id="wsHomeLaunchSection">
+                <h3 class="ws-home-section-title" data-i18n="sidebar.launchWorkspace">启动目录</h3>
+                <div class="ws-home-grid" id="wsHomeLaunchGrid"></div>
+            </section>
+            <section class="ws-home-section" id="wsHomeMountSection" style="display:none">
+                <h3 class="ws-home-section-title" data-i18n="sidebar.fileMounts">文件挂载</h3>
+                <div class="ws-home-grid" id="wsHomeMountGrid"></div>
+            </section>
+        </div>
+    </div>
 </div>
 
 <!-- Settings Overlay (放在 body 最外层，确保 position:fixed 覆盖全屏) -->
@@ -2189,16 +2204,22 @@
         document.addEventListener('DOMContentLoaded', syncLocaleSelectorUI);
     })();
 
-    // ===== 侧边栏“打开”工作区面板（悬停显示） =====
+    // ===== 侧边栏工作区全屏 Home（点击展开，盖在当前工作区之上，ESC/关闭退回） =====
     (function () {
-        var wrap = document.getElementById('wsOpenWrap');
-        var listEl = document.getElementById('wsOpenList');
-        var mountListEl = document.getElementById('wsMountList');
-        var mountTitleEl = document.getElementById('wsMountTitle');
-        var launchListEl = document.getElementById('wsLaunchList');
-        var pathInput = document.getElementById('wsOpenPathInput');
-        var goBtn = document.getElementById('wsOpenGoBtn');
-        var hideTimer = null;
+        var openBtn = document.getElementById('wsOpenBtn');
+        var overlay = document.getElementById('wsHomeOverlay');
+        var closeBtn = document.getElementById('wsHomeCloseBtn');
+        var searchInput = document.getElementById('wsHomeSearch');
+        var recentGrid = document.getElementById('wsHomeRecentGrid');
+        var recentSection = document.getElementById('wsHomeRecentSection');
+        var launchGrid = document.getElementById('wsHomeLaunchGrid');
+        var launchSection = document.getElementById('wsHomeLaunchSection');
+        var mountGrid = document.getElementById('wsHomeMountGrid');
+        var mountSection = document.getElementById('wsHomeMountSection');
+        var goBtn = document.getElementById('wsHomeGoBtn');
+
+        // 内存缓存，供搜索过滤复用
+        var cache = { launch: null, workspaces: [], mounts: [] };
 
         function t(key, def) {
             if (!window.I18n || typeof I18n.t !== 'function') return def;
@@ -2208,59 +2229,85 @@
 
         function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-        function load() {
-            fetch('/web/workspace/list').then(function (r) { return r.json(); }).then(function (res) {
-                if (res.code !== 200 || !res.data) { listEl.innerHTML = '<div class="ws-open-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>'; return; }
-                var data = res.data;
+        function segOf(p) { return String(p || '').replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p; }
 
-                // 1. 启动目录（同最近工作区风格：name(path 末段) + path，点击回默认工作区）
-                if (launchListEl) {
-                    var lp = (data.launch && data.launch.path) ? data.launch.path : '';
-                    if (lp) {
-                        var lseg = lp.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || lp;
-                        launchListEl.innerHTML = '<a class="ws-open-item" href="/">' +
-                            '<div class="ws-open-item-info">' +
-                            '<div class="ws-open-item-name">' + esc(lseg) + '</div>' +
-                            '<div class="ws-open-item-path" title="' + esc(lp) + '">' + esc(lp) + '</div></div></a>';
-                    } else {
-                        launchListEl.innerHTML = '';
-                    }
-                }
+        function matches(kw, text) { return !kw || String(text || '').toLowerCase().indexOf(kw) >= 0; }
 
-                // 2. 最近的工作区
-                var workspaces = data.workspaces || [];
-                var html = '';
-                workspaces.forEach(function (item) {
-                    html += '<div class="ws-open-item" data-id="' + esc(item.id) + '">' +
-                        '<div class="ws-open-item-info">' +
-                        '<div class="ws-open-item-name">' + esc(item.name || item.path) + '</div>' +
-                        '<div class="ws-open-item-path" title="' + esc(item.path) + '">' + esc(item.path) + '</div></div>' +
-                        '<button class="btn-icon" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">✕</button></div>';
+        // 判断输入是否疑似绝对路径（用于跳过列表过滤）
+        function looksLikePath(s) { return s.charAt(0) === '/' || /^[A-Za-z]:[\\/]/.test(s); }
+
+        // 根据缓存 + 当前搜索词渲染三段卡片
+        function render() {
+            var raw = (searchInput.value || '').trim();
+            // 输入疑似绝对路径时视为「新建」意图，不拿它过滤列表，保持列表原样
+            var kw = looksLikePath(raw) ? '' : raw.toLowerCase();
+
+            // 1. 最近工作区
+            var ws = cache.workspaces.filter(function (item) { return matches(kw, item.name) || matches(kw, item.path); });
+            var html = '';
+            ws.forEach(function (item) {
+                html += '<div class="ws-home-card" data-id="' + esc(item.id) + '">' +
+                    '<div class="ws-home-card-name">' + esc(item.name || item.path) + '</div>' +
+                    '<div class="ws-home-card-path" title="' + esc(item.path) + '">' + esc(item.path) + '</div>' +
+                    '<button class="ws-home-card-remove" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">✕</button></div>';
+            });
+            recentGrid.innerHTML = html || '<div class="ws-home-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
+
+            // 2. 启动目录（点击回默认工作区）
+            var lp = (cache.launch && cache.launch.path) ? cache.launch.path : '';
+            if (lp && (matches(kw, segOf(lp)) || matches(kw, lp))) {
+                launchGrid.innerHTML = '<a class="ws-home-card" href="/">' +
+                    '<div class="ws-home-card-name">' + esc(segOf(lp)) + '</div>' +
+                    '<div class="ws-home-card-path" title="' + esc(lp) + '">' + esc(lp) + '</div></a>';
+                launchSection.style.display = '';
+            } else {
+                launchGrid.innerHTML = '';
+                launchSection.style.display = lp ? 'none' : 'none';
+            }
+
+            // 3. 文件挂载（点击传 alias 走 open 接口）
+            var mounts = cache.mounts.filter(function (m) { return matches(kw, m.alias) || matches(kw, m.path); });
+            if (mounts.length > 0) {
+                var mhtml = '';
+                mounts.forEach(function (m) {
+                    mhtml += '<div class="ws-home-card" data-alias="' + esc(m.alias) + '">' +
+                        '<div class="ws-home-card-name">' + esc(m.alias) + '</div>' +
+                        '<div class="ws-home-card-path" title="' + esc(m.path) + '">' + esc(m.path) + '</div></div>';
                 });
-                listEl.innerHTML = html || '<div class="ws-open-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
-
-                // 3. 文件挂载（点击传 alias 走后端 @ 解析，效果同工作区）
-                var mounts = data.mounts || [];
-                if (mounts.length > 0) {
-                    var mhtml = '';
-                    mounts.forEach(function (m) {
-                        mhtml += '<div class="ws-open-item" data-alias="' + esc(m.alias) + '">' +
-                            '<div class="ws-open-item-info">' +
-                            '<div class="ws-open-item-name">' + esc(m.alias) + '</div>' +
-                            '<div class="ws-open-item-path" title="' + esc(m.path) + '">' + esc(m.path) + '</div></div></div>';
-                    });
-                    mountListEl.innerHTML = mhtml;
-                    mountTitleEl.style.display = '';
-                    mountListEl.style.display = '';
-                } else {
-                    mountListEl.innerHTML = '';
-                    mountTitleEl.style.display = 'none';
-                    mountListEl.style.display = 'none';
-                }
-            }).catch(function () { listEl.innerHTML = '<div class="ws-open-empty">' + t('sidebar.wsLoadFailed', '加载失败') + '</div>'; });
+                mountGrid.innerHTML = mhtml;
+                mountSection.style.display = '';
+            } else {
+                mountGrid.innerHTML = '';
+                mountSection.style.display = 'none';
+            }
         }
 
-        listEl.addEventListener('click', function (e) {
+        function load() {
+            fetch('/web/workspace/list').then(function (r) { return r.json(); }).then(function (res) {
+                if (res.code !== 200 || !res.data) {
+                    recentGrid.innerHTML = '<div class="ws-home-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
+                    return;
+                }
+                cache.launch = res.data.launch || null;
+                cache.workspaces = res.data.workspaces || [];
+                cache.mounts = res.data.mounts || [];
+                render();
+            }).catch(function () { recentGrid.innerHTML = '<div class="ws-home-empty">' + t('sidebar.wsLoadFailed', '加载失败') + '</div>'; });
+        }
+
+        function openHome() {
+            overlay.style.display = 'flex';
+            load();
+            setTimeout(function () { searchInput.focus(); }, 50);
+        }
+
+        function closeHome() {
+            overlay.style.display = 'none';
+            if (openBtn && typeof openBtn.focus === 'function') openBtn.focus();
+        }
+
+        // 点击最近工作区卡片：新 tab 打开；点击移除按钮：从列表移除
+        recentGrid.addEventListener('click', function (e) {
             var rm = e.target.getAttribute && e.target.getAttribute('data-remove');
             if (rm) {
                 e.stopPropagation();
@@ -2270,52 +2317,57 @@
                     .then(function (res) { if (res.code === 200) load(); else alert(res.description || 'remove failed'); });
                 return;
             }
-            var item = e.target.closest ? e.target.closest('.ws-open-item') : null;
-            if (item) {
-                var id = item.getAttribute('data-id');
-                window.open('/?workspaceId=' + encodeURIComponent(id), '_blank');
+            var item = e.target.closest ? e.target.closest('.ws-home-card') : null;
+            if (item && item.getAttribute('data-id')) {
+                window.open('/?workspaceId=' + encodeURIComponent(item.getAttribute('data-id')), '_blank');
+                closeHome();
             }
         });
 
         // 文件挂载点击：传 alias 走 open 接口（后端 @ 解析→落历史→跳转）
-        mountListEl.addEventListener('click', function (e) {
-            var item = e.target.closest ? e.target.closest('.ws-open-item') : null;
+        mountGrid.addEventListener('click', function (e) {
+            var item = e.target.closest ? e.target.closest('.ws-home-card') : null;
             if (!item) return;
             var alias = item.getAttribute('data-alias');
             if (!alias) return;
             fetch('/web/workspace/open', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'path=' + encodeURIComponent(alias) })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
-                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); }
+                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); closeHome(); }
                     else alert(res.description || res.message || 'open failed');
                 })
                 .catch(function () { alert('open failed'); });
         });
 
         function openNew() {
-            var path = pathInput.value.trim();
+            var path = (searchInput.value || '').trim();
             if (!path) return;
-            var isAbs = path.charAt(0) === '/' || /^[A-Za-z]:[\\/]/.test(path);
+            var isAbs = looksLikePath(path);
             if (!isAbs || path.indexOf('..') >= 0) { alert(t('sidebar.wsPathInvalid', '请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）')); return; }
             goBtn.disabled = true;
             fetch('/web/workspace/open', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'path=' + encodeURIComponent(path) })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     goBtn.disabled = false;
-                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); }
+                    if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); closeHome(); }
                     else alert(res.description || res.message || 'open failed');
                 })
                 .catch(function () { goBtn.disabled = false; alert('open failed'); });
         }
+
+        openBtn.addEventListener('click', openHome);
+        closeBtn.addEventListener('click', closeHome);
+        searchInput.addEventListener('input', render);
         goBtn.addEventListener('click', openNew);
-        pathInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') openNew(); });
-        pathInput.addEventListener('click', function (e) { e.stopPropagation(); });
+        searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') openNew(); });
 
-        // 悬停显示/隐藏（带 200ms 延迟，避免经过时闪烁）
-        wrap.addEventListener('mouseenter', function () { clearTimeout(hideTimer); document.getElementById('wsOpenPanel').style.display = 'block'; });
-        wrap.addEventListener('mouseleave', function () { hideTimer = setTimeout(function () { document.getElementById('wsOpenPanel').style.display = 'none'; }, 200); });
-
-        wrap.addEventListener('mouseenter', load);
+        // ESC 退回：仅当 Home 可见时处理，且不影响更上层弹层
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape' && e.keyCode !== 27) return;
+            if (overlay.style.display === 'none' || overlay.style.display === '') return;
+            e.stopPropagation();
+            closeHome();
+        });
     })();
 </script>
 

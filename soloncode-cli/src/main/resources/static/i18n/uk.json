@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Запитайте що завгодно...",
   "common.back": "Назад",
   "common.cancel": "Скасувати",
+  "common.close": "Закрити",
   "common.confirm": "Підтвердити",
   "common.copy": "Копіювати",
   "common.delete": "Видалити",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Монтування файлів",
   "sidebar.wsLoadFailed": "Не вдалося завантажити",
   "sidebar.open": "Відкрити",
-  "sidebar.wsPathPlaceholder": "Введіть локальний абсолютний шлях…",
   "sidebar.wsEmpty": "Немає інших робочих областей",
   "sidebar.wsRemove": "Видалити",
   "sidebar.wsRemoveConfirm": "Видалити цю робочу область зі списку? (каталог не буде видалено)",
-  "sidebar.wsPathInvalid": "Введіть дійсний локальний абсолютний шлях (починається з / або літери диска, без ..)"
+  "sidebar.wsPathInvalid": "Введіть дійсний локальний абсолютний шлях (починається з / або літери диска, без ..)",
+  "sidebar.wsOmniPlaceholder": "Пошук робочих просторів або введіть абсолютний шлях для відкриття…"
 }

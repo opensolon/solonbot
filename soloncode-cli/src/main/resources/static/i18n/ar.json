@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "اسأل أي شيء...",
   "common.back": "رجوع",
   "common.cancel": "إلغاء",
+  "common.close": "إغلاق",
   "common.confirm": "تأكيد",
   "common.copy": "نسخ",
   "common.delete": "حذف",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "نقاط تحميل الملفات",
   "sidebar.wsLoadFailed": "فشل التحميل",
   "sidebar.open": "فتح",
-  "sidebar.wsPathPlaceholder": "أدخل مسارًا مطلقًا محليًا…",
   "sidebar.wsEmpty": "لا توجد مساحات عمل أخرى",
   "sidebar.wsRemove": "إزالة",
   "sidebar.wsRemoveConfirm": "إزالة مساحة العمل هذه من القائمة؟ (لن يتم حذف الدليل)",
-  "sidebar.wsPathInvalid": "أدخل مسارًا مطلقًا محليًا صالحًا (يبدأ بـ / أو حرف محرك أقراص، دون ..)"
+  "sidebar.wsPathInvalid": "أدخل مسارًا مطلقًا محليًا صالحًا (يبدأ بـ / أو حرف محرك أقراص، دون ..)",
+  "sidebar.wsOmniPlaceholder": "ابحث في مساحات العمل أو أدخل مسارًا مطلقًا للفتح…"
 }

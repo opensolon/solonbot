@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "যেকোনো কিছু জিজ্ঞেস করুন...",
   "common.back": "ফিরে যান",
   "common.cancel": "বাতিল",
+  "common.close": "বন্ধ করুন",
   "common.confirm": "নিশ্চিত করুন",
   "common.copy": "কপি",
   "common.delete": "মুছুন",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "ফাইল মাউন্ট",
   "sidebar.wsLoadFailed": "লোড করা ব্যর্থ হয়েছে",
   "sidebar.open": "খুলুন",
-  "sidebar.wsPathPlaceholder": "স্থানীয় পরম পথ লিখুন…",
   "sidebar.wsEmpty": "অন্য কোনো ওয়ার্কস্পেস নেই",
   "sidebar.wsRemove": "সরান",
   "sidebar.wsRemoveConfirm": "তালিকা থেকে এই ওয়ার্কস্পেসটি সরাবেন? (ডিরেক্টরি মুছে ফেলা হবে না)",
-  "sidebar.wsPathInvalid": "একটি বৈধ স্থানীয় পরম পথ লিখুন (/ বা ড্রাইভ অক্ষর দিয়ে শুরু, .. ছাড়া)"
+  "sidebar.wsPathInvalid": "একটি বৈধ স্থানীয় পরম পথ লিখুন (/ বা ড্রাইভ অক্ষর দিয়ে শুরু, .. ছাড়া)",
+  "sidebar.wsOmniPlaceholder": "ওয়ার্কস্পেস খুঁজুন, বা খুলতে পরম পথ লিখুন…"
 }

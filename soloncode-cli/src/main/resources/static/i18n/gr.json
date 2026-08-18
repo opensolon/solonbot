@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Ρωτήστε οτιδήποτε...",
   "common.back": "Πίσω",
   "common.cancel": "Ακύρωση",
+  "common.close": "Κλείσιμο",
   "common.confirm": "Επιβεβαίωση",
   "common.copy": "Αντιγραφή",
   "common.delete": "Διαγραφή",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Προσαρτήσεις αρχείων",
   "sidebar.wsLoadFailed": "Αποτυχία φόρτωσης",
   "sidebar.open": "Άνοιγμα",
-  "sidebar.wsPathPlaceholder": "Εισαγάγετε τοπική απόλυτη διαδρομή…",
   "sidebar.wsEmpty": "Δεν υπάρχουν άλλοι χώροι εργασίας",
   "sidebar.wsRemove": "Κατάργηση",
   "sidebar.wsRemoveConfirm": "Κατάργηση αυτού του χώρου εργασίας από τη λίστα; (ο κατάλογος δεν θα διαγραφεί)",
-  "sidebar.wsPathInvalid": "Εισαγάγετε έγκυρη τοπική απόλυτη διαδρομή (ξεκινά με / ή γράμμα μονάδας δίσκου, χωρίς ..)"
+  "sidebar.wsPathInvalid": "Εισαγάγετε έγκυρη τοπική απόλυτη διαδρομή (ξεκινά με / ή γράμμα μονάδας δίσκου, χωρίς ..)",
+  "sidebar.wsOmniPlaceholder": "Αναζήτηση χώρων εργασίας ή εισαγωγή απόλυτης διαδρομής για άνοιγμα…"
 }

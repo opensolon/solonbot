@@ -3196,23 +3196,4 @@ pre:hover .code-copy-btn { opacity: 1; }
  .mem-scope-btn.active { background: var(--accent-fill, var(--accent)); color: #fff; }
     .mem-scope-btn.active + .mem-scope-btn { border-left-color: transparent; }
 
-/* ===== sidebar workspace open panel ===== */
-.ws-open-wrap { position: relative; width: 100%; }
-.ws-open-wrap .sidebar-nav-item { width: 100%; }
-.ws-open-panel { display: none; position: absolute; left: calc(100% + 8px); top: 0; width: 320px; max-height: 420px; overflow-y: auto; background: var(--bg-primary, #fff); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 10px; z-index: 1200; }
-.ws-open-wrap:hover .ws-open-panel, .ws-open-panel:hover { display: block; }
-.ws-open-panel-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); padding: 2px 4px 8px; }
-.ws-open-list { display: flex; flex-direction: column; gap: 2px; }
-.ws-open-item { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; text-decoration: none; color: inherit; }
-.ws-open-item:hover { background: var(--accent-light); }
-.ws-open-item-info { flex: 1; min-width: 0; }
-.ws-open-item-name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ws-open-item-path { font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-.ws-open-item .btn-icon { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 6px; flex-shrink: 0; }
-.ws-open-item .btn-icon:hover { color: #e55; background: rgba(229,85,85,.12); }
-.ws-open-empty { font-size: var(--fs-xs); color: var(--text-secondary); text-align: center; padding: 12px 0; }
-.ws-open-new { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); }
-.ws-open-new input { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary, #fafafa); color: var(--text-primary); font-size: var(--fs-xs); padding: 0 8px; font-family: inherit; }
-.ws-open-new input:focus { outline: none; border-color: var(--accent); }
-.ws-open-new button { height: 30px; padding: 0 10px; border: none; border-radius: 8px; background: var(--accent-fill, var(--accent)); color: #fff; font-size: var(--fs-xs); cursor: pointer; font-family: inherit; }
-.ws-open-new button:disabled { opacity: .5; cursor: default; }
+/* ===== sidebar workspace open (全屏 Home 样式见 css/ws-home.css) ===== */

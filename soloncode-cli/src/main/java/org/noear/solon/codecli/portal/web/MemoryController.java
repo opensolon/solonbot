@@ -22,9 +22,13 @@ import org.noear.solon.ai.talents.memory.MemorySolution;
 import org.noear.solon.ai.talents.memory.MemorySolutionProvider;
 import org.noear.solon.ai.talents.memory.MemorySearcher;
 import org.noear.solon.ai.talents.memory.MemoryStorer;
+import org.noear.solon.Solon;
 import org.noear.solon.annotation.Mapping;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
@@ -63,12 +67,30 @@ public class MemoryController {
         this.engine = engine;
     }
 
+    /**
+     * 动态解析当前请求所属工作区的引擎。
+     * <p>多工作区下，构造注入的 {@link #engine} 恒为默认工作区实例；
+     * 必须按请求上下文取当前工作区 engine，否则「心智记忆」面板在任何工作区都只会读到默认工作区的记忆。</p>
+     */
+    private HarnessEngine currentEngine() {
+        Context ctx = Context.current();
+        WorkspaceContext wctx = null;
+        if (ctx != null) {
+            wctx = ctx.attr("WORKSPACE_CTX");
+        }
+        if (wctx == null) {
+            wctx = Solon.context().getBean(WorkspaceManager.class).getOrCreate(null);
+        }
+        return wctx != null ? wctx.getEngine() : engine;
+    }
+
     private MemorySolution solution() {
-        MemorySolutionProvider provider = engine.getMemoryProvider();
+        HarnessEngine eng = currentEngine();
+        MemorySolutionProvider provider = eng.getMemoryProvider();
         if (provider == null) {
             return null;
         }
-        return provider.get(engine.getWorkspace());
+        return provider.get(eng.getWorkspace());
     }
 
     private String getNow() {

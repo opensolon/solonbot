@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "ถามอะไรก็ได้...",
   "common.back": "กลับ",
   "common.cancel": "ยกเลิก",
+  "common.close": "ปิด",
   "common.confirm": "ยืนยัน",
   "common.copy": "คัดลอก",
   "common.delete": "ลบ",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "การเมานต์ไฟล์",
   "sidebar.wsLoadFailed": "โหลดไม่สำเร็จ",
   "sidebar.open": "เปิด",
-  "sidebar.wsPathPlaceholder": "ป้อนพาธสัมบูรณ์ในเครื่อง…",
   "sidebar.wsEmpty": "ไม่มีพื้นที่ทำงานอื่น",
   "sidebar.wsRemove": "ลบออก",
   "sidebar.wsRemoveConfirm": "ลบพื้นที่ทำงานนี้ออกจากรายการ? (จะไม่ลบไดเรกทอรี)",
-  "sidebar.wsPathInvalid": "ป้อนพาธสัมบูรณ์ในเครื่องที่ถูกต้อง (ขึ้นต้นด้วย / หรืออักษรไดรฟ์ ไม่มี ..)"
+  "sidebar.wsPathInvalid": "ป้อนพาธสัมบูรณ์ในเครื่องที่ถูกต้อง (ขึ้นต้นด้วย / หรืออักษรไดรฟ์ ไม่มี ..)",
+  "sidebar.wsOmniPlaceholder": "ค้นหาพื้นที่ทำงาน หรือป้อนพาธสัมบูรณ์เพื่อเปิด…"
 }

@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Spør om hva som helst...",
   "common.back": "Tilbake",
   "common.cancel": "Avbryt",
+  "common.close": "Lukk",
   "common.confirm": "Bekreft",
   "common.copy": "Kopier",
   "common.delete": "Slett",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Filmonteringer",
   "sidebar.wsLoadFailed": "Kunne ikke laste",
   "sidebar.open": "Åpne",
-  "sidebar.wsPathPlaceholder": "Skriv inn en lokal absolutt bane…",
   "sidebar.wsEmpty": "Ingen andre arbeidsområder",
   "sidebar.wsRemove": "Fjern",
   "sidebar.wsRemoveConfirm": "Fjerne dette arbeidsområdet fra listen? (mappen slettes ikke)",
-  "sidebar.wsPathInvalid": "Skriv inn en gyldig lokal absolutt bane (starter med / eller stasjonsbokstav, uten ..)"
+  "sidebar.wsPathInvalid": "Skriv inn en gyldig lokal absolutt bane (starter med / eller stasjonsbokstav, uten ..)",
+  "sidebar.wsOmniPlaceholder": "Søk i arbeidsområder eller skriv inn en absolutt bane for å åpne…"
 }

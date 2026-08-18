@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "隨便問...",
   "common.back": "返回",
   "common.cancel": "取消",
+  "common.close": "關閉",
   "common.confirm": "確認",
   "common.copy": "複製",
   "common.delete": "刪除",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "檔案掛載",
   "sidebar.wsLoadFailed": "載入失敗",
   "sidebar.open": "開啟",
-  "sidebar.wsPathPlaceholder": "輸入本地絕對路徑…",
   "sidebar.wsEmpty": "暫無其他工作區",
   "sidebar.wsRemove": "移除",
   "sidebar.wsRemoveConfirm": "確定從列表移除該工作區？（不會刪除目錄）",
-  "sidebar.wsPathInvalid": "請輸入合法的本地絕對路徑（以 / 或盤符開頭，且不含 ..）"
+  "sidebar.wsPathInvalid": "請輸入合法的本地絕對路徑（以 / 或盤符開頭，且不含 ..）",
+  "sidebar.wsOmniPlaceholder": "搜尋工作區，或輸入絕對路徑開啟…"
 }

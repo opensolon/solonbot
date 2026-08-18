@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Zapytaj o cokolwiek...",
   "common.back": "Wstecz",
   "common.cancel": "Anuluj",
+  "common.close": "Zamknij",
   "common.confirm": "Potwierdź",
   "common.copy": "Kopiuj",
   "common.delete": "Usuń",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Montowania plików",
   "sidebar.wsLoadFailed": "Ładowanie nie powiodło się",
   "sidebar.open": "Otwórz",
-  "sidebar.wsPathPlaceholder": "Wprowadź lokalną ścieżkę bezwzględną…",
   "sidebar.wsEmpty": "Brak innych obszarów roboczych",
   "sidebar.wsRemove": "Usuń",
   "sidebar.wsRemoveConfirm": "Usunąć ten obszar roboczy z listy? (katalog nie zostanie usunięty)",
-  "sidebar.wsPathInvalid": "Wprowadź prawidłową lokalną ścieżkę bezwzględną (zaczynającą się od / lub litery dysku, bez ..)"
+  "sidebar.wsPathInvalid": "Wprowadź prawidłową lokalną ścieżkę bezwzględną (zaczynającą się od / lub litery dysku, bez ..)",
+  "sidebar.wsOmniPlaceholder": "Szukaj przestrzeni roboczych lub wprowadź ścieżkę bezwzględną do otwarcia…"
 }

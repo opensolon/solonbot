@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Pergunte qualquer coisa...",
   "common.back": "Voltar",
   "common.cancel": "Cancelar",
+  "common.close": "Serrañ",
   "common.confirm": "Confirmar",
   "common.copy": "Copiar",
   "common.delete": "Excluir",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Montagens de arquivo",
   "sidebar.wsLoadFailed": "Falha ao carregar",
   "sidebar.open": "Abrir",
-  "sidebar.wsPathPlaceholder": "Digite um caminho absoluto local…",
   "sidebar.wsEmpty": "Nenhum outro espaço de trabalho",
   "sidebar.wsRemove": "Remover",
   "sidebar.wsRemoveConfirm": "Remover este espaço de trabalho da lista? (o diretório não será excluído)",
-  "sidebar.wsPathInvalid": "Digite um caminho absoluto local válido (começando com / ou letra de unidade, sem ..)"
+  "sidebar.wsPathInvalid": "Digite um caminho absoluto local válido (começando com / ou letra de unidade, sem ..)",
+  "sidebar.wsOmniPlaceholder": "Klask er gweelec'hioù labour pe lakait un hent absolut da zigeriñ…"
 }

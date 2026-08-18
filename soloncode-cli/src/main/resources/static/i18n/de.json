@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Fragen Sie alles...",
   "common.back": "Zurück",
   "common.cancel": "Abbrechen",
+  "common.close": "Schließen",
   "common.confirm": "Bestätigen",
   "common.copy": "Kopieren",
   "common.delete": "Löschen",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Datei-Einbindungen",
   "sidebar.wsLoadFailed": "Laden fehlgeschlagen",
   "sidebar.open": "Öffnen",
-  "sidebar.wsPathPlaceholder": "Lokalen absoluten Pfad eingeben…",
   "sidebar.wsEmpty": "Keine weiteren Arbeitsbereiche",
   "sidebar.wsRemove": "Entfernen",
   "sidebar.wsRemoveConfirm": "Diesen Arbeitsbereich aus der Liste entfernen? (Verzeichnis wird nicht gelöscht)",
-  "sidebar.wsPathInvalid": "Geben Sie einen gültigen lokalen absoluten Pfad ein (beginnend mit / oder Laufwerksbuchstaben, ohne ..)"
+  "sidebar.wsPathInvalid": "Geben Sie einen gültigen lokalen absoluten Pfad ein (beginnend mit / oder Laufwerksbuchstaben, ohne ..)",
+  "sidebar.wsOmniPlaceholder": "Arbeitsbereiche suchen oder absoluten Pfad zum Öffnen eingeben…"
 }

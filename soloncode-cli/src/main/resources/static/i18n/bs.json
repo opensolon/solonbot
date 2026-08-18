@@ -80,6 +80,7 @@
   "chat.inputPlaceholder": "Pitajte bilo što...",
   "common.back": "Nazad",
   "common.cancel": "Odustani",
+  "common.close": "Zatvori",
   "common.confirm": "Potvrdi",
   "common.copy": "Kopiraj",
   "common.delete": "Obriši",
@@ -1127,9 +1128,9 @@
   "sidebar.fileMounts": "Montiranja datoteka",
   "sidebar.wsLoadFailed": "Učitavanje nije uspjelo",
   "sidebar.open": "Otvori",
-  "sidebar.wsPathPlaceholder": "Unesite lokalnu apsolutnu putanju…",
   "sidebar.wsEmpty": "Nema drugih radnih prostora",
   "sidebar.wsRemove": "Ukloni",
   "sidebar.wsRemoveConfirm": "Ukloniti ovaj radni prostor s liste? (direktorij neće biti izbrisan)",
-  "sidebar.wsPathInvalid": "Unesite valjanu lokalnu apsolutnu putanju (počinje s / ili slovom pogona, bez ..)"
+  "sidebar.wsPathInvalid": "Unesite valjanu lokalnu apsolutnu putanju (počinje s / ili slovom pogona, bez ..)",
+  "sidebar.wsOmniPlaceholder": "Pretraži radne prostore ili unesi apsolutnu putanju za otvaranje…"
 }
