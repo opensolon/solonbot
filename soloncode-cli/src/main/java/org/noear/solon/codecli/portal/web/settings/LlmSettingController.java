@@ -655,7 +655,8 @@ public class LlmSettingController extends BaseSettingsController {
         }
 
         LOG.info("[Settings] Synced {} models from provider: {} (deselected {} orphans)", syncCount, providerName, deselectCount);
-        return Result.succeed(syncCount);
+        // 返回变更总数（新增/更新 + 取消勾选），使前端在纯取消勾选时也能感知并刷新
+        return Result.succeed(syncCount + deselectCount);
     }
 
     /**

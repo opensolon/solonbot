@@ -147,20 +147,18 @@
     }
 
     function loadProvidersList() {
-        loadLlmModelsCache(function () {
-            $.ajax({
-                url: '/web/settings/llm/providers',
-                method: 'GET',
-                success: function (res) {
-                    if (res.code === 200) {
-                        providers = res.data || [];
-                        renderProvidersList();
-                    }
-                },
-                error: function () {
-                    layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
+        $.ajax({
+            url: '/web/settings/llm/providers',
+            method: 'GET',
+            success: function (res) {
+                if (res.code === 200) {
+                    providers = res.data || [];
+                    renderProvidersList();
                 }
-            });
+            },
+            error: function () {
+                layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
+            }
         });
     }
 
@@ -180,15 +178,9 @@
         var models = provider.models || [];
         var n = models.length;
         var m = 0;
-        var providerName = provider.name || '';
-        var providerEnabled = provider.enabled !== false;
-
+        // m 表示已勾选（selected）的模型数，直接读 provider 数据自带的 selected 字段
         models.forEach(function (model) {
-            var llmName = providerName ? providerName + '-' + model.id : model.id;
-            var syncedModel = llmModelsCache[llmName];
-            var isSynced = !!syncedModel;
-            var enabled = isSynced ? (syncedModel.enabled !== false && syncedModel.visibled !== false) : providerEnabled;
-            if (enabled) {
+            if (model.selected !== false) {
                 m++;
             }
         });
@@ -247,10 +239,8 @@
         $('.settings-scope-toggle[data-target="providerScope"] .settings-scope-btn').removeClass('active');
         $('.settings-scope-toggle[data-target="providerScope"] .settings-scope-btn[data-scope="' + scope + '"]').addClass('active');
 
-        // 加载 LLM 模型缓存后渲染模型列表
-        loadLlmModelsCache(function () {
-            renderModelsList();
-        });
+        // 渲染模型列表（同步状态基于 currentProvider.models，无需额外拉取）
+        renderModelsList();
     }
 
     function showList() {
@@ -263,8 +253,6 @@
     }
 
     // ==================== 模型列表 ====================
-    var llmModelsCache = {}; // 缓存 LLM 模型列表，用于判断是否已同步
-
     function addManualModel() {
         var dialogHtml = '<div class="model-add-overlay" id="modelAddOverlay">'
             + '<div class="model-add-dialog">'
@@ -426,10 +414,7 @@
                             }
                         });
                         fetchedModels = fetchedMapped;
-                        // 加载 LLM 模型列表缓存，用于判断同步状态
-                        loadLlmModelsCache(function () {
-                            renderModelsList();
-                        });
+                        renderModelsList();
                         layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedModels.length}), { icon: 1 });
                     } catch (e) {
                         layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2 });
@@ -445,23 +430,6 @@
         });
     }
 
-    // 加载 LLM 模型列表缓存
-    function loadLlmModelsCache(callback) {
-        $.get('/web/settings/llm/models', function (res) {
-            if (res.code === 200 && res.data) {
-                var list = res.data.list || (Array.isArray(res.data) ? res.data : []);
-                llmModelsCache = {};
-                list.forEach(function (item) {
-                    if (item.name) {
-                        llmModelsCache[item.name] = item;
-                    }
-                });
-            }
-            if (callback) callback();
-        }).fail(function () {
-            if (callback) callback();
-        });
-    }
 
     function renderModelsList() {
         if (fetchedModels.length === 0) {
@@ -473,13 +441,15 @@
         $modelsEmpty.hide();
         $modelsList.show();
 
-        var providerName = $('#providerName').val() || '';
+        // 已保存到当前供应商的模型 id 集合（用于标记「已同步」徽标，不依赖 /models 接口）
+        var savedIds = {};
+        if (currentProvider && currentProvider.models) {
+            currentProvider.models.forEach(function (sm) { savedIds[sm.id] = true; });
+        }
         var html = '';
         fetchedModels.forEach(function (model) {
-            // 检查是否已同步到 LLM
-            var llmName = providerName ? providerName + '-' + model.id : model.id;
-            var syncedModel = llmModelsCache[llmName];
-            var isSynced = !!syncedModel;
+            // 已同步 = 该模型已随当前供应商保存过
+            var isSynced = !!savedIds[model.id];
             // 选中状态为前端内存状态（model.selected），默认选中
             var selected = model.selected !== false;
 
@@ -622,13 +592,13 @@
             url: '/web/settings/llm/providers/sync-models',
             method: 'POST',
             contentType: 'application/json',
+            // 后端从已落库的 provider.getModels() 重新读取模型（含 selected），此处无需重复传 models
             data: JSON.stringify({
-                providerName: providerData.name,
-                models: providerData.models || []
+                providerName: providerData.name
             }),
             success: function (res) {
+                // res.data 为变更总数（新增/更新 + 取消勾选），＞0 则刷新列表
                 if (res.code === 200 && res.data > 0) {
-                    layui.layer.msg(I18n.t('provider.syncedModels', {n: res.data}), { icon: 1 });
                     // 刷新 LLM 模型列表
                     if (window._settingsLlm) {
                         window._settingsLlm.load();
