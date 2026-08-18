@@ -782,7 +782,6 @@ var AgentEventDispatcher = {
 
 var _STREAM_BATCH_EVENTS = {
     'message.delta': 1,
-    'message.complete': 1,
     'thought.delta': 1
 };
 
@@ -812,7 +811,7 @@ function processWebEventNow(sess, webEvt) {
         }
 
         // 确定是否需要创建或定位 streamSegment
-        var isVisualEvent = (event === 'message.delta' || event === 'message.complete' || event === 'thought.delta' || event === 'tool.start');
+        var isVisualEvent = (event === 'message.delta' || event === 'thought.delta' || event === 'tool.start');
         var isActionEndWithoutPending = (event === 'tool.end' && !findPendingToolCard(sess, p.callId, null).pending);
         var segment = null;
 
@@ -827,16 +826,11 @@ function processWebEventNow(sess, webEvt) {
 
         switch (event) {
             case 'message.delta':
-            case 'message.complete':
                 sourceEl = appendContentChunk(sess, segment, p.delta || p.content || '', true, reasonId);
                 break;
 
             case 'thought.delta':
                 sourceEl = appendReasonChunk(sess, segment, p.delta || '', reasonId, agentName);
-                break;
-
-            case 'thought.end':
-                finishThinkingBlock(sess, reasonId);
                 break;
 
             case 'tool.start':
