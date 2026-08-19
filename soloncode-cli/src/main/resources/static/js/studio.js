@@ -391,6 +391,11 @@
             }
         }
 
+        var wsOpenBtn = document.getElementById("wsOpenBtn");
+        if (wsOpenBtn) {
+            wsOpenBtn.style.display = "none";
+        }
+
         var themeButton = document.getElementById("themeBtn");
         if (themeButton) {
             themeButton.hidden = false;
