@@ -22,6 +22,7 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.core.handle.Context;
+import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.http.HttpConfiguration;
 import org.noear.solon.net.http.HttpExtension;
@@ -49,11 +50,6 @@ public class WorkspaceManager {
 
     private final Map<String, WorkspaceContext> contexts = new ConcurrentHashMap<>();
 
-    /**
-     * 待回写历史的脏标记（去抖：内存命中只标脏，由 sweeper 定期落盘，避免热路径每次写文件）
-     */
-    private final Set<String> dirtyHistoryIds = ConcurrentHashMap.newKeySet();
-
     private final AgentSettings defaultSettings;
     private WorkspaceContext defaultContext;
     private WebGate webGate;
@@ -76,9 +72,6 @@ public class WorkspaceManager {
                 ProxyConfig.applyIfNeeded(http);
             }
         });
-
-        // 退出时回写标脏的 lastAccessed，避免退出丢失 MRU 精度
-        Runtime.getRuntime().addShutdownHook(new Thread(this::flushDirtyHistory, "workspace-history-flush"));
 
         // LRU 闲置释放：定期扫描非默认工作区，释放长时间无访问且无 WS 连接的引擎资源
         java.util.concurrent.ScheduledExecutorService sweeper =
@@ -118,8 +111,6 @@ public class WorkspaceManager {
                 closeIfIdle(id);
             }
 
-            // 去抖回写：把内存命中时标脏的 lastAccessed 落盘（MRU 排序重启后不失真）
-            flushDirtyHistory();
         } catch (Throwable e) {
             LOG.warn("[Workspace] Idle sweep failed: {}", e.getMessage());
         }
@@ -165,9 +156,9 @@ public class WorkspaceManager {
         WorkspaceContext context = contexts.get(workspaceIdOrPath);
         if (context != null) {
             context.getMeta().setLastAccessed(System.currentTimeMillis());
-            // 内存命中为热路径：只标脏不落盘，由 sweeper 定期回写
+            // 内存命中：同步更新 MRU 顺序到历史文件
             if (!context.getMeta().isDefault()) {
-                dirtyHistoryIds.add(context.getMeta().getId());
+                saveWorkspaceToHistory(context.getMeta());
             }
             return context;
         }
@@ -234,8 +225,9 @@ public class WorkspaceManager {
         if (context != null) {
             // 物理路径命中同样更新 MRU（与 ID 命中行为一致）
             context.getMeta().setLastAccessed(System.currentTimeMillis());
+            // 物理路径命中：同步更新 MRU 顺序到历史文件
             if (!context.getMeta().isDefault()) {
-                dirtyHistoryIds.add(context.getMeta().getId());
+                saveWorkspaceToHistory(context.getMeta());
             }
             return context;
         }
@@ -287,7 +279,7 @@ public class WorkspaceManager {
      * 仅查内存缓存，不创建（供 WS onClose 等回调用，防止复活已释放工作区）
      */
     public WorkspaceContext getContextsCached(String workspaceIdOrPath) {
-        if (workspaceIdOrPath == null || workspaceIdOrPath.isEmpty() || "default".equals(workspaceIdOrPath)) {
+        if (Assert.isEmpty(workspaceIdOrPath) || "default".equals(workspaceIdOrPath)) {
             return defaultContext;
         }
         return contexts.get(workspaceIdOrPath);
@@ -366,9 +358,14 @@ public class WorkspaceManager {
         }
         WorkspaceContext context = contexts.remove(workspaceIdOrPath);
         if (context != null) {
+            String id = context.getMeta().getId();
+            String path = context.getMeta().getPath();
             // 同时移除可能存在的其他 Key（如绝对路径或 ID）
-            contexts.remove(context.getMeta().getId());
-            contexts.remove(context.getMeta().getPath());
+            contexts.remove(id);
+            // id 与 path 相同时（极端情况：工作区 ID 恰好等于其归一化路径字符串）避免冗余 remove
+            if (!id.equals(path)) {
+                contexts.remove(path);
+            }
             try {
                 context.close();
             } catch (IOException e) {
@@ -407,10 +404,9 @@ public class WorkspaceManager {
             return;
         }
         try {
-            // 必须先关内存 context：否则后续任何 getOrCreate 内存命中会重新标脏，
-            // sweeper 的 flushDirtyHistory 会把刚删的条目写回文件——删除被静默回滚
+            // 必须先关内存 context：否则后续任何 getOrCreate 内存命中会重新同步写盘，
+            // 把刚删的条目写回文件——删除被静默回滚
             closeWorkspace(workspaceId);
-            dirtyHistoryIds.remove(workspaceId);
 
             Path file = Paths.get(WORKSPACES_FILE_PATH);
             if (!Files.exists(file)) {
@@ -823,45 +819,6 @@ public class WorkspaceManager {
             try {
                 Files.deleteIfExists(tmp);
             } catch (IOException ignore) {
-            }
-        }
-    }
-
-    /**
-     * 把标脏的工作区 lastAccessed 回写到 workspaces.json。
-     */
-    private synchronized void flushDirtyHistory() {
-        if (dirtyHistoryIds.isEmpty()) {
-            return;
-        }
-        // 先摘脏标记并收集 meta（摘取后到落盘前若又有访问会重新标脏，下轮补写，不丢数据）
-        List<String> ids = new ArrayList<>(dirtyHistoryIds);
-        dirtyHistoryIds.removeAll(ids);
-
-        // 一次性整读 + 批量覆盖 + 一次落盘：避免每个脏 ID 整读整写一次的 O(n²) 写放大
-        Map<String, WorkspaceMeta> map = new LinkedHashMap<>();
-        for (WorkspaceMeta w : readWorkspaceEntries()) {
-            if (w.getId() != null && w.getPath() != null && !"default".equals(w.getId())) {
-                map.put(w.getId(), w);
-            }
-        }
-        boolean changed = false;
-        for (String id : ids) {
-            WorkspaceContext ctx = contexts.get(id);
-            if (ctx != null && !ctx.getMeta().isDefault()) {
-                map.put(ctx.getMeta().getId(), ctx.getMeta());
-                changed = true;
-            }
-        }
-        if (changed) {
-            try {
-                Path file = Paths.get(WORKSPACES_FILE_PATH);
-                if (!Files.exists(file.getParent())) {
-                    Files.createDirectories(file.getParent());
-                }
-                writeHistoryFile(file, map);
-            } catch (Throwable e) {
-                LOG.warn("Failed to flush dirty workspace history", e);
             }
         }
     }

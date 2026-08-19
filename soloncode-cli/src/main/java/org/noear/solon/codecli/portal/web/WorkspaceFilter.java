@@ -7,6 +7,7 @@ import org.noear.solon.core.handle.Filter;
 import org.noear.solon.core.handle.FilterChain;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.core.util.Assert;
 
 /**
  * 工作区请求拦截器：只信任 X-Workspace-Id 请求头进行多工作区路由。
@@ -34,19 +35,14 @@ public class WorkspaceFilter implements Filter {
                 wsId = wsId.split(",")[0].trim();
             }
 
-            // 浏览器直发请求（WS 握手、<img>/<link>/下载等）无法携带自定义请求头：
-            // 对 /web/gate 全方法、其余 GET 请求（read-raw、skins/file、skins/export 等静态资产）
-            // 例外地从 query 读取工作区 ID，且必须是合法的 ws-xxx/default；
-            // 非 GET 的 POST 接口仍只信任 Header（filer/git 的 query 参数是挂载别名 mount，语义不同）
-            if ((wsId == null || wsId.isEmpty())
-                    && ("/web/gate".equals(ctx.path()) || "GET".equalsIgnoreCase(ctx.method()))) {
+            if (Assert.isEmpty(wsId)) {
                 String q = ctx.param("workspaceId");
                 if (q != null && workspaceManager.isValidWorkspaceId(q)) {
                     wsId = q;
                 }
             }
 
-            if (wsId != null && !wsId.isEmpty() && !workspaceManager.isValidWorkspaceId(wsId)) {
+            if (Assert.isNotEmpty(wsId) && !workspaceManager.isValidWorkspaceId(wsId)) {
                 // 场景 C：失效的工作区 ID，返回 404 引导前端回默认工作区
                 ctx.status(404);
                 ctx.contentType("application/json;charset=utf-8");

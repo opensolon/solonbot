@@ -256,13 +256,7 @@ public class WebGate extends SimpleWebSocketListener {
      * @param json 待广播的原始 JSON 字符串
      */
     public void broadcastRaw(String workspaceId,String json) {
-        // 推送严格按 socket 所属工作区分组：只广播到本工作区连接池，不依赖 Context.current()。
-        // 仅查内存缓存不 getOrCreate：文件变更回调若在 LRU 回收后触发，
-        // getOrCreate 会把已释放的工作区原地复活（双引擎/泄漏）
         WorkspaceContext wsContext = workspaceManager.getContextsCached(workspaceId);
-        if (wsContext == null && (workspaceId == null || workspaceId.isEmpty() || "default".equals(workspaceId))) {
-            wsContext = workspaceManager.getOrCreate(null);
-        }
 
         broadcastRaw(wsContext, json);
     }
@@ -824,7 +818,7 @@ public class WebGate extends SimpleWebSocketListener {
      * @return 捕获到的 AI 文本；会话繁忙或无文本时返回 null
      */
     public String safeChatInputAndCaptureLoop(String workspaceId,String sessionId, String input, String source) {
-       WorkspaceContext wsContext =  workspaceManager.getOrCreate(workspaceId);
+       WorkspaceContext wsContext =  workspaceManager.getContextsCached(workspaceId);
 
         AgentSession session;
         try {
