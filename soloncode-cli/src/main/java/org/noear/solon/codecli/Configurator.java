@@ -40,7 +40,6 @@ import org.noear.solon.codecli.portal.web.settings.*;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
-import org.noear.solon.codecli.portal.web.WorkspaceFilter;
 import org.noear.solon.core.AppContext;
 import org.noear.solon.core.BeanWrap;
 import org.noear.solon.core.util.JavaUtil;
@@ -48,8 +47,8 @@ import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.http.HttpConfiguration;
 import org.noear.solon.net.http.HttpExtension;
 import org.noear.solon.net.http.HttpUtils;
+import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.WebSocketRouter;
-import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +96,7 @@ public class Configurator {
     }
 
     @Bean
-    public HarnessEngine agentRuntime(AgentSettings settings, SessionManager sessionManager) throws Exception {
+    public HarnessEngine agentRuntime(AgentSettings settings, SessionManager sessionManager, WorkspaceManager workspaceManager) throws Exception {
         String stealthIdentity = "<!--\n" +
                 "  @poweredby: soloncode\n" +
                 "  @build: " + AgentFlags.getVersion() + "\n" +
@@ -338,9 +337,9 @@ public class Configurator {
         //web ws gate
         // 入口单例 WebGate：仅作 WS 路由入口（onOpen 按 workspaceId 分发）与默认工作区 FileWatch 广播。
         // 其连接池与默认工作区上下文共享同一引用，保证默认工作区推送一致。
-        org.noear.solon.codecli.workspace.WorkspaceContext defaultCtx = workspaceManager.getOrCreate(null);
-        java.util.List<org.noear.solon.net.websocket.WebSocket> defaultConnections = defaultCtx.getConnections();
-        WebGate webGate = new WebGate(agentRuntime, settings, defaultConnections);
+        WorkspaceContext defaultCtx = workspaceManager.getOrCreate(null);
+        WebGate webGate = new WebGate(workspaceManager);
+        workspaceManager.setWebGate(webGate);
         WebSocketRouter.getInstance().of("/web/gate", webGate);
 
         // 复用默认工作区上下文中已创建并启动的 FileWatchService：
@@ -350,22 +349,22 @@ public class Configurator {
         FileWatchService fileWatchService = defaultCtx.getFileWatchService();
 
         //web
-        BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(agentRuntime, webGate, loopScheduler, sessionManager));
+        BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(workspaceManager));
         Solon.app().router().add(webController);
 
-        addWebBean(new WebSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new AgentSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new MountSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new SkillSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new LlmSettingController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new WebSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new AgentSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new MountSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new SkillSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new LlmSettingController(workspaceManager, fileWatchService, webGate));
 
-        addWebBean(new McpSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new OpenapiSettingsController(agentRuntime, settings, fileWatchService, webGate));
-        addWebBean(new LspSettingsController(agentRuntime, settings, fileWatchService, webGate));
+        addWebBean(new McpSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new OpenapiSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new LspSettingsController(workspaceManager, fileWatchService, webGate));
 
         addWebBean(new MemoryController(agentRuntime));
 
-        BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(agentRuntime, webGate));
+        BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(workspaceManager));
         Solon.app().router().add(webChannel);
 
         // 启动微信通道

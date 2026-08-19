@@ -3,19 +3,18 @@ package org.noear.solon.codecli.portal.web;
 import lombok.extern.slf4j.Slf4j;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
-import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.channel.Channel;
-import org.noear.solon.codecli.channel.wechat.WeChatLink;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.pipeline.ChannelBroadcastSink;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
 import org.noear.solon.codecli.portal.web.pipeline.WebEventMapper;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Flux;
 
@@ -29,42 +28,16 @@ import java.util.List;
  */
 @Slf4j
 public class WebStreamBuilder {
+    private final ChannelBroadcastSink broadcastSink = new ChannelBroadcastSink();
 
-    private final HarnessEngine engine;
-    private final List<Channel> imLinks = new ArrayList<>();
-
-    public WebStreamBuilder addChannel(Channel link) {
-        if (link != null) {
-            imLinks.add(link);
-        }
-        return this;
-    }
-
-    public WebStreamBuilder bind(Channel link) {
-        return addChannel(link);
-    }
-
-    public WeChatLink getWeChatLink() {
-        for (Channel link : imLinks) {
-            if (link instanceof WeChatLink) {
-                return (WeChatLink) link;
-            }
-        }
-        return null;
-    }
-
-    public void replyToBoundChannel(String sessionId, String text, boolean isFinal) {
-        new ChannelBroadcastSink(imLinks).replyToBoundChannel(sessionId, text, isFinal);
-    }
-
-    public WebStreamBuilder(HarnessEngine engine) {
-        this.engine = engine;
+    public void replyToBoundChannel(WorkspaceContext wsContext, String sessionId, String text, boolean isFinal) {
+        broadcastSink.replyToBoundChannel(wsContext.getChannelHub(), sessionId, text, isFinal);
     }
 
     /**
      * 构建 SAEP 2.0 响应式事件流
      */
-    public Flux<WebEvent<?>> buildStreamFlux(AgentSession session, ReActAgent agent, ChatModel chatModel, String sessionCwd, Prompt prompt) {
+    public Flux<WebEvent<?>> buildStreamFlux(WorkspaceContext wsContext, AgentSession session, ReActAgent agent, ChatModel chatModel, String sessionCwd, Prompt prompt) {
         if (prompt == null) {
             prompt = Prompt.of();
         }
@@ -83,20 +56,20 @@ public class WebStreamBuilder {
             if (chatModel != null && chatModel.getConfig() != null) {
                 String key = chatModel.getConfig().getNameOrModel();
                 if (Assert.isNotEmpty(key)) {
-                    fullConfig = engine.getModelOrNil(key);
+                    fullConfig = wsContext.getEngine().getModelOrNil(key);
                     if (fullConfig == null) {
-                        fullConfig = ReasoningSupportUtil.findEngineConfig(engine.getModels(), key);
+                        fullConfig = ReasoningSupportUtil.findEngineConfig(wsContext.getEngine().getModels(), key);
                     }
                 }
                 if (fullConfig == null && Assert.isNotEmpty(chatModel.getConfig().getModel())) {
-                    fullConfig = engine.getModelOrNil(chatModel.getConfig().getModel());
+                    fullConfig = wsContext.getEngine().getModelOrNil(chatModel.getConfig().getModel());
                     if (fullConfig == null) {
                         fullConfig = ReasoningSupportUtil.findEngineConfig(
-                                engine.getModels(), chatModel.getConfig().getModel());
+                                wsContext.getEngine().getModels(), chatModel.getConfig().getModel());
                     }
                 }
                 if (fullConfig == null && Assert.isNotEmpty(chatModel.getConfig().getName())) {
-                    fullConfig = engine.getModelOrNil(chatModel.getConfig().getName());
+                    fullConfig = wsContext.getEngine().getModelOrNil(chatModel.getConfig().getName());
                 }
             }
             if (fullConfig != null) {
@@ -114,9 +87,8 @@ public class WebStreamBuilder {
                 null, sessionEffort, cap, false);
         ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
-        WebEventMapper mapper = new WebEventMapper(engine, session, chatModel);
+        WebEventMapper mapper = new WebEventMapper(wsContext.getEngine(), session, chatModel);
         ToolPresentationFilter toolFilter = new ToolPresentationFilter();
-        ChannelBroadcastSink broadcastSink = new ChannelBroadcastSink(imLinks);
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
 
         return agent.prompt(prompt)
@@ -133,7 +105,7 @@ public class WebStreamBuilder {
                 .flatMap(event -> Flux.fromIterable(mapper.mapEvent(event)))
                 .filter(WebEvent::isNotEmpty)
                 .map(toolFilter::apply)
-                .doOnNext(broadcastSink::broadcast)
+                .doOnNext(event -> broadcastSink.broadcast(wsContext.getChannelHub(), event))
                 .doOnNext(metricsRecorder::record)
                 .onErrorResume(e -> {
                     log.error("Stream execution error", e);

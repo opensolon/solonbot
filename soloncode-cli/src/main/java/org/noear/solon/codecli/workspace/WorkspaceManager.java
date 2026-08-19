@@ -21,7 +21,7 @@ import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
-import org.noear.solon.net.websocket.WebSocket;
+import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.http.HttpConfiguration;
 import org.noear.solon.net.http.HttpExtension;
@@ -51,8 +51,11 @@ public class WorkspaceManager {
 
     private final AgentSettings defaultSettings;
     private WorkspaceContext defaultContext;
+    private WebGate webGate;
 
-    /** 闲置释放阈值：30 分钟无访问且无连接 */
+    /**
+     * 闲置释放阈值：30 分钟无访问且无连接
+     */
     private static final long IDLE_RELEASE_MS = 30 * 60 * 1000L;
 
     public WorkspaceManager(AgentSettings defaultSettings) {
@@ -66,6 +69,10 @@ public class WorkspaceManager {
                     return t;
                 });
         sweeper.scheduleWithFixedDelay(this::releaseIdleWorkspaces, 10, 10, java.util.concurrent.TimeUnit.MINUTES);
+    }
+
+    public void setWebGate(WebGate webGate) {
+        this.webGate = webGate;
     }
 
     private void releaseIdleWorkspaces() {
@@ -415,25 +422,22 @@ public class WorkspaceManager {
             engine.addExtension(extension);
         });
 
-        // WebGate：连接池与 WorkspaceContext 共享同一引用，推送严格按 socket 所属工作区分组
-        List<WebSocket> connections = new java.util.concurrent.CopyOnWriteArrayList<>();
-        WebGate webGate = new WebGate(engine, wsSettings, connections);
 
         // 为本工作区的 LoopScheduler 就地注册 web 端执行器与忙碌检查（绑定本工作区 webGate），
         // 避免非默认工作区的 loop/goal 任务因缺少 executor 而无法执行。
-        registerWebLoopExecutor(loopScheduler, webGate);
+        registerWebLoopExecutor(engine, meta.getId(), loopScheduler, webGate);
 
         // FileWatchService
         FileWatchService fileWatchService = new FileWatchService();
         fileWatchService.addRoot("workspace", Paths.get(workspacePath).toAbsolutePath().normalize())
-                .addHandler(changes -> webGate.broadcastRaw(FileWatchService.buildFrontendJson(changes)));
+                .addHandler(changes -> webGate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes)));
 
         for (MountDir mount : engine.getMounts()) {
             if (!mount.isEnabled()) continue;
             FileWatchService.WatchRoot root = fileWatchService.addRoot(mount.getAlias(), mount.getRealPath());
             switch (mount.getType()) {
                 case FILES:
-                    root.addHandler(changes -> webGate.broadcastRaw(FileWatchService.buildFrontendJson(changes)));
+                    root.addHandler(changes -> webGate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes)));
                     break;
                 case SKILLS:
                     root.addHandler(changes -> engine.getSkillProvider().refreshByGroup(mount.getAlias()));
@@ -449,7 +453,7 @@ public class WorkspaceManager {
         FileService fileService = new FileService(workspacePath, engine);
         GitService gitService = new GitService(workspacePath, engine);
 
-        return new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings, connections);
+        return new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings);
     }
 
     /**
@@ -458,7 +462,7 @@ public class WorkspaceManager {
      * <p>每个工作区拥有独立的 LoopScheduler 与 WebGate，执行器必须就地绑定本工作区的
      * WebGate，以保证定时触发的 AI 响应推送到本工作区的连接池，而非默认工作区。</p>
      */
-    private void registerWebLoopExecutor(LoopScheduler loopScheduler, WebGate webGate) {
+    private void registerWebLoopExecutor(HarnessEngine engine, String workspaceId, LoopScheduler loopScheduler, WebGate webGate) {
         if (loopScheduler == null || webGate == null) {
             return;
         }
@@ -468,7 +472,7 @@ public class WorkspaceManager {
             if (sessionId == null || !sessionId.startsWith("web-")) {
                 return false;
             }
-            return webGate.isSessionBusy(sessionId);
+            return webGate.isSessionBusy(engine, sessionId);
         });
 
         loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
@@ -481,7 +485,7 @@ public class WorkspaceManager {
                 effectiveInput = "@" + agentName + " " + prompt;
             }
             // Loop 任务可能长时间执行（数小时），使用 Loop 专用无限等待版本
-            return webGate.safeChatInputAndCaptureLoop(sessionId, effectiveInput, "Loop");
+            return webGate.safeChatInputAndCaptureLoop(workspaceId, sessionId, effectiveInput, "Loop");
         });
     }
 
@@ -657,5 +661,22 @@ public class WorkspaceManager {
         } catch (Throwable e) {
             LOG.warn("Failed to save workspace to history: " + meta.getPath(), e);
         }
+    }
+
+    /**
+     * 根据 http 上下文获取
+     */
+    public WorkspaceContext currentContext() {
+        Context ctx = Context.current();
+        WorkspaceContext wctx = null;
+        if (ctx != null) {
+            wctx = ctx.attr("WORKSPACE_CTX");
+        }
+
+        if (wctx == null) {
+            wctx = getOrCreate(null); // 回退默认
+        }
+
+        return wctx;
     }
 }

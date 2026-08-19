@@ -10,6 +10,7 @@ import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.market.Market;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -34,8 +35,8 @@ public class SkillSettingsController extends BaseSettingsController{
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public SkillSettingsController(HarnessEngine engine, AgentSettings settings, FileWatchService fileWatchService, WebGate webGate) {
-        super(engine, settings, fileWatchService, webGate);
+    public SkillSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+        super(workspaceManager, fileWatchService, webGate);
     }
 
     // ==================== 设置：Skills 市场（委派给 Market 接口） ====================

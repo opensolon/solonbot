@@ -23,6 +23,8 @@ import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.ai.harness.command.Command;
+import org.noear.solon.ai.talents.mount.MountDir;
+import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
@@ -34,6 +36,7 @@ import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
+import org.noear.solon.codecli.workspace.WorkspaceMeta;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.handle.UploadedFile;
@@ -87,33 +90,10 @@ public class WebController {
     /** 日志记录器 */
     private static final Logger LOG = LoggerFactory.getLogger(WebController.class);
 
-    /** AI Agent 执行引擎，提供会话管理、模型配置、命令注册等核心能力 */
-    private final HarnessEngine engine;
+    private final WorkspaceManager workspaceManager;
 
-    /** WebSocket 推送网关，负责将 AI 处理结果实时推送到前端浏览器 */
-    private final WebGate webGate;
-
-    /** 循环调度器，用于恢复和管理 Web 端的定时/循环 AI 任务 */
-    private final LoopScheduler loopScheduler;
-
-    private final SessionManager sessionManager;
-
-    /** Git 业务逻辑服务，封装工作区 Git 操作 */
-    private final GitService gitService;
-
-    /** 文件业务逻辑服务，封装工作区文件浏览、搜索、读取操作 */
-    private final FileService fileService;
-
-    private org.noear.solon.codecli.workspace.WorkspaceContext currentContext() {
-        Context ctx = Context.current();
-        org.noear.solon.codecli.workspace.WorkspaceContext wctx = null;
-        if (ctx != null) {
-            wctx = ctx.attr("WORKSPACE_CTX");
-        }
-        if (wctx == null) {
-            wctx = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class).getOrCreate(null); // 回退默认
-        }
-        return wctx;
+    private WorkspaceContext currentContext() {
+        return workspaceManager.currentContext();
     }
 
     private HarnessEngine engine() {
@@ -142,19 +122,9 @@ public class WebController {
 
     /**
      * 构造函数：初始化核心依赖并注册 Web 端 Loop 任务执行器。
-     *
-     * @param engine        AI Agent 执行引擎
-     * @param webGate       WebSocket 推送网关
-     * @param loopScheduler 循环任务调度器，可为 null（无循环任务场景）
      */
-    public WebController(HarnessEngine engine, WebGate webGate, LoopScheduler loopScheduler, SessionManager sessionManager) {
-        this.engine = engine;
-        this.webGate = webGate;
-        this.loopScheduler = loopScheduler;
-        this.sessionManager = sessionManager;
-
-        this.gitService = new GitService(engine.getWorkspace(), engine);
-        this.fileService = new FileService(engine.getWorkspace(), engine);
+    public WebController(WorkspaceManager workspaceManager) {
+        this.workspaceManager = workspaceManager;
 
         // 说明：Web 端 Loop 执行器/繁忙检查器的注册已迁移到
         // WorkspaceManager.registerWebLoopExecutor()，由每个工作区在创建其 LoopScheduler 时
@@ -165,18 +135,13 @@ public class WebController {
     @Get
     @Mapping("/web/workspace/list")
     public Result<Map<String, Object>> listWorkspaces() {
-        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
-        if (manager == null) {
-            return Result.failure("WorkspaceManager not found");
-        }
-
         Map<String, Object> data = new LinkedHashMap<>();
 
         // 1. 启动目录（默认工作区，虚拟条目：随 user.dir 变化，不落 workspaces.json）
         try {
-            org.noear.solon.codecli.workspace.WorkspaceContext defCtx = manager.getOrCreate("default");
+            WorkspaceContext defCtx = workspaceManager.getOrCreate(null);
             if (defCtx != null && defCtx.getMeta() != null) {
-                org.noear.solon.codecli.workspace.WorkspaceMeta dm = defCtx.getMeta();
+                WorkspaceMeta dm = defCtx.getMeta();
                 Map<String, Object> launch = new LinkedHashMap<>();
                 launch.put("id", dm.getId());
                 launch.put("name", dm.getName());
@@ -188,13 +153,13 @@ public class WebController {
         }
 
         // 2. 最近的工作区（历史列表，不含 default）
-        data.put("workspaces", manager.listWorkspaces());
+        data.put("workspaces", workspaceManager.listWorkspaces());
 
         // 3. 文件挂载（仅启用的 FILES 类型，每项：别名 + realPath）
         List<Map<String, Object>> mounts = new ArrayList<>();
         try {
-            for (org.noear.solon.ai.talents.mount.MountDir entry : engine().getMounts()) {
-                if (entry.getType() != org.noear.solon.ai.talents.mount.MountType.FILES) continue;
+            for (MountDir entry : engine().getMounts()) {
+                if (entry.getType() != MountType.FILES) continue;
                 if (!entry.isEnabled()) continue;
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("alias", entry.getAlias());
@@ -211,7 +176,7 @@ public class WebController {
 
     @Post
     @Mapping("/web/workspace/open")
-    public Result<org.noear.solon.codecli.workspace.WorkspaceMeta> openWorkspace(String path) {
+    public Result<WorkspaceMeta> openWorkspace(String path) {
         if (path == null || path.isEmpty()) {
             return Result.failure("Path is required");
         }
@@ -238,20 +203,16 @@ public class WebController {
             }
         }
 
-        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
-        if (manager != null) {
-            try {
-                org.noear.solon.codecli.workspace.WorkspaceContext wctx = manager.getOrCreate(path);
-                if (wctx != null) {
-                    return Result.succeed(wctx.getMeta());
-                }
-                // getOrCreate 已收紧：目录不存在/非法路径返回 null
-                return Result.failure("目录不存在: " + path);
-            } catch (Exception e) {
-                return Result.failure(e.getMessage());
+        try {
+            WorkspaceContext wctx = workspaceManager.getOrCreate(path);
+            if (wctx != null) {
+                return Result.succeed(wctx.getMeta());
             }
+            // getOrCreate 已收紧：目录不存在/非法路径返回 null
+            return Result.failure("目录不存在: " + path);
+        } catch (Exception e) {
+            return Result.failure(e.getMessage());
         }
-        return Result.failure("Failed to open workspace");
     }
 
     @Post
@@ -260,18 +221,15 @@ public class WebController {
         if (id == null || id.isEmpty()) {
             return Result.failure("Id is required");
         }
-        org.noear.solon.codecli.workspace.WorkspaceManager manager = Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class);
-        if (manager != null) {
-            manager.closeWorkspace(id);
-            return Result.succeed();
-        }
-        return Result.failure("WorkspaceManager not found");
+
+        workspaceManager.closeWorkspace(id);
+        return Result.succeed();
     }
 
     @Get
     @Mapping("/web/workspace/current")
-    public Result<org.noear.solon.codecli.workspace.WorkspaceMeta> currentWorkspace() {
-        org.noear.solon.codecli.workspace.WorkspaceContext wctx = currentContext();
+    public Result<WorkspaceMeta> currentWorkspace() {
+        WorkspaceContext wctx = currentContext();
         if (wctx != null) {
             return Result.succeed(wctx.getMeta());
         }
@@ -443,7 +401,7 @@ public class WebController {
 
         Path activeWorkspace = Paths.get(currentEngine.getWorkspace()).toAbsolutePath().normalize();
         boolean activeWorkspaceSession = workspaceRoot.equals(activeWorkspace);
-        if (activeWorkspaceSession && webGate().isSessionBusy(sessionId)) {
+        if (activeWorkspaceSession && webGate().isSessionBusy(engine(), sessionId)) {
             return Result.failure(409, "Session is running");
         }
 
@@ -849,7 +807,7 @@ public class WebController {
         }
 
         // 按当前请求工作区上下文取 WebGate，避免非默认工作区会话中断时推送串到默认工作区
-        webGate().interruptSession(sessionId);
+        webGate().interruptSession(currentContext(),sessionId);
 
         // 暂停该 session 的活跃 Goal，防止 Goal 调度器在 interrupt 后立即重新触发
         LoopScheduler loopScheduler = loopScheduler();
@@ -883,7 +841,7 @@ public class WebController {
         if (count == null || count <= 0) {
             count = 2; // 默认回退2条（用户+助手）
         }
-        if (webGate().isSessionBusy(sessionId)) {
+        if (webGate().isSessionBusy(engine(), sessionId)) {
             return Result.failure(409, "Session is running");
         }
 
@@ -1047,7 +1005,7 @@ public class WebController {
             }
 
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
-            webGate().onChatInput(sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
+            webGate().onChatInput(currentContext(), sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
                     reasoningEffort, thinkingMode, selectedAgent);
                     
             // 返回简单 JSON，前端通过 WebSocket 接收 AI 结果

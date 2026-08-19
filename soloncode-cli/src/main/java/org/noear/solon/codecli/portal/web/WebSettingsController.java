@@ -19,6 +19,7 @@ import org.noear.snack4.ONode;
 import org.noear.solon.ai.harness.HarnessExtension;
 import org.noear.solon.codecli.command.builtin.GoalExtension;
 import org.noear.solon.codecli.portal.web.settings.BaseSettingsController;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.UploadedFile;
 
 import org.noear.solon.ai.harness.HarnessEngine;
@@ -76,8 +77,8 @@ public class WebSettingsController extends BaseSettingsController {
      */
     private static final Logger LOG = LoggerFactory.getLogger(WebSettingsController.class);
 
-    public WebSettingsController(HarnessEngine engine, AgentSettings settings, FileWatchService fileWatchService, WebGate webGate) {
-        super(engine, settings, fileWatchService, webGate);
+    public WebSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+        super(workspaceManager, fileWatchService, webGate);
     }
 
 
@@ -203,7 +204,7 @@ public class WebSettingsController extends BaseSettingsController {
                     ONode evt = new ONode().asObject()
                             .set("type", "settings_reloaded")
                             .set("changed", changedMap);
-                    curWebGate.broadcastRaw(evt.toJson());
+                    curWebGate.broadcastRaw(currentContext(), evt.toJson());
                 } catch (Exception e) {
                     LOG.debug("[Settings] broadcast settings_reloaded failed: {}", e.getMessage());
                 }

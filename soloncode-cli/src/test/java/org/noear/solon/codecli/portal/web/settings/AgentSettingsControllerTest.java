@@ -40,7 +40,8 @@ class AgentSettingsControllerTest {
                 .mountAdd(MountDir.builder().alias(AgentSettingsController.USER_ALIAS).type(MountType.AGENTS).path("~/.soloncode/agents/").primary(true).build())
                 .mountAdd(MountDir.builder().alias(AgentSettingsController.WORKSPACE_ALIAS).type(MountType.AGENTS).path("./.soloncode/agents/").primary(true).build())
                 .build();
-        controller = new AgentSettingsController(engine, new AgentSettings(), null, null);
+
+        controller = new AgentSettingsController(null, null, null);
     }
 
     @AfterEach

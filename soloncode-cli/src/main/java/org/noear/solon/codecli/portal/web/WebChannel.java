@@ -1,6 +1,5 @@
 package org.noear.solon.codecli.portal.web;
 
-import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.annotation.Get;
 import org.noear.solon.annotation.Mapping;
 import org.noear.solon.annotation.Param;
@@ -13,6 +12,8 @@ import org.noear.solon.codecli.channel.feishu.FeishuLink;
 import org.noear.solon.codecli.channel.feishu.FeishuQRBindManager;
 import org.noear.solon.codecli.channel.wechat.WeChatClient;
 import org.noear.solon.codecli.channel.wechat.WeChatLink;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 
 import java.util.LinkedHashMap;
@@ -40,47 +41,47 @@ import java.util.Map;
  *
  * @author noear 2026/5/12 created
  */
-public class WebChannel implements Runnable{
+public class WebChannel {
 
-    /** 微信通道适配器，负责扫码登录、会话绑定与消息转发 */
-    private final WeChatLink weChatLink;
+//    /** 微信通道适配器，负责扫码登录、会话绑定与消息转发 */
+//    private final WeChatLink weChatLink;
+//
+//    /** 飞书通道适配器，负责 WebSocket Stream 连接、会话绑定与消息转发 */
+//    private final FeishuLink feishuLink;
+//
+//    /** 钉钉通道适配器，负责 Stream 连接、会话绑定与消息转发 */
+//    private final DingTalkLink dingTalkLink;
+//
+//    /** 飞书扫码绑定管理器 */
+//    private final FeishuQRBindManager feishuQRBindManager;
+//
+//    /** 钉钉扫码绑定管理器 */
+//    private final DingTalkQRBindManager dingtalkQRBindManager;
 
-    /** 飞书通道适配器，负责 WebSocket Stream 连接、会话绑定与消息转发 */
-    private final FeishuLink feishuLink;
-
-    /** 钉钉通道适配器，负责 Stream 连接、会话绑定与消息转发 */
-    private final DingTalkLink dingTalkLink;
-
-    /** 飞书扫码绑定管理器 */
-    private final FeishuQRBindManager feishuQRBindManager;
-
-    /** 钉钉扫码绑定管理器 */
-    private final DingTalkQRBindManager dingtalkQRBindManager;
+    private final WorkspaceManager workspaceManager;
 
     /**
      * 构造函数：初始化三个通道适配器和扫码绑定管理器。
-     *
-     * @param engine  AI 能力引擎，供各通道适配器调用模型能力
-     * @param webGate Web 网关，提供公共配置与回调上下文
      */
-    public WebChannel(HarnessEngine engine, WebGate webGate) {
-        this.weChatLink = new WeChatLink(engine, webGate);
-        this.feishuLink = new FeishuLink(engine, webGate);
-        this.dingTalkLink = new DingTalkLink(engine, webGate);
-        this.feishuQRBindManager = new FeishuQRBindManager();
-        this.dingtalkQRBindManager = new DingTalkQRBindManager();
+    public WebChannel(WorkspaceManager workspaceManager) {
+        this.workspaceManager = workspaceManager;
+//        this.weChatLink = new WeChatLink(engine, webGate);
+//        this.feishuLink = new FeishuLink(engine, webGate);
+//        this.dingTalkLink = new DingTalkLink(engine, webGate);
+//        this.feishuQRBindManager = new FeishuQRBindManager();
+//        this.dingtalkQRBindManager = new DingTalkQRBindManager();
     }
 
     /**
      * 启动所有通道适配器的长连接监听。
      * 依次启动微信、飞书、钉钉三个通道的运行循环。
      */
-    @Override
-    public void run() {
-        weChatLink.run();
-        feishuLink.run();
-        dingTalkLink.run();
-    }
+//    @Override
+//    public void run() {
+////        weChatLink.run();
+////        feishuLink.run();
+////        dingTalkLink.run();
+//    }
 
     // ==================== 微信（WeChat）通道接口 ====================
 
@@ -117,8 +118,8 @@ public class WebChannel implements Runnable{
      * <p>根据二维码标识查询当前扫码进度（等待扫码、已扫码待确认、已确认等）。
      * 当状态为 "confirmed" 时，自动将机器人绑定到对应会话。</p>
      *
-     * @param qrcode     二维码标识，由 {@link #wechatQrcode} 接口返回
-     * @param sessionId  当前会话标识
+     * @param qrcode    二维码标识，由 {@link #wechatQrcode} 接口返回
+     * @param sessionId 当前会话标识
      * @return 包含扫码状态信息的结果；确认后额外触发自动绑定
      */
     @Get
@@ -145,7 +146,10 @@ public class WebChannel implements Runnable{
             String ilinkBotId = statusResult.get("ilink_bot_id");
             String ilinkUserId = statusResult.get("ilink_user_id");
 
-            weChatLink.bindSession(sessionId, botToken, ilinkBotId, ilinkUserId);
+            WorkspaceContext wsContext = workspaceManager.currentContext();
+            if (wsContext != null) {
+                wsContext.getChannelHub().getWeChatLink().bindSession(sessionId, botToken, ilinkBotId, ilinkUserId);
+            }
         }
 
         Map<String, Object> data = new LinkedHashMap<>(statusResult);
@@ -167,8 +171,13 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
-        weChatLink.unbindSession(sessionId);
-        return Result.succeed();
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+        if (wsContext != null) {
+            wsContext.getChannelHub().getWeChatLink().unbindSession(sessionId);
+            return Result.succeed();
+        } else {
+            return Result.failure();
+        }
     }
 
     /**
@@ -184,9 +193,15 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("bound", weChatLink.isBound(sessionId));
-        return Result.succeed(data);
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        if (wsContext != null) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("bound", wsContext.getChannelHub().getWeChatLink().isBound(sessionId));
+            return Result.succeed(data);
+        } else {
+            return Result.failure();
+        }
     }
 
     // ==================== 飞书（Feishu）通道接口 ====================
@@ -197,9 +212,9 @@ public class WebChannel implements Runnable{
      * <p>提交飞书应用的 App ID 和 App Secret，启动 WebSocket Stream 连接，
      * 等待飞书侧自动完成事件订阅绑定。</p>
      *
-     * @param sessionId  当前会话标识
-     * @param appId      飞书应用的 App ID
-     * @param appSecret  飞书应用的 App Secret
+     * @param sessionId 当前会话标识
+     * @param appId     飞书应用的 App ID
+     * @param appSecret 飞书应用的 App Secret
      * @return 启动成功返回成功结果；失败返回错误提示
      */
     @Post
@@ -216,11 +231,13 @@ public class WebChannel implements Runnable{
         if (appSecret == null || appSecret.isEmpty()) {
             return Result.failure("App Secret 是必填项");
         }
-        if (feishuLink == null) {
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+        if (wsContext == null) {
             return Result.failure("飞书通道未启用");
         }
 
-        boolean ok = feishuLink.startStream(appId, appSecret, sessionId);
+        boolean ok = wsContext.getChannelHub().getFeishuLink().startStream(appId, appSecret, sessionId);
         if (!ok) {
             return Result.failure("飞书连接启动失败，请检查 App ID 和 App Secret");
         }
@@ -241,11 +258,17 @@ public class WebChannel implements Runnable{
         if (sessionId == null || sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure("Invalid sessionId");
         }
-        if (feishuLink != null) {
-            feishuLink.unbindSession(sessionId);
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+        if (wsContext == null) {
+            return Result.failure("飞书通道未启用");
+        }
+
+        if (wsContext.getChannelHub().getFeishuLink() != null) {
+            wsContext.getChannelHub().getFeishuLink().unbindSession(sessionId);
         }
         // 清理可能的QR绑定会话
-        feishuQRBindManager.cancelQrBinding(sessionId);
+        wsContext.getChannelHub().getFeishuQRBindManager().cancelQrBinding(sessionId);
         return Result.succeed();
     }
 
@@ -263,14 +286,18 @@ public class WebChannel implements Runnable{
         if (sessionId == null || sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure("Invalid sessionId");
         }
-        if (feishuLink == null) {
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        if (wsContext == null) {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("bound", false);
             data.put("streamStarted", false);
             data.put("pending", false);
             return Result.succeed(data);
         }
-        return Result.succeed(feishuLink.getStreamStatus(sessionId));
+
+        return Result.succeed(wsContext.getChannelHub().getFeishuLink().getStreamStatus(sessionId));
     }
 
     /**
@@ -289,8 +316,10 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
         try {
-            FeishuQRBindManager.BindStartResult result = feishuQRBindManager.startQrBinding(sessionId);
+            FeishuQRBindManager.BindStartResult result = wsContext.getChannelHub().getFeishuQRBindManager().startQrBinding(sessionId);
 
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("qrUrl", result.qrUrl);
@@ -319,8 +348,10 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
         try {
-            FeishuAppRegistration.PollResult pollResult = feishuQRBindManager.pollQrBinding(sessionId);
+            FeishuAppRegistration.PollResult pollResult = wsContext.getChannelHub().getFeishuQRBindManager().pollQrBinding(sessionId);
 
             Map<String, Object> data = new LinkedHashMap<>();
 
@@ -331,11 +362,11 @@ public class WebChannel implements Runnable{
                 String openId = pollResult.openId;
 
                 if (openId != null) {
-                    feishuLink.bindSession(sessionId, openId, appId, appSecret);
+                    wsContext.getChannelHub().getFeishuLink().bindSession(sessionId, openId, appId, appSecret);
                 }
 
                 // 启动 WebSocket Stream 连接
-                feishuLink.startStream(appId, appSecret, sessionId);
+                wsContext.getChannelHub().getFeishuLink().startStream(appId, appSecret, sessionId);
 
                 data.put("status", "success");
                 data.put("bound", true);
@@ -372,7 +403,9 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
-        feishuQRBindManager.cancelQrBinding(sessionId);
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        wsContext.getChannelHub().getFeishuQRBindManager().cancelQrBinding(sessionId);
         return Result.succeed();
     }
 
@@ -384,9 +417,9 @@ public class WebChannel implements Runnable{
      * <p>提交钉钉应用的 AppKey 和 AppSecret，启动 Stream 长连接，
      * 用户在钉钉端向机器人发送消息后自动完成绑定。</p>
      *
-     * @param sessionId  当前会话标识
-     * @param appKey     钉钉应用的 AppKey
-     * @param appSecret  钉钉应用的 AppSecret
+     * @param sessionId 当前会话标识
+     * @param appKey    钉钉应用的 AppKey
+     * @param appSecret 钉钉应用的 AppSecret
      * @return 启动成功返回提示信息；失败返回错误提示
      */
     @Post
@@ -403,11 +436,14 @@ public class WebChannel implements Runnable{
         if (appSecret == null || appSecret.isEmpty()) {
             return Result.failure("appSecret 不能为空");
         }
-        if (dingTalkLink == null) {
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        if (wsContext == null) {
             return Result.failure("钉钉通道未启用");
         }
 
-        boolean ok = dingTalkLink.startStream(appKey, appSecret, sessionId);
+        boolean ok = wsContext.getChannelHub().getDingTalkLink().startStream(appKey, appSecret, sessionId);
         if (!ok) {
             return Result.failure("启动 Stream 连接失败，请检查 AppKey 和 AppSecret");
         }
@@ -428,9 +464,13 @@ public class WebChannel implements Runnable{
         if (sessionId == null || sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure("Invalid sessionId");
         }
-        if (dingTalkLink != null) {
-            dingTalkLink.unbindSession(sessionId);
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        if (wsContext.getChannelHub().getDingTalkLink() != null) {
+            wsContext.getChannelHub().getDingTalkLink().unbindSession(sessionId);
         }
+
         return Result.succeed();
     }
 
@@ -448,14 +488,18 @@ public class WebChannel implements Runnable{
         if (sessionId == null || sessionId.contains("..") || sessionId.contains("/") || sessionId.contains("\\")) {
             return Result.failure("Invalid sessionId");
         }
-        if (dingTalkLink == null) {
+
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        if (wsContext == null) {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("bound", false);
             data.put("streamStarted", false);
             data.put("pending", false);
             return Result.succeed(data);
         }
-        return Result.succeed(dingTalkLink.getStreamStatus(sessionId));
+
+        return Result.succeed(wsContext.getChannelHub().getDingTalkLink().getStreamStatus(sessionId));
     }
 
     // ==================== 钉钉扫码绑定接口 ====================
@@ -476,8 +520,10 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
         try {
-            DingTalkQRBindManager.BindStartResult result = dingtalkQRBindManager.startQrBinding(sessionId);
+            DingTalkQRBindManager.BindStartResult result = wsContext.getChannelHub().getDingtalkQRBindManager().startQrBinding(sessionId);
 
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("qrUrl", result.qrUrl);
@@ -506,8 +552,10 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
         try {
-            DingTalkAppRegistration.PollResult pollResult = dingtalkQRBindManager.pollQrBinding(sessionId);
+            DingTalkAppRegistration.PollResult pollResult = wsContext.getChannelHub().getDingtalkQRBindManager().pollQrBinding(sessionId);
 
             Map<String, Object> data = new LinkedHashMap<>();
 
@@ -518,7 +566,7 @@ public class WebChannel implements Runnable{
 
                 if (clientId != null && clientSecret != null) {
                     // 启动 Stream 连接（用户向机器人发消息后会自动完成绑定）
-                    dingTalkLink.startStream(clientId, clientSecret, sessionId);
+                    wsContext.getChannelHub().getDingTalkLink().startStream(clientId, clientSecret, sessionId);
                 }
 
                 data.put("status", "success");
@@ -554,38 +602,9 @@ public class WebChannel implements Runnable{
             return Result.failure("Invalid sessionId");
         }
 
-        dingtalkQRBindManager.cancelQrBinding(sessionId);
+        WorkspaceContext wsContext = workspaceManager.currentContext();
+
+        wsContext.getChannelHub().getDingtalkQRBindManager().cancelQrBinding(sessionId);
         return Result.succeed();
-    }
-
-    // ==================== 通道实例访问器 ====================
-
-    /**
-     * 获取微信通道适配器实例。
-     *
-     * <p>供外部组件（如 Configurator）注册启动或进行额外配置。</p>
-     *
-     * @return 微信通道适配器
-     */
-    public WeChatLink getWeChatLink() {
-        return weChatLink;
-    }
-
-    /**
-     * 获取飞书通道适配器实例。
-     *
-     * @return 飞书通道适配器
-     */
-    public FeishuLink getFeishuLink() {
-        return feishuLink;
-    }
-
-    /**
-     * 获取钉钉通道适配器实例。
-     *
-     * @return 钉钉通道适配器
-     */
-    public DingTalkLink getDingTalkLink() {
-        return dingTalkLink;
     }
 }

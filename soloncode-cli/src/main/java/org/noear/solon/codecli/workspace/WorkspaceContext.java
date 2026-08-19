@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.workspace;
 
 import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.codecli.channel.ChannelHub;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.portal.web.WebGate;
@@ -30,8 +31,8 @@ public class WorkspaceContext implements Closeable {
     private final LoopScheduler loopScheduler;
     private final WebGate webGate;
     private final AgentSettings settings;
-    /** 工作区连接池：与本上下文的 {@link WebGate} 共享同一引用，由构造方先建后传入 */
     private final List<WebSocket> connections;
+    private final ChannelHub channelHub;
 
     public WorkspaceContext(WorkspaceMeta meta,
                             HarnessEngine engine,
@@ -41,8 +42,7 @@ public class WorkspaceContext implements Closeable {
                             FileWatchService fileWatchService,
                             LoopScheduler loopScheduler,
                             WebGate webGate,
-                            AgentSettings settings,
-                            List<WebSocket> connections) {
+                            AgentSettings settings) {
         this.meta = meta;
         this.engine = engine;
         this.sessionManager = sessionManager;
@@ -52,7 +52,8 @@ public class WorkspaceContext implements Closeable {
         this.loopScheduler = loopScheduler;
         this.webGate = webGate;
         this.settings = settings;
-        this.connections = connections;
+        this.connections = new CopyOnWriteArrayList<>();
+        this.channelHub = new ChannelHub(this);
     }
 
     public WorkspaceMeta getMeta() {
@@ -93,6 +94,10 @@ public class WorkspaceContext implements Closeable {
 
     public List<WebSocket> getConnections() {
         return connections;
+    }
+
+    public ChannelHub getChannelHub() {
+        return channelHub;
     }
 
     @Override

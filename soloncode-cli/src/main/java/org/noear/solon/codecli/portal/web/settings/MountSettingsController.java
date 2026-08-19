@@ -14,6 +14,8 @@ import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -42,8 +44,8 @@ public class MountSettingsController extends BaseSettingsController {
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public MountSettingsController(HarnessEngine engine, AgentSettings settings, FileWatchService fileWatchService, WebGate webGate) {
-        super(engine, settings, fileWatchService, webGate);
+    public MountSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+        super(workspaceManager, fileWatchService, webGate);
     }
 
     // ==================== 设置：挂载池管理 ====================
@@ -373,11 +375,12 @@ public class MountSettingsController extends BaseSettingsController {
     private void registerMountWatch(MountDir mount) {
         if (fileWatchService == null || !mount.isEnabled()) return;
 
+        WorkspaceContext wsContext = currentContext();
         FileWatchService.WatchRoot root = fileWatchService().addRoot(mount.getAlias(), mount.getRealPath());
 
         switch (mount.getType()) {
             case FILES:
-                root.addHandler(changes -> webGate().broadcastRaw(FileWatchService.buildFrontendJson(changes)));
+                root.addHandler(changes -> webGate().broadcastRaw(wsContext, FileWatchService.buildFrontendJson(changes)));
                 break;
             case SKILLS:
                 root.addHandler(changes -> engine().getSkillProvider().refreshByGroup(mount.getAlias()));

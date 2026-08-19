@@ -11,6 +11,8 @@ import org.noear.solon.codecli.portal.web.service.SkinService;
 
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.core.handle.Context;
+
 import java.util.List;
 import java.util.Map;
 
@@ -20,17 +22,12 @@ import java.util.Map;
  *
  */
 public class BaseSettingsController {
+    private final WorkspaceManager workspaceManager;
 
     /**
      * 本地皮肤服务（Zip 安装 / 列表 / 资源代理）
      */
     protected final SkinService skinService;
-
-
-    /**
-     * AI Agent 执行引擎，提供模型配置管理能力
-     */
-    protected final HarnessEngine engine;
 
     /**
      * 技能市场适配器（通过构造函数注入，方便切换不同市场）
@@ -47,11 +44,6 @@ public class BaseSettingsController {
      */
     protected final ModelSpecService modelSpecService;
 
-    /**
-     * 统一配置管理器，管理 LLM 模型、MCP 服务器、OpenApi 服务器的持久化数据
-     */
-    protected final AgentSettings settings;
-
 
     /**
      * 文件变更监听服务（由 Configurator 注入，用于动态挂载管理）
@@ -64,14 +56,16 @@ public class BaseSettingsController {
     protected final WebGate webGate;
 
     // 动态提取所属工作区的引擎和服务
-    protected org.noear.solon.codecli.workspace.WorkspaceContext currentContext() {
-        org.noear.solon.core.handle.Context ctx = org.noear.solon.core.handle.Context.current();
+    public WorkspaceContext currentContext() {
+        Context ctx = Context.current();
         org.noear.solon.codecli.workspace.WorkspaceContext wctx = null;
+
         if (ctx != null) {
             wctx = ctx.attr("WORKSPACE_CTX");
         }
+
         if (wctx == null) {
-            wctx = org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class).getOrCreate(null);
+            wctx = workspaceManager.getOrCreate(null);
         }
         return wctx;
     }
@@ -84,9 +78,8 @@ public class BaseSettingsController {
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public BaseSettingsController(HarnessEngine engine, AgentSettings settings,  FileWatchService fileWatchService, WebGate webGate) {
-        this.engine = engine;
-        this.settings = settings;
+    public BaseSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+        this.workspaceManager = workspaceManager;
         this.fileWatchService = fileWatchService;
         this.webGate = webGate;
 

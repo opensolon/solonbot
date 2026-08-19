@@ -12,6 +12,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
@@ -52,9 +53,9 @@ public class AgentSettingsController extends BaseSettingsController {
     private static final Pattern TOP_LEVEL_KEY_PATTERN = Pattern.compile("^[A-Za-z_][A-Za-z0-9_-]*\\s*:.*$");
     private static final Logger LOG = LoggerFactory.getLogger(AgentSettingsController.class);
 
-    public AgentSettingsController(HarnessEngine engine, AgentSettings settings,
+    public AgentSettingsController(WorkspaceManager workspaceManager,
                                    FileWatchService fileWatchService, WebGate webGate) {
-        super(engine, settings, fileWatchService, webGate);
+        super(workspaceManager, fileWatchService, webGate);
     }
 
     @Get

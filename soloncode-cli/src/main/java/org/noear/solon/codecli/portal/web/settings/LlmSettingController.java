@@ -14,6 +14,7 @@ import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
 import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
@@ -40,8 +41,8 @@ public class LlmSettingController extends BaseSettingsController {
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public LlmSettingController(HarnessEngine engine, AgentSettings settings, FileWatchService fileWatchService, WebGate webGate) {
-        super(engine, settings, fileWatchService, webGate);
+    public LlmSettingController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+        super(workspaceManager, fileWatchService, webGate);
     }
 
     // ==================== 设置：LLM 模型管理 ====================

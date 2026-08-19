@@ -21,6 +21,7 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.channel.ChunkedSender;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
 import org.slf4j.Logger;
@@ -52,8 +53,7 @@ import java.util.concurrent.*;
 public class DingTalkLink implements Channel, Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(DingTalkLink.class);
 
-    private final HarnessEngine engine;
-    private final WebGate webGate;
+    private final WorkspaceContext wsContext;
     private final DingTalkCredentialStore credentialStore;
 
     /**
@@ -77,12 +77,9 @@ public class DingTalkLink implements Channel, Runnable {
      */
     private final Map<String, ReplyChannel> replyChannels = new ConcurrentHashMap<>();
 
-    public DingTalkLink(HarnessEngine engine, WebGate webGate) {
-        this.engine = engine;
-        this.webGate = webGate;
-        this.credentialStore = new DingTalkCredentialStore(engine);
-
-        webGate.getStreamBuilder().bind(this);
+    public DingTalkLink(WorkspaceContext wsContext) {
+        this.wsContext = wsContext;
+        this.credentialStore = new DingTalkCredentialStore(wsContext.getEngine());
 
         // 尝试恢复已保存的绑定（含 appKey/appSecret）
         loadBindings();
@@ -483,7 +480,7 @@ public class DingTalkLink implements Channel, Runnable {
 
         RunUtil.async(() -> {
             try {
-                boolean accepted = webGate.safeChatInput(finalSessionId, finalText, "DingTalk");
+                boolean accepted = wsContext.getWebGate().safeChatInput(wsContext, finalSessionId, finalText, "DingTalk");
                 if (accepted) {
                     // 消息被接受后才记录 lastMessageId，避免重连重推时被去重丢弃
                     if (finalMsgId != null) {
