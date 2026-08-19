@@ -96,9 +96,10 @@
                 html += '<div class="todo-group">' + escapeHtml(item.group) + '</div>';
                 lastGroup = item.group;
             }
+            var escapedText = escapeHtml(item.text);
             html += '<div class="todo-item todo-' + (STATUS_CSS[item.status] || item.status) + '">' +
                 '<span class="todo-check">' + statusIcon(item.status) + '</span>' +
-                '<span class="todo-text">' + escapeHtml(item.text) + '</span>' +
+                '<span class="todo-text" title="' + escapedText + '">' + escapedText + '</span>' +
                 '</div>';
         }
         todoList.innerHTML = html;
