@@ -1365,12 +1365,7 @@ function connectWebGate() {
     if (webGateSocket && webGateSocket.readyState === WebSocket.OPEN) return;
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-        var wsUrl = protocol + '//' + window.location.host + '/web/gate';
-        // 统一通过 window.wsId() 取当前工作区 ID，排除空值与文件树默认节点值 'workspace'
-        var wsId = window.wsId();
-        if (wsId && wsId !== 'workspace') {
-            wsUrl += "?workspaceId=" + encodeURIComponent(wsId);
-        }
+        var wsUrl = protocol + '//' + window.location.host + '/web/gate?_t=1' + window.wsAndSuffix();
         webGateSocket = new WebSocket(wsUrl);
     } catch(e) {
         console.error('[WebGate] create failed:', e);

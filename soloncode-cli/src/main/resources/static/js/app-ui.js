@@ -282,7 +282,7 @@ function createMarkdownRenderer() {
         var src = String(href || '');
         // 已是完整 URL（http/https/data）则不重写
         if (!/^(https?:|data:)/i.test(src)) {
-            src = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src) + window.wsSuffix();
+            src = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src) + window.wsAndSuffix();
         }
         return '<img src="' + escapeHtmlAttr(src) + '" alt="' + escapeHtmlAttr(text) + '"'
             + (title ? ' title="' + escapeHtmlAttr(title) + '"' : '') + ' style="max-width:100%">';
@@ -842,9 +842,9 @@ function ensureSkinStyleLink() {
     return el;
 }
 
-/** 当前工作区查询串（统一入口 window.wsSuffix，见 app-base.js） */
+/** 当前工作区查询串（统一入口 window.wsAndSuffix，见 app-base.js） */
 function skinWsQuery() {
-    return window.wsSuffix();
+    return window.wsAndSuffix();
 }
 
 /** 预置皮肤：static/skin/<name>/skin.css */

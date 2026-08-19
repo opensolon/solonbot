@@ -553,8 +553,8 @@
                     rawUrl += '&mount=' + encodeURIComponent(fileWorkspace);
                 }
                 // 多工作区隔离：<img>/<video> 的 src 由浏览器直发，绕过了 fetch/XHR 劫持层，
-                // 必须显式在 URL 携带 workspaceId（统一入口 window.wsSuffix）
-                rawUrl += window.wsSuffix();
+                // 必须显式在 URL 携带 workspaceId（统一入口 window.wsAndSuffix）
+                rawUrl += window.wsAndSuffix();
                 renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
@@ -1019,7 +1019,7 @@
             // 多工作区隔离：iframe 内嵌图 src 不走 fetch/XHR 劫持层，重写为 read-raw + workspaceId
             html = html.replace(/<img\s+src="([^"]*)"/gi, function(m, src) {
                 if (/^(https?:|data:|\/\/)/i.test(src)) return m;
-                var u = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src) + window.wsSuffix();
+                var u = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src) + window.wsAndSuffix();
                 return '<img src="' + u + '"';
             });
             // 恢复全局配置

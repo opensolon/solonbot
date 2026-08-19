@@ -258,6 +258,12 @@ public class WebGate extends SimpleWebSocketListener {
     public void broadcastRaw(String workspaceId,String json) {
         WorkspaceContext wsContext = workspaceManager.getContextsCached(workspaceId);
 
+        if (wsContext == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[WebGate] broadcastRaw skipped: workspace '{}' not in memory (LRU-released or unknown)", workspaceId);
+            }
+        }
+
         broadcastRaw(wsContext, json);
     }
 

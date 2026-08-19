@@ -419,8 +419,8 @@ function loadMessages(sess) {
                             var att = m.attachments[ai];
                             if (att.type === 'image') {
                                 // read-raw 由浏览器 <img src> 直发，绕过 fetch/XHR 劫持层，
-                                // 必须显式拼 workspaceId（统一入口 window.wsSuffix）
-                                var _rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(att.name) + window.wsSuffix();
+                                // 必须显式拼 workspaceId（统一入口 window.wsAndSuffix）
+                                var _rawUrl = '/web/chat/filer/read-raw?path=' + encodeURIComponent(att.name) + window.wsAndSuffix();
                                 historyImages.push(_rawUrl);
                             } else {
                                 historyFileAttachments.push(att);

@@ -12,7 +12,7 @@
         var sid = typeof SESSION_ID !== 'undefined' ? SESSION_ID : null;
         if (!sid) return;
 
-        var url = '/web/chat/todos?sessionId=' + encodeURIComponent(sid) + window.wsSuffix();
+        var url = '/web/chat/todos?sessionId=' + encodeURIComponent(sid) + window.wsAndSuffix();
 
         fetch(url)
             .then(function(r) { return r.json(); })

@@ -512,7 +512,7 @@ window.wsId = function () {
  * 返回 '&workspaceId=xxx' 或 ''（请拼在已含 '?' 的 URL 之后）。
  * 统一入口：禁止在业务代码内联拼参（历史多次漏拼均源于内联重复）。
  */
-window.wsSuffix = function () {
+window.wsAndSuffix = function () {
     var w = window.wsId();
     return (w && w !== 'workspace') ? '&workspaceId=' + encodeURIComponent(w) : '';
 };

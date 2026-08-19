@@ -76,7 +76,7 @@
             var preview = '';
             if (isLocal && s.hasPreview) {
                 preview = '<div class="skin-card-preview" style="background-image:url(\'/web/settings/skins/file?name=' +
-                    encodeURIComponent(s.name) + '&file=preview.png' + window.wsSuffix() + '\')"></div>';
+                    encodeURIComponent(s.name) + '&file=preview.png' + window.wsAndSuffix() + '\')"></div>';
             } else {
                 preview = '<div class="skin-card-preview skin-card-preview--' + escapeAttr(s.name) + '"></div>';
             }
@@ -346,7 +346,7 @@
         if (!name) return;
         // 触发浏览器下载本地皮肤 zip，便于分享给朋友导入
         var a = document.createElement('a');
-        a.href = '/web/settings/skins/export?name=' + encodeURIComponent(name) + window.wsSuffix();
+        a.href = '/web/settings/skins/export?name=' + encodeURIComponent(name) + window.wsAndSuffix();
         a.download = name + '.zip';
         a.style.display = 'none';
         document.body.appendChild(a);
