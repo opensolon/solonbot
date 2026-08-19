@@ -187,15 +187,15 @@ public class Configurator {
         BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(workspaceManager));
         Solon.app().router().add(webController);
 
-        addWebBean(new WebSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new AgentSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new MountSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new SkillSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new LlmSettingController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new WebSettingsController(workspaceManager));
+        addWebBean(new AgentSettingsController(workspaceManager));
+        addWebBean(new MountSettingsController(workspaceManager));
+        addWebBean(new SkillSettingsController(workspaceManager));
+        addWebBean(new LlmSettingController(workspaceManager));
 
-        addWebBean(new McpSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new OpenapiSettingsController(workspaceManager, fileWatchService, webGate));
-        addWebBean(new LspSettingsController(workspaceManager, fileWatchService, webGate));
+        addWebBean(new McpSettingsController(workspaceManager));
+        addWebBean(new OpenapiSettingsController(workspaceManager));
+        addWebBean(new LspSettingsController(workspaceManager));
 
         addWebBean(new MemoryController(agentRuntime));
 

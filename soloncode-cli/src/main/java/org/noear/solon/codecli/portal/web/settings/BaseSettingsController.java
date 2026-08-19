@@ -45,15 +45,8 @@ public class BaseSettingsController {
     protected final ModelSpecService modelSpecService;
 
 
-    /**
-     * 文件变更监听服务（由 Configurator 注入，用于动态挂载管理）
-     */
-    protected final FileWatchService fileWatchService;
-
-    /**
-     * Web 网关（用于前端 WebSocket 广播）
-     */
-    protected final WebGate webGate;
+    // fileWatchService()/webGate() 从当前工作区上下文动态提取；
+    // 不再构造注入全局实例——注入字段从未被使用，且跨工作区场景下全局实例语义也是错的
 
     // 动态提取所属工作区的引擎和服务
     public WorkspaceContext currentContext() {
@@ -78,10 +71,8 @@ public class BaseSettingsController {
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public BaseSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
+    public BaseSettingsController(WorkspaceManager workspaceManager) {
         this.workspaceManager = workspaceManager;
-        this.fileWatchService = fileWatchService;
-        this.webGate = webGate;
 
         this.skinService = SkinService.getInstance();
         this.marketManager = MarketManager.getInstance();

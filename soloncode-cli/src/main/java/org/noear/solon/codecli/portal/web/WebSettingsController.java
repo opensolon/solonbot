@@ -35,7 +35,6 @@ import org.noear.solon.codecli.config.entity.LspServerDo;
 import org.noear.solon.codecli.config.entity.McpServerDo;
 import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
-import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 import org.noear.solon.core.handle.Context;
@@ -77,8 +76,8 @@ public class WebSettingsController extends BaseSettingsController {
      */
     private static final Logger LOG = LoggerFactory.getLogger(WebSettingsController.class);
 
-    public WebSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public WebSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
 

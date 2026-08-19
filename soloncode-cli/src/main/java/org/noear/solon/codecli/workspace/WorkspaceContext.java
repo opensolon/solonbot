@@ -129,14 +129,6 @@ public class WorkspaceContext implements Closeable {
                 // Ignore
             }
         }
-        // harness engine 后台线程等清理（McpServer, LspServer, apiServer）
-        if (engine != null) {
-            try {
-                // engine 没有 close 方法，忽略
-            } catch (Exception e) {
-                // Ignore
-            }
-        }
         // 清理 WebSocket 连接
         for (WebSocket socket : connections) {
             try {

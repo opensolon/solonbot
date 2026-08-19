@@ -13,7 +13,6 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
@@ -44,8 +43,8 @@ public class MountSettingsController extends BaseSettingsController {
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public MountSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public MountSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
     // ==================== 设置：挂载池管理 ====================

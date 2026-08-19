@@ -644,21 +644,21 @@ public class WorkspaceManager {
             engine.addLspServer(entry.getKey(), entry.getValue());
         }
 
-        addSystemLspServer(engine, "java", Arrays.asList("jdtls"), Arrays.asList(".java"));
-        addSystemLspServer(engine, "typescript", Arrays.asList("typescript-language-server", "--stdio"), Arrays.asList(".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"));
-        addSystemLspServer(engine, "go", Arrays.asList("gopls"), Arrays.asList(".go"));
-        addSystemLspServer(engine, "python", Arrays.asList("pyright-langserver", "--stdio"), Arrays.asList(".py", ".pyi"));
-        addSystemLspServer(engine, "rust", Arrays.asList("rust-analyzer"), Arrays.asList(".rs"));
-        addSystemLspServer(engine, "c-cpp", Arrays.asList("clangd", "--background-index", "--clang-tidy"), Arrays.asList(".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".c++", ".h++", ".hh"));
-        addSystemLspServer(engine, "csharp", Arrays.asList("roslyn-language-server", "--stdio", "--autoLoadProjects"), Arrays.asList(".cs", ".csx"));
-        addSystemLspServer(engine, "ruby", Arrays.asList("solargraph", "stdio"), Arrays.asList(".rb", ".rake", ".gemspec", ".ru"));
-        addSystemLspServer(engine, "php", Arrays.asList("intelephense", "--stdio"), Arrays.asList(".php"));
-        addSystemLspServer(engine, "bash", Arrays.asList("bash-language-server", "start"), Arrays.asList(".sh", ".bash", ".zsh", ".ksh"));
-        addSystemLspServer(engine, "lua", Arrays.asList("lua-language-server"), Arrays.asList(".lua"));
-        addSystemLspServer(engine, "dart", Arrays.asList("dart", "language-server", "--lsp"), Arrays.asList(".dart"));
-        addSystemLspServer(engine, "swift", Arrays.asList("sourcekit-lsp"), Arrays.asList(".swift", ".objc", ".objcpp"));
-        addSystemLspServer(engine, "kotlin", Arrays.asList("kotlin-language-server"), Arrays.asList(".kt", ".kts"));
-        addSystemLspServer(engine, "yaml", Arrays.asList("yaml-language-server", "--stdio"), Arrays.asList(".yaml", ".yml"));
+        addSystemLspServer(engine, wsSettings, "java", Arrays.asList("jdtls"), Arrays.asList(".java"));
+        addSystemLspServer(engine, wsSettings, "typescript", Arrays.asList("typescript-language-server", "--stdio"), Arrays.asList(".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"));
+        addSystemLspServer(engine, wsSettings, "go", Arrays.asList("gopls"), Arrays.asList(".go"));
+        addSystemLspServer(engine, wsSettings, "python", Arrays.asList("pyright-langserver", "--stdio"), Arrays.asList(".py", ".pyi"));
+        addSystemLspServer(engine, wsSettings, "rust", Arrays.asList("rust-analyzer"), Arrays.asList(".rs"));
+        addSystemLspServer(engine, wsSettings, "c-cpp", Arrays.asList("clangd", "--background-index", "--clang-tidy"), Arrays.asList(".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".c++", ".h++", ".hh"));
+        addSystemLspServer(engine, wsSettings, "csharp", Arrays.asList("roslyn-language-server", "--stdio", "--autoLoadProjects"), Arrays.asList(".cs", ".csx"));
+        addSystemLspServer(engine, wsSettings, "ruby", Arrays.asList("solargraph", "stdio"), Arrays.asList(".rb", ".rake", ".gemspec", ".ru"));
+        addSystemLspServer(engine, wsSettings, "php", Arrays.asList("intelephense", "--stdio"), Arrays.asList(".php"));
+        addSystemLspServer(engine, wsSettings, "bash", Arrays.asList("bash-language-server", "start"), Arrays.asList(".sh", ".bash", ".zsh", ".ksh"));
+        addSystemLspServer(engine, wsSettings, "lua", Arrays.asList("lua-language-server"), Arrays.asList(".lua"));
+        addSystemLspServer(engine, wsSettings, "dart", Arrays.asList("dart", "language-server", "--lsp"), Arrays.asList(".dart"));
+        addSystemLspServer(engine, wsSettings, "swift", Arrays.asList("sourcekit-lsp"), Arrays.asList(".swift", ".objc", ".objcpp"));
+        addSystemLspServer(engine, wsSettings, "kotlin", Arrays.asList("kotlin-language-server"), Arrays.asList(".kt", ".kts"));
+        addSystemLspServer(engine, wsSettings, "yaml", Arrays.asList("yaml-language-server", "--stdio"), Arrays.asList(".yaml", ".yml"));
 
         // 同步 LSP servers
         for (Map.Entry<String, org.noear.solon.ai.talents.lsp.LspServerParameters> entry : engine.getLspServers().entrySet()) {
@@ -672,8 +672,10 @@ public class WorkspaceManager {
         }
     }
 
-    private void addSystemLspServer(HarnessEngine engine, String name, List<String> command, List<String> extensions) {
-        if (defaultSettings.getLspServers().containsKey(name)) {
+    private void addSystemLspServer(HarnessEngine engine, AgentSettings wsSettings, String name, List<String> command, List<String> extensions) {
+        // 以当前工作区合并后的 settings（global+workspace）为准，而非启动目录的 defaultSettings，
+        // 否则非默认工作区在自身 settings.json 中自定义的同名 LSP 会被误跳过注入
+        if (wsSettings.getLspServers().containsKey(name)) {
             return;
         }
         LspServerDo lspServer = new LspServerDo();

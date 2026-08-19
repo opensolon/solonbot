@@ -1366,10 +1366,11 @@ function connectWebGate() {
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/web/gate';
-        var urlParams = new URLSearchParams(window.location.search);
-        var workspace = urlParams.get('workspaceId');
-        if (workspace) {
-            wsUrl += "?workspaceId=" + encodeURIComponent(workspace);
+        // 与 window.wsSuffix 同源：统一取 wsId，且排除字面量 'workspace'（文件树默认节点值）
+        var wsId = (typeof window.wsId === 'function') ? window.wsId()
+                : new URLSearchParams(window.location.search).get('workspaceId');
+        if (wsId && wsId !== 'workspace') {
+            wsUrl += "?workspaceId=" + encodeURIComponent(wsId);
         }
         webGateSocket = new WebSocket(wsUrl);
     } catch(e) {

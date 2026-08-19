@@ -13,8 +13,6 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.McpTypeResolver;
 import org.noear.solon.codecli.config.entity.McpServerDo;
-import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
@@ -43,8 +41,8 @@ public class McpSettingsController extends BaseSettingsController{
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public McpSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public McpSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
     // ==================== 设置：MCP 服务器管理 ====================

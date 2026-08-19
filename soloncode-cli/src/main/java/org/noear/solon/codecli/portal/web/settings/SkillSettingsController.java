@@ -7,8 +7,6 @@ import org.noear.solon.annotation.Mapping;
 import org.noear.solon.annotation.Param;
 import org.noear.solon.annotation.Post;
 import org.noear.solon.codecli.config.AgentSettings;
-import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
@@ -35,8 +33,8 @@ public class SkillSettingsController extends BaseSettingsController{
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public SkillSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public SkillSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
     // ==================== 设置：Skills 市场（委派给 Market 接口） ====================

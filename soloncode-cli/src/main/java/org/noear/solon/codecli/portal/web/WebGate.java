@@ -136,6 +136,10 @@ public class WebGate extends SimpleWebSocketListener {
         if (wctx == null) {
             wctx = workspaceManager.getContextsCached(null);
         }
+        if (wctx == null) {
+            // initDefaultWorkspace 失败等极端场景下 defaultContext 可能为 null，防御避免 NPE
+            return Collections.emptyList();
+        }
 
         return wctx.getConnections();
     }

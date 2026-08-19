@@ -224,8 +224,7 @@ public class WebController {
             return Result.failure("Id is required");
         }
 
-        workspaceManager.closeWorkspace(id);
-        // "移除"语义必须同时删历史条目，否则重启后条目重新出现
+        // "移除"语义必须同时删历史条目，否则重启后条目重新出现（closeWorkspace 由 removeFromHistory 内部负责，避免双重关闭）
         workspaceManager.removeFromHistory(id);
         return Result.succeed();
     }

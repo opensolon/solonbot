@@ -10,8 +10,6 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.ApiSourceDo;
 import org.noear.solon.codecli.config.entity.LspServerDo;
-import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -38,8 +36,8 @@ public class OpenapiSettingsController extends BaseSettingsController{
     /**
      * 构造函数：支持自定义所有依赖。
      */
-    public OpenapiSettingsController(WorkspaceManager workspaceManager, FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public OpenapiSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
     // ==================== 设置：OpenApi 服务器管理 ====================

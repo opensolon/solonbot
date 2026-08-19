@@ -10,8 +10,6 @@ import org.noear.solon.annotation.Param;
 import org.noear.solon.annotation.Post;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
-import org.noear.solon.codecli.portal.FileWatchService;
-import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -53,9 +51,8 @@ public class AgentSettingsController extends BaseSettingsController {
     private static final Pattern TOP_LEVEL_KEY_PATTERN = Pattern.compile("^[A-Za-z_][A-Za-z0-9_-]*\\s*:.*$");
     private static final Logger LOG = LoggerFactory.getLogger(AgentSettingsController.class);
 
-    public AgentSettingsController(WorkspaceManager workspaceManager,
-                                   FileWatchService fileWatchService, WebGate webGate) {
-        super(workspaceManager, fileWatchService, webGate);
+    public AgentSettingsController(WorkspaceManager workspaceManager) {
+        super(workspaceManager);
     }
 
     @Get
