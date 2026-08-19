@@ -500,3 +500,19 @@ function hideNetworkBar() {
         $(networkBar).attr('class', 'network-bar');
     }
 }
+
+/* ===== Workspace URL helpers（多工作区） ===== */
+/** 当前工作区 ID（来自页面 URL query；默认工作区/未开启多工作区时为空串） */
+window.wsId = function () {
+    return new URLSearchParams(window.location.search).get('workspaceId') || '';
+};
+/**
+ * 浏览器直发 URL（<img src>/<link>/下载/iframe srcdoc）绕过 fetch/XHR 劫持层，
+ * 必须显式在 URL 携带 workspaceId，否则多工作区下会取错工作区。
+ * 返回 '&workspaceId=xxx' 或 ''（请拼在已含 '?' 的 URL 之后）。
+ * 统一入口：禁止在业务代码内联拼参（历史多次漏拼均源于内联重复）。
+ */
+window.wsSuffix = function () {
+    var w = window.wsId();
+    return (w && w !== 'workspace') ? '&workspaceId=' + encodeURIComponent(w) : '';
+};

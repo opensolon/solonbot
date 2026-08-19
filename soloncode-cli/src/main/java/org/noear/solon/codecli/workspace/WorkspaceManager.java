@@ -140,7 +140,9 @@ public class WorkspaceManager {
             String normalizedUserDir = normalizePathStr(userDir);
             meta.setPath(normalizedUserDir);
             contexts.put("default", defaultContext);
-            contexts.put(normalizedUserDir, defaultContext);
+            // 归一化路径 key 使用 putIfAbsent：若同路径已有其它工作区实例（理论上不该发生），
+            // 不覆盖，避免旧 ws-xxx key 指向被覆盖前的旧实例造成双实例永不关闭
+            contexts.putIfAbsent(normalizedUserDir, defaultContext);
         } catch (Exception e) {
             LOG.error("Failed to init default workspace: " + userDir, e);
         }
@@ -310,8 +312,16 @@ public class WorkspaceManager {
             }
             return false;
         }
-        // 物理路径形式：目录存在即有效
-        return Files.isDirectory(Paths.get(wsId));
+        // 物理路径形式：先做参数防护（与 getOrCreate 一致），再判目录存在
+        if (wsId.startsWith("@") || wsId.contains("..")) {
+            return false;
+        }
+        try {
+            return Files.isDirectory(Paths.get(wsId));
+        } catch (Exception e) {
+            // Windows 非法字符等会抛 InvalidPathException，直接判定无效
+            return false;
+        }
     }
 
     /**
@@ -397,6 +407,11 @@ public class WorkspaceManager {
             return;
         }
         try {
+            // 必须先关内存 context：否则后续任何 getOrCreate 内存命中会重新标脏，
+            // sweeper 的 flushDirtyHistory 会把刚删的条目写回文件——删除被静默回滚
+            closeWorkspace(workspaceId);
+            dirtyHistoryIds.remove(workspaceId);
+
             Path file = Paths.get(WORKSPACES_FILE_PATH);
             if (!Files.exists(file)) {
                 return;
@@ -408,7 +423,6 @@ public class WorkspaceManager {
                 }
             }
             writeHistoryFile(file, map);
-            dirtyHistoryIds.remove(workspaceId);
         } catch (Throwable e) {
             LOG.warn("Failed to remove workspace from history: " + workspaceId, e);
         }
@@ -795,26 +809,57 @@ public class WorkspaceManager {
     private void writeHistoryFile(Path file, Map<String, WorkspaceMeta> map) throws IOException {
         String newJson = ONode.ofBean(map, Feature.Write_PrettyFormat).toJson();
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.write(tmp, newJson.getBytes(StandardCharsets.UTF_8));
         try {
-            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.write(tmp, newJson.getBytes(StandardCharsets.UTF_8));
+            try {
+                Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            // move 失败时清理遗留 .tmp，避免脏临时文件残留
+            try {
+                Files.deleteIfExists(tmp);
+            } catch (IOException ignore) {
+            }
         }
     }
 
     /**
      * 把标脏的工作区 lastAccessed 回写到 workspaces.json。
      */
-    private void flushDirtyHistory() {
+    private synchronized void flushDirtyHistory() {
         if (dirtyHistoryIds.isEmpty()) {
             return;
         }
-        for (String id : dirtyHistoryIds) {
-            dirtyHistoryIds.remove(id);
+        // 先摘脏标记并收集 meta（摘取后到落盘前若又有访问会重新标脏，下轮补写，不丢数据）
+        List<String> ids = new ArrayList<>(dirtyHistoryIds);
+        dirtyHistoryIds.removeAll(ids);
+
+        // 一次性整读 + 批量覆盖 + 一次落盘：避免每个脏 ID 整读整写一次的 O(n²) 写放大
+        Map<String, WorkspaceMeta> map = new LinkedHashMap<>();
+        for (WorkspaceMeta w : readWorkspaceEntries()) {
+            if (w.getId() != null && w.getPath() != null && !"default".equals(w.getId())) {
+                map.put(w.getId(), w);
+            }
+        }
+        boolean changed = false;
+        for (String id : ids) {
             WorkspaceContext ctx = contexts.get(id);
             if (ctx != null && !ctx.getMeta().isDefault()) {
-                saveWorkspaceToHistory(ctx.getMeta());
+                map.put(ctx.getMeta().getId(), ctx.getMeta());
+                changed = true;
+            }
+        }
+        if (changed) {
+            try {
+                Path file = Paths.get(WORKSPACES_FILE_PATH);
+                if (!Files.exists(file.getParent())) {
+                    Files.createDirectories(file.getParent());
+                }
+                writeHistoryFile(file, map);
+            } catch (Throwable e) {
+                LOG.warn("Failed to flush dirty workspace history", e);
             }
         }
     }

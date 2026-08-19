@@ -553,12 +553,8 @@
                     rawUrl += '&mount=' + encodeURIComponent(fileWorkspace);
                 }
                 // 多工作区隔离：<img>/<video> 的 src 由浏览器直发，绕过了 fetch/XHR 劫持层，
-                // 必须显式在 URL 携带 workspaceId，否则会取错工作区的文件。
-                var _wsParams = new URLSearchParams(window.location.search);
-                var _wsId = _wsParams.get('workspaceId');
-                if (_wsId && _wsId !== 'workspace') {
-                    rawUrl += '&workspaceId=' + encodeURIComponent(_wsId);
-                }
+                // 必须显式在 URL 携带 workspaceId（统一入口 window.wsSuffix）
+                rawUrl += window.wsSuffix();
                 renderFileContent(d.content, d.name || name, d.size, path, rawUrl);
             })
             .catch(function(e) {
@@ -1021,11 +1017,9 @@
             marked.setOptions({ breaks: true, gfm: true, renderer: null });
             var html = marked.parse(text || '');
             // 多工作区隔离：iframe 内嵌图 src 不走 fetch/XHR 劫持层，重写为 read-raw + workspaceId
-            var _wsId = new URLSearchParams(window.location.search).get('workspaceId');
             html = html.replace(/<img\s+src="([^"]*)"/gi, function(m, src) {
                 if (/^(https?:|data:|\/\/)/i.test(src)) return m;
-                var u = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src);
-                if (_wsId) u += '&workspaceId=' + encodeURIComponent(_wsId);
+                var u = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src) + window.wsSuffix();
                 return '<img src="' + u + '"';
             });
             // 恢复全局配置

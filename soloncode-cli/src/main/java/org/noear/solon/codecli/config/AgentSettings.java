@@ -141,23 +141,34 @@ public class AgentSettings implements Serializable {
      * <p>语义：先 global，再 local 覆盖；文件不存在视为空配置（合法）。</p>
      */
     public static AgentSettings loadFromFileStrict() throws Exception {
+        return loadSettingsStrict(null);
+    }
+
+    /**
+     * 严格加载配置（可指定 local 层目录）。
+     *
+     * @param localDir local 层目录；null 时用启动目录（CLI 语义）。
+     *                 非默认工作区实例热重载时必须传 workspaceDir，与 saveToFile 写回路径对称，
+     *                 否则读A写B错位（启动目录内容被当工作区配置载入并写进工作区文件）。
+     */
+    private static AgentSettings loadSettingsStrict(String localDir) throws Exception {
         Path globalFile = Paths.get(AgentFlags.getUserHome(), ".soloncode", "settings.json").toAbsolutePath();
-        Path localFile = Paths.get(AgentFlags.getUserDir(), ".soloncode", "settings.json").toAbsolutePath();
+        Path localFile = Paths.get(localDir != null ? localDir : AgentFlags.getUserDir(), ".soloncode", "settings.json").toAbsolutePath();
         boolean isLocalAsGlobal = localFile.toString().equals(globalFile.toString());
-                    
+
         AgentSettings agentSettings = new AgentSettings();
-                    
+
         if (Files.exists(globalFile)) {
             bindSettingsFile(globalFile, agentSettings);
         }
-                
+
         if (isLocalAsGlobal == false && Files.exists(localFile)) {
             bindSettingsFile(localFile, agentSettings);
         }
-                
+
         return agentSettings;
     }
-                    
+
     /**
      * 按指定工作区目录加载配置（多工作区场景）。
      * <p>语义：先 global（~/.soloncode/settings.json），再以 workspaceDir/.soloncode/settings.json 覆盖。</p>
@@ -200,7 +211,7 @@ public class AgentSettings implements Serializable {
     private static void bindSettingsFile(Path file, AgentSettings agentSettings) throws Exception {
         String json = new String(Files.readAllBytes(file), "UTF-8");
         ONode oNode = ONode.ofJson(json);
-                    
+
         ONode oModels = oNode.get("models");
         if (oModels.isArray()) { //旧格式，转成新格式
             ONode map = new ONode().asObject();
@@ -209,10 +220,10 @@ public class AgentSettings implements Serializable {
             }
             oNode.set("models", map);
         }
-                
+
         oNode.bindTo(agentSettings);
     }
-            
+
     /**
      * 从磁盘重载到当前实例（in-place）。
      * <p>语义与 {@link #loadFromFileStrict()} 一致：先 global，再 local 覆盖。
@@ -224,7 +235,9 @@ public class AgentSettings implements Serializable {
     public synchronized boolean reloadInPlace() {
         AgentSettings disk;
         try {
-            disk = loadFromFileStrict();
+            // 读路径与写路径对称：工作区实例从本工作区目录读 local 层
+            disk = loadSettingsStrict(this.workspaceDir);
+            disk.workspaceDir = this.workspaceDir;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load settings from disk: " + e.getMessage(), e);
         }
@@ -236,7 +249,7 @@ public class AgentSettings implements Serializable {
         copyFrom(disk);
         return true;
     }
-    
+
     /**
      * 将 general/loop 中仍为 null 的字段回落到运行时默认值（不覆盖已有非 null）。
      * <p>优先走 {@link #mergeFrom()}，与启动时 Configurator 行为一致；
@@ -286,13 +299,13 @@ public class AgentSettings implements Serializable {
         if (other == null || other == this) {
             return;
         }
-        
+
         copyGeneral(this.general, other.general);
         copyPermission(this.permission, other.permission);
         copyLoop(this.loop, other.loop);
 
         this.defaultModel = other.defaultModel;
-        
+
         replaceMap(this.models, other.models);
         replaceMap(this.mountPools, other.mountPools);
         replaceMap(this.mcpServers, other.mcpServers);
@@ -337,7 +350,7 @@ public class AgentSettings implements Serializable {
         target.setLogFileMaxSize(source.getLogFileMaxSize());
         target.setLogMaxHistory(source.getLogMaxHistory());
     }
-    
+
     private static void copyPermission(PermissionGroupDo target, PermissionGroupDo source) {
         target.getTools().clear();
         target.getDisallowedTools().clear();
@@ -354,7 +367,7 @@ public class AgentSettings implements Serializable {
             }
         }
     }
-    
+
     private static void copyLoop(LoopGroupDo target, LoopGroupDo source) {
         if (source == null) {
             source = new LoopGroupDo();

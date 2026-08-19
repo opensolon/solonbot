@@ -87,7 +87,9 @@ import java.util.*;
  * @see HarnessEngine AI Agent 执行引擎
  */
 public class WebController {
-    /** 日志记录器 */
+    /**
+     * 日志记录器
+     */
     private static final Logger LOG = LoggerFactory.getLogger(WebController.class);
 
     private final WorkspaceManager workspaceManager;
@@ -366,7 +368,7 @@ public class WebController {
     @Post
     @Mapping("/web/chat/sessions/delete")
     public Result deleteSession(@Param("sessionId") String sessionId,
-                               @Param(value = "workspace", required = false) String workspace) throws Exception {
+                                @Param(value = "workspace", required = false) String workspace) throws Exception {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
@@ -598,18 +600,18 @@ public class WebController {
         String selected = "";
         String reasoningEffort = null;
         String thinkingMode = null;
-        
+
         if (Assert.isNotEmpty(list)) {
             if (Assert.isNotEmpty(sessionId)) {
                 AgentSession session = currentEngine.getSession(sessionId);
                 selected = session.getContext().getAs(HarnessEngine.CTX_MODEL_SELECTED);
-                
+
                 if (selected != null) {
                     selected = currentEngine.getModelOrDef(selected).getNameOrModel();
                 } else {
                     selected = currentEngine.getModelOrDef(null).getNameOrModel();
                 }
-                
+
                 reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
                 thinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
             } else {
@@ -623,7 +625,7 @@ public class WebController {
                 selected = (String) list.get(0).get("name");
             }
         }
-            
+
         data.put("selected", selected);
         data.put("reasoningEffort", reasoningEffort == null ? "" : reasoningEffort);
         data.put("thinkingMode", thinkingMode == null ? "" : thinkingMode);
@@ -640,7 +642,7 @@ public class WebController {
             }
         }
         data.put("selectedAgent", selectedAgent);
-        
+
         return Result.succeed(data);
     }
 
@@ -664,10 +666,10 @@ public class WebController {
      * <p>将选项写入会话上下文并更新快照，后续该会话的 AI 交互将使用新配置。
      * 思考模式（thinkingMode）与推理强度（reasoningEffort）是独立维度。</p>
      *
-     * @param sessionId        会话 ID
-     * @param modelName        目标模型名称（可选，仅改 effort 时可省略）
-     * @param reasoningEffort  推理水平 low|medium|high|max|auto（可选）
-     * @param thinkingMode     思考模式 on|off|auto（可选，独立于推理强度）
+     * @param sessionId       会话 ID
+     * @param modelName       目标模型名称（可选，仅改 effort 时可省略）
+     * @param reasoningEffort 推理水平 low|medium|high|max|auto（可选）
+     * @param thinkingMode    思考模式 on|off|auto（可选，独立于推理强度）
      * @return 操作结果
      * @throws Exception 会话操作异常
      */
@@ -678,21 +680,21 @@ public class WebController {
                                 @Param(value = "reasoningEffort", required = false) String reasoningEffort,
                                 @Param(value = "thinkingMode", required = false) String thinkingMode) throws Exception {
         AgentSession session = engine().getSession(sessionId);
-    
+
         if (Assert.isNotEmpty(modelName)) {
             session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, modelName);
         }
-        
+
         // reasoningEffort 参数出现即写入（含空串表示 auto 清除）
         boolean effortProvided = reasoningEffort != null;
         ReasoningSupportUtil.putSessionEffort(session, reasoningEffort, effortProvided);
-        
+
         // thinkingMode 参数出现即写入（含空串表示不干预/清除）
         boolean modeProvided = thinkingMode != null;
         ReasoningSupportUtil.putSessionThinkingMode(session, thinkingMode, modeProvided);
-        
+
         session.updateSnapshot();
-        
+
         return Result.succeed();
     }
 
@@ -760,7 +762,7 @@ public class WebController {
 
                         if (source != null) {
                             item.put("source", source); //可能有 {source:xxx}
-                item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
+                            item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
                         }
 
                         // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
@@ -809,7 +811,7 @@ public class WebController {
         }
 
         // 按当前请求工作区上下文取 WebGate，避免非默认工作区会话中断时推送串到默认工作区
-        webGate().interruptSession(currentContext(),sessionId);
+        webGate().interruptSession(currentContext(), sessionId);
 
         // 暂停该 session 的活跃 Goal，防止 Goal 调度器在 interrupt 后立即重新触发
         LoopScheduler loopScheduler = loopScheduler();
@@ -983,13 +985,13 @@ public class WebController {
                 sessionId = ctx.headerOrDefault("X-Session-Id", "web");
             }
             String sessionCwd = ctx.header("X-Session-Cwd");
-            
+
             if (!isValidSessionId(sessionId)) {
                 ctx.status(400);
                 ctx.output("Invalid Session ID");
                 return null;
             }
-            
+
             if (Assert.isNotEmpty(sessionCwd)) {
                 if (sessionCwd.contains("..")) {
                     ctx.status(400);
@@ -997,7 +999,7 @@ public class WebController {
                     return null;
                 }
             }
-            
+
             String hitlAction = ctx.param("hitlAction");
             String hitlCallId = ctx.param("hitlCallId");
 
@@ -1009,7 +1011,7 @@ public class WebController {
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
             webGate().onChatInput(currentContext(), sessionId, sessionCwd, input, model, attachments, attachmentTypes, hitlAction, null,
                     reasoningEffort, thinkingMode, selectedAgent);
-                    
+
             // 返回简单 JSON，前端通过 WebSocket 接收 AI 结果
             return Result.succeed();
         } catch (Throwable e) {
@@ -1017,7 +1019,6 @@ public class WebController {
             return Result.failure(500, e.getMessage());
         }
     }
-
 
 
     // ==================== Git 集成（委派给 GitService） ====================
@@ -1108,7 +1109,7 @@ public class WebController {
         String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
         return withGitWorkspace(wsId, () -> gitService().discard(path));
     }
-    
+
     @Get
     @Mapping("/web/chat/git/file-content")
     public Result<Map> gitFileContent(@Param(value = "mount", required = false) String mount,
@@ -1117,7 +1118,7 @@ public class WebController {
         String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
         return withGitWorkspace(wsId, () -> gitService().fileContent(path, ref));
     }
-    
+
     @Post
     @Mapping("/web/chat/git/commit")
     public Result<Map> gitCommit(@Body String body,
@@ -1148,7 +1149,7 @@ public class WebController {
         String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
         return withGitWorkspace(wsId, () -> gitService().commit(finalMsg, finalFiles));
     }
-    
+
     @Post
     @Mapping("/web/chat/git/summary")
     public Result<Map> gitSummary(@Param(value = "mount", required = false) String mount,
@@ -1160,7 +1161,7 @@ public class WebController {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
-        
+
         // 解析文件路径列表
         List<String> files = new ArrayList<>();
         if (paths != null && !paths.trim().isEmpty()) {
@@ -1325,9 +1326,9 @@ public class WebController {
     public Result loopAdd(@Param("sessionId") String sessionId,
                           @Param("prompt") String prompt,
                           @Param(value = "intervalMinutes", required = false) Integer intervalMinutes,
-                           @Param(value = "cron", required = false) String cron,
-                           @Param(value = "type", required = false) String type,
-                           @Param(value = "runNow", required = false) Boolean runNow,
+                          @Param(value = "cron", required = false) String cron,
+                          @Param(value = "type", required = false) String type,
+                          @Param(value = "runNow", required = false) Boolean runNow,
                           @Param(value = "maxTokens", required = false) Long maxTokens,
                           @Param(value = "maxDurationMs", required = false) Long maxDurationMs) {
         if (!isValidSessionId(sessionId)) {
@@ -1337,9 +1338,7 @@ public class WebController {
             return Result.failure(400, "prompt is required");
         }
 
-        HarnessEngine currentEngine = engine();
 
-        // 确定任务类型
         LoopTask.TaskType taskType = (type != null && "GOAL".equalsIgnoreCase(type))
                 ? LoopTask.TaskType.GOAL
                 : LoopTask.TaskType.HEARTBEAT;
@@ -1385,8 +1384,6 @@ public class WebController {
         if (taskId == null || taskId.isEmpty()) {
             return Result.failure(400, "taskId is required");
         }
-
-        HarnessEngine currentEngine = engine();
 
         LoopScheduler loopScheduler = loopScheduler();
         LoopTask existing = loopScheduler.getTaskById(sessionId, taskId);
@@ -1604,7 +1601,6 @@ public class WebController {
     }
 
 
-
     // ==================== 工具方法 ====================
 
     /**
@@ -1784,18 +1780,18 @@ public class WebController {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
-        
+
         Path queuePath = resolveSessionQueuePath(sessionId);
         if (queuePath == null) {
             return Result.failure(400, "Invalid session path");
         }
-        
+
         Map<String, Object> data = new LinkedHashMap<>();
         Path legacyPath = queuePath.getParent() != null
                 ? queuePath.getParent().resolve("queue.json") : null;
         Path readPath = Files.exists(queuePath) ? queuePath
                 : (legacyPath != null && Files.exists(legacyPath) ? legacyPath : null);
-        
+
         if (readPath == null) {
             data.put("exists", false);
             data.put("items", new ArrayList<>());
@@ -1808,7 +1804,7 @@ public class WebController {
             ONode root = ONode.ofJson(raw);
             List<Map> items = new ArrayList<>();
             long updatedAt = 0L;
-                    
+
             if (root != null && root.isObject()) {
                 ONode updatedNode = root.get("updatedAt");
                 if (updatedNode != null && !updatedNode.isNull()) {
@@ -1831,7 +1827,7 @@ public class WebController {
                     }
                 }
             }
-            
+
             data.put("exists", true);
             data.put("items", items);
             data.put("updatedAt", updatedAt);
@@ -1841,7 +1837,7 @@ public class WebController {
             return Result.failure(500, "Queue read failed");
         }
     }
-     
+
     /**
      * 整表覆盖保存会话消息排队到 {@code queue-tasks.json}。
      * <p>请求体：{@code {"sessionId":"web-xxx","items":[{id,text,displayText,model,reasoningEffort,createdAt}]}}。
@@ -1862,19 +1858,19 @@ public class WebController {
             if (root == null || !root.isObject()) {
                 return Result.failure(400, "Invalid JSON body");
             }
-            
+
             String sessionId = root.get("sessionId").getString();
             if (!isValidSessionId(sessionId)) {
                 return Result.failure(400, "Invalid sessionId");
             }
-            
+
             Path queuePath = resolveSessionQueuePath(sessionId);
             if (queuePath == null) {
                 return Result.failure(400, "Invalid session path");
             }
             Path legacyPath = queuePath.getParent() != null
                     ? queuePath.getParent().resolve("queue.json") : null;
-                    
+
             List<Map<String, Object>> items = new ArrayList<>();
             ONode itemsNode = root.get("items");
             if (itemsNode != null && itemsNode.isArray()) {
@@ -1889,7 +1885,7 @@ public class WebController {
                     }
                 }
             }
-                
+
             long updatedAt = System.currentTimeMillis();
             ONode clientUpdated = root.get("updatedAt");
             if (clientUpdated != null && !clientUpdated.isNull()) {
@@ -1899,7 +1895,7 @@ public class WebController {
                 } catch (Exception ignored) {
                 }
             }
-                
+
             // 空队列：删除新/旧文件，避免会话目录堆积空文件
             if (items.isEmpty()) {
                 if (Files.exists(queuePath)) {
@@ -1920,12 +1916,12 @@ public class WebController {
             if (sessionDir != null && !Files.exists(sessionDir)) {
                 Files.createDirectories(sessionDir);
             }
-            
+
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("version", 1);
             payload.put("updatedAt", updatedAt);
             payload.put("items", items);
-            
+
             String json = ONode.ofBean(payload, Feature.Write_PrettyFormat).toJson();
             Path tempPath = queuePath.resolveSibling(queuePath.getFileName() + ".tmp");
             Files.write(tempPath, json.getBytes("UTF-8"));
@@ -1943,7 +1939,7 @@ public class WebController {
                 } catch (Exception ignored) {
                 }
             }
-        
+
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("exists", true);
             data.put("items", items);
@@ -1954,7 +1950,7 @@ public class WebController {
             return Result.failure(500, "Queue save failed");
         }
     }
-    
+
     /**
      * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
      */

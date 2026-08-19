@@ -36,52 +36,20 @@ import java.util.Map;
  *
  * <p><b>架构位置：</b>
  * 位于 portal.web 层，作为 Web 控制器接收前端请求，将通道操作委托给
- * {@link WeChatLink}、{@link FeishuLink}、{@link DingTalkLink} 等通道适配器执行。
- * 实现 {@link Runnable} 接口，在启动时同时拉起所有通道的长连接。</p>
- *
+ * {@link WeChatLink}、{@link FeishuLink}、{@link DingTalkLink} 等通道适配器执行。</p>
  * @author noear 2026/5/12 created
  */
-public class WebChannel {
 
-//    /** 微信通道适配器，负责扫码登录、会话绑定与消息转发 */
-//    private final WeChatLink weChatLink;
-//
-//    /** 飞书通道适配器，负责 WebSocket Stream 连接、会话绑定与消息转发 */
-//    private final FeishuLink feishuLink;
-//
-//    /** 钉钉通道适配器，负责 Stream 连接、会话绑定与消息转发 */
-//    private final DingTalkLink dingTalkLink;
-//
-//    /** 飞书扫码绑定管理器 */
-//    private final FeishuQRBindManager feishuQRBindManager;
-//
-//    /** 钉钉扫码绑定管理器 */
-//    private final DingTalkQRBindManager dingtalkQRBindManager;
+public class WebChannel {
 
     private final WorkspaceManager workspaceManager;
 
     /**
-     * 构造函数：初始化三个通道适配器和扫码绑定管理器。
+     * 构造函数：初始化工作区管理器。
      */
     public WebChannel(WorkspaceManager workspaceManager) {
         this.workspaceManager = workspaceManager;
-//        this.weChatLink = new WeChatLink(engine, webGate);
-//        this.feishuLink = new FeishuLink(engine, webGate);
-//        this.dingTalkLink = new DingTalkLink(engine, webGate);
-//        this.feishuQRBindManager = new FeishuQRBindManager();
-//        this.dingtalkQRBindManager = new DingTalkQRBindManager();
     }
-
-    /**
-     * 启动所有通道适配器的长连接监听。
-     * 依次启动微信、飞书、钉钉三个通道的运行循环。
-     */
-//    @Override
-//    public void run() {
-////        weChatLink.run();
-////        feishuLink.run();
-////        dingTalkLink.run();
-//    }
 
     // ==================== 微信（WeChat）通道接口 ====================
 

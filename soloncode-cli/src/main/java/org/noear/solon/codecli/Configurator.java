@@ -3,27 +3,14 @@ package org.noear.solon.codecli;
 import com.agentclientprotocol.sdk.agent.transport.StdioAcpAgentTransport;
 import com.agentclientprotocol.sdk.spec.AcpAgentTransport;
 import org.noear.solon.Solon;
-import org.noear.solon.ai.chat.CacheControl;
 import org.noear.solon.ai.harness.HarnessEngine;
-import org.noear.solon.ai.harness.HarnessExtension;
-import org.noear.solon.ai.talents.mount.MountDir;
-import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.annotation.Bean;
 import org.noear.solon.annotation.Configuration;
 import org.noear.solon.annotation.Init;
 import org.noear.solon.annotation.Inject;
-import org.noear.solon.codecli.command.builtin.*;
-import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
+import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
-import org.noear.solon.codecli.config.ManagerExtension;
-import org.noear.solon.codecli.config.ProxyConfig;
-import org.noear.solon.codecli.config.entity.ApiSourceDo;
-import org.noear.solon.codecli.config.entity.McpServerDo;
-import org.noear.solon.codecli.config.entity.ModelDo;
-import org.noear.solon.codecli.config.entity.LspServerDo;
-import org.noear.solon.codecli.config.entity.MountDo;
-import org.noear.solon.codecli.memory.MemoryProvider;
 import org.noear.solon.codecli.portal.*;
 import org.noear.solon.codecli.portal.acp.AcpLink;
 import org.noear.solon.codecli.portal.cli.CliShell;
@@ -40,24 +27,12 @@ import org.noear.solon.codecli.portal.web.settings.*;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
-import org.noear.solon.core.AppContext;
 import org.noear.solon.core.BeanWrap;
 import org.noear.solon.core.util.JavaUtil;
 import org.noear.solon.core.util.RunUtil;
-import org.noear.solon.net.http.HttpConfiguration;
-import org.noear.solon.net.http.HttpExtension;
-import org.noear.solon.net.http.HttpUtils;
-import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.WebSocketRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  *
@@ -67,9 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Configuration
 public class Configurator {
     private static final Logger LOG = LoggerFactory.getLogger(Configurator.class);
-
-    @Inject
-    AppContext appContext;
 
     @Inject
     HarnessEngine agentRuntime;
@@ -96,163 +68,26 @@ public class Configurator {
     }
 
     @Bean
-    public HarnessEngine agentRuntime(AgentSettings settings, SessionManager sessionManager, WorkspaceManager workspaceManager) throws Exception {
-        String stealthIdentity = "<!--\n" +
-                "  @poweredby: soloncode\n" +
-                "  @build: " + AgentFlags.getVersion() + "\n" +
-                "-->\n\n";
-
-        //初始化 HTTP 代理配置
-        ProxyConfig.update(settings.getGeneral());
-        HttpConfiguration.addExtension(new HttpExtension() {
-            @Override
-            public void onInit(HttpUtils http, String url) {
-                ProxyConfig.applyIfNeeded(http);
-            }
-        });
-
-        String workspace = AgentFlags.getUserDir();
-
-        HarnessEngine engine = HarnessEngine.of(workspace, AgentFlags.getHarnessHome())
-                .userAgent(settings.getGeneral().getUserAgent())
-                .systemPrompt(stealthIdentity + AgentFlags.getAgentsMd())
-                .maxTurns(settings.getGeneral().getMaxTurns())
-                .autoRethink(settings.getGeneral().isAutoRethink())
-                .sessionWindowSize(settings.getGeneral().getSessionWindowSize())
-                .sessionProvider(sessionManager)
-                .compressionThreshold(settings.getGeneral().getCompressionThresholdMessages(), settings.getGeneral().getCompressionThresholdPercent() / 100.0D)
-                .memoryEnabled(settings.getGeneral().isMemoryEnabled())
-                .memoryRelevanceCount(settings.getGeneral().getMemoryRelevanceCount())
-                .memoryPriorityCount(settings.getGeneral().getMemoryPriorityCount())
-                .memorySummaryLength(settings.getGeneral().getMemorySummaryLength())
-                .memoryProvider(new MemoryProvider())
-                .sandboxEnabled(settings.getGeneral().isSandboxMode())
-                .sandboxAllowUserHome(settings.getGeneral().isSandboxAllowUserHome())
-                .sandboxSystemRestrict(settings.getGeneral().isSandboxSystemRestrict())
-                .bashAsyncEnabled(settings.getGeneral().isBashAsyncEnabled())
-                .subagentEnabled(settings.getGeneral().isSubagentEnabled())
-                .hitlEnabled(settings.getGeneral().isHitlEnabled())
-                .apiRetries(settings.getGeneral().getApiRetries())
-                .modelRetries(settings.getGeneral().getModelRetries())
-                .mcpRetries(settings.getGeneral().getModelRetries())
-                .toolsAdd(settings.getPermission().getTools())
-                .disallowedToolsAdd(settings.getPermission().getDisallowedTools())
-                .cacheControl(CacheControl.ofEphemeral())
-                .httpCustomizeSet(http -> {
-                    ProxyConfig.applyIfNeeded(http);
-                })
-                .build();
-
-
-        engine.setDefaultModel(settings.getDefaultModel());
-        for (ModelDo model : agentSettings.getModels().values()) {
-            engine.addModel(model);
-        }
-
-        for (Map.Entry<String, MountDo> entry : agentSettings.getMountPools().entrySet()) {
-            MountDo mount = entry.getValue();
-            engine.addMount(MountDir.builder()
-                    .alias(entry.getKey())
-                    .description(mount.getDescription())
-                    .type(mount.getType())
-                    .path(mount.getPath())
-                    .primary(mount.isPrimary())
-                    .enabled(mount.isEnabled())
-                    .writeable(mount.isWriteable())
-                    .build());
-        }
-
-        engine.addMount(MountDir.builder().alias("@user-skills").type(MountType.SKILLS).path("~/" + engine.getHarnessSkills()).primary(true).build());
-        engine.addMount(MountDir.builder().alias("@workspace-skills").type(MountType.SKILLS).path("./" + engine.getHarnessSkills()).primary(true).build());
-
-        engine.addMount(MountDir.builder().alias("@user-agents").type(MountType.AGENTS).path("~/" + engine.getHarnessAgents()).primary(true).build());
-        engine.addMount(MountDir.builder().alias("@workspace-agents").type(MountType.AGENTS).path("./" + engine.getHarnessAgents()).primary(true).build());
-
-        // 灌入技能禁用清单（按 aliasPath 持久化于 settings.permission.disallowedSkills）
-        engine.disallowSkillReset(settings.getPermission().getDisallowedSkills());
-
-
-        engine.getCommandRegistry().load(Paths.get(AgentFlags.getUserHome(), engine.getHarnessCommands()));
-        engine.getCommandRegistry().load(Paths.get(workspace, engine.getHarnessCommands()));
-
-        engine.getCommandRegistry().register(new ExitCommand());
-        engine.getCommandRegistry().register(new ClearCommand());
-        engine.getCommandRegistry().register(new ContinueCommand());
-        engine.getCommandRegistry().register(new InterruptCommand());
-        engine.getCommandRegistry().register(new RerunCommand());
-        engine.getCommandRegistry().register(new RewindCommand());
-        engine.getCommandRegistry().register(new ModelCommand());
-
-        engine.getLspTalent().setEnabled(settings.getGeneral().isLspEnabled());
-
-        RunUtil.async(() -> addServers(engine));
-
-        // loop scheduler
-        this.loopScheduler = new LoopScheduler(engine, agentSettings);
-
-        // ★ 初始化 Goal 验证器（在 LoopScheduler 创建之后，GoalExtension 注册之前）
-        ValidatorFactory.initDefaults(workspace);
-
-        // ★ Goal 模式（受 feature flag 控制）
-        boolean goalsEnabled = settings.getGeneral().isGoalsEnabled();
-        GoalExtension goalExtension = new GoalExtension(loopScheduler);
-        goalExtension.getGoalTalent().setEnabled(goalsEnabled);
-        engine.addExtension(goalExtension);
-
-        // LoopCommand 统一管理循环任务与 Goal（pause/resume 需 GoalTool 同步 sessionId）
-        LoopCommand loopCommand = new LoopCommand(loopScheduler);
-        engine.getCommandRegistry().register(loopCommand);
-        engine.getCommandRegistry().register(new GoalCommand(loopCommand));
-
-        engine.addExtension(new ManagerExtension(engine, agentSettings, loopScheduler));
-
-        return engine;
-    }
-
-    private void addServers(HarnessEngine engine) {
-        for (Map.Entry<String, McpServerDo> entry : agentSettings.getMcpServers().entrySet()) {
-            engine.addMcpServer(entry.getKey(), entry.getValue());
-        }
-
-        for (Map.Entry<String, ApiSourceDo> entry : agentSettings.getApiServers().entrySet()) {
-            engine.addApiServer(entry.getValue());
-        }
-
-        for (Map.Entry<String, LspServerDo> entry : agentSettings.getLspServers().entrySet()) {
-            engine.addLspServer(entry.getKey(), entry.getValue());
-        }
-
-        //系统级 LSP 服务器（参考 OpenCode / Claude Code 内置列表，仅注册常见语言）
-        addSystemLspServer(engine, agentSettings, "java", Arrays.asList("jdtls"), Arrays.asList(".java"));
-        addSystemLspServer(engine, agentSettings, "typescript", Arrays.asList("typescript-language-server", "--stdio"), Arrays.asList(".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"));
-        addSystemLspServer(engine, agentSettings, "go", Arrays.asList("gopls"), Arrays.asList(".go"));
-        addSystemLspServer(engine, agentSettings, "python", Arrays.asList("pyright-langserver", "--stdio"), Arrays.asList(".py", ".pyi"));
-        addSystemLspServer(engine, agentSettings, "rust", Arrays.asList("rust-analyzer"), Arrays.asList(".rs"));
-        addSystemLspServer(engine, agentSettings, "c-cpp", Arrays.asList("clangd", "--background-index", "--clang-tidy"), Arrays.asList(".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".c++", ".h++", ".hh"));
-        addSystemLspServer(engine, agentSettings, "csharp", Arrays.asList("roslyn-language-server", "--stdio", "--autoLoadProjects"), Arrays.asList(".cs", ".csx"));
-        addSystemLspServer(engine, agentSettings, "ruby", Arrays.asList("solargraph", "stdio"), Arrays.asList(".rb", ".rake", ".gemspec", ".ru"));
-        addSystemLspServer(engine, agentSettings, "php", Arrays.asList("intelephense", "--stdio"), Arrays.asList(".php"));
-        addSystemLspServer(engine, agentSettings, "bash", Arrays.asList("bash-language-server", "start"), Arrays.asList(".sh", ".bash", ".zsh", ".ksh"));
-        addSystemLspServer(engine, agentSettings, "lua", Arrays.asList("lua-language-server"), Arrays.asList(".lua"));
-        addSystemLspServer(engine, agentSettings, "dart", Arrays.asList("dart", "language-server", "--lsp"), Arrays.asList(".dart"));
-        addSystemLspServer(engine, agentSettings, "swift", Arrays.asList("sourcekit-lsp"), Arrays.asList(".swift", ".objc", ".objcpp"));
-        addSystemLspServer(engine, agentSettings, "kotlin", Arrays.asList("kotlin-language-server"), Arrays.asList(".kt", ".kts"));
-        addSystemLspServer(engine, agentSettings, "yaml", Arrays.asList("yaml-language-server", "--stdio"), Arrays.asList(".yaml", ".yml"));
-
+    public HarnessEngine agentRuntime(AgentSettings settings, SessionManager sessionManager, WorkspaceManager workspaceManager) {
+        // 复用默认工作区 engine：引擎构建逻辑已收敛到 WorkspaceManager.createWorkspaceContext，
+        // 禁止再维护第二份 200 行构建代码（同一 user.dir 双 engine 会导致内存/MCP/LSP 子进程翻倍）。
+        // 语义对齐：默认工作区 wsSettings 即注入的 settings；SessionManager(workspace) 与无参构造
+        // 均指向 AgentFlags.getUserDir()；命令注册/LoopScheduler/GoalExtension 完全一致。
+        workspaceManager.initDefaultWorkspace();
+        WorkspaceContext defaultCtx = workspaceManager.getOrCreate(null);
+        this.loopScheduler = defaultCtx.getLoopScheduler();
+        return defaultCtx.getEngine();
     }
 
     @Init
     public void init() {
-        // 初始化默认工作区
+        // 初始化默认工作区（幂等；agentRuntime bean 创建时可能已初始化）
         if (workspaceManager != null) {
             workspaceManager.initDefaultWorkspace();
         }
 
-        //订阅容器扩展
-        appContext.subBeansOfType(HarnessExtension.class, extension -> {
-            agentRuntime.addExtension(extension);
-        });
-
+        // 容器扩展订阅已由 WorkspaceManager.createWorkspaceContext 统一完成
+        //（agentRuntime 即默认工作区 engine），此处禁止重复订阅，否则同一扩展被注册两遍
 
         CliShell cliShell = new CliShell(agentRuntime, agentSettings, loopScheduler);
         String flag = Solon.cfg().argx().flagAt(0);
@@ -417,27 +252,5 @@ public class Configurator {
 
         //不能有打印
         //cliShell.printWelcome("Acp interface: stdio");
-    }
-
-    /**
-     * 添加系统级 LSP 服务器（如果用户未自定义同名配置，则注册）
-     */
-    private void addSystemLspServer(HarnessEngine engine, AgentSettings settings, String name, List<String> command, List<String> extensions) {
-        // 如果用户已自定义同名配置，跳过系统级注册
-        if (settings.getLspServers().containsKey(name)) {
-            return;
-        }
-
-        LspServerDo lspServer = new LspServerDo();
-        lspServer.setCommand(command);
-        lspServer.setExtensions(extensions);
-        lspServer.setEnabled(false); // 默认禁用，用户按需启用
-        lspServer.setScope(AgentFlags.SCOPE_LOCAL);
-
-        // 注册到引擎（不启用不会真正加载，仅作为可选项）
-        engine.addLspServer(name, lspServer);
-
-        // 同步到 settings 以便前端展示
-        settings.getLspServers().put(name, lspServer);
     }
 }

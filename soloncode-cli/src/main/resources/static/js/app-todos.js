@@ -12,12 +12,7 @@
         var sid = typeof SESSION_ID !== 'undefined' ? SESSION_ID : null;
         if (!sid) return;
 
-        var url = '/web/chat/todos?sessionId=' + encodeURIComponent(sid);
-        var urlParams = new URLSearchParams(window.location.search);
-        var workspaceId = urlParams.get('workspaceId');
-        if (workspaceId && workspaceId !== 'workspace') {
-            url += '&workspaceId=' + encodeURIComponent(workspaceId);
-        }
+        var url = '/web/chat/todos?sessionId=' + encodeURIComponent(sid) + window.wsSuffix();
 
         fetch(url)
             .then(function(r) { return r.json(); })
