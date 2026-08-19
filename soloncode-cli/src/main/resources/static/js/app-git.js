@@ -1020,6 +1020,14 @@
             // 设置为预览模式
             marked.setOptions({ breaks: true, gfm: true, renderer: null });
             var html = marked.parse(text || '');
+            // 多工作区隔离：iframe 内嵌图 src 不走 fetch/XHR 劫持层，重写为 read-raw + workspaceId
+            var _wsId = new URLSearchParams(window.location.search).get('workspaceId');
+            html = html.replace(/<img\s+src="([^"]*)"/gi, function(m, src) {
+                if (/^(https?:|data:|\/\/)/i.test(src)) return m;
+                var u = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src);
+                if (_wsId) u += '&workspaceId=' + encodeURIComponent(_wsId);
+                return '<img src="' + u + '"';
+            });
             // 恢复全局配置
             if (marked.defaults) {
                 marked.setOptions(savedOpts);

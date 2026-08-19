@@ -34,10 +34,12 @@ public class WorkspaceFilter implements Filter {
                 wsId = wsId.split(",")[0].trim();
             }
 
-            // WebSocket 握手（浏览器无法为 WS 设置自定义请求头）
-            // 仅对 /web/gate 端点例外地从 query 读取工作区 ID，且必须是合法的 ws-xxx/default，
-            // 其余接口仍只信任 Header（filer/git 的 query 参数是挂载别名 mount，语义不同）
-            if ((wsId == null || wsId.isEmpty()) && "/web/gate".equals(ctx.path())) {
+            // 浏览器直发请求（WS 握手、<img>/<link>/下载等）无法携带自定义请求头：
+            // 对 /web/gate 全方法、其余 GET 请求（read-raw、skins/file、skins/export 等静态资产）
+            // 例外地从 query 读取工作区 ID，且必须是合法的 ws-xxx/default；
+            // 非 GET 的 POST 接口仍只信任 Header（filer/git 的 query 参数是挂载别名 mount，语义不同）
+            if ((wsId == null || wsId.isEmpty())
+                    && ("/web/gate".equals(ctx.path()) || "GET".equalsIgnoreCase(ctx.method()))) {
                 String q = ctx.param("workspaceId");
                 if (q != null && workspaceManager.isValidWorkspaceId(q)) {
                     wsId = q;

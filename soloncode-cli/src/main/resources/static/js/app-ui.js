@@ -273,6 +273,23 @@ function createMarkdownRenderer() {
         return '<a href="' + escapeHtmlAttr(safeHref) + '" target="_blank" rel="noopener noreferrer"' + safeTitle + '>' + safeText + '</a>';
     };
 
+    // 多工作区隔离：Markdown 内嵌图片 ![](path) 的 <img src> 由浏览器直发，
+    // 绕过 fetch/XHR 劫持层，必须重写为 read-raw 接口并显式携带 workspaceId。
+    renderer.image = function (token) {
+        var href = token && typeof token === 'object' ? token.href : token;
+        var title = (token && typeof token === 'object' ? token.title : '') || '';
+        var text = (token && typeof token === 'object' ? token.text : '') || '';
+        var src = String(href || '');
+        // 已是完整 URL（http/https/data）则不重写
+        if (!/^(https?:|data:)/i.test(src)) {
+            src = '/web/chat/filer/read-raw?path=' + encodeURIComponent(src);
+            var _wsId = new URLSearchParams(window.location.search).get('workspaceId');
+            if (_wsId) src += '&workspaceId=' + encodeURIComponent(_wsId);
+        }
+        return '<img src="' + escapeHtmlAttr(src) + '" alt="' + escapeHtmlAttr(text) + '"'
+            + (title ? ' title="' + escapeHtmlAttr(title) + '"' : '') + ' style="max-width:100%">';
+    };
+
     // 防止原始 HTML 标签破坏页面布局：转义 < 和 >，避免被浏览器解析为 DOM 元素
     // marked v15 中 renderer 方法接收 token 对象，需通过 .text 获取原始内容
     renderer.html = function (token) {
@@ -827,6 +844,12 @@ function ensureSkinStyleLink() {
     return el;
 }
 
+/** 当前工作区查询串（浏览器直发 URL 需显式携带，绕过 fetch/XHR 劫持层） */
+function skinWsQuery() {
+    var wsId = new URLSearchParams(window.location.search).get('workspaceId');
+    return wsId ? '&workspaceId=' + encodeURIComponent(wsId) : '';
+}
+
 /** 预置皮肤：static/skin/<name>/skin.css */
 function builtinSkinCssUrl(skinName) {
     return '/skin/' + encodeURIComponent(skinName || 'default') + '/skin.css';
@@ -835,7 +858,7 @@ function builtinSkinCssUrl(skinName) {
 /** 本地安装皮肤：经服务端代理（含相对 url 改写） */
 function localSkinCssUrl(skinName) {
     return '/web/settings/skins/file?name=' + encodeURIComponent(skinName) +
-        '&file=skin.css&_=' + Date.now();
+        '&file=skin.css&_=' + Date.now() + skinWsQuery();
 }
 
 function loadSkinCss(skinName, source) {

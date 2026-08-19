@@ -192,8 +192,8 @@ public class MountSettingsController extends BaseSettingsController {
 
         saveSettings();
 
-        // 同步文件监听：启用时注册，停用时移除
-        if (fileWatchService != null) {
+        // 同步文件监听：启用时注册，停用时移除（判空与取值统一走访问器，避免不对称 NPE）
+        if (fileWatchService() != null) {
             if (Boolean.TRUE.equals(enabled)) {
                 registerMountWatch(mountDir);
             } else {
@@ -224,8 +224,8 @@ public class MountSettingsController extends BaseSettingsController {
         saveSettings();
         engine().removeMount(alias);
 
-        // 同步移除文件监听
-        if (fileWatchService != null) {
+        // 同步移除文件监听（判空与取值统一走访问器）
+        if (fileWatchService() != null) {
             fileWatchService().removeRoot(alias);
         }
 
@@ -373,7 +373,7 @@ public class MountSettingsController extends BaseSettingsController {
      * 注册挂载点的文件监听（根据类型分配不同的处理器）
      */
     private void registerMountWatch(MountDir mount) {
-        if (fileWatchService == null || !mount.isEnabled()) return;
+        if (fileWatchService() == null || !mount.isEnabled()) return;
 
         WorkspaceContext wsContext = currentContext();
         FileWatchService.WatchRoot root = fileWatchService().addRoot(mount.getAlias(), mount.getRealPath());

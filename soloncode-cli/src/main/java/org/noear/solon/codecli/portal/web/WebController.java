@@ -223,6 +223,8 @@ public class WebController {
         }
 
         workspaceManager.closeWorkspace(id);
+        // "移除"语义必须同时删历史条目，否则重启后条目重新出现
+        workspaceManager.removeFromHistory(id);
         return Result.succeed();
     }
 
@@ -1336,8 +1338,6 @@ public class WebController {
         }
 
         HarnessEngine currentEngine = engine();
-        String workspace = currentEngine.getWorkspace();
-        String harnessSessions = currentEngine.getHarnessSessions();
 
         // 确定任务类型
         LoopTask.TaskType taskType = (type != null && "GOAL".equalsIgnoreCase(type))
@@ -1387,8 +1387,6 @@ public class WebController {
         }
 
         HarnessEngine currentEngine = engine();
-        String workspace = currentEngine.getWorkspace();
-        String harnessSessions = currentEngine.getHarnessSessions();
 
         LoopScheduler loopScheduler = loopScheduler();
         LoopTask existing = loopScheduler.getTaskById(sessionId, taskId);

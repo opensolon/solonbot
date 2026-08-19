@@ -112,7 +112,7 @@ public class WebGate extends SimpleWebSocketListener {
     @Override
     public void onOpen(WebSocket socket) {
         String wsId = socket.param("workspaceId"); // 统一：只认 workspaceId；旧参数 workspace 已废弃
-        WorkspaceContext wctx =  workspaceManager.getOrCreate(wsId);
+        WorkspaceContext wctx = workspaceManager.getOrCreate(wsId);
         if (wctx == null) {
             // 失效工作区 ID：与 WorkspaceFilter 的 404 语义对齐，拒绝握手而非静默回退默认工作区
             // （静默回退会掩盖错误，并导致连接被误归入默认工作区连接池）
@@ -121,21 +121,20 @@ public class WebGate extends SimpleWebSocketListener {
             return;
         }
 
-        if (wctx == null) {
-            wctx = workspaceManager.getOrCreate(null);
-        }
-
         wctx.getConnections().add(socket);
         LOG.info("[WebGate] WebSocket opened: {}, workspace: {}", socket.id(), wsId);
     }
 
     /**
      * 按 workspaceId 解析目标连接池：命中工作区上下文则用其共享连接池，否则回退本实例 connections。
+     *
+     * <p>注意：只查内存缓存，严禁触发 getOrCreate——LRU 回收 close 时逐个 socket.close 会异步
+     * 触发 onClose，若此处 getOrCreate 会把刚释放的工作区原地“复活”（连带 engine/FileWatch 泄漏）。</p>
      */
     private List<WebSocket> resolveConnections(String wsId) {
-        WorkspaceContext wctx = workspaceManager.getOrCreate(wsId);
+        WorkspaceContext wctx = workspaceManager.getContextsCached(wsId);
         if (wctx == null) {
-            wctx = workspaceManager.getOrCreate(null);
+            wctx = workspaceManager.getContextsCached(null);
         }
 
         return wctx.getConnections();

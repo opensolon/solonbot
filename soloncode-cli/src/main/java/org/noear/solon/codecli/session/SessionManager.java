@@ -17,10 +17,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  */
 public class SessionManager implements AgentSessionProvider {
-    private String workspace = AgentFlags.getUserDir();
-    private Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
+    private final String workspace;
+    private final Map<String, AgentSession> sessionMap = new ConcurrentHashMap<>();
 
     public SessionManager() {
+        this.workspace = AgentFlags.getUserDir();
     }
 
     public SessionManager(String workspace) {
