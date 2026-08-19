@@ -351,6 +351,14 @@ public class DingTalkLink implements Channel, Runnable {
         return Collections.unmodifiableSet(bindings.keySet());
     }
 
+    /**
+     * 指定 appKey 是否已存在活跃连接（供跨工作区绑定冲突检查）。
+     * 同一 appKey 若被多个工作区各自建立 Stream 连接，钉钉服务端会随机路由消息，必须避免。
+     */
+    public boolean isAppInUse(String appKey) {
+        return appKey != null && connections.containsKey(appKey);
+    }
+
     // ==================== WS 消息处理（由 StreamConnection 回调） ====================
 
     /**

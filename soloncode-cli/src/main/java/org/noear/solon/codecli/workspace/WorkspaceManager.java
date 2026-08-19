@@ -49,6 +49,11 @@ public class WorkspaceManager {
 
     private final Map<String, WorkspaceContext> contexts = new ConcurrentHashMap<>();
 
+    /**
+     * 待回写历史的脏标记（去抖：内存命中只标脏，由 sweeper 定期落盘，避免热路径每次写文件）
+     */
+    private final Set<String> dirtyHistoryIds = ConcurrentHashMap.newKeySet();
+
     private final AgentSettings defaultSettings;
     private WorkspaceContext defaultContext;
     private WebGate webGate;
@@ -75,6 +80,10 @@ public class WorkspaceManager {
         this.webGate = webGate;
     }
 
+    public WebGate getWebGate() {
+        return this.webGate;
+    }
+
     private void releaseIdleWorkspaces() {
         try {
             long now = System.currentTimeMillis();
@@ -85,7 +94,8 @@ public class WorkspaceManager {
                 }
                 long last = ctx.getMeta().getLastAccessed();
                 if (now - last > IDLE_RELEASE_MS
-                        && (ctx.getConnections() == null || ctx.getConnections().isEmpty())) {
+                        && (ctx.getConnections() == null || ctx.getConnections().isEmpty())
+                        && (ctx.getLoopScheduler() == null || !ctx.getLoopScheduler().hasActiveTasks())) {
                     idleIds.add(ctx.getMeta().getId());
                 }
             }
@@ -93,6 +103,9 @@ public class WorkspaceManager {
                 LOG.info("[Workspace] Releasing idle workspace: {}", id);
                 closeWorkspace(id);
             }
+
+            // 去抖回写：把内存命中时标脏的 lastAccessed 落盘（MRU 排序重启后不失真）
+            flushDirtyHistory();
         } catch (Throwable e) {
             LOG.warn("[Workspace] Idle sweep failed: {}", e.getMessage());
         }
@@ -141,6 +154,10 @@ public class WorkspaceManager {
         WorkspaceContext context = contexts.get(workspaceIdOrPath);
         if (context != null) {
             context.getMeta().setLastAccessed(System.currentTimeMillis());
+            // 内存命中为热路径：只标脏不落盘，由 sweeper 定期回写
+            if (!context.getMeta().isDefault()) {
+                dirtyHistoryIds.add(context.getMeta().getId());
+            }
             return context;
         }
 
@@ -172,6 +189,8 @@ public class WorkspaceManager {
                     meta.setLastAccessed(System.currentTimeMillis());
                     contexts.put(meta.getId(), ctx);
                     contexts.put(histPath.toString(), ctx);
+                    // 历史加载为低频事件，直接回写 lastAccessed，保证重启后 MRU 顺序准确
+                    saveWorkspaceToHistory(meta);
                     return ctx;
                 }
             }
@@ -423,21 +442,33 @@ public class WorkspaceManager {
         });
 
 
-        // 为本工作区的 LoopScheduler 就地注册 web 端执行器与忙碌检查（绑定本工作区 webGate），
-        // 避免非默认工作区的 loop/goal 任务因缺少 executor 而无法执行。
-        registerWebLoopExecutor(engine, meta.getId(), loopScheduler, webGate);
+        // 为本工作区的 LoopScheduler 就地注册 web 端执行器与忙碌检查。
+        // 注意：此处不能捕获 webGate 字段快照——默认工作区在 webServe 阶段（setWebGate）之前创建，
+        // 快照为 null 会导致注册被跳过；改为 lambda 内动态取值，注入完成后自然生效。
+        registerWebLoopExecutor(engine, meta.getId(), loopScheduler);
 
         // FileWatchService
         FileWatchService fileWatchService = new FileWatchService();
         fileWatchService.addRoot("workspace", Paths.get(workspacePath).toAbsolutePath().normalize())
-                .addHandler(changes -> webGate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes)));
+                .addHandler(changes -> {
+                    // 动态取 gate：默认工作区创建早于 setWebGate，字段快照可能为 null
+                    WebGate gate = getWebGate();
+                    if (gate != null) {
+                        gate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes));
+                    }
+                });
 
         for (MountDir mount : engine.getMounts()) {
             if (!mount.isEnabled()) continue;
             FileWatchService.WatchRoot root = fileWatchService.addRoot(mount.getAlias(), mount.getRealPath());
             switch (mount.getType()) {
                 case FILES:
-                    root.addHandler(changes -> webGate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes)));
+                    root.addHandler(changes -> {
+                        WebGate gate = getWebGate();
+                        if (gate != null) {
+                            gate.broadcastRaw(meta.getId(), FileWatchService.buildFrontendJson(changes));
+                        }
+                    });
                     break;
                 case SKILLS:
                     root.addHandler(changes -> engine.getSkillProvider().refreshByGroup(mount.getAlias()));
@@ -453,11 +484,11 @@ public class WorkspaceManager {
         FileService fileService = new FileService(workspacePath, engine);
         GitService gitService = new GitService(workspacePath, engine);
 
-        WorkspaceContext context = new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings);
+        WorkspaceContext context = new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, this, wsSettings);
 
         // 拉起本工作区的 IM 渠道长连接（微信/飞书/钉钉），恢复已持久化的绑定连接。
         // Link.run() 内部有 running CAS 幂等保护，重复调用安全。
-        RunUtil.async(context.getChannelHub()::run);
+        RunUtil.async(context.getChannelHub()::start);
 
         return context;
     }
@@ -468,8 +499,8 @@ public class WorkspaceManager {
      * <p>每个工作区拥有独立的 LoopScheduler 与 WebGate，执行器必须就地绑定本工作区的
      * WebGate，以保证定时触发的 AI 响应推送到本工作区的连接池，而非默认工作区。</p>
      */
-    private void registerWebLoopExecutor(HarnessEngine engine, String workspaceId, LoopScheduler loopScheduler, WebGate webGate) {
-        if (loopScheduler == null || webGate == null) {
+    private void registerWebLoopExecutor(HarnessEngine engine, String workspaceId, LoopScheduler loopScheduler) {
+        if (loopScheduler == null) {
             return;
         }
 
@@ -478,11 +509,16 @@ public class WorkspaceManager {
             if (sessionId == null || !sessionId.startsWith("web-")) {
                 return false;
             }
-            return webGate.isSessionBusy(engine, sessionId);
+            WebGate gate = getWebGate();
+            return gate != null && gate.isSessionBusy(engine, sessionId);
         });
 
         loopScheduler.addTaskExecutor((sessionId, prompt, agentName) -> {
             if (sessionId == null || !sessionId.startsWith("web-")) {
+                return null;
+            }
+            WebGate gate = getWebGate();
+            if (gate == null) {
                 return null;
             }
             // 如果指定了 agentName，将 prompt 拼接为 @agentName prompt 格式
@@ -491,7 +527,7 @@ public class WorkspaceManager {
                 effectiveInput = "@" + agentName + " " + prompt;
             }
             // Loop 任务可能长时间执行（数小时），使用 Loop 专用无限等待版本
-            return webGate.safeChatInputAndCaptureLoop(workspaceId, sessionId, effectiveInput, "Loop");
+            return gate.safeChatInputAndCaptureLoop(workspaceId, sessionId, effectiveInput, "Loop");
         });
     }
 
@@ -666,6 +702,22 @@ public class WorkspaceManager {
             Files.write(file, newJson.getBytes(StandardCharsets.UTF_8));
         } catch (Throwable e) {
             LOG.warn("Failed to save workspace to history: " + meta.getPath(), e);
+        }
+    }
+
+    /**
+     * 把标脏的工作区 lastAccessed 回写到 workspaces.json。
+     */
+    private void flushDirtyHistory() {
+        if (dirtyHistoryIds.isEmpty()) {
+            return;
+        }
+        for (String id : dirtyHistoryIds) {
+            dirtyHistoryIds.remove(id);
+            WorkspaceContext ctx = contexts.get(id);
+            if (ctx != null && !ctx.getMeta().isDefault()) {
+                saveWorkspaceToHistory(ctx.getMeta());
+            }
         }
     }
 

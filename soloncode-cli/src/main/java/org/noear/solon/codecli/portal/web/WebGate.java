@@ -112,10 +112,20 @@ public class WebGate extends SimpleWebSocketListener {
     @Override
     public void onOpen(WebSocket socket) {
         String wsId = socket.param("workspaceId"); // 统一：只认 workspaceId；旧参数 workspace 已废弃
-        // 入口单例：按 workspaceId 将连接分发到目标工作区上下文的连接池（即该工作区 WebGate 实例的 connections）。
-        // 本实例可能就是默认工作区的 WebGate，也可能是入口单例（两者共享默认工作区的 connections）。
-        List<WebSocket> target = resolveConnections(wsId);
-        target.add(socket);
+        WorkspaceContext wctx =  workspaceManager.getOrCreate(wsId);
+        if (wctx == null) {
+            // 失效工作区 ID：与 WorkspaceFilter 的 404 语义对齐，拒绝握手而非静默回退默认工作区
+            // （静默回退会掩盖错误，并导致连接被误归入默认工作区连接池）
+            LOG.warn("[WebGate] Reject websocket with unknown workspaceId: {}", wsId);
+            socket.close();
+            return;
+        }
+
+        if (wctx == null) {
+            wctx = workspaceManager.getOrCreate(null);
+        }
+
+        wctx.getConnections().add(socket);
         LOG.info("[WebGate] WebSocket opened: {}, workspace: {}", socket.id(), wsId);
     }
 

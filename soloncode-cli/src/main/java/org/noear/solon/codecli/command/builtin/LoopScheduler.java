@@ -457,6 +457,36 @@ public class LoopScheduler {
         deleteFile(sessionId);
     }
 
+    // ==================== 生命周期 ====================
+
+    /**
+     * 是否存在活跃（未停止）的循环/goal 任务。
+     * 供工作区 LRU 回收判定使用：有活跃任务的工作区不应被回收。
+     */
+    public boolean hasActiveTasks() {
+        for (List<LoopTask> tasks : sessionTasks.values()) {
+            if (tasks != null && !tasks.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 关闭调度器：停止本工作区全部会话的任务并注销调度。
+     * 注意：jobManager 为进程级单例（跨工作区共享），此处只按本工作区会话逐个 stopAll，
+     * 不 shutdown 全局 JobManager。
+     */
+    public void shutdown() {
+        for (String sessionId : new ArrayList<>(sessionTasks.keySet())) {
+            try {
+                stopAll(sessionId);
+            } catch (Exception e) {
+                LOG.warn("[Loop] shutdown session {} failed: {}", sessionId, e.getMessage());
+            }
+        }
+    }
+
     // ==================== 会话恢复 ====================
 
     public synchronized void restore(String sessionId) {

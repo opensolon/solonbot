@@ -300,6 +300,14 @@ public class FeishuLink implements Channel, Runnable {
         return Collections.unmodifiableSet(bindings.keySet());
     }
 
+    /**
+     * 指定 appId 是否已存在活跃连接（供跨工作区绑定冲突检查）。
+     * 同一 appId 若被多个工作区各自建立 Stream 连接，飞书服务端会随机路由消息，必须避免。
+     */
+    public boolean isAppInUse(String appId) {
+        return appId != null && connections.containsKey(appId);
+    }
+
     // ==================== WS 消息处理（由 StreamConnection 回调） ====================
 
     /**

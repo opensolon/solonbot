@@ -237,6 +237,13 @@ public class WebChannel {
             return Result.failure("飞书通道未启用");
         }
 
+        // 跨工作区冲突检查：同一 appId 只允许在一个工作区建立 Stream 连接，
+        // 否则飞书服务端会随机路由消息
+        String conflict = findFeishuAppConflict(wsContext, appId);
+        if (conflict != null) {
+            return Result.failure("该 App ID 已在工作区「" + conflict + "」建立连接，同一应用只能绑定一个工作区");
+        }
+
         boolean ok = wsContext.getChannelHub().getFeishuLink().startStream(appId, appSecret, sessionId);
         if (!ok) {
             return Result.failure("飞书连接启动失败，请检查 App ID 和 App Secret");
@@ -443,6 +450,12 @@ public class WebChannel {
             return Result.failure("钉钉通道未启用");
         }
 
+        // 跨工作区冲突检查：同一 appKey 只允许在一个工作区建立 Stream 连接
+        String conflict = findDingTalkAppConflict(wsContext, appKey);
+        if (conflict != null) {
+            return Result.failure("该 AppKey 已在工作区「" + conflict + "」建立连接，同一应用只能绑定一个工作区");
+        }
+
         boolean ok = wsContext.getChannelHub().getDingTalkLink().startStream(appKey, appSecret, sessionId);
         if (!ok) {
             return Result.failure("启动 Stream 连接失败，请检查 AppKey 和 AppSecret");
@@ -606,5 +619,41 @@ public class WebChannel {
 
         wsContext.getChannelHub().getDingtalkQRBindManager().cancelQrBinding(sessionId);
         return Result.succeed();
+    }
+
+    // ==================== 跨工作区 appId/appKey 冲突检查 ====================
+
+    /**
+     * 检查指定 appId 是否已被其它工作区的飞书 Link 建立连接。
+     *
+     * @return 冲突工作区名；无冲突返回 null
+     */
+    private String findFeishuAppConflict(WorkspaceContext current, String appId) {
+        for (WorkspaceContext ctx : workspaceManager.getContexts()) {
+            if (ctx == current) {
+                continue;
+            }
+            if (ctx.getChannelHub().getFeishuLink().isAppInUse(appId)) {
+                return ctx.getMeta().getName();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 检查指定 appKey 是否已被其它工作区的钉钉 Link 建立连接。
+     *
+     * @return 冲突工作区名；无冲突返回 null
+     */
+    private String findDingTalkAppConflict(WorkspaceContext current, String appKey) {
+        for (WorkspaceContext ctx : workspaceManager.getContexts()) {
+            if (ctx == current) {
+                continue;
+            }
+            if (ctx.getChannelHub().getDingTalkLink().isAppInUse(appKey)) {
+                return ctx.getMeta().getName();
+            }
+        }
+        return null;
     }
 }

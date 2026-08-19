@@ -29,7 +29,7 @@ public class WorkspaceContext implements Closeable {
     private final GitService gitService;
     private final FileWatchService fileWatchService;
     private final LoopScheduler loopScheduler;
-    private final WebGate webGate;
+    private final WorkspaceManager manager;
     private final AgentSettings settings;
     private final List<WebSocket> connections;
     private final ChannelHub channelHub;
@@ -41,7 +41,7 @@ public class WorkspaceContext implements Closeable {
                             GitService gitService,
                             FileWatchService fileWatchService,
                             LoopScheduler loopScheduler,
-                            WebGate webGate,
+                            WorkspaceManager manager,
                             AgentSettings settings) {
         this.meta = meta;
         this.engine = engine;
@@ -50,7 +50,7 @@ public class WorkspaceContext implements Closeable {
         this.gitService = gitService;
         this.fileWatchService = fileWatchService;
         this.loopScheduler = loopScheduler;
-        this.webGate = webGate;
+        this.manager = manager;
         this.settings = settings;
         this.connections = new CopyOnWriteArrayList<>();
         this.channelHub = new ChannelHub(this);
@@ -89,7 +89,10 @@ public class WorkspaceContext implements Closeable {
     }
 
     public WebGate getWebGate() {
-        return webGate;
+        // 动态取值：webGate 由 Configurator 在 webServe 阶段注入 WorkspaceManager，
+        // 早于注入创建的默认工作区（IM Link/Loop 执行器等）通过本方法拿到最新实例，
+        // 消除初始化顺序导致的 null 快照问题。
+        return manager != null ? manager.getWebGate() : null;
     }
 
     public List<WebSocket> getConnections() {
@@ -102,6 +105,22 @@ public class WorkspaceContext implements Closeable {
 
     @Override
     public void close() throws IOException {
+        // 停止 IM 渠道长连接（微信/飞书/钉钉），释放与外部服务器的连接
+        if (channelHub != null) {
+            try {
+                channelHub.stop();
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        // 停止本工作区全部 loop/goal 定时任务（注销调度，任务文件随 stopAll 清理）
+        if (loopScheduler != null) {
+            try {
+                loopScheduler.shutdown();
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
         // 释放 fileWatchService 资源
         if (fileWatchService != null) {
             try {

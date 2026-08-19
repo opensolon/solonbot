@@ -6,6 +6,7 @@ import org.noear.solon.codecli.channel.feishu.FeishuLink;
 import org.noear.solon.codecli.channel.feishu.FeishuQRBindManager;
 import org.noear.solon.codecli.channel.wechat.WeChatLink;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.core.Lifecycle;
 
 import java.util.Arrays;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.List;
  * @author noear 2026/8/19 created
  *
  */
-public class ChannelHub implements Runnable {
+public class ChannelHub implements Lifecycle {
     private final List<Channel> imLinks;
 
     /**
@@ -81,9 +82,20 @@ public class ChannelHub implements Runnable {
     }
 
     @Override
-    public void run() {
+    public void start() {
         weChatLink.run();
         feishuLink.run();
         dingTalkLink.run();
+    }
+
+    /**
+     * 停止全部 IM 渠道长连接（工作区关闭/LRU 回收时调用）。
+     * 各 Link 内部有幂等保护，重复调用安全。
+     */
+    @Override
+    public void stop() {
+        weChatLink.stop();
+        feishuLink.stop();
+        dingTalkLink.stop();
     }
 }
