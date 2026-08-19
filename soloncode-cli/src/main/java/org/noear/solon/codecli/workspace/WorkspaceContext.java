@@ -60,12 +60,7 @@ public class WorkspaceContext implements Closeable {
     }
 
     public AgentSettings getSettings() {
-        // 优先返回该工作区自己的配置（含 工作区作用域 settings.json 覆盖）；
-        // 兼容旧路径：未注入时回退到 WorkspaceManager 的全局配置
-        if (settings != null) {
-            return settings;
-        }
-        return org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.workspace.WorkspaceManager.class).getSettings();
+        return settings;
     }
 
     public HarnessEngine getEngine() {

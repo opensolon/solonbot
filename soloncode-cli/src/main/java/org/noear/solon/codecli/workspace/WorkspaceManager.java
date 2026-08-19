@@ -48,15 +48,15 @@ public class WorkspaceManager {
     private static final String WORKSPACES_FILE_PATH = Paths.get(AgentFlags.getUserHome(), ".soloncode", "workspaces.json").toString();
 
     private final Map<String, WorkspaceContext> contexts = new ConcurrentHashMap<>();
-    private final Map<String, Long> lastAccessTimes = new ConcurrentHashMap<>();
-    private final AgentSettings settings;
+
+    private final AgentSettings defaultSettings;
     private WorkspaceContext defaultContext;
 
     /** 闲置释放阈值：30 分钟无访问且无连接 */
     private static final long IDLE_RELEASE_MS = 30 * 60 * 1000L;
 
-    public WorkspaceManager(AgentSettings settings) {
-        this.settings = settings;
+    public WorkspaceManager(AgentSettings defaultSettings) {
+        this.defaultSettings = defaultSettings;
 
         // LRU 闲置释放：定期扫描非默认工作区，释放长时间无访问且无 WS 连接的引擎资源
         java.util.concurrent.ScheduledExecutorService sweeper =
@@ -76,10 +76,7 @@ public class WorkspaceManager {
                 if (ctx.getMeta().isDefault()) {
                     continue;
                 }
-                Long last = lastAccessTimes.get(ctx.getMeta().getId());
-                if (last == null) {
-                    continue;
-                }
+                long last = ctx.getMeta().getLastAccessed();
                 if (now - last > IDLE_RELEASE_MS
                         && (ctx.getConnections() == null || ctx.getConnections().isEmpty())) {
                     idleIds.add(ctx.getMeta().getId());
@@ -92,10 +89,6 @@ public class WorkspaceManager {
         } catch (Throwable e) {
             LOG.warn("[Workspace] Idle sweep failed: {}", e.getMessage());
         }
-    }
-
-    public AgentSettings getSettings() {
-        return settings;
     }
 
     /**
@@ -137,12 +130,10 @@ public class WorkspaceManager {
             return defaultContext;
         }
 
-        // 记录访问时间（LRU 闲置释放用）
-        lastAccessTimes.put(workspaceIdOrPath, System.currentTimeMillis());
-
         // 1. 尝试通过 ID 查找内存中已加载的上下文
         WorkspaceContext context = contexts.get(workspaceIdOrPath);
         if (context != null) {
+            context.getMeta().setLastAccessed(System.currentTimeMillis());
             return context;
         }
 
@@ -171,9 +162,9 @@ public class WorkspaceManager {
                         LOG.error("[Workspace] Failed to load history workspace: " + meta.getId(), e);
                         break;
                     }
+                    meta.setLastAccessed(System.currentTimeMillis());
                     contexts.put(meta.getId(), ctx);
                     contexts.put(histPath.toString(), ctx);
-                    lastAccessTimes.put(meta.getId(), System.currentTimeMillis());
                     return ctx;
                 }
             }
@@ -237,10 +228,11 @@ public class WorkspaceManager {
                 meta = new WorkspaceMeta(workspaceId, getLastSegment(normalizedPathStr), normalizedPathStr, System.currentTimeMillis(), false);
             }
             String ctxKey = meta.getId();
+            meta.setLastAccessed(System.currentTimeMillis());
+
             context = createWorkspaceContext(meta);
             contexts.put(ctxKey, context);
             contexts.put(normalizedPathStr, context);
-            lastAccessTimes.put(ctxKey, System.currentTimeMillis());
             saveWorkspaceToHistory(meta);
             return context;
         } catch (Exception e) {
@@ -295,8 +287,6 @@ public class WorkspaceManager {
             // 同时移除可能存在的其他 Key（如绝对路径或 ID）
             contexts.remove(context.getMeta().getId());
             contexts.remove(context.getMeta().getPath());
-            lastAccessTimes.remove(context.getMeta().getId());
-            lastAccessTimes.remove(workspaceIdOrPath);
             try {
                 context.close();
             } catch (IOException e) {
@@ -314,7 +304,7 @@ public class WorkspaceManager {
         // 多工作区配置隔离：非默认工作区按目录加载 global + 工作区覆盖；
         // 默认工作区沿用注入的全局 settings（与 CLI 启动语义一致）
         AgentSettings wsSettings = meta.isDefault()
-                ? this.settings
+                ? this.defaultSettings
                 : AgentSettings.loadForWorkspace(workspacePath);
         String stealthIdentity = "<!--\n" +
                 "  @poweredby: soloncode\n" +
@@ -537,7 +527,7 @@ public class WorkspaceManager {
     }
 
     private void addSystemLspServer(HarnessEngine engine, String name, List<String> command, List<String> extensions) {
-        if (settings.getLspServers().containsKey(name)) {
+        if (defaultSettings.getLspServers().containsKey(name)) {
             return;
         }
         LspServerDo lspServer = new LspServerDo();
