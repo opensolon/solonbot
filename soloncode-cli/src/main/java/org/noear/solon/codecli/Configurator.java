@@ -367,8 +367,8 @@ public class Configurator {
         BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(workspaceManager));
         Solon.app().router().add(webChannel);
 
-        // 启动微信通道
-        RunUtil.async((Runnable) webChannel.get());
+        // IM 渠道长连接（微信/飞书/钉钉）已改由各工作区的 ChannelHub.run() 统一拉起
+        // （见 WorkspaceManager.createWorkspaceContext），此处不再启动。
 
         // 挂载点监听已由默认工作区上下文（WorkspaceManager.createWorkspaceContext）统一装配并 start，
         // 此处不再重复遗历挂载点与 start，避免重复监听与重复推送。

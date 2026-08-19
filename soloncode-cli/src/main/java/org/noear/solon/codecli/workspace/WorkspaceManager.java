@@ -453,7 +453,13 @@ public class WorkspaceManager {
         FileService fileService = new FileService(workspacePath, engine);
         GitService gitService = new GitService(workspacePath, engine);
 
-        return new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings);
+        WorkspaceContext context = new WorkspaceContext(meta, engine, sessionManager, fileService, gitService, fileWatchService, loopScheduler, webGate, wsSettings);
+
+        // 拉起本工作区的 IM 渠道长连接（微信/飞书/钉钉），恢复已持久化的绑定连接。
+        // Link.run() 内部有 running CAS 幂等保护，重复调用安全。
+        RunUtil.async(context.getChannelHub()::run);
+
+        return context;
     }
 
     /**
