@@ -53,7 +53,7 @@ function renderContextStatus(sess) {
 
     var $cache = $('.context-status-cache');
     if (hasCache) {
-        $cache.text('\u00b7 Cache: ' + sess.cacheRate + '%').show();
+        $cache.text('\u00b7 Cache: ' + sess.cacheRate.toFixed(1) + '%').show();
     } else {
         $cache.text('').hide();
     }
@@ -83,7 +83,7 @@ function updateContextIndicator(chunk, sess) {
         sess.contextLength = Math.round(chunk.args.contextLength);
     }
     if (chunk.args && chunk.args.cacheRate != null) {
-        sess.cacheRate = Math.round(chunk.args.cacheRate);
+        sess.cacheRate = Math.round(chunk.args.cacheRate * 10) / 10;
     }
     // 仅刷新当前可见会话的条；后台会话数据已写入 sess 供切换时恢复
     if (sess.sessionId === activeSessionId) renderContextStatus(sess);
@@ -100,7 +100,7 @@ function updateContextStatus(chunk, sess) {
         sess = sessionMap[activeSessionId];
     }
     if (chunk.args && chunk.args.cacheRate != null) {
-        sess.cacheRate = Math.round(chunk.args.cacheRate);
+        sess.cacheRate = Math.round(chunk.args.cacheRate * 10) / 10;
     }
     if (sess.sessionId === activeSessionId) renderContextStatus(sess);
 }

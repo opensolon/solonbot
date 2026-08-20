@@ -161,9 +161,9 @@ public class WebEventMapper {
         if (limit <= 0) {
             limit = 128_000; // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
         }
-        Integer cacheRate = null;
+        Double cacheRate = null;
         if (chunk.getTrace() != null && chunk.getTrace().getMetrics() != null) {
-            int cr = chunk.getTrace().getMetrics().getCacheRate();
+            double cr = chunk.getTrace().getMetrics().getCacheRate();
             if (cr > 0) {
                 cacheRate = cr;
             }
