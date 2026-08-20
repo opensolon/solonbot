@@ -719,9 +719,19 @@ public class WorkspaceManager {
                 LOG.debug("[Workspace] Filter entry (dir missing): {} -> {}", w.getId(), normalized);
                 continue;
             }
-            // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目
-            if (defaultPathStr != null && !w.isDefault()
-                    && normalized.startsWith(defaultPathStr + File.separator)) {
+        // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
+        //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
+        //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
+        boolean defaultIsUserHome = false;
+        try {
+            defaultIsUserHome = defaultPathStr != null
+                    && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
+        } catch (Exception ignore) {
+        }
+
+        if (!defaultIsUserHome
+                && defaultPathStr != null && !w.isDefault()
+                && normalized.startsWith(defaultPathStr + File.separator)) {
                 LOG.debug("[Workspace] Filter entry (inside default dir): {} -> {}", w.getId(), normalized);
                 continue;
             }
