@@ -1,7 +1,7 @@
 
 ### v2026.8.21
 
-* 优化 soloncode llm 缓存率
+* 优化 soloncode llm 缓存率，并保持1位小数
 * 修复 soloncode llm anthropic 缓存率计算错误的问题
 * 修复 soloncode web 子代理执行时没有显示子代理名的问题
 * 细节优化
