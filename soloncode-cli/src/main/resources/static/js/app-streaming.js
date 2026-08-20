@@ -842,7 +842,8 @@ function processWebEventNow(sess, webEvt) {
                 if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
                 sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId);
                 if (window._todoChunkHandlers) {
-                    var todoEvent = { toolName: p.name, text: p.result, args: toolArgs };
+                    var todoEvent = { toolName: p.name, text: p.result, args: toolArgs, sessionId: sess.sessionId };
+                    window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                     window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                 }
                 break;
@@ -1309,7 +1310,8 @@ function handleWebGateChunk(raw) {
     // 即使 sess 不存在，也优先处理 todowrite（更新左侧 todo 进度）
     if (event === 'tool.end' && p.name === 'todowrite') {
         if (window._todoChunkHandlers) {
-            var todoEvent = { toolName: p.name, text: p.result, args: p.args };
+            var todoEvent = { toolName: p.name, text: p.result, args: p.args, sessionId: sid };
+            window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
             window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
         }
     }
