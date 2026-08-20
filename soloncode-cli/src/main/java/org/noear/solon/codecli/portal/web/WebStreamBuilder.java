@@ -87,7 +87,7 @@ public class WebStreamBuilder {
                 null, sessionEffort, cap, false);
         ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
-        WebEventMapper mapper = new WebEventMapper(wsContext.getEngine(), session, chatModel);
+        WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
         ToolPresentationFilter toolFilter = new ToolPresentationFilter();
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
 

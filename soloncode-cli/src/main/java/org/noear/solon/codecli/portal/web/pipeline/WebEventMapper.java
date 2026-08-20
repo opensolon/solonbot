@@ -8,15 +8,20 @@ import org.noear.solon.ai.agent.react.intercept.ContextSizeEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLPendingEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.*;
+import org.noear.solon.ai.agent.trace.Metrics;
 import org.noear.solon.ai.chat.ChatModel;
-import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.harness.agent.TaskTalent;
 import org.noear.solon.ai.harness.agent.TaskWrapEvent;
+import org.noear.solon.ai.talents.memory.MemoryTalent;
+import org.noear.solon.codecli.command.builtin.GoalTalent;
+import org.noear.solon.codecli.portal.web.WebStreamBuilder;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemContextPayload;
 import org.noear.solon.codecli.portal.web.event.payload.TaskDonePayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolStartPayload;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 
 import java.util.ArrayList;
@@ -29,13 +34,14 @@ import java.util.Map;
  * @author noear
  */
 public class WebEventMapper {
-
-    private final HarnessEngine engine;
+    private final WebStreamBuilder streamBuilder;
+    private final WorkspaceContext wsContext;
     private final AgentSession session;
     private final ChatModel chatModel;
 
-    public WebEventMapper(HarnessEngine engine, AgentSession session, ChatModel chatModel) {
-        this.engine = engine;
+    public WebEventMapper(WebStreamBuilder streamBuilder, WorkspaceContext wsContext, AgentSession session, ChatModel chatModel) {
+        this.streamBuilder = streamBuilder;
+        this.wsContext = wsContext;
         this.session = session;
         this.chatModel = chatModel;
     }
@@ -133,21 +139,28 @@ public class WebEventMapper {
 
     private void fillMeta(WebEvent<?> evt, AgentSession session, String parentRunId, String taskId,
                           String reasonId, String agentName, String fallbackRunId) {
-        if (evt == null) return;
+        if (evt == null) {
+            return;
+        }
+
         if (session != null && evt.getSessionId() == null) {
             evt.setSessionId(session.getSessionId());
         }
+
         if (parentRunId != null) {
             evt.setRunId(parentRunId);
         } else if (fallbackRunId != null && evt.getRunId() == null) {
             evt.setRunId(fallbackRunId);
         }
+
         if (taskId != null && evt.getTaskId() == null) {
             evt.setTaskId(taskId);
         }
+
         if (reasonId != null && evt.getReasonId() == null) {
             evt.setReasonId(reasonId);
         }
+
         if (agentName != null && evt.getAgentName() == null) {
             evt.setAgentName(agentName);
         }
@@ -168,6 +181,7 @@ public class WebEventMapper {
                 cacheRate = cr;
             }
         }
+
         return WebEvent.of(WebEventNames.SYSTEM_CONTEXT, SystemContextPayload.builder()
                 .tokens(chunk.getTokenCount())
                 .count(chunk.getMessageCount())
@@ -209,9 +223,6 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onToolCallStartEvent(ToolCallStartEvent event, String taskAgentName) {
-        if (event == null || Assert.isEmpty(event.getToolName())) {
-            return WebEvent.EMPTY;
-        }
         String toolName = event.getToolName();
         if (isInternalTool(toolName)) {
             return WebEvent.EMPTY;
@@ -231,9 +242,6 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onToolCallEndEvent(ToolCallEndEvent event, String taskAgentName) {
-        if (event == null || Assert.isEmpty(event.getToolName())) {
-            return WebEvent.EMPTY;
-        }
         String toolName = event.getToolName();
         if (isInternalTool(toolName)) {
             return WebEvent.EMPTY;
@@ -257,6 +265,44 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
+        ReActTrace trace = event.getTrace();
+        String sessionId = session.getSessionId();
+        String resultContent = event.getAssistantMessage().getResultContent();
+
+        Metrics metrics = trace.getMetrics();
+
+        if (Assert.isNotEmpty(resultContent)) {
+            // 向所有已绑定的 IM 通道回复
+            if (event.isToolCalls()) {
+                // 说明是过程
+                streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, false);
+            } else {
+                // 说明是结果
+                String agentSelectedTmp = (String) session.attrs().get("_agent_selected_tmp");
+
+                if (event.getTrace().getAgentName().equals(agentSelectedTmp)) {
+                    // 说明是源代理（说明是最终结果）
+                    //StringBuilder traceInfo = getTraceInfo(thought.getTrace());
+                    streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, true);//+ traceInfo, true);
+                } else {
+                    // 说明是次代理
+                    streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, false);
+                }
+            }
+        }
+
+//        if (metrics != null) {
+//            double cacheRate = metrics.getCacheRate();
+//            if (cacheRate > 0) {
+//                return WebEvent.of(WebEventNames.SYSTEM_CONTEXT, SystemContextPayload.builder()
+//                        .tokens(null)
+//                        .count(null)
+//                        .contextLimit(null)
+//                        .cacheRate(cacheRate)
+//                        .build());
+//            }
+//        }
+
         return WebEvent.EMPTY;
     }
 
@@ -276,6 +322,7 @@ public class WebEventMapper {
         if (event == null || event.getTrace() == null) {
             return WebEvent.EMPTY;
         }
+
         ReActTrace trace = event.getTrace();
         String model = (chatModel != null && chatModel.getConfig() != null) ? chatModel.getConfig().getModel() : null;
         Long totalTokens = (trace.getMetrics() != null) ? trace.getMetrics().getTotalTokens() : 0L;
@@ -283,13 +330,22 @@ public class WebEventMapper {
         if (trace.getBeginTimeMs() > 0) {
             elapsedSeconds = (System.currentTimeMillis() - trace.getBeginTimeMs()) / 1000;
         }
+
         String finalAnswer = (event.getTrace() != null) ? event.getTrace().getFinalAnswer() : null;
+
+        if (event.isAbnormal()) {
+            // 通知 IM 任务完成了
+            streamBuilder.replyToBoundChannel(wsContext, session.getSessionId(), finalAnswer, true);
+        }
+
         return WebEvent.ofTrace(model, totalTokens, elapsedSeconds, finalAnswer);
     }
 
     private boolean isInternalTool(String toolName) {
         return Assert.isEmpty(toolName) ||
-                "task".equals(toolName) ||
-                "multitask".equals(toolName);
+                TaskTalent.TOOL_MULTITASK.equals(toolName) ||
+                TaskTalent.TOOL_TASK.equals(toolName) ||
+                MemoryTalent.isMemoryTool(toolName) ||
+                GoalTalent.isGoalTool(toolName);
     }
 }

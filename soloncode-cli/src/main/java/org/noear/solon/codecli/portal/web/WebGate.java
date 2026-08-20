@@ -691,7 +691,7 @@ public class WebGate extends SimpleWebSocketListener {
                             model = selectedModel;
                         }
 
-                        performAgentTaskAsync(wsContext,session, sessionCwd, Prompt.of(prompt), model, agentName);
+                        performAgentTaskAsync(wsContext, session, sessionCwd, Prompt.of(prompt), model, agentName);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -713,7 +713,7 @@ public class WebGate extends SimpleWebSocketListener {
                 }
 
                 //加一条删掉自己发出的一条
-        emitToClient(wsContext, session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
+                emitToClient(wsContext, session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
             } else {
                 final String text;
                 if (ctx.getOutputBuffer().length() > 0) {
@@ -722,13 +722,13 @@ public class WebGate extends SimpleWebSocketListener {
                     text = "命令执行完成";
                 }
 
-        emitToClient(wsContext, session.getSessionId(), WebEvent.ofCommand(text));
+                emitToClient(wsContext, session.getSessionId(), WebEvent.ofCommand(text));
 
                 // 命令执行后通知所有绑定的 IM 通道（微信/飞书/钉钉等）
                 streamBuilder.replyToBoundChannel(wsContext, session.getSessionId(), text, true);
             }
 
-        emitToClient(wsContext,session.getSessionId(), WebEvent.ofDone());
+            emitToClient(wsContext, session.getSessionId(), WebEvent.ofDone());
         }
 
         return true;
