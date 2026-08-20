@@ -16,6 +16,7 @@ import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemContextPayload;
 import org.noear.solon.codecli.portal.web.event.payload.TaskDonePayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
+import org.noear.solon.codecli.portal.web.event.payload.ToolStartPayload;
 import org.noear.solon.core.util.Assert;
 
 import java.util.ArrayList;
@@ -219,10 +220,12 @@ public class WebEventMapper {
         String toolTitle = toolName;
         if (Assert.isNotEmpty(taskAgentName)) {
             toolTitle = taskAgentName + "/" + toolName;
+        } else if ("main".equals(event.getAgentName()) == false) {
+            toolTitle = event.getAgentName() + "/" + toolName;
         }
 
         Map<String, Object> args = event.getArgs();
-        WebEvent<org.noear.solon.codecli.portal.web.event.payload.ToolStartPayload> evt = WebEvent.ofToolCallStart(toolName, toolTitle, args);
+        WebEvent<ToolStartPayload> evt = WebEvent.ofToolCallStart(toolName, toolTitle, args);
         evt.getPayload().setCallId(event.getCallId());
         return evt;
     }
@@ -239,6 +242,8 @@ public class WebEventMapper {
         String toolTitle = toolName;
         if (Assert.isNotEmpty(taskAgentName)) {
             toolTitle = taskAgentName + "/" + toolName;
+        } else if ("main".equals(event.getAgentName()) == false) {
+            toolTitle = event.getAgentName() + "/" + toolName;
         }
 
         return WebEvent.of(WebEventNames.TOOL_END, ToolEndPayload.builder()
@@ -259,7 +264,7 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onTaskDoneEvent(RunEndEvent event, String runId, String taskId,
-                                       String taskAgentName, String taskDescription, boolean isMultitask) {
+                                        String taskAgentName, String taskDescription, boolean isMultitask) {
         boolean abnormal = (event != null && event.isAbnormal());
         return WebEvent.of(WebEventNames.TASK_DONE, TaskDonePayload.builder()
                 .taskId(taskId)

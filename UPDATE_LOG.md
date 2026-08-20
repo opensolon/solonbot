@@ -1,4 +1,11 @@
 
+### v2026.8.21
+
+* 优化 soloncode llm 缓存率
+* 修复 soloncode llm anthropic 缓存率计算错误的问题
+* 修复 soloncode web 子代理执行时没有显示子代理名的问题
+* 细节优化
+
 ### v2026.8.20
 
 * 添加 soloncode web 多工作区支持（一个工作区一个浏览器tab）
