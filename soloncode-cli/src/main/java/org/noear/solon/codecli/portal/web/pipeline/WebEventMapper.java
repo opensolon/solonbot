@@ -178,11 +178,11 @@ public class WebEventMapper {
 
     private WebEvent<?> onReasonDeltaEvent(ReasonDeltaEvent chunk, String taskAgentName) {
         if (chunk.isThinking()) {
-            return WebEvent.ofReason(chunk.getReasonId(), chunk.getContent());
+            return WebEvent.ofReason(chunk.getReasonId(), chunk.getThinking());
         } else {
             // 正文必须携带 reasonId，前端据此将同一轮正文分组；
             // 丢失后多轮正文会塔缩到同一 __default__ 分组，导致最终消息错接到前一组。
-            return WebEvent.ofText(chunk.getReasonId(), chunk.getContent());
+            return WebEvent.ofText(chunk.getReasonId(), chunk.getAnswer());
         }
     }
 
@@ -257,9 +257,6 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
-        if (isMultitask) {
-            return WebEvent.ofText(event.getReasonId(), event.getContent());
-        }
         return WebEvent.EMPTY;
     }
 
