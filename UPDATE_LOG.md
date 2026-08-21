@@ -1,8 +1,10 @@
 
 ### v2026.8.22
 
+* 添加 soloncode web .uploads 等隐藏目录白名单使其在文件树中可见并统一目录过滤逻辑
 * 修复 soloncode web 有工具调用时输出文本会重复的问题（v2026.8.20 引起的）
 * 修复 soloncode web 当前任务列表没有时实同步的问题
+* 修复 soloncode web 文件节点名称溢出及箭头图标被压缩问题
 * 优化 soloncode llm 测试连接提示方式
 * 细节优化
 
@@ -15,10 +17,10 @@
 
 ### v2026.8.20
 
-* 添加 soloncode web 多工作区支持（一个工作区一个浏览器tab）
+* 新增 soloncode web 多工作区支持（一个工作区一个浏览器tab）
 * 添加 soloncode web 智能体选择模型支持
 * 优化 soloncode web 设置/供应商/模型管理体验
-* 优化 soloncode web 流式输出模式（更规范）
+* 重构 soloncode web 流式输出消息格式（SAEP 2.0 更规范）
 * 细节优化
 
 ### v2026.8.17
