@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="/highlight/github.min.css" media="(prefers-color-scheme: light)" id="hljsLightTheme"/>
     <link rel="stylesheet" href="/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)" id="hljsDarkTheme" disabled/>
 </head>
-<body data-theme="light">
+<body data-theme="light" class="app-boot">
 
 <!-- Sidebar -->
 <div class="sidebar">
@@ -547,9 +547,6 @@
 <!-- Onboarding Full-screen Home (首启引导，与工作区面板同构) -->
 <div class="onboarding-overlay" id="onboardingMask" style="display:none" role="dialog" aria-modal="true" aria-label="欢迎使用 SolonCode" data-i18n-aria-label="newchat.onboardingTitle">
     <div class="onboarding-home">
-        <header class="onboarding-home-header">
-            <div class="onboarding-home-brand">SolonCode</div>
-        </header>
         <div class="onboarding-home-body">
             <div class="onboarding-home-logo"><img src="/img/favicon.png" alt="SolonCode" /></div>
             <div class="onboarding-home-title" data-i18n="newchat.onboardingTitle">欢迎使用 SolonCode</div>
@@ -1905,6 +1902,14 @@
     })();
 
     var SSE_ENDPOINT = "/web/chat/input";
+    // 启动护罩：在获知是否已配置模型前，隐藏主界面，确保无模型时用户首帧看到的就是欢迎面板
+    var bootRevealed = false;
+    function revealApp() {
+        if (bootRevealed) return;
+        bootRevealed = true;
+        document.body.classList.remove('app-boot');
+    }
+    setTimeout(revealApp, 2500); // 兠底：接口异常时也正常展示主界面
     // 启动时拉取页面元信息（appTitle / appVersion / workspace / workname），回填标题/侧栏
     fetch('/web/chat/meta').then(function (r) { return r.json(); }).then(function (res) {
         var meta = (res && res.data) ? res.data : res;
@@ -1916,6 +1921,7 @@
                 window.updateModelOnboarding();
             }
         }
+        revealApp();
         if (meta.workname || meta.workspace) {
             // 标题：工作区名称 - 完整路径（如 solon-wm - /Users/x/solon-wm）
             var wsPath = meta.workspace ? String(meta.workspace) : '';

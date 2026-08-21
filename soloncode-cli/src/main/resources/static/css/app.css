@@ -3208,8 +3208,9 @@ pre:hover .code-copy-btn { opacity: 1; }
     inset: 0;
     z-index: 10002; /* 高于 ws-home 的 10001，首启时盖在最上层 */
     display: flex;
-    animation: settings-fade-in 0.2s ease-out;
 }
+/* 启动护罩：在首帧状态判定前隐藏主界面（欢迎面板除外），避免“先见主界面再见欢迎面板” */
+body.app-boot > *:not(#onboardingMask) { visibility: hidden; }
 .onboarding-home {
     flex: 1;
     display: flex;
@@ -3223,20 +3224,7 @@ pre:hover .code-copy-btn { opacity: 1; }
     background-size: var(--bg-settings-image-size);
     background-position: var(--bg-settings-image-position);
     background-repeat: var(--bg-settings-image-repeat);
-    animation: settings-slide-up 0.25s ease-out;
     overflow: hidden;
-}
-.onboarding-home-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border-color);
-}
-.onboarding-home-brand {
-    font-size: var(--fs-lg);
-    font-weight: 700;
-    color: var(--text-primary);
 }
 .onboarding-home-body {
     flex: 1;
@@ -3251,7 +3239,6 @@ pre:hover .code-copy-btn { opacity: 1; }
     width: 100px;
     height: 100px;
     margin-bottom: 28px;
-    animation: onboarding-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .onboarding-home-logo img {
     width: 100%;
@@ -3264,7 +3251,6 @@ pre:hover .code-copy-btn { opacity: 1; }
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 12px;
-    animation: onboarding-fade-up 0.4s ease-out 0.08s both;
 }
 .onboarding-home-desc {
     font-size: var(--fs-base);
@@ -3272,13 +3258,11 @@ pre:hover .code-copy-btn { opacity: 1; }
     margin-bottom: 36px;
     line-height: 1.6;
     max-width: 460px;
-    animation: onboarding-fade-up 0.4s ease-out 0.16s both;
 }
 .onboarding-home-actions {
     display: flex;
     align-items: center;
     gap: 16px;
-    animation: onboarding-fade-up 0.4s ease-out 0.24s both;
 }
 .onboarding-home-primary-btn {
     height: 48px;
@@ -3305,15 +3289,6 @@ pre:hover .code-copy-btn { opacity: 1; }
     transition: all 0.2s;
 }
 .onboarding-home-skip-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-@keyframes onboarding-pop {
-    from { opacity: 0; transform: scale(0.6); }
-    to { opacity: 1; transform: scale(1); }
-}
-@keyframes onboarding-fade-up {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
-}
 
 /* ===== 模型选择器空状态 ===== */
 .model-selector-current.is-empty .model-name { color: #e74c3c; }
