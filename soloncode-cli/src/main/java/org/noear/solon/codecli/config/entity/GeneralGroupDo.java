@@ -66,6 +66,8 @@ public class GeneralGroupDo implements Serializable {
     private boolean hitlEnabled = false; //false
     //是否启用子代理模式
     private boolean subagentEnabled = true; // true
+    //是否启用 Manage 工具（ManagerTalent：AI 动态添加模型/MCP/OpenAPI/定时任务）
+    private boolean managerEnabled = false; // false
 
     //内心思考，是否打印
     private boolean cliThinkPrinted = false; //true

@@ -342,6 +342,7 @@
                 $('#generalOpenApiEnabled').prop('checked', d.openApiEnabled !== false);
                 $('#generalBashAsyncEnabled').prop('checked', !!d.bashAsyncEnabled);
                 $('#generalSubagentEnabled').prop('checked', d.subagentEnabled !== false);
+                $('#generalManagerEnabled').prop('checked', d.managerEnabled !== false);
                 $('#generalLspEnabled').prop('checked', !!d.lspEnabled);
                 $('#generalCliPrintSimplified').prop('checked', d.cliPrintSimplified !== false);
                 window.cliPrintSimplified = d.cliPrintSimplified !== false;
@@ -419,6 +420,7 @@
             openApiEnabled: $('#generalOpenApiEnabled').is(':checked'),
             bashAsyncEnabled: $('#generalBashAsyncEnabled').is(':checked'),
             subagentEnabled: $('#generalSubagentEnabled').is(':checked'),
+            managerEnabled: $('#generalManagerEnabled').is(':checked'),
             lspEnabled: $('#generalLspEnabled').is(':checked'),
             cliPrintSimplified: $('#generalCliPrintSimplified').is(':checked'),
             webAuthUser: $('#generalWebAuthUser').val().trim() || null,

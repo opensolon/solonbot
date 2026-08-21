@@ -340,6 +340,7 @@ public class AgentSettings implements Serializable {
         target.setAutoRethink(source.isAutoRethink());
         target.setHitlEnabled(source.isHitlEnabled());
         target.setSubagentEnabled(source.isSubagentEnabled());
+        target.setManagerEnabled(source.isManagerEnabled());
         target.setCliThinkPrinted(source.isCliThinkPrinted());
         target.setCliPrintSimplified(source.isCliPrintSimplified());
         target.setGoalsEnabled(source.isGoalsEnabled());

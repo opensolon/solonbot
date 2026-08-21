@@ -1137,5 +1137,7 @@
   "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
   "newchat.onboardingAdd": "Add model config",
   "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.noModelHint": "No model available. Please add a model in Settings first",
+  "general.features.managerDesc": "Allow AI to dynamically add/manage LLM models, MCP servers, OpenAPI sources and loop tasks; disable to reduce context",
+  "general.features.managerName": "Manage Tools"
 }
