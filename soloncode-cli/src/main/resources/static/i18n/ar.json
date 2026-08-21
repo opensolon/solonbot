@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "إزالة مساحة العمل هذه من القائمة؟ (لن يتم حذف الدليل)",
   "sidebar.wsPathInvalid": "أدخل مسارًا مطلقًا محليًا صالحًا (يبدأ بـ / أو حرف محرك أقراص، دون ..)",
   "sidebar.wsOmniPlaceholder": "ابحث في مساحات العمل أو أدخل مسارًا مطلقًا للفتح…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "مرحبًا بك في SolonCode",
+  "newchat.onboardingDesc": "خطوة واحدة فقط: أضف تكوين نموذج لغوي كبير (LLM) لبدء أول محادثة ذكاء اصطناعي",
+  "newchat.onboardingAdd": "إضافة تكوين نموذج لغوي كبير",
+  "newchat.onboardingSkip": "تخطي",
+  "newchat.noModelHint": "لا توجد نماذج متاحة. يرجى إضافة نموذج في الإعدادات أولاً",
+  "general.features.managerDesc": "عند التفعيل يسمح للذكاء الاصطناعي بإضافة/إدارة نماذج LLM وخوادم MCP ومصادر OpenAPI والمهام المجدولة ديناميكيًا؛ الإيقاف يقلل استهلاك السياق",
+  "general.features.managerName": "دعم أداة Manage"
 }

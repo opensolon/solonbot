@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Bu çalışma alanını listeden kaldır? (dizin silinmez)",
   "sidebar.wsPathInvalid": "Geçerli bir yerel mutlak yol girin (/ veya sürücü harfiyle başlar, .. içermez)",
   "sidebar.wsOmniPlaceholder": "Çalışma alanlarında ara veya açmak için mutlak yol girin…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "SolonCode'a hoş geldiniz",
+  "newchat.onboardingDesc": "Sadece bir adım: ilk AI sohbetinizi başlatmak için bir LLM yapılandırması ekleyin",
+  "newchat.onboardingAdd": "Model yapılandırması ekle",
+  "newchat.onboardingSkip": "Atla",
+  "newchat.noModelHint": "Kullanılabilir model yok. Lütfen önce Ayarlar'dan bir model ekleyin",
+  "general.features.managerDesc": "Yapay zekanın LLM modellerini, MCP sunucularını, OpenAPI kaynaklarını ve zamanlanmış görevleri dinamik olarak eklemesine/yönetmesine olanak tanır; kapatmak bağlam tüketimini azaltır",
+  "general.features.managerName": "Manage aracı desteği"
 }

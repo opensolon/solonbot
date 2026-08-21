@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Κατάργηση αυτού του χώρου εργασίας από τη λίστα; (ο κατάλογος δεν θα διαγραφεί)",
   "sidebar.wsPathInvalid": "Εισαγάγετε έγκυρη τοπική απόλυτη διαδρομή (ξεκινά με / ή γράμμα μονάδας δίσκου, χωρίς ..)",
   "sidebar.wsOmniPlaceholder": "Αναζήτηση χώρων εργασίας ή εισαγωγή απόλυτης διαδρομής για άνοιγμα…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Καλώς ήρθατε στο SolonCode",
+  "newchat.onboardingDesc": "Μόνο ένα βήμα: προσθέστε μια διαμόρφωση LLM για να ξεκινήσετε την πρώτη σας συνομιλία AI",
+  "newchat.onboardingAdd": "Προσθήκη διαμόρφωσης μοντέλου",
+  "newchat.onboardingSkip": "Παράβλεψη",
+  "newchat.noModelHint": "Δεν υπάρχει διαθέσιμο μοντέλο. Προσθέστε πρώτα ένα μοντέλο στις Ρυθμίσεις",
+  "general.features.managerDesc": "Επιτρέπει στην AI να προσθέτει/διαχειρίζεται δυναμικά μοντέλα LLM, διακομιστές MCP, πηγές OpenAPI και προγραμματισμένες εργασίες· η απενεργοποίηση μειώνει την κατανάλωση περιβάλλοντος",
+  "general.features.managerName": "Υποστήριξη εργαλείου Manage"
 }

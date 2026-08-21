@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Fjern dette arbejdsområde fra listen? (mappen slettes ikke)",
   "sidebar.wsPathInvalid": "Indtast en gyldig lokal absolut sti (starter med / eller drevbogstav, uden ..)",
   "sidebar.wsOmniPlaceholder": "Søg i arbejdsområder, eller indtast en absolut sti for at åbne…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Velkommen til SolonCode",
+  "newchat.onboardingDesc": "Kun ét trin: tilføj en LLM-konfiguration for at starte din første AI-samtale",
+  "newchat.onboardingAdd": "Tilføj modelkonfiguration",
+  "newchat.onboardingSkip": "Spring over",
+  "newchat.noModelHint": "Ingen model tilgængelig. Tilføj venligst en model i Indstillinger først",
+  "general.features.managerDesc": "Giver AI mulighed for dynamisk at tilføje/styre LLM-modeller, MCP-servere, OpenAPI-kilder og planlagte opgaver; deaktiver for at reducere kontekstforbrug",
+  "general.features.managerName": "Manage-værktøjssupport"
 }

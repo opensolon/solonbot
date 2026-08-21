@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Ukloniti ovaj radni prostor s liste? (direktorij neće biti izbrisan)",
   "sidebar.wsPathInvalid": "Unesite valjanu lokalnu apsolutnu putanju (počinje s / ili slovom pogona, bez ..)",
   "sidebar.wsOmniPlaceholder": "Pretraži radne prostore ili unesi apsolutnu putanju za otvaranje…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Dobrodošli u SolonCode",
+  "newchat.onboardingDesc": "Samo jedan korak: dodajte LLM konfiguraciju da započnete svoj prvi AI razgovor",
+  "newchat.onboardingAdd": "Dodaj konfiguraciju modela",
+  "newchat.onboardingSkip": "Preskoči",
+  "newchat.noModelHint": "Nema dostupnih modela. Prvo dodajte model u Postavkama",
+  "general.features.managerDesc": "Kada je omogućeno, omogućava AI-ju dinamičko dodavanje/upravljanje LLM modelima, MCP serverima, OpenAPI izvorima i zakazanim zadacima; isključivanjem se smanjuje potrošnja konteksta",
+  "general.features.managerName": "Podrška za Manage alat"
 }

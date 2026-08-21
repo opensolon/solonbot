@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "このワークスペースをリストから削除しますか？（ディレクトリは削除されません）",
   "sidebar.wsPathInvalid": "有効なローカル絶対パスを入力してください（/ またはドライブ文字で始まり、.. を含まない）",
   "sidebar.wsOmniPlaceholder": "ワークスペースを検索、または絶対パスを入力して開く…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "SolonCode へようこそ",
+  "newchat.onboardingDesc": "たった 1 ステップ: LLM 設定を追加するだけで、初めての AI チャットを始められます",
+  "newchat.onboardingAdd": "モデル設定を追加",
+  "newchat.onboardingSkip": "スキップ",
+  "newchat.noModelHint": "利用可能なモデルがありません。先に設定でモデルを追加してください",
+  "general.features.managerDesc": "有効にすると AI が LLM モデル、MCP サーバー、OpenAPI ソース、スケジュール済みタスクを動的に追加・管理できます。無効にするとコンテキスト消費を削減できます",
+  "general.features.managerName": "Manage ツールサポート"
 }

@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Удалить эту рабочую область из списка? (каталог не будет удалён)",
   "sidebar.wsPathInvalid": "Введите допустимый локальный абсолютный путь (начинающийся с / или буквы диска, без ..)",
   "sidebar.wsOmniPlaceholder": "Поиск рабочих пространств или ввод абсолютного пути для открытия…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Добро пожаловать в SolonCode",
+  "newchat.onboardingDesc": "Всего один шаг: добавьте конфигурацию LLM, чтобы начать первый диалог с ИИ",
+  "newchat.onboardingAdd": "Добавить конфигурацию модели",
+  "newchat.onboardingSkip": "Пропустить",
+  "newchat.noModelHint": "Нет доступных моделей. Сначала добавьте модель в настройках",
+  "general.features.managerDesc": "Позволяет ИИ динамически добавлять/управлять моделями LLM, серверами MCP, источниками OpenAPI и запланированными задачами; отключение снижает расход контекста",
+  "general.features.managerName": "Поддержка инструмента Manage"
 }

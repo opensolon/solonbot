@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "ลบพื้นที่ทำงานนี้ออกจากรายการ? (จะไม่ลบไดเรกทอรี)",
   "sidebar.wsPathInvalid": "ป้อนพาธสัมบูรณ์ในเครื่องที่ถูกต้อง (ขึ้นต้นด้วย / หรืออักษรไดรฟ์ ไม่มี ..)",
   "sidebar.wsOmniPlaceholder": "ค้นหาพื้นที่ทำงาน หรือป้อนพาธสัมบูรณ์เพื่อเปิด…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "ยินดีต้อนรับสู่ SolonCode",
+  "newchat.onboardingDesc": "เพียงขั้นตอนเดียว: เพิ่มการกำหนดค่า LLM เพื่อเริ่มการสนทนา AI ครั้งแรกของคุณ",
+  "newchat.onboardingAdd": "เพิ่มการกำหนดค่าโมเดล",
+  "newchat.onboardingSkip": "ข้าม",
+  "newchat.noModelHint": "ไม่มีโมเดลที่ใช้งานได้ กรุณาเพิ่มโมเดลในการตั้งค่าก่อน",
+  "general.features.managerDesc": "เมื่อเปิดใช้งานจะอนุญาตให้ AI เพิ่ม/จัดการโมเดล LLM เซิร์ฟเวอร์ MCP แหล่งข้อมูล OpenAPI และงานตามกำหนดเวลาแบบไดนามิก; ปิดเพื่อลดการใช้บริบท",
+  "general.features.managerName": "รองรับเครื่องมือ Manage"
 }

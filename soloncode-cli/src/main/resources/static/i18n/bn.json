@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "তালিকা থেকে এই ওয়ার্কস্পেসটি সরাবেন? (ডিরেক্টরি মুছে ফেলা হবে না)",
   "sidebar.wsPathInvalid": "একটি বৈধ স্থানীয় পরম পথ লিখুন (/ বা ড্রাইভ অক্ষর দিয়ে শুরু, .. ছাড়া)",
   "sidebar.wsOmniPlaceholder": "ওয়ার্কস্পেস খুঁজুন, বা খুলতে পরম পথ লিখুন…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "SolonCode-এ স্বাগতম",
+  "newchat.onboardingDesc": "মাত্র এক ধাপ: প্রথম AI কথোপকথন শুরু করতে একটি LLM কনফিগারেশন যোগ করুন",
+  "newchat.onboardingAdd": "LLM কনফিগারেশন যোগ করুন",
+  "newchat.onboardingSkip": "এড়িয়ে যান",
+  "newchat.noModelHint": "কোনো মডেল উপলব্ধ নেই। অনুগ্রহ করে আগে সেটিংসে একটি মডেল যোগ করুন",
+  "general.features.managerDesc": "সক্রিয় করলে AI-কে LLM মডেল, MCP সার্ভার, OpenAPI উৎস এবং নির্ধারিত কাজ গতিশীলভাবে যোগ/পরিচালনা করার অনুমতি দেয়; বন্ধ করলে কনটেক্সট খরচ কমবে",
+  "general.features.managerName": "Manage টুল সাপোর্ট"
 }

@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "¿Eliminar este espacio de trabajo de la lista? (no se eliminará el directorio)",
   "sidebar.wsPathInvalid": "Ingrese una ruta absoluta local válida (que comience con / o letra de unidad, sin ..)",
   "sidebar.wsOmniPlaceholder": "Buscar espacios de trabajo o ingresar una ruta absoluta para abrir…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Bienvenido a SolonCode",
+  "newchat.onboardingDesc": "Solo un paso: añade una configuración de LLM para iniciar tu primera conversación de IA",
+  "newchat.onboardingAdd": "Añadir configuración de modelo",
+  "newchat.onboardingSkip": "Omitir",
+  "newchat.noModelHint": "No hay ningún modelo disponible. Añade un modelo en Ajustes primero",
+  "general.features.managerDesc": "Permite que la IA añada/gestione dinámicamente modelos LLM, servidores MCP, fuentes OpenAPI y tareas programadas; desactivarlo reduce el consumo de contexto",
+  "general.features.managerName": "Compatibilidad con la herramienta Manage"
 }

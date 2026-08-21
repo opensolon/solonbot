@@ -1133,9 +1133,11 @@
   "sidebar.wsRemoveConfirm": "Xóa không gian làm việc này khỏi danh sách? (thư mục sẽ không bị xóa)",
   "sidebar.wsPathInvalid": "Nhập đường dẫn tuyệt đối cục bộ hợp lệ (bắt đầu bằng / hoặc ký tự ổ đĩa, không có ..)",
   "sidebar.wsOmniPlaceholder": "Tìm kiếm không gian làm việc hoặc nhập đường dẫn tuyệt đối để mở…",
-  "newchat.onboardingTitle": "Welcome to SolonCode",
-  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
-  "newchat.onboardingAdd": "Add model config",
-  "newchat.onboardingSkip": "Skip",
-  "newchat.noModelHint": "No model available. Please add a model in Settings first"
+  "newchat.onboardingTitle": "Chào mừng đến với SolonCode",
+  "newchat.onboardingDesc": "Chỉ một bước: thêm cấu hình LLM để bắt đầu cuộc trò chuyện AI đầu tiên của bạn",
+  "newchat.onboardingAdd": "Thêm cấu hình mô hình",
+  "newchat.onboardingSkip": "Bỏ qua",
+  "newchat.noModelHint": "Không có mô hình khả dụng. Vui lòng thêm mô hình trong Cài đặt trước",
+  "general.features.managerDesc": "Bật để cho phép AI thêm/quản lý động các mô hình LLM, máy chủ MCP, nguồn OpenAPI và tác vụ đã lên lịch; tắt để giảm tiêu thụ ngữ cảnh",
+  "general.features.managerName": "Hỗ trợ công cụ Manage"
 }
