@@ -13,6 +13,7 @@ import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.handle.Context;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +68,23 @@ public class BaseSettingsController {
     protected AgentSettings settings() { return currentContext().getSettings(); }
     protected FileWatchService fileWatchService() { return currentContext().getFileWatchService(); }
     protected WebGate webGate() { return currentContext().getWebGate(); }
+
+    protected WorkspaceManager workspaceManager() { return workspaceManager; }
+
+    /**
+     * 返回所有已加载工作区的引擎（含默认工作区与当前工作区）。
+     * <p>多工作区架构下，通用设置、工具权限等“全局”配置保存后必须热更新到全部引擎，
+     * 而非仅当前 HTTP 请求所在工作区的引擎；否则其他已加载工作区的开关不会即时生效。</p>
+     */
+    protected List<HarnessEngine> engines() {
+        List<HarnessEngine> list = new ArrayList<>();
+        for (WorkspaceContext ctx : workspaceManager.getContexts()) {
+            if (ctx != null && ctx.getEngine() != null) {
+                list.add(ctx.getEngine());
+            }
+        }
+        return list;
+    }
 
     /**
      * 构造函数：支持自定义所有依赖。

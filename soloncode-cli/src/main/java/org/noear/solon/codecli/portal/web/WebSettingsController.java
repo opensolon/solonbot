@@ -20,6 +20,7 @@ import org.noear.solon.ai.harness.HarnessExtension;
 import org.noear.solon.codecli.command.builtin.GoalExtension;
 import org.noear.solon.codecli.portal.web.settings.BaseSettingsController;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
+import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.handle.UploadedFile;
 
 import org.noear.solon.ai.harness.HarnessEngine;
@@ -165,13 +166,14 @@ public class WebSettingsController extends BaseSettingsController {
             List<String> applied = new ArrayList<>();
             List<String> warnings = new ArrayList<>();
 
-            // 4) apply engine（仅对真正变更的分组）
+            // 4) apply engine（仅对真正变更的分组；general/permission 为全局配置，广播到所有已加载工作区引擎）
             if (apply) {
                 if (generalChanged) {
-                    applyGeneralToEngine(settings().getGeneral(), applied, warnings);
+                    applyGeneralToAllEngines(applied, warnings);
                 }
                 if (permissionChanged) {
-                    applyPermissionToEngine(settings().getPermission(), applied, warnings);
+                    // 其他工作区引擎同样需要重建主 Agent 使权限即时生效
+                    applyPermissionToAllEngines(applied, warnings);
                 }
                 if (loopChanged) {
                     applied.add("loop"); // loop 仅内存，LoopScheduler 读 settings
@@ -278,42 +280,44 @@ public class WebSettingsController extends BaseSettingsController {
     }
 
     /**
-     * 将 general 配置热应用到引擎（对齐 generalSave + 启动期可热更新字段）。
+     * 将 general 配置热应用到指定引擎（对齐 generalSave + 启动期可热更新字段）。
      * 调用前 settings 已 fillRuntimeDefaults，关键字段通常非 null。
+     * <p>多工作区架构：全局设置保存后需对每个已加载工作区的引擎调用，
+     * 引擎对象由调用方传入（默认传 engine() 即当前工作区引擎）。</p>
      */
-    private void applyGeneralToEngine(GeneralGroupDo g, List<String> applied, List<String> warnings) {
+    private void applyGeneralToEngine(HarnessEngine engine, GeneralGroupDo g, List<String> applied, List<String> warnings) {
         try {
-            engine().setCompressionThreshold(g.getCompressionThresholdMessages(), g.getCompressionThresholdPercent() / 100.0D);
-            engine().setSessionWindowSize(g.getSessionWindowSize());
-            engine().setModelRetries(g.getModelRetries());
-            engine().setMcpRetries(g.getMcpRetries());
-            engine().setApiRetries(g.getApiRetries());
-            engine().setSandboxEnabled(g.isSandboxMode());
-            engine().setSandboxAllowUserHome(g.isSandboxAllowUserHome());
-            engine().setSandboxSystemRestrict(g.isSandboxSystemRestrict());
-            engine().setBashAsyncEnabled(g.isBashAsyncEnabled());
-            engine().setMemoryEnabled(g.isMemoryEnabled());
-            engine().setMemoryRelevanceCount(g.getMemoryRelevanceCount());
-            engine().setMemoryPriorityCount(g.getMemoryPriorityCount());
-            engine().setMemorySummaryLength(g.getMemorySummaryLength());
-            engine().setSubagentEnabled(g.isSubagentEnabled());
-            engine().setMaxTurns(g.getMaxTurns());
-            engine().setHitlEnabled(g.isHitlEnabled());
+            engine.setCompressionThreshold(g.getCompressionThresholdMessages(), g.getCompressionThresholdPercent() / 100.0D);
+            engine.setSessionWindowSize(g.getSessionWindowSize());
+            engine.setModelRetries(g.getModelRetries());
+            engine.setMcpRetries(g.getMcpRetries());
+            engine.setApiRetries(g.getApiRetries());
+            engine.setSandboxEnabled(g.isSandboxMode());
+            engine.setSandboxAllowUserHome(g.isSandboxAllowUserHome());
+            engine.setSandboxSystemRestrict(g.isSandboxSystemRestrict());
+            engine.setBashAsyncEnabled(g.isBashAsyncEnabled());
+            engine.setMemoryEnabled(g.isMemoryEnabled());
+            engine.setMemoryRelevanceCount(g.getMemoryRelevanceCount());
+            engine.setMemoryPriorityCount(g.getMemoryPriorityCount());
+            engine.setMemorySummaryLength(g.getMemorySummaryLength());
+            engine.setSubagentEnabled(g.isSubagentEnabled());
+            engine.setMaxTurns(g.getMaxTurns());
+            engine.setHitlEnabled(g.isHitlEnabled());
 
-            if (engine().getMcpGatewayTalent() != null) {
-                engine().getMcpGatewayTalent().setEnabled(g.isMcpEnabled());
+            if (engine.getMcpGatewayTalent() != null) {
+                engine.getMcpGatewayTalent().setEnabled(g.isMcpEnabled());
             }
-            if (engine().getOpenApiGatewayTalent() != null) {
-                engine().getOpenApiGatewayTalent().setEnabled(g.isOpenApiEnabled());
+            if (engine.getOpenApiGatewayTalent() != null) {
+                engine.getOpenApiGatewayTalent().setEnabled(g.isOpenApiEnabled());
             }
-            if (engine().getLspTalent() != null) {
-                engine().getLspTalent().setEnabled(g.isLspEnabled());
+            if (engine.getLspTalent() != null) {
+                engine.getLspTalent().setEnabled(g.isLspEnabled());
             }
 
             // goalsEnabled：热更新 GoalTalent
             try {
                 boolean goalsEnabled = g.isGoalsEnabled();
-                for (HarnessExtension ext : engine().getExtensions()) {
+                for (HarnessExtension ext : engine.getExtensions()) {
                     if (ext instanceof GoalExtension) {
                         ((GoalExtension) ext).getGoalTalent().setEnabled(goalsEnabled);
                         break;
@@ -343,19 +347,68 @@ public class WebSettingsController extends BaseSettingsController {
         }
     }
 
-    private void applyPermissionToEngine(PermissionGroupDo p, List<String> applied, List<String> warnings) {
+    private void applyPermissionToEngine(HarnessEngine engine, PermissionGroupDo p, List<String> applied, List<String> warnings) {
         try {
             // 白名单 + 黑名单一次重置，只重建一次主 Agent（避免双次 createMainAgent）
             try {
-                engine().toolPermissionReset(p.getTools(), p.getDisallowedTools());
+                engine.toolPermissionReset(p.getTools(), p.getDisallowedTools());
             } catch (NoSuchMethodError | AbstractMethodError err) {
                 // 兼容尚未升级 harness 的运行环境
-                engine().allowToolReset(p.getTools());
-                engine().disallowToolReset(p.getDisallowedTools());
+                engine.allowToolReset(p.getTools());
+                engine.disallowToolReset(p.getDisallowedTools());
             }
             applied.add("permission");
         } catch (Exception e) {
             warnings.add("permission apply failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 将 general 配置热广播到所有已加载工作区的引擎。
+     * <p>当前工作区直接使用内存 settings（已 bindTo 更新）；
+     * 其他工作区先从磁盘 reloadInPlace（global 已写盘，保留各自 local 覆盖语义），
+     * 再用各自 settings 的 general 值热更新其引擎。</p>
+     */
+    private void applyGeneralToAllEngines(List<String> applied, List<String> warnings) {
+        WorkspaceContext cur = currentContext();
+
+        // 1) 当前工作区：内存 settings 已是最新，直接应用
+        applyGeneralToEngine(engine(), settings().getGeneral(), applied, warnings);
+
+        // 2) 其他已加载工作区：reload 后按各自配置应用（尊重 local 覆盖）
+        for (WorkspaceContext ctx : workspaceManager().getContexts()) {
+            if (ctx == cur || ctx == null || ctx.getEngine() == null) {
+                continue;
+            }
+            try {
+                AgentSettings ws = ctx.getSettings();
+                ws.reloadInPlace();
+                applyGeneralToEngine(ctx.getEngine(), ws.getGeneral(), applied, warnings);
+            } catch (Exception e) {
+                warnings.add("general broadcast to workspace " + ctx.getMeta().getId() + " failed: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 将工具权限热广播到所有已加载工作区的引擎。
+     * <p>当前工作区直接用内存 settings；其他工作区先从磁盘 reloadInPlace 后按各自配置应用，
+     * 尊重各自 local 覆盖；重建各自主 Agent 即时生效。</p>
+     */
+    private void applyPermissionToAllEngines(List<String> applied, List<String> warnings) {
+        WorkspaceContext cur = currentContext();
+        for (WorkspaceContext ctx : workspaceManager().getContexts()) {
+            if (ctx == null || ctx.getEngine() == null) {
+                continue;
+            }
+            try {
+                if (ctx != cur) {
+                    ctx.getSettings().reloadInPlace();
+                }
+                applyPermissionToEngine(ctx.getEngine(), ctx.getSettings().getPermission(), applied, warnings);
+            } catch (Exception e) {
+                warnings.add("permission broadcast to workspace " + ctx.getMeta().getId() + " failed: " + e.getMessage());
+            }
         }
     }
 
@@ -561,43 +614,6 @@ public class WebSettingsController extends BaseSettingsController {
                 settings().getGeneral().setProxyPort(0);
             }
 
-            engine().setCompressionThreshold(settings().getGeneral().getCompressionThresholdMessages(), settings().getGeneral().getCompressionThresholdPercent() / 100.0D);
-            engine().setSessionWindowSize(settings().getGeneral().getSessionWindowSize());
-
-            engine().setModelRetries(settings().getGeneral().getModelRetries());
-            engine().setMcpRetries(settings().getGeneral().getMcpRetries());
-            engine().setApiRetries(settings().getGeneral().getApiRetries());
-
-            engine().setSandboxEnabled(settings().getGeneral().isSandboxMode());
-            engine().setSandboxAllowUserHome(settings().getGeneral().isSandboxAllowUserHome());
-            engine().setSandboxSystemRestrict(settings().getGeneral().isSandboxSystemRestrict());
-
-            engine().setBashAsyncEnabled(settings().getGeneral().isBashAsyncEnabled());
-            engine().setMemoryEnabled(settings().getGeneral().isMemoryEnabled());
-            engine().setMemoryRelevanceCount(settings().getGeneral().getMemoryRelevanceCount());
-            engine().setMemoryPriorityCount(settings().getGeneral().getMemoryPriorityCount());
-            engine().setMemorySummaryLength(settings().getGeneral().getMemorySummaryLength());
-            engine().setSubagentEnabled(settings().getGeneral().isSubagentEnabled());
-
-
-            engine().getMcpGatewayTalent().setEnabled(settings().getGeneral().isMcpEnabled());
-            engine().getOpenApiGatewayTalent().setEnabled(settings().getGeneral().isOpenApiEnabled());
-            engine().getLspTalent().setEnabled(settings().getGeneral().isLspEnabled());
-
-            // 动态应用日志级别
-            if (tmp.hasKey("logLevel") && !tmp.get("logLevel").isNull()) {
-                String logLevel = tmp.get("logLevel").getString();
-                if (logLevel != null && !logLevel.isEmpty()) {
-                    ch.qos.logback.classic.Level level = ch.qos.logback.classic.Level.toLevel(logLevel, null);
-                    if (level != null) {
-                        ch.qos.logback.classic.Logger rootLogger =
-                                (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(
-                                        org.slf4j.Logger.ROOT_LOGGER_NAME);
-                        rootLogger.setLevel(level);
-                    }
-                }
-            }
-
             // 字体设置：字族名过滤（前端已过滤，这里做服务端兜底，防 CSS 注入）
             GeneralGroupDo g = settings().getGeneral();
             g.setUiFontFamily(sanitizeFontFamily(g.getUiFontFamily()));
@@ -617,7 +633,13 @@ public class WebSettingsController extends BaseSettingsController {
         // 更新 HTTP 代理配置（热生效）
         ProxyConfig.update(settings().getGeneral());
 
+        // 先写盘（global settings.json），再广播到所有已加载工作区引擎：
+        // 其他工作区 reloadInPlace 需读到最新的磁盘全局值，才能正确叠加各自 local 覆盖
         saveSettings();
+
+        // 热更新到所有已加载工作区的引擎（全局设置广播；含当前引擎 + 其他工作区引擎）
+        applyGeneralToAllEngines(new ArrayList<>(), new ArrayList<>());
+
         return Result.succeed();
     }
 
@@ -965,10 +987,11 @@ public class WebSettingsController extends BaseSettingsController {
         settings().getPermission().getDisallowedTools().clear();
         settings().getPermission().getDisallowedTools().addAll(disallowedTools);
 
-        // 热更新到引擎（会重建主 Agent 即时生效）
-        engine().disallowToolReset(settings().getPermission().getDisallowedTools());
-
+        // 先写盘（global settings.json），再广播到所有已加载工作区的引擎（重建各自主 Agent 即时生效）：
+        // 其他工作区 reloadInPlace 需读到最新的磁盘全局值，才能正确叠加各自 local 覆盖
         saveSettings();
+        applyPermissionToAllEngines(new ArrayList<>(), new ArrayList<>());
+
         LOG.info("[Settings] Permission updated: disallowedTools={}", disallowedTools);
         return Result.succeed();
     }
