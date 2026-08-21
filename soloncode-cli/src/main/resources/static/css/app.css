@@ -1547,6 +1547,8 @@ body {
 .file-node-name {
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    flex: 0 1 auto;
 }
 
 .file-arrow {
@@ -1558,6 +1560,7 @@ body {
     justify-content: center;
     width: 12px;
     height: 16px;
+    flex-shrink: 0;
 }
 .file-arrow.open { transform: rotate(90deg); }
 
