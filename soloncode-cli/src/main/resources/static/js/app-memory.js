@@ -10,7 +10,7 @@
     var gitViewerContent = document.getElementById('gitViewerContent');
     var gitViewerLabel = document.getElementById('gitViewerLabel');
     var gitViewerFile = document.getElementById('gitViewerFile');
-    var welcomeView = document.getElementById('welcomeView');
+    var newChatView = document.getElementById('newChatView');
     var chatView = document.getElementById('chatView');
     var memoryNavBtn = document.getElementById('memoryNavBtn');
     var memoryBadge = document.getElementById('memoryBadge');
@@ -33,7 +33,7 @@
     // ---- 中间面板显隐（参与 flex 布局：占据左侧边栏之后的整个区域，随边栏收起响应式变宽）----
     function showViewer() {
         if (!gitViewer) return;
-        if (welcomeView) welcomeView.style.display = 'none';
+        if (newChatView) newChatView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
         document.body.classList.add('memory-active');
         gitViewer.classList.add('mem-overlay');

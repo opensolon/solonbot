@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Голосовой ввод",
   "voice.holdToSpeak": "Удерживайте для записи",
   "voice.releaseToStop": "Отпустите для остановки",
-  "welcome.dropHint": "Отпустите, чтобы добавить вложение",
-  "welcome.greeting": "Привет, я {appTitle}!",
-  "welcome.inputPlaceholder": "Спросите что угодно...",
-  "welcome.learnMore": "Узнать больше о SolonCode",
-  "welcome.sub": "Чем я могу помочь?",
+  "newchat.dropHint": "Отпустите, чтобы добавить вложение",
+  "newchat.greeting": "Привет, я {appTitle}!",
+  "newchat.inputPlaceholder": "Спросите что угодно...",
+  "newchat.learnMore": "Узнать больше о SolonCode",
+  "newchat.sub": "Чем я могу помочь?",
   "workspace.addMountHint": "Добавить подключение файлового типа",
   "workspace.clearQueue": "Очистить очередь",
   "workspace.clearSearch": "Очистить",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Удалить",
   "sidebar.wsRemoveConfirm": "Удалить эту рабочую область из списка? (каталог не будет удалён)",
   "sidebar.wsPathInvalid": "Введите допустимый локальный абсолютный путь (начинающийся с / или буквы диска, без ..)",
-  "sidebar.wsOmniPlaceholder": "Поиск рабочих пространств или ввод абсолютного пути для открытия…"
+  "sidebar.wsOmniPlaceholder": "Поиск рабочих пространств или ввод абсолютного пути для открытия…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

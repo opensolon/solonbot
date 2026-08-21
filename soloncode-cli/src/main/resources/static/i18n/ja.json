@@ -1102,11 +1102,11 @@
   "toolbar.voice": "音声入力",
   "voice.holdToSpeak": "押しながら話す",
   "voice.releaseToStop": "離して終了",
-  "welcome.dropHint": "離すと添付ファイルを追加",
-  "welcome.greeting": "こんにちは、{appTitle} です！",
-  "welcome.inputPlaceholder": "なんでも聞いてください...",
-  "welcome.learnMore": "SolonCode について詳しく見る",
-  "welcome.sub": "何かお手伝いできますか？",
+  "newchat.dropHint": "離すと添付ファイルを追加",
+  "newchat.greeting": "こんにちは、{appTitle} です！",
+  "newchat.inputPlaceholder": "なんでも聞いてください...",
+  "newchat.learnMore": "SolonCode について詳しく見る",
+  "newchat.sub": "何かお手伝いできますか？",
   "workspace.addMountHint": "ファイルタイプのマウントを追加",
   "workspace.clearQueue": "待機をクリア",
   "workspace.clearSearch": "クリア",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "削除",
   "sidebar.wsRemoveConfirm": "このワークスペースをリストから削除しますか？（ディレクトリは削除されません）",
   "sidebar.wsPathInvalid": "有効なローカル絶対パスを入力してください（/ またはドライブ文字で始まり、.. を含まない）",
-  "sidebar.wsOmniPlaceholder": "ワークスペースを検索、または絶対パスを入力して開く…"
+  "sidebar.wsOmniPlaceholder": "ワークスペースを検索、または絶対パスを入力して開く…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

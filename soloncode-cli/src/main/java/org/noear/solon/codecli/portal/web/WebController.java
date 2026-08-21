@@ -266,6 +266,15 @@ public class WebController {
         data.put("appVersion", AgentFlags.getVersion());
         data.put("workspace", currentEngine.getWorkspace());
         data.put("workname", getLastSegment(currentEngine.getWorkspace()));
+        // 是否已配置至少一个可用模型，供前端首帧渲染引导面板，避免界面闪现
+        boolean modelConfigured = false;
+        for (ChatConfig config : currentEngine.getModels()) {
+            if (config.isEnabled()) {
+                modelConfigured = true;
+                break;
+            }
+        }
+        data.put("modelConfigured", modelConfigured);
         return Result.succeed(data);
     }
 

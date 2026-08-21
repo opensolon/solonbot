@@ -1102,11 +1102,11 @@
   "toolbar.voice": "음성 입력",
   "voice.holdToSpeak": "길게 눌러 말하기",
   "voice.releaseToStop": "놓으면 종료",
-  "welcome.dropHint": "놓으면 첨부 파일 추가",
-  "welcome.greeting": "안녕하세요, 저는 {appTitle}입니다!",
-  "welcome.inputPlaceholder": "무엇이든 물어보세요...",
-  "welcome.learnMore": "SolonCode에 대해 자세히 알아보기",
-  "welcome.sub": "무엇을 도와드릴까요?",
+  "newchat.dropHint": "놓으면 첨부 파일 추가",
+  "newchat.greeting": "안녕하세요, 저는 {appTitle}입니다!",
+  "newchat.inputPlaceholder": "무엇이든 물어보세요...",
+  "newchat.learnMore": "SolonCode에 대해 자세히 알아보기",
+  "newchat.sub": "무엇을 도와드릴까요?",
   "workspace.addMountHint": "파일 유형 마운트 추가",
   "workspace.clearQueue": "대기열 비우기",
   "workspace.clearSearch": "지우기",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "제거",
   "sidebar.wsRemoveConfirm": "이 작업 공간을 목록에서 제거하시겠습니까? (디렉터리는 삭제되지 않음)",
   "sidebar.wsPathInvalid": "유효한 로컬 절대 경로를 입력하세요 (/ 또는 드라이브 문자로 시작, .. 미포함)",
-  "sidebar.wsOmniPlaceholder": "워크스페이스 검색 또는 절대 경로 입력 후 열기…"
+  "sidebar.wsOmniPlaceholder": "워크스페이스 검색 또는 절대 경로 입력 후 열기…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

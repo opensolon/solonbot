@@ -1102,11 +1102,11 @@
   "toolbar.voice": "ভয়েস ইনপুট",
   "voice.holdToSpeak": "চেপে ধরে বলুন",
   "voice.releaseToStop": "ছাড়লে শেষ",
-  "welcome.dropHint": "অ্যাটাচমেন্ট যোগ করতে ছাড়ুন",
-  "welcome.greeting": "হ্যালো, আমি {appTitle}!",
-  "welcome.inputPlaceholder": "যেকোনো কিছু জিজ্ঞেস করুন...",
-  "welcome.learnMore": "SolonCode সম্পর্কে আরও জানুন",
-  "welcome.sub": "কীভাবে সাহায্য করতে পারি?",
+  "newchat.dropHint": "অ্যাটাচমেন্ট যোগ করতে ছাড়ুন",
+  "newchat.greeting": "হ্যালো, আমি {appTitle}!",
+  "newchat.inputPlaceholder": "যেকোনো কিছু জিজ্ঞেস করুন...",
+  "newchat.learnMore": "SolonCode সম্পর্কে আরও জানুন",
+  "newchat.sub": "কীভাবে সাহায্য করতে পারি?",
   "workspace.addMountHint": "ফাইল টাইপ মাউন্ট যোগ করুন",
   "workspace.clearQueue": "সারি পরিষ্কার",
   "workspace.clearSearch": "পরিষ্কার",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "সরান",
   "sidebar.wsRemoveConfirm": "তালিকা থেকে এই ওয়ার্কস্পেসটি সরাবেন? (ডিরেক্টরি মুছে ফেলা হবে না)",
   "sidebar.wsPathInvalid": "একটি বৈধ স্থানীয় পরম পথ লিখুন (/ বা ড্রাইভ অক্ষর দিয়ে শুরু, .. ছাড়া)",
-  "sidebar.wsOmniPlaceholder": "ওয়ার্কস্পেস খুঁজুন, বা খুলতে পরম পথ লিখুন…"
+  "sidebar.wsOmniPlaceholder": "ওয়ার্কস্পেস খুঁজুন, বা খুলতে পরম পথ লিখুন…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

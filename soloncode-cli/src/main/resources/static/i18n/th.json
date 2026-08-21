@@ -1102,11 +1102,11 @@
   "toolbar.voice": "ป้อนข้อมูลด้วยเสียง",
   "voice.holdToSpeak": "กดค้างเพื่อพูด",
   "voice.releaseToStop": "ปล่อยเพื่อหยุด",
-  "welcome.dropHint": "ปล่อยเพื่อเพิ่มไฟล์แนบ",
-  "welcome.greeting": "สวัสดี ฉันคือ {appTitle}!",
-  "welcome.inputPlaceholder": "ถามอะไรก็ได้...",
-  "welcome.learnMore": "เรียนรู้เพิ่มเติมเกี่ยวกับ SolonCode",
-  "welcome.sub": "มีอะไรให้ฉันช่วยไหม?",
+  "newchat.dropHint": "ปล่อยเพื่อเพิ่มไฟล์แนบ",
+  "newchat.greeting": "สวัสดี ฉันคือ {appTitle}!",
+  "newchat.inputPlaceholder": "ถามอะไรก็ได้...",
+  "newchat.learnMore": "เรียนรู้เพิ่มเติมเกี่ยวกับ SolonCode",
+  "newchat.sub": "มีอะไรให้ฉันช่วยไหม?",
   "workspace.addMountHint": "เพิ่มเมานต์ประเภทไฟล์",
   "workspace.clearQueue": "ล้างคิว",
   "workspace.clearSearch": "ล้าง",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "ลบออก",
   "sidebar.wsRemoveConfirm": "ลบพื้นที่ทำงานนี้ออกจากรายการ? (จะไม่ลบไดเรกทอรี)",
   "sidebar.wsPathInvalid": "ป้อนพาธสัมบูรณ์ในเครื่องที่ถูกต้อง (ขึ้นต้นด้วย / หรืออักษรไดรฟ์ ไม่มี ..)",
-  "sidebar.wsOmniPlaceholder": "ค้นหาพื้นที่ทำงาน หรือป้อนพาธสัมบูรณ์เพื่อเปิด…"
+  "sidebar.wsOmniPlaceholder": "ค้นหาพื้นที่ทำงาน หรือป้อนพาธสัมบูรณ์เพื่อเปิด…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

@@ -3,7 +3,7 @@
 /* 依赖：app-base.js, app-ui.js, app-history.js, app-message.js */
 
 /* ===== Send from both inputs ===== */
-$(welcomeSendBtn).on('click', function() { sendMessage(); });
+$(newChatSendBtn).on('click', function() { sendMessage(); });
 $(chatSendBtn).on('click', function() {
     if (btnMode === 'stop' && activeSessionId && sessionMap[activeSessionId]) {
         var sess = sessionMap[activeSessionId];
@@ -51,8 +51,8 @@ $(chatSendBtn).on('click', function() {
 });
 
 /* ===== Click to focus ===== */
-$('.welcome-input-box').on('click', function(e) {
-    if (!$(e.target).closest('button').length && !$(e.target).closest('.loop-panel').length && !$(e.target).closest('.model-dropdown').length) welcomeInput.focus();
+$('.newchat-input-box').on('click', function(e) {
+    if (!$(e.target).closest('button').length && !$(e.target).closest('.loop-panel').length && !$(e.target).closest('.model-dropdown').length) newChatInput.focus();
 });
 $('.input-box').on('click', function(e) {
     if (!$(e.target).closest('button').length && !$(e.target).closest('.history-panel').length && !$(e.target).closest('.loop-panel').length && !$(e.target).closest('.model-dropdown').length) chatInput.focus();
@@ -508,7 +508,7 @@ function cancelLastQueuedToInput(sess) {
     if (!chatInput) return;
     var sess = activeSessionId && sessionMap[activeSessionId];
     if (!sess) {
-        chatInput.placeholder = I18n.t('welcome.inputPlaceholder');
+        chatInput.placeholder = I18n.t('newchat.inputPlaceholder');
         return;
     }
     if (sess.isStreaming) {
@@ -528,7 +528,7 @@ function cancelLastQueuedToInput(sess) {
         chatInput.placeholder = I18n.t('streaming.queueWaiting', {n: qn});
         return;
     }
-    chatInput.placeholder = I18n.t('welcome.inputPlaceholder');
+    chatInput.placeholder = I18n.t('newchat.inputPlaceholder');
             }
             window.updateStreamingPlaceholder = updateStreamingPlaceholder;
 
@@ -579,6 +579,13 @@ function cancelLastQueuedToInput(sess) {
         function sendMessage() {
     var text = getInputText();
     var streamSess = activeSessionId && sessionMap[activeSessionId];
+
+    /* 无可用模型：拦截发送并引导配置 */
+    if (typeof modelList !== 'undefined' && modelList && modelList.length === 0) {
+        showToast(I18n.t('newchat.noModelHint'), 'error', 2500);
+        return;
+    }
+
 
     /* 空闲 + 有排队：允许空 Enter 续发队头；有内容则入队尾再 drain */
     if (streamSess && !streamSess.isStreaming

@@ -378,7 +378,7 @@
                 }
             },
             function() {
-                var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+                var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
                 if (!targetInput) return;
                 var currentVal = targetInput.value || '';
                 var insertText = (wsId !== 'workspace') ? '[' + wsId + ']' : '[./]';
@@ -481,7 +481,7 @@
                 },
                 function() {
                     var wsId = getNodeWorkspaceId($nodeEl);
-                    var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+                    var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
                     if (!targetInput) return;
                     var currentVal = targetInput.value || '';
                     var insertText = (wsId !== 'workspace')
@@ -510,7 +510,7 @@
                 },
                 function() {
                     var wsId = getNodeWorkspaceId($nodeEl);
-                    var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+                    var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
                     if (!targetInput) return;
                     var currentVal = targetInput.value || '';
                     var insertText = (wsId !== 'workspace')
@@ -1029,7 +1029,7 @@
                         e.stopPropagation();
                         e.preventDefault();
                         var wsId = window.activeFilerWorkspace || 'workspace';
-                        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+                        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
                         if (!targetInput) return;
                         var currentVal = targetInput.value || '';
                         var insertText = (wsId !== 'workspace')

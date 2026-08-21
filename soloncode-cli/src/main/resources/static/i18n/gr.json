@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Φωνητική εισαγωγή",
   "voice.holdToSpeak": "Κρατήστε για να μιλήσετε",
   "voice.releaseToStop": "Αφήστε για διακοπή",
-  "welcome.dropHint": "Αφήστε για προσθήκη συνημμένου",
-  "welcome.greeting": "Γεια σας, είμαι το {appTitle}!",
-  "welcome.inputPlaceholder": "Ρωτήστε οτιδήποτε...",
-  "welcome.learnMore": "Μάθετε περισσότερα για το SolonCode",
-  "welcome.sub": "Πώς μπορώ να σας βοηθήσω;",
+  "newchat.dropHint": "Αφήστε για προσθήκη συνημμένου",
+  "newchat.greeting": "Γεια σας, είμαι το {appTitle}!",
+  "newchat.inputPlaceholder": "Ρωτήστε οτιδήποτε...",
+  "newchat.learnMore": "Μάθετε περισσότερα για το SolonCode",
+  "newchat.sub": "Πώς μπορώ να σας βοηθήσω;",
   "workspace.addMountHint": "Προσθήκη προσάρτησης τύπου αρχείου",
   "workspace.clearQueue": "Εκκαθάριση ουράς",
   "workspace.clearSearch": "Εκκαθάριση",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Κατάργηση",
   "sidebar.wsRemoveConfirm": "Κατάργηση αυτού του χώρου εργασίας από τη λίστα; (ο κατάλογος δεν θα διαγραφεί)",
   "sidebar.wsPathInvalid": "Εισαγάγετε έγκυρη τοπική απόλυτη διαδρομή (ξεκινά με / ή γράμμα μονάδας δίσκου, χωρίς ..)",
-  "sidebar.wsOmniPlaceholder": "Αναζήτηση χώρων εργασίας ή εισαγωγή απόλυτης διαδρομής για άνοιγμα…"
+  "sidebar.wsOmniPlaceholder": "Αναζήτηση χώρων εργασίας ή εισαγωγή απόλυτης διαδρομής για άνοιγμα…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

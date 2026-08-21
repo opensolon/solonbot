@@ -3,7 +3,7 @@
 /* 依赖：app-base.js */
 
 /* ===== Attachment Helpers ===== */
-var welcomeAttachmentsWrap = $('#welcomeAttachmentsWrap');
+var newChatAttachmentsWrap = $('#newChatAttachmentsWrap');
 var chatAttachmentsWrap = $('#chatAttachmentsWrap');
 
 function handlePaste(e) {
@@ -41,12 +41,12 @@ function handlePaste(e) {
 }
 
 function getAttachmentsWrap() {
-    return inChatMode ? chatAttachmentsWrap : welcomeAttachmentsWrap;
+    return inChatMode ? chatAttachmentsWrap : newChatAttachmentsWrap;
 }
 
 function renderAttachments() {
     // Render both wraps to keep them in sync when switching views
-    renderAttachmentsWrap(welcomeAttachmentsWrap);
+    renderAttachmentsWrap(newChatAttachmentsWrap);
     renderAttachmentsWrap(chatAttachmentsWrap);
 }
 
@@ -121,18 +121,18 @@ function processSelectedFiles(fileList, attachmentsType) {
     }
 }
 
-$(welcomeInput).on('paste', handlePaste);
+$(newChatInput).on('paste', handlePaste);
 $(chatInput).on('paste', handlePaste);
 
 /* ===== Drag & Drop File Upload ===== */
 (function() {
-    var welcomeDropZone = $('#welcomeDropZone');
+    var newChatDropZone = $('#newChatDropZone');
     var chatDropZone = $('#chatDropZone');
-    var welcomeDropOverlay = $('#welcomeDropOverlay');
+    var newChatDropOverlay = $('#newChatDropOverlay');
     var chatDropOverlay = $('#chatDropOverlay');
 
     // Counter to track nested enter/leave events (child elements fire their own events)
-    var welcomeDragCounter = 0;
+    var newChatDragCounter = 0;
     var chatDragCounter = 0;
 
     function showOverlay(overlay) {
@@ -200,12 +200,12 @@ $(chatInput).on('paste', handlePaste);
         });
     }
 
-    bindDropZone(welcomeDropZone, welcomeDropOverlay, { val: welcomeDragCounter });
+    bindDropZone(newChatDropZone, newChatDropOverlay, { val: newChatDragCounter });
     bindDropZone(chatDropZone, chatDropOverlay, { val: chatDragCounter });
 })();
 
 // Attachment remove buttons - use event delegation on both wraps
-welcomeAttachmentsWrap.on('click', function(e) {
+newChatAttachmentsWrap.on('click', function(e) {
     var btn = e.target.closest('.attachment-item-remove');
     if (btn) removeAttachment(parseInt(btn.getAttribute('data-idx')));
 });
@@ -215,15 +215,15 @@ chatAttachmentsWrap.on('click', function(e) {
 });
 
 // Attach button handlers
-$('#welcomeAttachBtn').on('click', function(e) {
+$('#newChatAttachBtn').on('click', function(e) {
     e.stopPropagation();
-    $('#welcomeAttachInput')[0].click();
+    $('#newChatAttachInput')[0].click();
 });
 $('#chatAttachBtn').on('click', function(e) {
     e.stopPropagation();
     $('#chatAttachInput')[0].click();
 });
-$('#welcomeAttachInput').on('change', function(e) {
+$('#newChatAttachInput').on('change', function(e) {
     if (e.target.files && e.target.files.length > 0) processSelectedFiles(e.target.files, 'file');
     e.target.value = '';
 });
@@ -233,15 +233,15 @@ $('#chatAttachInput').on('change', function(e) {
 });
 
 // Image button handlers
-$('#welcomeImageBtn').on('click', function(e) {
+$('#newChatImageBtn').on('click', function(e) {
     e.stopPropagation();
-    $('#welcomeImageInput')[0].click();
+    $('#newChatImageInput')[0].click();
 });
 $('#chatImageBtn').on('click', function(e) {
     e.stopPropagation();
     $('#chatImageInput')[0].click();
 });
-$('#welcomeImageInput').on('change', function(e) {
+$('#newChatImageInput').on('change', function(e) {
     if (e.target.files && e.target.files.length > 0) processSelectedFiles(e.target.files, 'image');
     e.target.value = '';
 });
@@ -973,7 +973,7 @@ try {
 function switchToChatMode() {
     if (inChatMode) return;
     inChatMode = true;
-    $(welcomeView).hide();
+    $(newChatView).hide();
     $(chatView).addClass('active');
     chatInput.focus();
     // 欢迎页 → 聊天页后布局/clientHeight 可能晚几帧才稳定，双 rAF + 多次短延时强制贴底
@@ -998,11 +998,11 @@ function switchToWelcomeMode() {
     if (typeof forgetActiveSession === 'function') forgetActiveSession();
     SESSION_ID = 'web-' + Date.now().toString(36);
     setActiveSession(SESSION_ID);
-    $(welcomeView).show();
+    $(newChatView).show();
     $(chatView).removeClass('active');
-    welcomeInput.focus();
+    newChatInput.focus();
     // 新对话时禁用“历史消息”按钮（循环任务按钮保持可用）
-    $('#welcomeLoopBtn').prop('disabled', false);
+    $('#newChatLoopBtn').prop('disabled', false);
     // Reset model UI to new session
     if (typeof modelsLoaded !== 'undefined' && modelsLoaded) renderModelUI();
     // 重新渲染欢迎标题
@@ -1010,7 +1010,7 @@ function switchToWelcomeMode() {
 }
 
 /* ===== Auto-resize ===== */
-$(welcomeInput).on('input', function() { autoResize(this); });
+$(newChatInput).on('input', function() { autoResize(this); });
 $(chatInput).on('input', function() { autoResize(this); });
 
 /* ===== Voice Input (Web Speech API) - 按住说话（类似微信） ===== */
@@ -1021,7 +1021,7 @@ var voiceTargetInput = null; // 当前语音目标 textarea
 var voiceBaseText = '';      // 开始录音时 textarea 已有文本
 var voiceFinalTranscript = ''; // 累计的最终识别文本
 
-var welcomeVoiceBtn = $('#welcomeVoiceBtn');
+var newChatVoiceBtn = $('#newChatVoiceBtn');
 var chatVoiceBtn = $('#chatVoiceBtn');
 
 var voiceRafPending = false; // 限制 DOM 更新频率
@@ -1077,7 +1077,7 @@ function initVoice() {
     };
 
     // 显示语音按钮
-    welcomeVoiceBtn.removeClass('hidden');
+    newChatVoiceBtn.removeClass('hidden');
     chatVoiceBtn.removeClass('hidden');
 }
 
@@ -1093,7 +1093,7 @@ function startVoiceRecording(inputEl) {
     try { recognition.start(); } catch(e) {}
 
     // 更新按钮状态
-    var btn = (inputEl === welcomeInput) ? welcomeVoiceBtn : chatVoiceBtn;
+    var btn = (inputEl === newChatInput) ? newChatVoiceBtn : chatVoiceBtn;
     btn.addClass('recording');
         btn.prop('title', (window.I18n ? window.I18n.t('voice.releaseToStop') : '\u677e\u5f00\u7ed3\u675f'));
 }
@@ -1104,9 +1104,9 @@ function stopVoiceRecording() {
     try { if (recognition) recognition.stop(); } catch(e) {}
 
     // 更新按钮状态
-    welcomeVoiceBtn.removeClass('recording');
+    newChatVoiceBtn.removeClass('recording');
     chatVoiceBtn.removeClass('recording');
-        welcomeVoiceBtn.prop('title', (window.I18n ? window.I18n.t('voice.holdToSpeak') : '\u6309\u4f4f\u8bf4\u8bdd'));
+        newChatVoiceBtn.prop('title', (window.I18n ? window.I18n.t('voice.holdToSpeak') : '\u6309\u4f4f\u8bf4\u8bdd'));
         chatVoiceBtn.prop('title', (window.I18n ? window.I18n.t('voice.holdToSpeak') : '\u6309\u4f4f\u8bf4\u8bdd'));
 
     // 保留识别到的文本，重置基线以便下次追加
@@ -1146,7 +1146,7 @@ function bindVoiceHold(btn, inputEl) {
     });
 }
 
-bindVoiceHold(welcomeVoiceBtn, welcomeInput);
+bindVoiceHold(newChatVoiceBtn, newChatInput);
 bindVoiceHold(chatVoiceBtn, chatInput);
 
 initVoice();

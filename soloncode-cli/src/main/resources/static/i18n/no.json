@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Taleinntasting",
   "voice.holdToSpeak": "Hold inne for å snakke",
   "voice.releaseToStop": "Slipp for å stoppe",
-  "welcome.dropHint": "Slipp for å legge til vedlegg",
-  "welcome.greeting": "Hei, jeg er {appTitle}!",
-  "welcome.inputPlaceholder": "Spør om hva som helst...",
-  "welcome.learnMore": "Lær mer om SolonCode",
-  "welcome.sub": "Hvordan kan jeg hjelpe deg?",
+  "newchat.dropHint": "Slipp for å legge til vedlegg",
+  "newchat.greeting": "Hei, jeg er {appTitle}!",
+  "newchat.inputPlaceholder": "Spør om hva som helst...",
+  "newchat.learnMore": "Lær mer om SolonCode",
+  "newchat.sub": "Hvordan kan jeg hjelpe deg?",
   "workspace.addMountHint": "Legg til filmontering",
   "workspace.clearQueue": "Tøm kø",
   "workspace.clearSearch": "Tøm",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Fjern",
   "sidebar.wsRemoveConfirm": "Fjerne dette arbeidsområdet fra listen? (mappen slettes ikke)",
   "sidebar.wsPathInvalid": "Skriv inn en gyldig lokal absolutt bane (starter med / eller stasjonsbokstav, uten ..)",
-  "sidebar.wsOmniPlaceholder": "Søk i arbeidsområder eller skriv inn en absolutt bane for å åpne…"
+  "sidebar.wsOmniPlaceholder": "Søk i arbeidsområder eller skriv inn en absolutt bane for å åpne…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

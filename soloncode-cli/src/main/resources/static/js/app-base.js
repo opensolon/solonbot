@@ -8,11 +8,11 @@
 })();
 
 /* ===== DOM ===== */
-var welcomeView = document.getElementById('welcomeView');
+var newChatView = document.getElementById('newChatView');
 var chatView = document.getElementById('chatView');
 var msgWrap = document.getElementById('msgWrap');
-var welcomeInput = document.getElementById('welcomeInput');
-var welcomeSendBtn = document.getElementById('welcomeSendBtn');
+var newChatInput = document.getElementById('newChatInput');
+var newChatSendBtn = document.getElementById('newChatSendBtn');
 var chatInput = document.getElementById('chatInput');
 var chatSendBtn = document.getElementById('chatSendBtn');
 var themeBtn = document.getElementById('themeBtn');
@@ -456,11 +456,11 @@ function formatMsgTime(ts) {
 
 function getInputText() {
     if (inChatMode) return chatInput.value.trim();
-    return welcomeInput.value.trim();
+    return newChatInput.value.trim();
 }
 function clearInput() {
     if (inChatMode) { chatInput.value = ''; chatInput.style.height = 'auto'; }
-    else { welcomeInput.value = ''; welcomeInput.style.height = 'auto'; }
+    else { newChatInput.value = ''; newChatInput.style.height = 'auto'; }
 }
 
 /* ===== Toast Notification ===== */

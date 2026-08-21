@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Entrada de Voz",
   "voice.holdToSpeak": "Segure para falar",
   "voice.releaseToStop": "Solte para parar",
-  "welcome.dropHint": "Solte para adicionar anexo",
-  "welcome.greeting": "Olá, eu sou o {appTitle}!",
-  "welcome.inputPlaceholder": "Pergunte qualquer coisa...",
-  "welcome.learnMore": "Saiba mais sobre o SolonCode",
-  "welcome.sub": "Como posso ajudar?",
+  "newchat.dropHint": "Solte para adicionar anexo",
+  "newchat.greeting": "Olá, eu sou o {appTitle}!",
+  "newchat.inputPlaceholder": "Pergunte qualquer coisa...",
+  "newchat.learnMore": "Saiba mais sobre o SolonCode",
+  "newchat.sub": "Como posso ajudar?",
   "workspace.addMountHint": "Adicionar montagem de arquivos",
   "workspace.clearQueue": "Limpar Fila",
   "workspace.clearSearch": "Limpar",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Remover",
   "sidebar.wsRemoveConfirm": "Remover este espaço de trabalho da lista? (o diretório não será excluído)",
   "sidebar.wsPathInvalid": "Digite um caminho absoluto local válido (começando com / ou letra de unidade, sem ..)",
-  "sidebar.wsOmniPlaceholder": "Klask er gweelec'hioù labour pe lakait un hent absolut da zigeriñ…"
+  "sidebar.wsOmniPlaceholder": "Klask er gweelec'hioù labour pe lakait un hent absolut da zigeriñ…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

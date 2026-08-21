@@ -118,7 +118,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
         if (inChatMode) {
             chatInput.value = text;
         } else {
-            welcomeInput.value = text;
+            newChatInput.value = text;
         }
         if (typeof sendMessage === 'function') {
             sendMessage();

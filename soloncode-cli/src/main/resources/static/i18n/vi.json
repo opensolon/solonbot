@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Nhập bằng giọng nói",
   "voice.holdToSpeak": "Giữ để nói",
   "voice.releaseToStop": "Nhả ra để dừng",
-  "welcome.dropHint": "Nhả ra để thêm tệp đính kèm",
-  "welcome.greeting": "Xin chào, tôi là {appTitle}!",
-  "welcome.inputPlaceholder": "Hỏi bất cứ điều gì...",
-  "welcome.learnMore": "Tìm hiểu thêm về SolonCode",
-  "welcome.sub": "Tôi có thể giúp gì cho bạn?",
+  "newchat.dropHint": "Nhả ra để thêm tệp đính kèm",
+  "newchat.greeting": "Xin chào, tôi là {appTitle}!",
+  "newchat.inputPlaceholder": "Hỏi bất cứ điều gì...",
+  "newchat.learnMore": "Tìm hiểu thêm về SolonCode",
+  "newchat.sub": "Tôi có thể giúp gì cho bạn?",
   "workspace.addMountHint": "Thêm mount kiểu tệp",
   "workspace.clearQueue": "Xóa hàng đợi",
   "workspace.clearSearch": "Xóa",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Xóa",
   "sidebar.wsRemoveConfirm": "Xóa không gian làm việc này khỏi danh sách? (thư mục sẽ không bị xóa)",
   "sidebar.wsPathInvalid": "Nhập đường dẫn tuyệt đối cục bộ hợp lệ (bắt đầu bằng / hoặc ký tự ổ đĩa, không có ..)",
-  "sidebar.wsOmniPlaceholder": "Tìm kiếm không gian làm việc hoặc nhập đường dẫn tuyệt đối để mở…"
+  "sidebar.wsOmniPlaceholder": "Tìm kiếm không gian làm việc hoặc nhập đường dẫn tuyệt đối để mở…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

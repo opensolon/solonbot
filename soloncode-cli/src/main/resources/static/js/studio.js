@@ -383,7 +383,7 @@
     }
 
     function applyStudioAppearance() {
-        var hiddenControlIds = ["welcomeVoiceBtn", "chatVoiceBtn"];
+        var hiddenControlIds = ["newChatVoiceBtn", "chatVoiceBtn"];
         for (var i = 0; i < hiddenControlIds.length; i += 1) {
             var control = document.getElementById(hiddenControlIds[i]);
             if (control) {

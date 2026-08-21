@@ -3,9 +3,9 @@
 /* 依赖: app-base.js */
 
 (function() {
-    var $welcomeLoopBtn = $('#welcomeLoopBtn');
+    var $newChatLoopBtn = $('#newChatLoopBtn');
     var $chatLoopBtn = $('#chatLoopBtn');
-    var $welcomeLoopPanel = $('#welcomeLoopPanel');
+    var $newChatLoopPanel = $('#newChatLoopPanel');
     var $chatLoopPanel = $('#chatLoopPanel');
     var loopPanelVisible = false;
     var loopEditId = null;
@@ -18,10 +18,10 @@
     }
 
     function getActivePanel() {
-        return inChatMode ? $chatLoopPanel : $welcomeLoopPanel;
+        return inChatMode ? $chatLoopPanel : $newChatLoopPanel;
     }
     function getActiveBtn() {
-        return inChatMode ? $chatLoopBtn : $welcomeLoopBtn;
+        return inChatMode ? $chatLoopBtn : $newChatLoopBtn;
     }
 
     // ========== 预设模板 v3（精选真实场景版） ==========
@@ -196,13 +196,13 @@
     });
 
     function hideLoopPanel() {
-        $welcomeLoopPanel.hide();
+        $newChatLoopPanel.hide();
         $chatLoopPanel.hide();
         loopPanelVisible = false;
         loopEditId = null;
     }
 
-    $welcomeLoopBtn.on('click', function(e) {
+    $newChatLoopBtn.on('click', function(e) {
         e.stopPropagation();
         toggleLoopPanel();
     });
@@ -213,18 +213,18 @@
 
     // 整理记忆：点击后向当前输入框填入“整理记忆”，并关闭“更多”菜单
     function closeMoreMenus() {
-        $('#chatMoreMenu, #welcomeMoreMenu').removeClass('open');
-        $('#chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
+        $('#chatMoreMenu, #newChatMoreMenu').removeClass('open');
+        $('#chatMoreBtn, #newChatMoreBtn').attr('aria-expanded', 'false');
     }
     function fillMemoryText() {
         closeMoreMenus();
-        var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
         if (!input) return;
         input.value = I18n.t('toolbar.organizeMemory');
         if (typeof autoResize === 'function') autoResize(input);
         input.focus();
     }
-    $('#welcomeMemoryBtn').on('click', function(e) {
+    $('#newChatMemoryBtn').on('click', function(e) {
         e.stopPropagation();
         fillMemoryText();
     });
@@ -233,14 +233,14 @@
         fillMemoryText();
     });
 
-    $welcomeLoopPanel.add($chatLoopPanel).on('click', function(e) {
+    $newChatLoopPanel.add($chatLoopPanel).on('click', function(e) {
         e.stopPropagation();
     });
 
     $(document).on('mousedown', function(e) {
         if (loopPanelVisible) {
-            if (!$(e.target).closest('#chatLoopPanel, #welcomeLoopPanel').length &&
-                !$(e.target).closest('#chatLoopBtn, #welcomeLoopBtn').length) {
+            if (!$(e.target).closest('#chatLoopPanel, #newChatLoopPanel').length &&
+                !$(e.target).closest('#chatLoopBtn, #newChatLoopBtn').length) {
                 hideLoopPanel();
             }
         }

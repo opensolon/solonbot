@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Voice Input",
   "voice.holdToSpeak": "Hold to speak",
   "voice.releaseToStop": "Release to stop",
-  "welcome.dropHint": "Drop to add attachment",
-  "welcome.greeting": "Hi, I'm {appTitle}!",
-  "welcome.inputPlaceholder": "Ask anything...",
-  "welcome.learnMore": "Learn more about SolonCode",
-  "welcome.sub": "How can I help you?",
+  "newchat.dropHint": "Drop to add attachment",
+  "newchat.greeting": "Hi, I'm {appTitle}!",
+  "newchat.inputPlaceholder": "Ask anything...",
+  "newchat.learnMore": "Learn more about SolonCode",
+  "newchat.sub": "How can I help you?",
   "workspace.addMountHint": "Add file mount",
   "workspace.clearQueue": "Clear Queue",
   "workspace.clearSearch": "Clear",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Remove",
   "sidebar.wsRemoveConfirm": "Remove this workspace from the list? (directory is not deleted)",
   "sidebar.wsPathInvalid": "Enter a valid local absolute path (starting with / or drive letter, no ..)",
-  "sidebar.wsOmniPlaceholder": "Search workspaces, or enter an absolute path to open…"
+  "sidebar.wsOmniPlaceholder": "Search workspaces, or enter an absolute path to open…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

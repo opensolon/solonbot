@@ -1102,11 +1102,11 @@
   "toolbar.voice": "إدخال صوتي",
   "voice.holdToSpeak": "اضغط مع الاستمرار للتحدث",
   "voice.releaseToStop": "ارفع الإصبع للإيقاف",
-  "welcome.dropHint": "ارفع لإضافة المرفق",
-  "welcome.greeting": "مرحبًا، أنا {appTitle}!",
-  "welcome.inputPlaceholder": "اسأل أي شيء...",
-  "welcome.learnMore": "اعرف المزيد عن SolonCode",
-  "welcome.sub": "كيف يمكنني مساعدتك؟",
+  "newchat.dropHint": "ارفع لإضافة المرفق",
+  "newchat.greeting": "مرحبًا، أنا {appTitle}!",
+  "newchat.inputPlaceholder": "اسأل أي شيء...",
+  "newchat.learnMore": "اعرف المزيد عن SolonCode",
+  "newchat.sub": "كيف يمكنني مساعدتك؟",
   "workspace.addMountHint": "إضافة ربط لنوع ملف",
   "workspace.clearQueue": "مسح قائمة الانتظار",
   "workspace.clearSearch": "مسح",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "إزالة",
   "sidebar.wsRemoveConfirm": "إزالة مساحة العمل هذه من القائمة؟ (لن يتم حذف الدليل)",
   "sidebar.wsPathInvalid": "أدخل مسارًا مطلقًا محليًا صالحًا (يبدأ بـ / أو حرف محرك أقراص، دون ..)",
-  "sidebar.wsOmniPlaceholder": "ابحث في مساحات العمل أو أدخل مسارًا مطلقًا للفتح…"
+  "sidebar.wsOmniPlaceholder": "ابحث في مساحات العمل أو أدخل مسارًا مطلقًا للفتح…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

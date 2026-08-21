@@ -509,13 +509,13 @@ if (window.requestIdleCallback) {
     setTimeout(loadCommands, 600);
 }
 
-var $welcomeCmdComplete = $('#welcomeCmdComplete');
+var $newChatCmdComplete = $('#newChatCmdComplete');
 var $chatCmdComplete = $('#chatCmdComplete');
 var cmdActiveIndex = -1;
 var cmdVisibleItems = [];
 
 function getActiveCmdComplete() {
-    return inChatMode ? $chatCmdComplete[0] : $welcomeCmdComplete[0];
+    return inChatMode ? $chatCmdComplete[0] : $newChatCmdComplete[0];
 }
 
 /**
@@ -528,13 +528,13 @@ function closeAllToolbarPanels() {
     // 输入历史
     if (typeof $chatHistoryPanel !== 'undefined' && $chatHistoryPanel) $chatHistoryPanel.removeClass('show');
     // 循环任务面板
-    $('#chatLoopPanel, #welcomeLoopPanel').hide();
+    $('#chatLoopPanel, #newChatLoopPanel').hide();
     // 模型下拉
-    $('#chatModelSelector, #welcomeModelSelector').removeClass('open');
+    $('#chatModelSelector, #newChatModelSelector').removeClass('open');
     // 子代理下拉
-    $('#chatAgentSelector, #welcomeAgentSelector').removeClass('open');
+    $('#chatAgentSelector, #newChatAgentSelector').removeClass('open');
     // 更多菜单
-    $('#chatMoreMenu, #welcomeMoreMenu').removeClass('open');
+    $('#chatMoreMenu, #newChatMoreMenu').removeClass('open');
 }
 window.closeAllToolbarPanels = closeAllToolbarPanels;
 
@@ -623,7 +623,7 @@ function showCmdComplete(inputEl, completeEl, prefix) {
 }
 
 function hideCmdComplete() {
-    $welcomeCmdComplete.removeClass('show');
+    $newChatCmdComplete.removeClass('show');
     $chatCmdComplete.removeClass('show');
     cmdActiveIndex = -1;
     cmdVisibleItems = [];
@@ -720,7 +720,7 @@ function navigateCmdComplete(e, inputEl, completeEl) {
 
 function handleInputForCommands(e) {
     var inputEl = e.target;
-    var completeEl = (inputEl === welcomeInput) ? $welcomeCmdComplete[0] : $chatCmdComplete[0];
+    var completeEl = (inputEl === newChatInput) ? $newChatCmdComplete[0] : $chatCmdComplete[0];
     var val = inputEl.value;
 
     if (val.indexOf('/') === 0 || val.indexOf('@') === 0 || val.indexOf('$') === 0) {
@@ -768,20 +768,20 @@ function triggerCmdComplete(inputEl, completeEl, prefix) {
     inputEl.focus();
     showCmdComplete(inputEl, completeEl, prefix);
 }
-$('#welcomeCmdBtn, #chatCmdBtn').on('click', function() {
-    var isWelcome = this.id.indexOf('welcome') === 0;
-    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '/');
+$('#newChatCmdBtn, #chatCmdBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('newChat') === 0;
+    triggerCmdComplete(isWelcome ? newChatInput : chatInput, isWelcome ? $newChatCmdComplete[0] : $chatCmdComplete[0], '/');
 });
-$('#welcomeAgentBtn, #chatAgentBtn').on('click', function() {
-    var isWelcome = this.id.indexOf('welcome') === 0;
-    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '@');
+$('#newChatAgentBtn, #chatAgentBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('newChat') === 0;
+    triggerCmdComplete(isWelcome ? newChatInput : chatInput, isWelcome ? $newChatCmdComplete[0] : $chatCmdComplete[0], '@');
 });
-$('#welcomeSkillBtn, #chatSkillBtn').on('click', function() {
-    var isWelcome = this.id.indexOf('welcome') === 0;
-    triggerCmdComplete(isWelcome ? welcomeInput : chatInput, isWelcome ? $welcomeCmdComplete[0] : $chatCmdComplete[0], '$');
+$('#newChatSkillBtn, #chatSkillBtn').on('click', function() {
+    var isWelcome = this.id.indexOf('newChat') === 0;
+    triggerCmdComplete(isWelcome ? newChatInput : chatInput, isWelcome ? $newChatCmdComplete[0] : $chatCmdComplete[0], '$');
 });
 
-$(welcomeInput).on('input', handleInputForCommands);
+$(newChatInput).on('input', handleInputForCommands);
 $(chatInput).on('input', handleInputForCommands);
 
 // composition 状态追踪（使用自定义标志解决 macOS 输入法选词 Enter 时序问题）
@@ -798,20 +798,20 @@ function insertAtCursor(textarea, text) {
 }
 
 // Keyboard navigation for command completion
-$(welcomeInput).on('keydown', function(e) {
+$(newChatInput).on('keydown', function(e) {
     // 输入法正在组合中（如拼音选词），不触发发送
     if (isInputComposing(e)) return;
-    var handled = navigateCmdComplete(e, welcomeInput, $welcomeCmdComplete[0]);
+    var handled = navigateCmdComplete(e, newChatInput, $newChatCmdComplete[0]);
     if (handled) return;
     // 输入框为空 + 左/右键 → 切换循环任务面板
-    if (!welcomeInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    if (!newChatInput.value.trim() && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         e.preventDefault();
         if (typeof window.toggleLoopPanel === 'function') window.toggleLoopPanel();
         return;
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); sendMessage(); return; }
     // Alt+Enter (macOS: Option+Enter) 换行
-    if (e.key === 'Enter' && e.altKey) { e.preventDefault(); insertAtCursor(welcomeInput, '\n'); }
+    if (e.key === 'Enter' && e.altKey) { e.preventDefault(); insertAtCursor(newChatInput, '\n'); }
 });
 $(chatInput).on('keydown', function(e) {
     // 输入法正在组合中（如拼音选词），不触发发送
@@ -850,12 +850,12 @@ $(chatInput).on('keydown', function(e) {
 });
 
 // Click on completion item
-$welcomeCmdComplete.on('click', function(e) {
+$newChatCmdComplete.on('click', function(e) {
     var $item = $(e.target).closest('.cmd-complete-item');
     if ($item.length) {
         cmdActiveIndex = parseInt($item.attr('data-index'));
-        applyCmdSelection(welcomeInput, $welcomeCmdComplete[0]);
-        welcomeInput.focus();
+        applyCmdSelection(newChatInput, $newChatCmdComplete[0]);
+        newChatInput.focus();
     }
 });
 $chatCmdComplete.on('click', function(e) {
@@ -1298,9 +1298,9 @@ function renderModelUI() {
         return;
     }
     var $chatName = $('#chatModelName');
-    var $welcomeName = $('#welcomeModelName');
+    var $newChatName = $('#newChatModelName');
     var $chatDropdown = $('#chatModelDropdown');
-    var $welcomeDropdown = $('#welcomeModelDropdown');
+    var $newChatDropdown = $('#newChatModelDropdown');
 
     var currentModel = getSelectedModel();
     var userEffort = getSelectedReasoning(); // session user only ('' = auto)
@@ -1322,10 +1322,14 @@ function renderModelUI() {
     var thinkingMode = showDepth ? getSelectedThinking() : '';
     var label = buildTriggerLabel(currentModel, displayEffort, showDepth, thinkingMode);
     var title = buildTriggerTitle(currentModel, displayEffort, showDepth, thinkingMode);
+    if (modelList.length === 0) {
+        label = I18n.t('llm.empty');
+        title = I18n.t('llm.emptyDesc');
+    }
     $chatName.text(label).removeAttr('data-i18n');
-    $welcomeName.text(label).removeAttr('data-i18n');
+    $newChatName.text(label).removeAttr('data-i18n');
     $('#chatModelCurrent').attr('title', title);
-    $('#welcomeModelCurrent').attr('title', title);
+    $('#newChatModelCurrent').attr('title', title);
 
     function buildDescLine(m) {
         var standard = m.standard || 'openai';
@@ -1339,6 +1343,7 @@ function renderModelUI() {
     }
 
     var html = '';
+    var isEmpty = modelList.length === 0;
     for (var i = 0; i < modelList.length; i++) {
         var m = modelList[i];
         var cls = m.name === currentModel ? ' active' : '';
@@ -1348,17 +1353,60 @@ function renderModelUI() {
             + buildDescLine(m)
             + '</div>';
     }
+    if (isEmpty) {
+        html = '<div class="model-empty-state">'
+            + '<div class="model-empty-title">' + escapeHtml(I18n.t('llm.empty')) + '</div>'
+            + '<div class="model-empty-desc">' + escapeHtml(I18n.t('llm.emptyDesc')) + '</div>'
+            + '<button type="button" class="model-empty-add-btn">' + escapeHtml(I18n.t('newchat.onboardingAdd')) + '</button>'
+            + '</div>';
+    }
+    $('#chatModelCurrent, #newChatModelCurrent').toggleClass('is-empty', isEmpty);
+    $chatDropdown.find('.model-search-input').toggle(!isEmpty);
+    $newChatDropdown.find('.model-search-input').toggle(!isEmpty);
     $chatDropdown.find('.model-dropdown-items').html(html);
-    $welcomeDropdown.find('.model-dropdown-items').html(html);
+    $newChatDropdown.find('.model-dropdown-items').html(html);
     // Reset search when models re-render
     $chatDropdown.find('.model-search-input').val('');
-    $welcomeDropdown.find('.model-search-input').val('');
+    $newChatDropdown.find('.model-search-input').val('');
     $chatDropdown.find('.model-dropdown-items').children().show();
-    $welcomeDropdown.find('.model-dropdown-items').children().show();
+    $newChatDropdown.find('.model-dropdown-items').children().show();
 
     renderModelOptionRows($chatDropdown, meta, userEffort);
-    renderModelOptionRows($welcomeDropdown, meta, userEffort);
+    renderModelOptionRows($newChatDropdown, meta, userEffort);
+    updateModelOnboarding();
     }
+
+var onboardingDismissed = false; // 用户主动处理（添加/跳过）后，本次会话不再自动弹出；不做 localStorage 持久化，只要从未配置过模型，每次启动都展示
+
+function updateModelOnboarding() {    var $mask = $('#onboardingMask');
+    if (!$mask.length) return;
+    if (onboardingDismissed || modelList.length > 0) { $mask.hide(); return; }
+    $mask.show();
+}
+
+window.updateModelOnboarding = updateModelOnboarding;
+
+$(document)
+    .on('click', '#onboardingAddBtn', function() {
+        onboardingDismissed = true;
+        $('#onboardingMask').hide();
+        if (window.openSettingsTab) window.openSettingsTab('llm');
+    })
+    .on('click', '#onboardingSkipBtn', function() {
+        onboardingDismissed = true;
+        $('#onboardingMask').hide();
+    })
+    .on('keydown', function(e) {
+        if (e.key === 'Escape' && $('#onboardingMask').is(':visible')) {
+            onboardingDismissed = true;
+            $('#onboardingMask').hide();
+        }
+    })
+    .on('click', '.model-empty-add-btn', function() {
+        var $sel = $(this).closest('.model-selector');
+        if ($sel.length) $sel.removeClass('open'); // 用类控制显隐，避免内联 display:none 锁死下拉
+        if (window.openSettingsTab) window.openSettingsTab('llm');
+    });
 
 function renderModelOptionRows($dropdown, meta, userEffort) {
     var $thinkingRow = $dropdown.find('.model-thinking-row');
@@ -1543,9 +1591,9 @@ function initModelSearch(dropdownId) {
 }
 
         initModelSelector('chatModelSelector', 'chatModelCurrent', 'chatModelDropdown');
-        initModelSelector('welcomeModelSelector', 'welcomeModelCurrent', 'welcomeModelDropdown');
+        initModelSelector('newChatModelSelector', 'newChatModelCurrent', 'newChatModelDropdown');
             initModelSearch('chatModelDropdown');
-            initModelSearch('welcomeModelDropdown');
+            initModelSearch('newChatModelDropdown');
 
             window.reloadModels = reloadModels;
             window.loadModels = loadModels;
@@ -1568,15 +1616,15 @@ window.getSelectedAgent = getSelectedAgent;
 function renderAgentUI() {
     var selected = getSelectedAgent();
     var label = selected || 'main';
-    $('#chatAgentName, #welcomeAgentName').text(label);
-    $('#chatAgentCurrent, #welcomeAgentCurrent').attr('title', selected ? (I18n.t('history.subagentLabel') + selected) : I18n.t('history.useMainAgent'));
+    $('#chatAgentName, #newChatAgentName').text(label);
+    $('#chatAgentCurrent, #newChatAgentCurrent').attr('title', selected ? (I18n.t('history.subagentLabel') + selected) : I18n.t('history.useMainAgent'));
     var html = '<button type="button" class="agent-dropdown-item' + (!selected ? ' active' : '') + '" data-agent=""><span class="agent-item-name">main</span><span class="agent-item-desc">' + I18n.t('history.mainAgentDesc') + '</span></button>';
     for (var i = 0; i < commandList.length; i++) {
         var item = commandList[i];
         if (item.type !== 'subagent') continue;
         html += '<button type="button" class="agent-dropdown-item' + (item.name === selected ? ' active' : '') + '" data-agent="' + escapeHtml(item.name) + '"><span class="agent-item-name">' + escapeHtml(item.name) + '</span><span class="agent-item-desc">' + escapeHtml(item.description || '') + '</span></button>';
     }
-    $('#chatAgentDropdown, #welcomeAgentDropdown').html(html);
+    $('#chatAgentDropdown, #newChatAgentDropdown').html(html);
 }
 
 function selectAgent(agentName) {
@@ -1606,7 +1654,7 @@ function initAgentSelector(selectorId, currentId, dropdownId) {
     });
 }
 initAgentSelector('chatAgentSelector', 'chatAgentCurrent', 'chatAgentDropdown');
-initAgentSelector('welcomeAgentSelector', 'welcomeAgentCurrent', 'welcomeAgentDropdown');
+initAgentSelector('newChatAgentSelector', 'newChatAgentCurrent', 'newChatAgentDropdown');
 
 /* ===== More Menu ===== */
 function initMoreMenu(menuId, buttonId) {
@@ -1625,14 +1673,14 @@ function initMoreMenu(menuId, buttonId) {
     });
 }
 initMoreMenu('chatMoreMenu', 'chatMoreBtn');
-initMoreMenu('welcomeMoreMenu', 'welcomeMoreBtn');
+initMoreMenu('newChatMoreMenu', 'newChatMoreBtn');
 $(document).on('keydown', function(e) {
     if (e.key === 'Escape') closeAllToolbarPanels();
 });
 $(document).on('click', function(e) {
     if (!$(e.target).closest('.agent-selector, .more-menu').length) {
-        $('#chatAgentSelector, #welcomeAgentSelector, #chatMoreMenu, #welcomeMoreMenu').removeClass('open');
-        $('#chatAgentCurrent, #welcomeAgentCurrent, #chatMoreBtn, #welcomeMoreBtn').attr('aria-expanded', 'false');
+        $('#chatAgentSelector, #newChatAgentSelector, #chatMoreMenu, #newChatMoreMenu').removeClass('open');
+        $('#chatAgentCurrent, #newChatAgentCurrent, #chatMoreBtn, #newChatMoreBtn').attr('aria-expanded', 'false');
     }
 });
 

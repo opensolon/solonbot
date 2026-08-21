@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Saisie vocale",
   "voice.holdToSpeak": "Maintenir pour parler",
   "voice.releaseToStop": "Relâcher pour arrêter",
-  "welcome.dropHint": "Relâchez pour ajouter la pièce jointe",
-  "welcome.greeting": "Bonjour, je suis {appTitle} !",
-  "welcome.inputPlaceholder": "Posez votre question...",
-  "welcome.learnMore": "En savoir plus sur SolonCode",
-  "welcome.sub": "De quoi avez-vous besoin ?",
+  "newchat.dropHint": "Relâchez pour ajouter la pièce jointe",
+  "newchat.greeting": "Bonjour, je suis {appTitle} !",
+  "newchat.inputPlaceholder": "Posez votre question...",
+  "newchat.learnMore": "En savoir plus sur SolonCode",
+  "newchat.sub": "De quoi avez-vous besoin ?",
   "workspace.addMountHint": "Ajouter un montage de type fichier",
   "workspace.clearQueue": "Vider la file d'attente",
   "workspace.clearSearch": "Effacer",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Supprimer",
   "sidebar.wsRemoveConfirm": "Supprimer cet espace de travail de la liste ? (le répertoire ne sera pas supprimé)",
   "sidebar.wsPathInvalid": "Saisissez un chemin absolu local valide (commençant par / ou une lettre de lecteur, sans ..)",
-  "sidebar.wsOmniPlaceholder": "Rechercher des espaces de travail ou saisir un chemin absolu à ouvrir…"
+  "sidebar.wsOmniPlaceholder": "Rechercher des espaces de travail ou saisir un chemin absolu à ouvrir…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

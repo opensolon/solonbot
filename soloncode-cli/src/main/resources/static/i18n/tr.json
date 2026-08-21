@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Sesle Giriş",
   "voice.holdToSpeak": "Konuşmak için basılı tutun",
   "voice.releaseToStop": "Bırakınca biter",
-  "welcome.dropHint": "Ek eklemek için bırakın",
-  "welcome.greeting": "Merhaba, ben {appTitle}!",
-  "welcome.inputPlaceholder": "Bir şey sorun...",
-  "welcome.learnMore": "SolonCode hakkında daha fazla bilgi edinin",
-  "welcome.sub": "Size nasıl yardımcı olabilirim?",
+  "newchat.dropHint": "Ek eklemek için bırakın",
+  "newchat.greeting": "Merhaba, ben {appTitle}!",
+  "newchat.inputPlaceholder": "Bir şey sorun...",
+  "newchat.learnMore": "SolonCode hakkında daha fazla bilgi edinin",
+  "newchat.sub": "Size nasıl yardımcı olabilirim?",
   "workspace.addMountHint": "Dosya bağlaması ekle",
   "workspace.clearQueue": "Kuyruğu Temizle",
   "workspace.clearSearch": "Temizle",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Kaldır",
   "sidebar.wsRemoveConfirm": "Bu çalışma alanını listeden kaldır? (dizin silinmez)",
   "sidebar.wsPathInvalid": "Geçerli bir yerel mutlak yol girin (/ veya sürücü harfiyle başlar, .. içermez)",
-  "sidebar.wsOmniPlaceholder": "Çalışma alanlarında ara veya açmak için mutlak yol girin…"
+  "sidebar.wsOmniPlaceholder": "Çalışma alanlarında ara veya açmak için mutlak yol girin…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

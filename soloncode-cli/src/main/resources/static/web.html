@@ -91,59 +91,59 @@
     </div>
 
     <!-- Welcome View -->
-    <div class="welcome-view" id="welcomeView">
-        <a class="welcome-avatar" href="https://solon.noear.org/article/soloncode" target="_blank" rel="noopener noreferrer" title="了解更多关于 SolonCode" data-i18n-title="welcome.learnMore">
+    <div class="newchat-view" id="newChatView">
+        <a class="newchat-avatar" href="https://solon.noear.org/article/soloncode" target="_blank" rel="noopener noreferrer" title="了解更多关于 SolonCode" data-i18n-title="newchat.learnMore">
             <img src="/img/favicon.png" alt="SolonCode" />
         </a>
-        <div class="welcome-title" id="welcomeTitle">你好，我是 SolonCode ！</div>
-        <div class="welcome-sub" data-i18n="welcome.sub">需要什么帮助吗?</div>
-        <div class="welcome-input-box" id="welcomeDropZone">
-            <div class="drop-overlay" id="welcomeDropOverlay">
+        <div class="newchat-title" id="newChatTitle">你好，我是 SolonCode ！</div>
+        <div class="newchat-sub" data-i18n="newchat.sub">需要什么帮助吗?</div>
+        <div class="newchat-input-box" id="newChatDropZone">
+            <div class="drop-overlay" id="newChatDropOverlay">
                 <div class="drop-overlay-content">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span data-i18n="welcome.dropHint">松开以添加附件</span>
+                    <span data-i18n="newchat.dropHint">松开以添加附件</span>
                 </div>
             </div>
-            <div class="attachments-wrap" id="welcomeAttachmentsWrap"></div>
+            <div class="attachments-wrap" id="newChatAttachmentsWrap"></div>
             <div style="position:relative">
-                <div class="cmd-complete" id="welcomeCmdComplete"></div>
-                <div class="loop-panel" id="welcomeLoopPanel" style="display:none"></div>
-                <textarea id="welcomeInput" placeholder="随便问..." data-i18n-placeholder="welcome.inputPlaceholder" rows="1" autofocus style="width: 100%;"></textarea>
+                <div class="cmd-complete" id="newChatCmdComplete"></div>
+                <div class="loop-panel" id="newChatLoopPanel" style="display:none"></div>
+                <textarea id="newChatInput" placeholder="随便问..." data-i18n-placeholder="newchat.inputPlaceholder" rows="1" autofocus style="width: 100%;"></textarea>
             </div>
-            <div class="welcome-toolbar">
+            <div class="newchat-toolbar">
                 <div class="toolbar-left">
-                    <div class="more-menu" id="welcomeMoreMenu">
-                        <button type="button" class="more-menu-btn" id="welcomeMoreBtn" title="更多工具" aria-label="更多工具" data-i18n-title="toolbar.moreTools" data-i18n-aria="toolbar.moreTools" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+                    <div class="more-menu" id="newChatMoreMenu">
+                        <button type="button" class="more-menu-btn" id="newChatMoreBtn" title="更多工具" aria-label="更多工具" data-i18n-title="toolbar.moreTools" data-i18n-aria="toolbar.moreTools" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
                         <div class="more-menu-dropdown" role="menu">
-                            <button type="button" id="welcomeAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><span data-i18n="toolbar.attachFile">上传可分析文件</span></button>
-                            <button type="button" id="welcomeImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="toolbar.addImage">添加多模态素材</span></button>
+                            <button type="button" id="newChatAttachBtn"><svg class="more-menu-icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><span data-i18n="toolbar.attachFile">上传可分析文件</span></button>
+                            <button type="button" id="newChatImageBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><span data-i18n="toolbar.addImage">添加多模态素材</span></button>
                             <div class="more-menu-separator"></div>
-                            <button type="button" id="welcomeCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg><span data-i18n="toolbar.addCommand">添加命令</span><span class="more-menu-hint" data-i18n="toolbar.addCommandHint">或输入 "/"</span></button>
-                            <button type="button" id="welcomeSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg><span data-i18n="toolbar.addSkill">添加技能</span><span class="more-menu-hint" data-i18n="toolbar.addSkillHint">或输入 "$"</span></button>
-                            <button type="button" id="welcomeAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg><span data-i18n="toolbar.addAgent">添加子代理单次引用</span><span class="more-menu-hint" data-i18n="toolbar.addAgentHint">或输入 "@"</span></button>
+                            <button type="button" id="newChatCmdBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L16 4"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/></svg><span data-i18n="toolbar.addCommand">添加命令</span><span class="more-menu-hint" data-i18n="toolbar.addCommandHint">或输入 "/"</span></button>
+                            <button type="button" id="newChatSkillBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><text x="4" y="18" font-size="18" font-weight="bold" font-family="monospace" fill="currentColor" stroke="none">$</text></svg><span data-i18n="toolbar.addSkill">添加技能</span><span class="more-menu-hint" data-i18n="toolbar.addSkillHint">或输入 "$"</span></button>
+                            <button type="button" id="newChatAgentBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="2" x2="19" y2="6"/><line x1="17" y1="4" x2="21" y2="4"/></svg><span data-i18n="toolbar.addAgent">添加子代理单次引用</span><span class="more-menu-hint" data-i18n="toolbar.addAgentHint">或输入 "@"</span></button>
                             <div class="more-menu-separator"></div>
-                            <button type="button" id="welcomeMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg><span data-i18n="toolbar.organizeMemory">整理记忆</span></button>
-                            <button type="button" id="welcomeLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span data-i18n="toolbar.loopTask">循环任务</span><span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
+                            <button type="button" id="newChatMemoryBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg><span data-i18n="toolbar.organizeMemory">整理记忆</span></button>
+                            <button type="button" id="newChatLoopBtn"><svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span data-i18n="toolbar.loopTask">循环任务</span><span class="more-menu-hint">或输入 <svg class="more-menu-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="16" y1="12" x2="8" y2="12"/><polyline points="12 8 8 12 12 16"/></svg></span></button>
                         </div>
                     </div>
 
                     <div class="toolbar-selector-group agent-selector-group">
                         <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg>
-                        <div class="agent-selector" id="welcomeAgentSelector">
-                            <button type="button" class="agent-selector-current" id="welcomeAgentCurrent" title="选择子代理" data-i18n-title="toolbar.selectAgent" aria-haspopup="menu" aria-expanded="false">
-                                <span class="agent-name" id="welcomeAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
+                        <div class="agent-selector" id="newChatAgentSelector">
+                            <button type="button" class="agent-selector-current" id="newChatAgentCurrent" title="选择子代理" data-i18n-title="toolbar.selectAgent" aria-haspopup="menu" aria-expanded="false">
+                                <span class="agent-name" id="newChatAgentName">main</span><i class="layui-icon layui-icon-down model-arrow"></i>
                             </button>
-                            <div class="agent-dropdown" id="welcomeAgentDropdown" role="menu"></div>
+                            <div class="agent-dropdown" id="newChatAgentDropdown" role="menu"></div>
                         </div>
                     </div>
                     <div class="toolbar-selector-group model-selector-group">
                         <svg class="toolbar-setting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.27a7 7 0 0 1-12.46 0H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
-                        <div class="model-selector" id="welcomeModelSelector">
-                            <div class="model-selector-current" id="welcomeModelCurrent" title="切换模型" data-i18n-title="toolbar.switchModel">
-                                <span class="model-name" id="welcomeModelName" data-i18n="toolbar.loading">加载中...</span>
+                        <div class="model-selector" id="newChatModelSelector">
+                            <div class="model-selector-current" id="newChatModelCurrent" title="切换模型" data-i18n-title="toolbar.switchModel">
+                                <span class="model-name" id="newChatModelName" data-i18n="toolbar.loading">加载中...</span>
                                 <i class="layui-icon layui-icon-down model-arrow"></i>
                             </div>
-                            <div class="model-dropdown" id="welcomeModelDropdown">
+                            <div class="model-dropdown" id="newChatModelDropdown">
                                 <div class="model-search-wrap">
                                     <input type="text" class="model-search-input" placeholder="搜索模型..." data-i18n-placeholder="toolbar.searchModel"/>
                                 </div>
@@ -176,18 +176,20 @@
                         </div>
                     </div>
 
-                    <input type="file" class="attach-input" id="welcomeAttachInput" multiple accept="*/*"/>
-                    <input type="file" class="attach-input" id="welcomeImageInput" multiple accept="image/*"/>
+                    <input type="file" class="attach-input" id="newChatAttachInput" multiple accept="*/*"/>
+                    <input type="file" class="attach-input" id="newChatImageInput" multiple accept="image/*"/>
                 </div>
                 <div class="toolbar-right">
-                    <button class="voice-btn hidden" id="welcomeVoiceBtn" title="语音输入" data-i18n-title="toolbar.voice">
+                    <button class="voice-btn hidden" id="newChatVoiceBtn" title="语音输入" data-i18n-title="toolbar.voice">
                         <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
                     </button>
-                    <button class="welcome-send-btn" id="welcomeSendBtn" title="发送" data-i18n-title="toolbar.send">
+                    <button class="newchat-send-btn" id="newChatSendBtn" title="发送" data-i18n-title="toolbar.send">
                         <i class="layui-icon layui-icon-release"></i>
                     </button>
                 </div>
             </div>
+
+            
         </div>
     </div>
 
@@ -538,6 +540,24 @@
                 <h3 class="ws-home-section-title" data-i18n="sidebar.fileMounts">文件挂载</h3>
                 <div class="ws-home-grid" id="wsHomeMountGrid"></div>
             </section>
+        </div>
+    </div>
+</div>
+
+<!-- Onboarding Full-screen Home (首启引导，与工作区面板同构) -->
+<div class="onboarding-overlay" id="onboardingMask" style="display:none" role="dialog" aria-modal="true" aria-label="欢迎使用 SolonCode" data-i18n-aria-label="newchat.onboardingTitle">
+    <div class="onboarding-home">
+        <header class="onboarding-home-header">
+            <div class="onboarding-home-brand">SolonCode</div>
+        </header>
+        <div class="onboarding-home-body">
+            <div class="onboarding-home-logo"><img src="/img/favicon.png" alt="SolonCode" /></div>
+            <div class="onboarding-home-title" data-i18n="newchat.onboardingTitle">欢迎使用 SolonCode</div>
+            <div class="onboarding-home-desc" data-i18n="newchat.onboardingDesc">只需一步：添加大语言模型配置，即可开启你的第一次 AI 对话</div>
+            <div class="onboarding-home-actions">
+                <button type="button" class="onboarding-home-primary-btn" id="onboardingAddBtn" data-i18n="newchat.onboardingAdd">添加大语言模型配置</button>
+                <button type="button" class="onboarding-home-skip-btn" id="onboardingSkipBtn" data-i18n="newchat.onboardingSkip">跳过</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1889,6 +1909,13 @@
     fetch('/web/chat/meta').then(function (r) { return r.json(); }).then(function (res) {
         var meta = (res && res.data) ? res.data : res;
         if (!meta) return;
+        // 首帧快速判定：未配置过模型时，尽早展示全屏引导面板（无 localStorage 跳过标记，每次启动都展示）
+        if (meta.modelConfigured === false) {
+            if (window.updateModelOnboarding) {
+                // 借助既有函数展示（模型列表为空时会保持显示）
+                window.updateModelOnboarding();
+            }
+        }
         if (meta.workname || meta.workspace) {
             // 标题：工作区名称 - 完整路径（如 solon-wm - /Users/x/solon-wm）
             var wsPath = meta.workspace ? String(meta.workspace) : '';
@@ -1904,11 +1931,11 @@
             window._cachedAppTitle = meta.appTitle;
             window._renderGreeting = function () {
                 if (!window._cachedAppTitle) return;
-                var el = document.getElementById('welcomeTitle');
+                var el = document.getElementById('newChatTitle');
                 if (!el) return;
                 var title = window._cachedAppTitle;
                 if (window.I18n && window.I18n.messages && window.I18n.messages[window.I18n.locale]) {
-                    el.textContent = window.I18n.t('welcome.greeting', { appTitle: title });
+                    el.textContent = window.I18n.t('newchat.greeting', { appTitle: title });
                 } else {
                     // 语言包尚未加载，使用默认中文
                     el.textContent = '\u4f60\u597d\uff0c\u6211\u662f ' + title + '\uff01';

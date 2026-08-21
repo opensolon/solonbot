@@ -1102,11 +1102,11 @@
   "toolbar.voice": "Wprowadzanie głosowe",
   "voice.holdToSpeak": "Przytrzymaj, aby mówić",
   "voice.releaseToStop": "Puść, aby zakończyć",
-  "welcome.dropHint": "Puść, aby dodać załącznik",
-  "welcome.greeting": "Cześć, jestem {appTitle}!",
-  "welcome.inputPlaceholder": "Zapytaj o cokolwiek...",
-  "welcome.learnMore": "Dowiedz się więcej o SolonCode",
-  "welcome.sub": "W czym mogę pomóc?",
+  "newchat.dropHint": "Puść, aby dodać załącznik",
+  "newchat.greeting": "Cześć, jestem {appTitle}!",
+  "newchat.inputPlaceholder": "Zapytaj o cokolwiek...",
+  "newchat.learnMore": "Dowiedz się więcej o SolonCode",
+  "newchat.sub": "W czym mogę pomóc?",
   "workspace.addMountHint": "Dodaj mount typu pliki",
   "workspace.clearQueue": "Wyczyść kolejkę",
   "workspace.clearSearch": "Wyczyść",
@@ -1132,5 +1132,10 @@
   "sidebar.wsRemove": "Usuń",
   "sidebar.wsRemoveConfirm": "Usunąć ten obszar roboczy z listy? (katalog nie zostanie usunięty)",
   "sidebar.wsPathInvalid": "Wprowadź prawidłową lokalną ścieżkę bezwzględną (zaczynającą się od / lub litery dysku, bez ..)",
-  "sidebar.wsOmniPlaceholder": "Szukaj przestrzeni roboczych lub wprowadź ścieżkę bezwzględną do otwarcia…"
+  "sidebar.wsOmniPlaceholder": "Szukaj przestrzeni roboczych lub wprowadź ścieżkę bezwzględną do otwarcia…",
+  "newchat.onboardingTitle": "Welcome to SolonCode",
+  "newchat.onboardingDesc": "Just one step: add an LLM configuration to start your first AI chat",
+  "newchat.onboardingAdd": "Add model config",
+  "newchat.onboardingSkip": "Skip",
+  "newchat.noModelHint": "No model available. Please add a model in Settings first"
 }

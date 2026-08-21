@@ -27,7 +27,7 @@
     var gitViewerContent = document.getElementById('gitViewerContent');
     var gitViewerClose = document.getElementById('gitViewerClose');
     // main-area 子视图引用
-    var welcomeView = document.getElementById('welcomeView');
+    var newChatView = document.getElementById('newChatView');
 
     // ---- 多工作区状态 ----
     var gitWorkspace = 'workspace';
@@ -178,7 +178,7 @@
     // ---- 双击加入对话（复用文件树的插入规则）----
     function insertGitPathToInput(rawPath) {
         if (!rawPath) return;
-        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
         if (!targetInput) return;
         var relPath = rawPath.replace(/\/$/, '');
         var insertText = (gitWorkspace !== 'workspace')
@@ -494,7 +494,7 @@
         viewerMode = 'file';
 
         // 隐藏欢迎页和聊天视图
-        if (welcomeView) welcomeView.style.display = 'none';
+        if (newChatView) newChatView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
         // 显示 viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
@@ -916,7 +916,7 @@
         }
 
         // 插入到输入框（复用 insertGitPathToInput 的模式）
-        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : welcomeInput;
+        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
         if (!targetInput) return;
 
         var currentVal = targetInput.value || '';
@@ -1132,7 +1132,7 @@
         viewerMode = 'diff';
 
         // 隐藏欢迎页和聊天视图
-        if (welcomeView) welcomeView.style.display = 'none';
+        if (newChatView) newChatView.style.display = 'none';
         if (chatView) chatView.style.display = 'none';
 
         // 显示 diff viewer：占据整个中间主区（隐藏顶部条），清理浮层动画类
@@ -1496,13 +1496,13 @@
         // 因为 chatView 的可见性由 CSS .active 类控制（.chat-view.active { display: flex }）
         // 如果残留 style="display:none"，会覆盖 CSS 类规则，导致视图空白
         if (chatView) chatView.style.display = '';
-        if (welcomeView) welcomeView.style.display = '';
+        if (newChatView) newChatView.style.display = '';
 
         // 根据当前模式恢复正确的可见性
         // chatView 可见性由 .active 类控制（CSS 规则），无需额外操作
-        // welcomeView 仅在非聊天模式下可见
+        // newChatView 仅在非聊天模式下可见
         if (chatView && chatView.classList.contains('active')) {
-            welcomeView.style.display = 'none';
+            newChatView.style.display = 'none';
         }
     }
 
