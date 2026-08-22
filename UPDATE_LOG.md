@@ -1,4 +1,11 @@
 
+### v2026.8.23
+
+* 添加 soloncode web 设置 Manage 工具支持开关（默认开启会占位置）
+* 添加 soloncode web 首次使用引导
+* 修复 soloncode web 多语言有些 key 没有翻译的问题
+* 细节优化
+
 ### v2026.8.22
 
 * 添加 soloncode web .uploads 等隐藏目录白名单使其在文件树中可见并统一目录过滤逻辑
