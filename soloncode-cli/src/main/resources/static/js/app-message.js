@@ -1328,6 +1328,19 @@ function fillToolCardBody(card, toolName, text, args) {
     }
 }
 
+/* bash 在 tool.start 时即把命令渲染进 body（终端样式 + 执行中占位），不必等 tool.end 才看到。
+   不改动展开态：卡片展开与否仍由「工具调用显示简化」配置在 createToolCard 中决定，
+   简化模式下折叠 body 不可见（命令仍在头部 tool-args 摘要中），展开后立即可见。
+   tool.end 时 fillToolCardBody 会把 body 重渲染为命令 + 实际输出。 */
+function renderBashRunningBody(card, toolName, args) {
+    if (toolName !== 'bash' || !args || !args.command) return;
+    var body = $(card).find('.tool-card-body')[0];
+    if (!body) return;
+    body.className = 'tool-card-body tool-body-terminal';
+    body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> '
+        + escapeHtml(args.command) + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
+}
+
 function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reasonId, agentName, callId) {
     // 复用同 callId 的既有卡片（典型场景：HITL 批准后转执行的卡）：只把它转 loading 并
     // 刷新标题/参数，避免恢复流后 action_start 再新建一张、导致 HITL 卡沦为孤儿双卡。
@@ -1340,6 +1353,7 @@ function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reason
         if (reuseIcon) { reuseIcon.className = 'tool-status-icon loading'; reuseIcon.innerHTML = ''; }
         var reuseTitle = $(reused).find('.tool-name')[0];
         if (reuseTitle) reuseTitle.textContent = toolTitle || toolName || 'unknown';
+        renderBashRunningBody(reused, toolName, args);
         if (segment && segment.taskId) recordTaskGroupToolStart(segment, toolName, toolTitle, args);
         return reused;
     }
@@ -1347,14 +1361,7 @@ function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reason
     if (group && group.thinkingBlockEl) finishThinkingBlock(sess, streamReasonKey(segment, reasonId));
     var card = createToolCard(toolName, args, toolTitle, agentName, 'loading');
     if (sess.currentRunId) card.setAttribute('data-run-id', sess.currentRunId);
-    // 非简化模式在 start 时展示 bash 的实时命令；简化模式保持所有工具一致折叠。
-    if (window.cliPrintSimplified === false && toolName === 'bash' && args && args.command) {
-        var body = $(card).find('.tool-card-body')[0];
-        if (body) {
-            body.classList.add('tool-body-terminal');
-            body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(args.command) + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
-        }
-    }
+    renderBashRunningBody(card, toolName, args);
     if (group) { group.activeKind = 'tool'; $(group.groupEl).append(card); } else $(segment.bodyEl).append(card);
     if (callId) card.setAttribute('data-call-id', callId);
     registerPendingToolCard(sess, card, callId, streamReasonKey(segment, reasonId));

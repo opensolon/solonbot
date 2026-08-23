@@ -371,6 +371,7 @@
                         $.get(url, function(res) {
                             var data = (res && res.data) ? res.data : [];
                             renderTree(data, $childrenEl, indent + 1);
+                            autoExpandSingleDir($childrenEl, data, indent + 1, wsId, 0);
                         }).fail(function() {
                             console.error('[filer] load workspace tree error', wsId);
                         });
@@ -395,6 +396,50 @@
         );
 
         $container.append($nodeEl);
+    }
+
+    // ---- 自动穿透展开：目录下只有一个子节点且为目录时，继续展开 ----
+    var AUTO_EXPAND_MAX_DEPTH = 20;
+
+    /**
+     * 渲染完某层后调用：若该层只有一个节点且是目录，则自动展开它，
+     * 并对新加载出的层继续判断，直到不再是「只有一个目录节点」。
+     * @param $childrenEl 该层的容器
+     * @param nodes       该层的数据
+     * @param indent      该层节点的缩进层级
+     * @param wsId        所属工作区 ID
+     * @param depth       已自动穿透的层数（防御死循环）
+     */
+    function autoExpandSingleDir($childrenEl, nodes, indent, wsId, depth) {
+        if (!$childrenEl || !$childrenEl.length) return;
+        if ((depth || 0) >= AUTO_EXPAND_MAX_DEPTH) return;
+        if (!nodes || nodes.length !== 1) return;
+
+        var only = nodes[0];
+        if (!only || only.type !== 'directory') return;
+
+        var $nodeEl = $childrenEl.children('.file-node[data-path="' + CSS.escape(only.path) + '"]').first();
+        if (!$nodeEl.length) return;
+
+        var $cEl = $nodeEl.children('.file-node-children');
+        if (!$cEl.length || $cEl.hasClass('open')) return;
+
+        $cEl.addClass('open');
+        $nodeEl.children('.file-node-row').find('.file-arrow').addClass('open');
+        $nodeEl.removeAttr('data-dirty');
+
+        var url = '/web/chat/filer/tree?path=' + encodeURIComponent(only.path) + '&depth=1';
+        if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
+            url += '&mount=' + encodeURIComponent(wsId);
+        }
+
+        $.get(url, function(res) {
+            var subData = (res && res.data) ? res.data : [];
+            renderTree(subData, $cEl, indent + 1);
+            autoExpandSingleDir($cEl, subData, indent + 1, wsId, (depth || 0) + 1);
+        }).fail(function() {
+            console.error('[filer] auto expand error', only.path);
+        });
     }
 
     // ---- 渲染树节点 ----
@@ -475,6 +520,7 @@
                             $.get(url, function(res) {
                                 var subData = (res && res.data) ? res.data : [];
                                 renderTree(subData, $cEl, indent + 1);
+                                autoExpandSingleDir($cEl, subData, indent + 1, wsId, 0);
                             });
                         }
                     }
