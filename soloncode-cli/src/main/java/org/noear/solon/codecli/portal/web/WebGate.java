@@ -248,6 +248,23 @@ public class WebGate extends SimpleWebSocketListener {
     }
 
     /**
+     * 新开流统一入口：后端 done 门与前端流门必须成对重置。
+     *
+     * <p>后端 {@link #resetStreamDoneSent} 只解开自己的 done 去重门，前端在收到上一轮
+     * done 后会把该会话置为 _streamClosed=true 并丢弃后续所有 chunk。若只重置后端，
+     * 同一会话第二段流（HITL 恢复、命令触发的 agent 任务、Loop/Goal 续跑等）在后端
+     * 正常 emit，前端却全部静默丢弃 —— 表现为「任务跑着突然没输出、新开会话又正常」。
+     * 因此这里在开流前额外下发 system.reset 解封前端。</p>
+     */
+    private void beginStreamTurn(WorkspaceContext wsContext, AgentSession session) {
+        resetStreamDoneSent(session);
+
+        if (session != null) {
+            emitToClient(wsContext, session.getSessionId(), WebEvent.ofResetStream());
+        }
+    }
+
+    /**
      * 广播原始 JSON 字符串到所有 WebSocket 连接。
      *
      * <p>与 {@link #emitToClient} 不同，此方法不注入 sessionId，
@@ -556,8 +573,8 @@ public class WebGate extends SimpleWebSocketListener {
         ChatModel chatModel = wsContext.getEngine().getModelOrDefInstance(selectedModel);
         ReActAgent agent = wsContext.getEngine().getAgentOrMain(agentName);
 
-        // 新开流前重置，避免上一轮 streamDoneSent 挡住本轮 done
-        resetStreamDoneSent(session);
+        // 新开流前重置：后端 done 门 + 前端流门（否则上一轮 done 会让本轮输出被前端丢弃）
+        beginStreamTurn(wsContext, session);
 
         // 提前注册 CompositeDisposable：interruptSession 在 subscribe 返回前到达时
         // composite.dispose() 会在 composite.add(disposable) 时立即 dispose 新成员，消除注册窗口竞态
@@ -613,8 +630,8 @@ public class WebGate extends SimpleWebSocketListener {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         AtomicReference<String> finalAnswerRef = new AtomicReference<>("");
 
-        // 新开流前重置，避免上一轮 streamDoneSent 挡住本轮 done
-        resetStreamDoneSent(session);
+        // 新开流前重置：后端 done 门 + 前端流门（否则上一轮 done 会让本轮输出被前端丢弃）
+        beginStreamTurn(wsContext, session);
 
         // 提前注册 CompositeDisposable，消除注册窗口竞态（同 performAgentTaskAsync）
         Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
