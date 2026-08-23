@@ -3,10 +3,12 @@
 
 * 添加 soloncode web 设置 Manage 工具支持开关（默认开启会占位置）
 * 添加 soloncode web 首次使用引导
+* 优化 soloncode web bash window 深度体验（之前的体验不好）
+* 优化 soloncode web 文件树体验（只有一个目录节点时，自动展开）
 * 修复 soloncode web 多语言有些 key 没有翻译的问题
 * 细节优化
 
-### v2026.8.22
+### v2026.8.23
 
 * 添加 soloncode web .uploads 等隐藏目录白名单使其在文件树中可见并统一目录过滤逻辑
 * 修复 soloncode web 有工具调用时输出文本会重复的问题（v2026.8.20 引起的）
