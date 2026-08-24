@@ -23,6 +23,7 @@ import org.noear.solon.codecli.portal.web.WebController;
 import org.noear.solon.codecli.portal.web.MemoryController;
 import org.noear.solon.codecli.portal.web.WebSettingsController;
 import org.noear.solon.codecli.portal.web.WebGate;
+import org.noear.solon.codecli.auth.*;
 import org.noear.solon.codecli.portal.web.settings.*;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
@@ -198,6 +199,28 @@ public class Configurator {
         addWebBean(new LspSettingsController(workspaceManager));
 
         addWebBean(new MemoryController(agentRuntime));
+        
+        // 用户认证系统
+        UserAuthConfig userAuthConfig = agentSettings.getUserAuth();
+        UserSessionManager userSessionManager = new UserSessionManager();
+        userSessionManager.init(userAuthConfig);
+        
+        UserStore userStore;
+        try {
+            userStore = createUserStore(userAuthConfig, userSessionManager);
+        } catch (Exception e) {
+            LOG.warn("[Configurator] Failed to create user store, using file store: {}", e.getMessage());
+            userStore = new FileUserStore();
+            try { userStore.init(userAuthConfig); } catch (Exception ignored) {}
+        }
+        
+        // 注册 userStore 和 userSessionManager 到容器
+        Solon.context().wrapAndPut(UserStore.class, userStore);
+        Solon.context().wrapAndPut(UserSessionManager.class, userSessionManager);
+        Solon.context().wrapAndPut(UserAuthConfig.class, userAuthConfig);
+        
+        addWebBean(new UserLoginController(userStore, userSessionManager, userAuthConfig));
+        addWebBean(new UserAuthController(userStore, userSessionManager, userAuthConfig, agentSettings));
 
         BeanWrap webChannel = Solon.context().wrapAndPut(WebChannel.class, new WebChannel(workspaceManager));
         Solon.app().router().add(webChannel);
@@ -213,6 +236,29 @@ public class Configurator {
         }
     }
 
+        private UserStore createUserStore(UserAuthConfig config, UserSessionManager sessionManager) throws Exception {
+        String mode = config.getMode();
+        if (mode == null) mode = "file";
+        
+        UserStore store;
+        switch (mode) {
+            case "ldap":
+                store = new LdapUserStore();
+                break;
+            case "database":
+                // 数据库模式目前使用文件存储作为兜底
+                // 实际使用时可通过 UI 配置 JDBC 连接
+                store = new FileUserStore();
+                break;
+            case "file":
+            default:
+                store = new FileUserStore();
+                break;
+        }
+        store.init(config);
+        return store;
+    }
+    
     private void addWebBean(Object bean) {
         BeanWrap beanWrap = Solon.context().wrapAndPut(bean.getClass(), bean);
         Solon.app().router().add(beanWrap);

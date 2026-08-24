@@ -35,7 +35,8 @@ public class WebAuthFilter implements Filter {
                 || path.startsWith("/layui/")
                 || path.startsWith("/highlight/")
                 || path.startsWith("/img/")
-                || path.equals("/favicon.ico")) {
+                || path.equals("/favicon.ico")
+                || path.startsWith("/web/user/")) {
             chain.doFilter(ctx);
             return;
         }

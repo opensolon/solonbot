@@ -185,6 +185,9 @@
         } else if (targetTab === 'lsp') {
             $('#settingsTabLsp').addClass('active');
             if (mod('_settingsLsp')) mod('_settingsLsp').load();
+        } else if (targetTab === 'users') {
+            $('#settingsTabUsers').addClass('active');
+            if (mod('_settingsUsers')) mod('_settingsUsers').load();
         } else if (targetTab === 'providers') {
             $('#settingsTabProviders').addClass('active');
             if (window.settingsProviders) window.settingsProviders.loadList();
@@ -207,6 +210,7 @@
         else if (targetTab === 'mcp') { if (mod('_settingsMcp')) mod('_settingsMcp').load(); }
         else if (targetTab === 'openapi') { if (mod('_settingsOpenapi')) mod('_settingsOpenapi').load(); }
         else if (targetTab === 'lsp') { if (mod('_settingsLsp')) mod('_settingsLsp').load(); }
+        else if (targetTab === 'users') { if (mod('_settingsUsers')) mod('_settingsUsers').load(); }
         else if (targetTab === 'providers') { if (window.settingsProviders) window.settingsProviders.loadList(); }
     }
 
