@@ -38,6 +38,8 @@ import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.codecli.util.OsOpenUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
+import org.noear.solon.Solon;
 import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 import org.noear.solon.core.handle.Context;
@@ -341,10 +343,7 @@ public class WebSettingsController extends BaseSettingsController {
 
             applied.add("general");
 
-            // 无公开热更新 API 的字段：仅提示一次
-            if (g.getLogFileMaxSize() != null || g.getLogMaxHistory() != null) {
-                warnings.add("log rotation: memory updated; restart recommended for full runtime effect");
-            }
+            // 日志滚动/级别配置：同步到 Solon.cfg() 后由调用方统一 rebuildAll 重建 appender（热生效）
         } catch (Exception e) {
             warnings.add("general apply failed: " + e.getMessage());
         }
@@ -615,6 +614,25 @@ public class WebSettingsController extends BaseSettingsController {
     }
 
     /**
+     * 将日志配置同步到 Solon.cfg()（与 App.syncLogPropertiesToCfg 对齐，供保存后热更新使用）。
+     */
+    private static void syncLogPropertiesToCfg(GeneralGroupDo g) {
+        try {
+            if (g.getLogLevel() != null && !g.getLogLevel().isEmpty()) {
+                Solon.cfg().setProperty("solon.logging.appender.file.level", g.getLogLevel());
+            }
+            if (g.getLogFileMaxSize() != null && !g.getLogFileMaxSize().isEmpty()) {
+                Solon.cfg().setProperty("solon.logging.appender.file.maxFileSize", g.getLogFileMaxSize());
+            }
+            if (g.getLogMaxHistory() != null) {
+                Solon.cfg().setProperty("solon.logging.appender.file.maxHistory", String.valueOf(g.getLogMaxHistory()));
+            }
+        } catch (Exception e) {
+            //日志配置同步失败不影响设置保存链路
+        }
+    }
+
+    /**
      * 保存通用配置
      */
     @Post
@@ -665,6 +683,10 @@ public class WebSettingsController extends BaseSettingsController {
         // 先写盘（global settings.json），再广播到所有已加载工作区引擎：
         // 其他工作区 reloadInPlace 需读到最新的磁盘全局值，才能正确叠加各自 local 覆盖
         saveSettings();
+
+        // 日志滚动/级别配置热更新：同步到 Solon.cfg()，再重建路由 appender（懒加载时按新参数构建）
+        syncLogPropertiesToCfg(settings().getGeneral());
+        WorkspaceLogRouter.rebuildAll();
 
         // 热更新到所有已加载工作区的引擎（全局设置广播；含当前引擎 + 其他工作区引擎）
         applyGeneralToAllEngines(new ArrayList<>(), new ArrayList<>());

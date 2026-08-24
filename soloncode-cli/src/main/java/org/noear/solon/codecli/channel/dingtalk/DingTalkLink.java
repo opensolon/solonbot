@@ -22,6 +22,7 @@ import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.channel.ChunkedSender;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
 import org.slf4j.Logger;
@@ -710,7 +711,7 @@ public class DingTalkLink implements Channel, Runnable {
          */
         void start() {
             String threadName = "dingtalk-stream-" + appKey.substring(0, Math.min(6, appKey.length()));
-            streamThread = new Thread(this::doStart, threadName);
+            streamThread = new Thread(WorkspaceLogRouter.withWorkspaceLogKey(wsContext.getMeta().getPath(), this::doStart), threadName);
             streamThread.setDaemon(true);
             streamThread.start();
         }
@@ -834,7 +835,7 @@ public class DingTalkLink implements Channel, Runnable {
 
                 LOG.info("[DingTalk] Reconnecting in 5 seconds, appKey={}",
                         appKey.substring(0, Math.min(8, appKey.length())) + "...");
-                reconnectThread = new Thread(() -> {
+                reconnectThread = new Thread(WorkspaceLogRouter.withWorkspaceLogKey(wsContext.getMeta().getPath(), () -> {
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException e) {
@@ -843,7 +844,7 @@ public class DingTalkLink implements Channel, Runnable {
                     if (!streamStarted) {
                         doStart();
                     }
-                }, "dingtalk-reconnect");
+                }), "dingtalk-reconnect");
                 reconnectThread.setDaemon(true);
                 reconnectThread.start();
             }

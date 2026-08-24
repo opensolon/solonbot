@@ -74,6 +74,69 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
 
     private static volatile boolean installed = false;
 
+    /** 当前已安装的路由器实例（releaseWorkspace/rebuildAll 的入口） */
+    private static volatile WorkspaceLogRouter instance;
+
+    /**
+     * 用工作区路径打标包装任务：在裸线程（如 IM 渠道的 stream/reconnect 线程，
+     * 不经过 Reactor 调度器、MDC 传播钩子覆盖不到）入口打上 wskey 标记，
+     * 使该线程内的日志正确路由到所属工作区文件，结束后清理标记。
+     */
+    public static Runnable withWorkspaceLogKey(String workspacePath, Runnable task) {
+        return () -> {
+            MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(workspacePath));
+            try {
+                task.run();
+            } finally {
+                MDC.remove(LogDirUtil.MDC_KEY);
+            }
+        };
+    }
+
+    /**
+     * 释放工作区专属的文件 appender（停止并移除，释放文件句柄）。
+     * 用于工作区关闭/闲置回收后，避免句柄泄漏（Windows 上还会锁住日志文件）。
+     * 未安装路由器或该工作区尚无 appender 时为无操作。
+     */
+    public static void releaseWorkspace(String workspacePath) {
+        WorkspaceLogRouter r = instance;
+        if (r == null || workspacePath == null || workspacePath.isEmpty()) {
+            return;
+        }
+        try {
+            String logKey = LogDirUtil.workspaceLogKey(workspacePath);
+            RollingFileAppender<ILoggingEvent> ap = r.appenders.remove(logKey);
+            if (ap != null) {
+                ap.stop();
+            }
+        } catch (Throwable e) {
+            //释放失败不能影响工作区关闭链路
+        }
+    }
+
+    /**
+     * 重建所有工作区 appender：停掉现有实例并清空缓存，下一条日志会按当前
+     * Solon.cfg()（含 settings 热更新后的滚动参数/级别）懒加载重建。
+     * 用于日志配置保存后的热更新（原已创建的 appender 参数固定、不感知配置变化）。
+     */
+    public static void rebuildAll() {
+        WorkspaceLogRouter r = instance;
+        if (r == null) {
+            return;
+        }
+        try {
+            for (Map.Entry<String, RollingFileAppender<ILoggingEvent>> e : r.appenders.entrySet()) {
+                try {
+                    e.getValue().stop();
+                } catch (Throwable ignored) {
+                }
+            }
+            r.appenders.clear();
+        } catch (Throwable e) {
+            //重建失败不能影响设置保存链路
+        }
+    }
+
     /**
      * 安装路由器：挂到 logback root logger 上，成为唯一的文件写入方（全局 file appender 已在 yml 禁用）。
      * 幂等：重复调用不会重复挂路由器。
@@ -90,6 +153,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
             WorkspaceLogRouter router = new WorkspaceLogRouter();
             router.setName(ROUTER_NAME);
             router.start();
+            instance = router;
 
             synchronized (root) {
                 //防御：若 root 上仍残留文件类 appender（如旧配置升级、运行期重初始化），一并摘除
@@ -109,7 +173,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
     }
 
     /**
-     * 给 RxJava 调度器安装全局 MDC 传播钩子。
+     * 给 Reactor 调度器安装全局 MDC 传播钩子。
      *
      * <p>MDC 基于 ThreadLocal，任务经 {@code Schedulers.boundedElastic()} 等调度器跳线程后标记即丢失，
      * 路由器拿不到 wskey 会把日志回退到启动工作区文件。此钩子在任务提交时捕获提交线程的 MDC 快照，

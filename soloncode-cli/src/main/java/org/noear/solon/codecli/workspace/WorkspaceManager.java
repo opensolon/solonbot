@@ -22,6 +22,7 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -372,6 +373,8 @@ public class WorkspaceManager {
             } catch (IOException e) {
                 LOG.error("Failed to close workspace: " + workspaceIdOrPath, e);
             }
+            //释放该工作区专属的日志 appender（停掉文件句柄，避免泄漏/文件锁）
+            WorkspaceLogRouter.releaseWorkspace(path);
         }
     }
 

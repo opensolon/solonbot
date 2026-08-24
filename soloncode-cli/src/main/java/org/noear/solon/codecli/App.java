@@ -54,7 +54,7 @@ public class App {
 
         //日志体系已初始化（logback 配置加载完成）：把全局 file appender 替换为按工作区分流的路由器
         WorkspaceLogRouter.install();
-        //RxJava 调度器 MDC 传播：agent 管道跳线程不丢工作区日志标记（需在任何调度发生前）
+        //Reactor 调度器 MDC 传播：agent 管道跳线程不丢工作区日志标记（需在任何调度发生前）
         WorkspaceLogRouter.installMdcPropagation();
     }
 

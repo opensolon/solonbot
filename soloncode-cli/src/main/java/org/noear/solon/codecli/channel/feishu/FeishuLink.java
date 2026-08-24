@@ -28,6 +28,7 @@ import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.channel.ChunkedSender;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
 import org.slf4j.Logger;
@@ -702,7 +703,7 @@ public class FeishuLink implements Channel, Runnable {
          */
         void start() {
             String threadName = "feishu-stream-" + appId.substring(0, Math.min(6, appId.length()));
-            streamThread = new Thread(this::doStart, threadName);
+            streamThread = new Thread(WorkspaceLogRouter.withWorkspaceLogKey(wsContext.getMeta().getPath(), this::doStart), threadName);
             streamThread.setDaemon(true);
             streamThread.start();
         }
@@ -886,7 +887,7 @@ public class FeishuLink implements Channel, Runnable {
 
                 LOG.info("[Feishu] Reconnecting in 5 seconds, appId={}",
                         appId.substring(0, Math.min(8, appId.length())) + "...");
-                reconnectThread = new Thread(() -> {
+                reconnectThread = new Thread(WorkspaceLogRouter.withWorkspaceLogKey(wsContext.getMeta().getPath(), () -> {
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException e) {
@@ -895,7 +896,7 @@ public class FeishuLink implements Channel, Runnable {
                     if (!streamStarted && running.get()) {
                         doStart();
                     }
-                }, "feishu-reconnect");
+                }), "feishu-reconnect");
                 reconnectThread.setDaemon(true);
                 reconnectThread.start();
             }
