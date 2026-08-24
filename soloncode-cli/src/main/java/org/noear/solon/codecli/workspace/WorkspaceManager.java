@@ -432,6 +432,17 @@ public class WorkspaceManager {
      * 实例化一个新的 WorkspaceContext（仿照 Configurator 中的构建逻辑）
      */
     private WorkspaceContext createWorkspaceContext(WorkspaceMeta meta) throws Exception {
+        //整段构建过程（engine/LSP/MCP/挂载/记忆等初始化）都归属本工作区日志；
+        //构建期间新建的子线程（LSP 读取线程、MCP stdio 传输线程等）靠继承式标记自动带上归属
+        Object logScope = WorkspaceLogRouter.beginScope(meta.getPath());
+        try {
+            return doCreateWorkspaceContext(meta);
+        } finally {
+            WorkspaceLogRouter.endScope(logScope);
+        }
+    }
+
+    private WorkspaceContext doCreateWorkspaceContext(WorkspaceMeta meta) throws Exception {
         String workspacePath = meta.getPath();
 
         //清理旧版本遗留在工作区内的日志（<工作区>/.soloncode/logs/*.log），避免污染 IDE 全文搜索
@@ -550,8 +561,8 @@ public class WorkspaceManager {
         // 快照为 null 会导致注册被跳过；改为 lambda 内动态取值，注入完成后自然生效。
         registerWebLoopExecutor(engine, meta.getId(), loopScheduler);
 
-        // FileWatchService
-        FileWatchService fileWatchService = new FileWatchService();
+        // FileWatchService（自建轮询/初始化线程，需显式带上工作区日志归属）
+        FileWatchService fileWatchService = new FileWatchService().logWorkspacePath(workspacePath);
         fileWatchService.addRoot("workspace", Paths.get(workspacePath).toAbsolutePath().normalize())
                 .addHandler(changes -> {
                     // 动态取 gate：默认工作区创建早于 setWebGate，字段快照可能为 null
@@ -591,7 +602,7 @@ public class WorkspaceManager {
 
         // 拉起本工作区的 IM 渠道长连接（微信/飞书/钉钉），恢复已持久化的绑定连接。
         // Link.run() 内部有 running CAS 幂等保护，重复调用安全。
-        RunUtil.async(context.getChannelHub()::start);
+        RunUtil.async(WorkspaceLogRouter.withWorkspaceLogKey(workspacePath, context.getChannelHub()::start));
 
         return context;
     }

@@ -54,21 +54,118 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
 
     private static final String ROUTER_NAME = "SOLONCODE_WS_ROUTER";
 
+    /**
+     * 线程继承式的工作区标识（MDC 的补充维度）。
+     *
+     * <p>logback 1.3 起 MDC 用的是<b>非继承</b>的 ThreadLocal，标记线程内 {@code new Thread(..)}
+     * 出来的子线程一律丢标记（FileWatchService 轮询线程、LSP 进程读取线程、MCP stdio 传输线程、
+     * HTTP 客户端 IO 线程等都属于这一类，且多在 solon-ai 等外部模块里创建、无法逐个打标）。
+     * 用 InheritableThreadLocal 兜住「线程创建血缘」，与 MDC 兜住的「任务提交血缘」互补。</p>
+     */
+    private static final InheritableThreadLocal<String> INHERITED_KEY = new InheritableThreadLocal<>();
+
     private final ConcurrentHashMap<String, RollingFileAppender<ILoggingEvent>> appenders = new ConcurrentHashMap<>();
 
     @Override
     protected void append(ILoggingEvent event) {
-        String logKey = event.getMDCPropertyMap().get(LogDirUtil.MDC_KEY);
-        if (logKey == null || logKey.isEmpty()) {
-            //无标记：落到启动工作区（App.main 写入的 logkey）
-            logKey = System.getProperty(LogDirUtil.LOG_KEY_PROP, LogDirUtil.workspaceLogKey());
-        }
+        String logKey = resolveLogKey(event);
 
         try {
             appenders.computeIfAbsent(logKey, WorkspaceLogRouter::buildAppender).doAppend(event);
         } catch (Throwable e) {
             //任何一个工作区的 appender 故障都不能拖垮整个日志链路
             addWarn("Route log failed for workspace key: " + logKey, e);
+        }
+    }
+
+    /**
+     * 解析日志归属的工作区标识：MDC（任务提交血缘）→ 继承式标记（线程创建血缘）→ 启动工作区
+     */
+    private static String resolveLogKey(ILoggingEvent event) {
+        String logKey = event.getMDCPropertyMap().get(LogDirUtil.MDC_KEY);
+        if (logKey != null && logKey.isEmpty() == false) {
+            return logKey;
+        }
+
+        logKey = INHERITED_KEY.get();
+        if (logKey != null && logKey.isEmpty() == false) {
+            return logKey;
+        }
+
+        //无标记：落到启动工作区（App.main 写入的 logkey）
+        return startupLogKey();
+    }
+
+    /**
+     * 当前线程日志归属的工作区标识：MDC → 继承式标记 → 启动工作区。
+     * <p>与 {@link #resolveLogKey(ILoggingEvent)} 同一优先级，供诊断与测试使用。</p>
+     */
+    public static String currentLogKey() {
+        String logKey = MDC.get(LogDirUtil.MDC_KEY);
+        if (logKey != null && logKey.isEmpty() == false) {
+            return logKey;
+        }
+
+        logKey = INHERITED_KEY.get();
+        if (logKey != null && logKey.isEmpty() == false) {
+            return logKey;
+        }
+
+        return startupLogKey();
+    }
+
+    private static String startupLogKey() {
+        return System.getProperty(LogDirUtil.LOG_KEY_PROP, LogDirUtil.workspaceLogKey());
+    }
+
+    /**
+     * 开启工作区日志作用域：同时打 MDC 与继承式标记，返回的 token 用于 {@link #endScope(Object)} 还原。
+     *
+     * <p>务必配对使用（try/finally）：线程池线程会被复用，不还原会让后续任务串到别的工作区。</p>
+     *
+     * @param workspacePath 工作区目录（为空时不打标，返回 null）
+     */
+    public static Object beginScope(String workspacePath) {
+        if (workspacePath == null || workspacePath.isEmpty()) {
+            return null;
+        }
+
+        return beginScopeByKey(LogDirUtil.workspaceLogKey(workspacePath));
+    }
+
+    /**
+     * 同 {@link #beginScope(String)}，但直接传入已算好的日志标识
+     */
+    public static Object beginScopeByKey(String logKey) {
+        if (logKey == null || logKey.isEmpty()) {
+            return null;
+        }
+
+        String[] prev = new String[]{MDC.get(LogDirUtil.MDC_KEY), INHERITED_KEY.get()};
+        MDC.put(LogDirUtil.MDC_KEY, logKey);
+        INHERITED_KEY.set(logKey);
+        return prev;
+    }
+
+    /**
+     * 结束工作区日志作用域，还原进入前的标记（token 为 null 时无操作）
+     */
+    public static void endScope(Object token) {
+        if (token instanceof String[] == false) {
+            return;
+        }
+
+        String[] prev = (String[]) token;
+        if (prev[0] == null) {
+            MDC.remove(LogDirUtil.MDC_KEY);
+        } else {
+            MDC.put(LogDirUtil.MDC_KEY, prev[0]);
+        }
+
+        if (prev[1] == null) {
+            INHERITED_KEY.remove();
+        } else {
+            INHERITED_KEY.set(prev[1]);
         }
     }
 
@@ -80,15 +177,15 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
     /**
      * 用工作区路径打标包装任务：在裸线程（如 IM 渠道的 stream/reconnect 线程，
      * 不经过 Reactor 调度器、MDC 传播钩子覆盖不到）入口打上 wskey 标记，
-     * 使该线程内的日志正确路由到所属工作区文件，结束后清理标记。
+     * 使该线程（及其子线程）内的日志正确路由到所属工作区文件，结束后还原标记。
      */
     public static Runnable withWorkspaceLogKey(String workspacePath, Runnable task) {
         return () -> {
-            MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(workspacePath));
+            Object token = beginScope(workspacePath);
             try {
                 task.run();
             } finally {
-                MDC.remove(LogDirUtil.MDC_KEY);
+                endScope(token);
             }
         };
     }
@@ -183,20 +280,40 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
      */
     public static void installMdcPropagation() {
         reactor.core.scheduler.Schedulers.onScheduleHook("soloncode-mdc", task -> {
-            Map<String, String> captured = MDC.getCopyOfContextMap();
-            if (captured == null || captured.isEmpty()) {
+            Map<String, String> capturedMdc = MDC.getCopyOfContextMap();
+            String capturedKey = INHERITED_KEY.get();
+
+            if ((capturedMdc == null || capturedMdc.isEmpty()) && capturedKey == null) {
                 return task;
             }
+
             return () -> {
-                Map<String, String> prev = MDC.getCopyOfContextMap();
-                MDC.setContextMap(captured);
+                Map<String, String> prevMdc = MDC.getCopyOfContextMap();
+                String prevKey = INHERITED_KEY.get();
+
+                if (capturedMdc != null) {
+                    MDC.setContextMap(capturedMdc);
+                }
+                //同步继承式标记：任务内新建的线程（如客户端 IO 线程）也能带上工作区归属
+                String effectiveKey = capturedKey != null ? capturedKey
+                        : (capturedMdc == null ? null : capturedMdc.get(LogDirUtil.MDC_KEY));
+                if (effectiveKey != null) {
+                    INHERITED_KEY.set(effectiveKey);
+                }
+
                 try {
                     task.run();
                 } finally {
-                    if (prev == null) {
+                    if (prevMdc == null) {
                         MDC.remove(LogDirUtil.MDC_KEY);
                     } else {
-                        MDC.setContextMap(prev);
+                        MDC.setContextMap(prevMdc);
+                    }
+
+                    if (prevKey == null) {
+                        INHERITED_KEY.remove();
+                    } else {
+                        INHERITED_KEY.set(prevKey);
                     }
                 }
             };

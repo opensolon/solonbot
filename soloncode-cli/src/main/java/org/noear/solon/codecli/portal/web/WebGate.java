@@ -38,8 +38,8 @@ import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
-import org.slf4j.MDC;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -123,8 +123,14 @@ public class WebGate extends SimpleWebSocketListener {
             return;
         }
 
-        wctx.getConnections().add(socket);
-        LOG.info("[WebGate] WebSocket opened: {}, workspace: {}", socket.id(), wsId);
+        //WS 回调跑在容器 IO 线程上（不经 WorkspaceFilter），不打标则日志全部回退到启动工作区
+        Object logScope = WorkspaceLogRouter.beginScope(wctx.getMeta().getPath());
+        try {
+            wctx.getConnections().add(socket);
+            LOG.info("[WebGate] WebSocket opened: {}, workspace: {}", socket.id(), wsId);
+        } finally {
+            WorkspaceLogRouter.endScope(logScope);
+        }
     }
 
     /**
@@ -157,7 +163,15 @@ public class WebGate extends SimpleWebSocketListener {
         String wsId = socket.param("workspaceId");
         // 与 onOpen 对称：从目标工作区连接池中移除；兵底同时从本实例 connections 移除（共享引用时为同一列表，重复 remove 无害）。
         resolveConnections(wsId).remove(socket);
-        LOG.info("[WebGate] WebSocket closed: {}", socket.id());
+
+        //只查缓存定位日志归属，严禁 getOrCreate（同 resolveConnections 的理由：会把刚释放的工作区原地复活）
+        WorkspaceContext wctx = workspaceManager.getContextsCached(wsId);
+        Object logScope = WorkspaceLogRouter.beginScope(wctx == null ? null : wctx.getMeta().getPath());
+        try {
+            LOG.info("[WebGate] WebSocket closed: {}", socket.id());
+        } finally {
+            WorkspaceLogRouter.endScope(logScope);
+        }
     }
 
     /**
@@ -576,19 +590,21 @@ public class WebGate extends SimpleWebSocketListener {
     }
 
     private void performAgentTaskAsync(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName) {
-        //agent 执行主体在 boundedElastic 线程上跑，订阅动作包在 MDC 里：
+        //订阅前（调用线程内）先注册 composite：订阅动作被调度到别的线程异步执行，若把注册也放进去，
+        //这段窗口内 isSessionBusy 会误判空闲（并发 input 可能在同一会话上开出第二条流），
+        //且 interruptSession 取不到 disposable，只会补发一个假 done —— 任务照跑且再也无法取消。
+        Disposable.Composite composite = (Disposable.Composite) session.attrs()
+                .computeIfAbsent("disposable", k -> Disposables.composite());
+
+        //agent 执行主体在 boundedElastic 线程上跑，订阅动作包在工作区日志作用域里：
         //同步源的整个管道执行发生在 subscribe() 调用栈内，故管道主体线程携带工作区标记
         final String wsLogKey = wsLogKey(wsContext);
         Runnable subscribeAction = () -> {
-            if (wsLogKey != null) {
-                MDC.put(LogDirUtil.MDC_KEY, wsLogKey);
-            }
+            Object logScope = WorkspaceLogRouter.beginScopeByKey(wsLogKey);
             try {
-                doSubscribeAgentTask(wsContext, session, sessionCwd, prompt, selectedModel, agentName, wsLogKey);
+                doSubscribeAgentTask(wsContext, session, sessionCwd, prompt, selectedModel, agentName, composite);
             } finally {
-                if (wsLogKey != null) {
-                    MDC.remove(LogDirUtil.MDC_KEY);
-                }
+                WorkspaceLogRouter.endScope(logScope);
             }
         };
 
@@ -599,8 +615,14 @@ public class WebGate extends SimpleWebSocketListener {
         }
     }
 
-    private void doSubscribeAgentTask(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName, String wsLogKey) {
+    private void doSubscribeAgentTask(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName, Disposable.Composite composite) {
         String sessionId = session.getSessionId();
+
+        //调度窗口期内已被 interrupt：不开流、不发 reset（否则刚收尾的前端会被解封成幽灵流）
+        if (composite.isDisposed()) {
+            LOG.info("[WebGate] Session {} task aborted before subscribe (interrupted)", sessionId);
+            return;
+        }
 
         if (selectedModel != null) {
             session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, selectedModel);
@@ -613,10 +635,6 @@ public class WebGate extends SimpleWebSocketListener {
 
         // 新开流前重置：后端 done 门 + 前端流门（否则上一轮 done 会让本轮输出被前端丢弃）
         beginStreamTurn(wsContext, session);
-
-        // 提前注册 CompositeDisposable：interruptSession 在 subscribe 返回前到达时
-        // composite.dispose() 会在 composite.add(disposable) 时立即 dispose 新成员，消除注册窗口竞态
-        Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
 
         Disposable disposable = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
@@ -634,10 +652,8 @@ public class WebGate extends SimpleWebSocketListener {
                     // 流级终态只发一次（含 dispose / 正常 complete / error）
                     emitDoneOnce(wsContext,session);
 
-                    //boundedElastic 线程会被复用：清理 MDC，避免污染后续任务的路由
-                    if (wsLogKey != null) {
-                        MDC.remove(LogDirUtil.MDC_KEY);
-                    }
+                    //MDC 不在此处清理：Reactor 调度钩子会在任务结束时自动还原线程现场，
+                    //提前 remove 反而会让同一任务后续日志丢掉工作区归属
                 })
                 .subscribe();
 
@@ -680,12 +696,17 @@ public class WebGate extends SimpleWebSocketListener {
         Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
 
         final String wsLogKey = wsLogKey(wsContext);
-        final Disposable[] disposableHolder = new Disposable[1];
         Runnable subscribeAction = () -> {
-            if (wsLogKey != null) {
-                MDC.put(LogDirUtil.MDC_KEY, wsLogKey);
-            }
+            Object logScope = WorkspaceLogRouter.beginScopeByKey(wsLogKey);
             try {
+                //调度窗口期内已被 interrupt：不再开流；必须释放闩锁，否则同步等待方（Loop）永久阻塞
+                if (composite.isDisposed()) {
+                    LOG.info("[WebGate] Session {} task aborted before subscribe (interrupted)", sessionId);
+                    emitDoneOnce(wsContext, session);
+                    countDownLatch.countDown();
+                    return;
+                }
+
                 Disposable d = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
@@ -710,18 +731,13 @@ public class WebGate extends SimpleWebSocketListener {
                     emitDoneOnce(wsContext,session);
                     countDownLatch.countDown();
 
-                    //boundedElastic 线程会被复用：清理 MDC，避免污染后续任务的路由
-                    if (wsLogKey != null) {
-                        MDC.remove(LogDirUtil.MDC_KEY);
-                    }
+                    //MDC 不在此处清理：Reactor 调度钩子会在任务结束时自动还原线程现场，
+                    //提前 remove 反而会让同一任务后续日志丢掉工作区归属
                 }).subscribe();
-                disposableHolder[0] = d;
                 //subscribe 后立即挂上：同步等待线程可能已读到 null，若不在任务内补挂则 Stop/interrupt 无法取消本轮
                 composite.add(d);
             } finally {
-                if (wsLogKey != null) {
-                    MDC.remove(LogDirUtil.MDC_KEY);
-                }
+                WorkspaceLogRouter.endScope(logScope);
             }
         };
 

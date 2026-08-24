@@ -10,6 +10,7 @@ import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.slf4j.MDC;
 
 import java.util.Map;
@@ -67,18 +68,13 @@ public class WorkspaceFilter implements Filter {
 
             ctx.attrSet("WORKSPACE_CTX", wctx);
 
-            //按工作区分流日志：入口打标，WorkspaceLogRouter 依据 MDC 路由到各自日志文件
-            Map<String, String> prevMdc = MDC.getCopyOfContextMap();
-            MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(wctx.getMeta().getPath()));
+            //按工作区分流日志：入口打标（MDC + 继承式标记），请求处理中新建的线程也能带上归属
+            Object logScope = WorkspaceLogRouter.beginScope(wctx.getMeta().getPath());
             try {
                 chain.doFilter(ctx);
             } finally {
-                //恢复而非简单 remove：避免吞掉上游（若存在）设置的其它 MDC 值
-                if (prevMdc == null) {
-                    MDC.remove(LogDirUtil.MDC_KEY);
-                } else {
-                    MDC.setContextMap(prevMdc);
-                }
+                //恢复而非简单 remove：避免吞掉上游（若存在）设置的其它值
+                WorkspaceLogRouter.endScope(logScope);
             }
             return;
         }

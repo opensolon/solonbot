@@ -879,9 +879,10 @@ function processWebEventNow(sess, webEvt) {
                 var toolArgs = p.args || (p.diff ? { diff: p.diff } : {});
                 if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
                 sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId);
-                if (window._todoChunkHandlers) {
+                // todowrite 已在 handleWebGateChunk 入口统一派发过（会话不存在/未开流时也要更新左侧进度），
+                // 此处只补派其它工具，避免同一事件重复触发 todo 面板刷新
+                if (window._todoChunkHandlers && p.name !== 'todowrite') {
                     var todoEvent = { toolName: p.name, text: p.result, args: toolArgs, sessionId: sess.sessionId };
-                    window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                     window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                 }
                 break;
@@ -1040,8 +1041,6 @@ function finishStream(sess) {
     sess.acceptingStream = false;
     // 仅标记“本页本轮已收尾”，刷新后不会带上该标记
     sess._streamClosed = true;
-    // 记录收尾时所属的 runId：用于区分“本轮的迟到尾包”与“后端新开的一轮流”（见 canReopenClosedStream）
-    sess._closedRunId = sess.currentRunId || null;
     sess._pendingStreamChunks = null;
     if (sess._stopFallbackTimer) {
         clearTimeout(sess._stopFallbackTimer);
@@ -1051,6 +1050,12 @@ function finishStream(sess) {
 
     // 先排空该会话尚未处理的 chunk 队列，避免丢尾部文本
         if (typeof drainWebEventQueue === 'function') drainWebEventQueue(sess, true);
+
+    // 记录收尾时所属的 runId：用于区分“本轮的迟到尾包”与“后端新开的一轮流”（见 canReopenClosedStream）。
+    // 必须在排空队列之后取：runId 由 processWebEventNow 写入 currentRunId，若队列里还压着本轮的
+    // delta（短轮次可能一帧都没来得及 drain），提前取会拿到 null/上一轮的值，导致本轮迟到尾包被
+    // 误判成“新一轮”而把已收尾的 UI 重新拉起。
+    sess._closedRunId = sess.currentRunId || null;
 
     // --- 强刷逻辑：必须在 resetStreamState 之前执行 ---
     // 1. 取消还没跑的动画帧

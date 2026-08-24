@@ -28,6 +28,7 @@ import org.noear.solon.scheduling.ScheduledAnno;
 import org.noear.solon.scheduling.scheduled.manager.IJobManager;
 import org.noear.solon.scheduling.simple.JobManager;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -614,11 +615,11 @@ public class LoopScheduler {
     private void onTrigger(String sessionId, LoopTask task) {
         // 调度线程（定时/手动触发/续行/重试）无工作区标记，统一在此打标：
         // 本方法内所有日志（守卫、预算、轮次、错误）随工作区分流，不落到启动工作区文件
-        MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(engine.getWorkspace()));
+        Object logScope = WorkspaceLogRouter.beginScope(engine.getWorkspace());
         try {
             doTrigger(sessionId, task);
         } finally {
-            MDC.remove(LogDirUtil.MDC_KEY);
+            WorkspaceLogRouter.endScope(logScope);
         }
     }
 

@@ -109,7 +109,9 @@ public class WebStreamBuilder {
                 .doOnNext(metricsRecorder::record)
                 .onErrorResume(e -> {
                     log.error("Stream execution error", e);
-                    return Flux.just(WebEvent.ofError(e), WebEvent.ofDone());
+                    //只发 error：done 统一由订阅侧 doFinally 走 emitDoneOnce 去重门发出。
+                    //此处再拼一个 ofDone 会绕过去重门直推给前端，造成同一轮双 done。
+                    return Flux.just(WebEvent.ofError(e));
                 });
     }
 }
