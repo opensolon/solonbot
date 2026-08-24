@@ -485,10 +485,13 @@ public class WebGate extends SimpleWebSocketListener {
                     if (attachMeta != null) {
                         userMsg.addMetadata("attachments", attachMeta);
                     }
+                    addAgentMeta(userMsg, agentName);
                     prompt = Prompt.of(userMsg);
                 } else {
                     // 文件附件已在 currentInput 前缀写入文件名（[附件: xxx]），ndjson 有记录
-                    prompt = Prompt.of(ChatMessage.ofUser(currentInput).addMetadata("source", source));
+                    UserMessage userMsg = ChatMessage.ofUser(currentInput).addMetadata("source", source);
+                    addAgentMeta(userMsg, agentName);
+                    prompt = Prompt.of(userMsg);
                 }
 
                 // 流式处理：输出通过 WebSocket 推送
@@ -1028,6 +1031,21 @@ public class WebGate extends SimpleWebSocketListener {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    /**
+     * 写入用户消息的子代理元数据（存入 ndjson metadata.agent）。
+     *
+     * <p>供历史消息恢复时前端标注「这条消息交给了哪个子代理」；
+     * 空值（使用主 Agent）不写入，保持旧记录格式一致。</p>
+     *
+     * @param userMsg   用户消息
+     * @param agentName 最终生效的子代理名（可为 null/空，表示主 Agent）
+     */
+    private static void addAgentMeta(UserMessage userMsg, String agentName) {
+        if (userMsg != null && Assert.isNotEmpty(agentName)) {
+            userMsg.addMetadata("agent", agentName);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════

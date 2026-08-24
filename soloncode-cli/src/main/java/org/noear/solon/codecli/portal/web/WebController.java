@@ -773,6 +773,12 @@ public class WebController {
                             item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
                         }
 
+                        // 子代理标记：该条用户消息实际交由哪个子代理执行（主 Agent 时无此字段）
+                        String agentMeta = metadata.get("agent").getString();
+                        if (agentMeta != null && !agentMeta.isEmpty()) {
+                            item.put("agentName", agentMeta);
+                        }
+
                         // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
                         ONode attachMeta = metadata.get("attachments");
                         if (attachMeta != null) {

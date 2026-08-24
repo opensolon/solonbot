@@ -272,6 +272,26 @@ function buildDisplayText(text, filesToSend) {
     return !!(chatInput && chatInput.value.trim()) || (pendingFiles && pendingFiles.length > 0);
         }
 
+    /* 判定名称是否为已知子代理（commandList 由 app-history.js 加载） */
+    function isKnownSubagent(name) {
+    if (!name) return false;
+    if (typeof commandList === 'undefined' || !commandList) return false;
+    for (var i = 0; i < commandList.length; i++) {
+        if (commandList[i].type === 'subagent' && commandList[i].name === name) return true;
+    }
+    return false;
+}
+
+    /* 解析本条消息最终生效的子代理（规则与后端 WebGate.onChatInput 一致）：
+       输入开头的有效 "@agent " 优先，其次选择器值，都无效时返回空（主 Agent） */
+    function resolveEffectiveAgent(text, selectedAgent) {
+    if (text && text.charAt(0) === '@') {
+        var sp = text.indexOf(' ');
+        if (sp > 0 && isKnownSubagent(text.substring(1, sp))) return text.substring(1, sp);
+    }
+    return isKnownSubagent(selectedAgent) ? selectedAgent : '';
+}
+
     function applyQueuedItemToInput(item) {
     if (!item) return;
     if (!inChatMode) switchToChatMode();
@@ -355,7 +375,15 @@ function buildDisplayText(text, filesToSend) {
         if (filesToSend[i].type === 'image') imageDataUrls.push(filesToSend[i]);
         else fileAttachments.push(filesToSend[i]);
     }
-    appendUserMessage(sess, displayText, imageDataUrls, fileAttachments);
+    var effectiveAgent = resolveEffectiveAgent(text,
+        options.selectedAgent !== undefined ? options.selectedAgent
+            : (typeof getSelectedAgent === 'function' ? getSelectedAgent() : ''));
+    // 文本开头的 "@agent " 会被后端剔除后才入库，此处同步剔除，
+    // 避免刷新前后同一条消息文本不一致（子代理信息改由徽标展示）
+    if (effectiveAgent && displayText && displayText.indexOf('@' + effectiveAgent + ' ') === 0) {
+        displayText = displayText.substring(effectiveAgent.length + 2);
+    }
+    appendUserMessage(sess, displayText, imageDataUrls, fileAttachments, null, null, effectiveAgent);
 
     isStreaming = true;
     setBtnStopMode();

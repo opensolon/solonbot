@@ -35,7 +35,7 @@ function updateUserRerunButtons(container) {
 }
 
 /* ===== Message Rendering (Session-Aware) ===== */
-function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel) {
+function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName) {
     var row = $('<div>').addClass('msg-row user')[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
@@ -44,6 +44,15 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     var bubble = $(row).find('.msg-bubble')[0];
 
     // 来源标签（仅非空且非 "Web" 时显示；会在时间戳左侧追加）
+
+    // 子代理标记：这条消息实际交给了哪个子代理（主 Agent 不显示）
+    // 独立成行放在气泡顶部，不写入 data-md-raw，复制/重发仍是用户原文
+    if (agentName) {
+        var agentTag = $('<div>').addClass('user-agent-tag')[0];
+        agentTag.innerHTML = '<span class="user-agent-tag-at">@</span>' + escapeHtml(agentName);
+        agentTag.setAttribute('title', (window.I18n ? I18n.t('history.subagentLabel') : '') + agentName);
+        $(bubble).append(agentTag);
+    }
 
     // Multiple images（解码完成后再补滚，避免占位高度 0 导致贴底失效）
     if (imageDataUrls && imageDataUrls.length > 0) {
