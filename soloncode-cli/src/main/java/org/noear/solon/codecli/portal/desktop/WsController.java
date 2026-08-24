@@ -423,23 +423,16 @@ public class WsController {
         if (!requested.isAbsolute()) {
             throw new IllegalArgumentException("workspace must be absolute");
         }
-        try {
-            Path root = requested.toRealPath().normalize();
-            if (!Files.isDirectory(root)) {
-                throw new IllegalArgumentException("workspace not found");
-            }
-            return root;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("invalid workspace", e);
+        // 与 workspaceKey/meta.getPath() 同源：只做 normalize，不解析符号链接
+        Path root = requested.toAbsolutePath().normalize();
+        if (!Files.isDirectory(root)) {
+            throw new IllegalArgumentException("workspace not found");
         }
+        return root;
     }
 
     private boolean isActiveWorkspace(Path workspaceRoot) {
-        try {
-            return workspaceRoot.equals(Paths.get(engine.getWorkspace()).toRealPath().normalize());
-        } catch (Exception ignored) {
-            return false;
-        }
+        return workspaceRoot.equals(Paths.get(engine.getWorkspace()).toAbsolutePath().normalize());
     }
 
     /** 当前桌面会话的 Goal 列表。 */
