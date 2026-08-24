@@ -340,6 +340,7 @@ function buildDisplayText(text, filesToSend) {
     sess._stoppedTurn = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     sess.messageStartTime = Date.now();
 
     if (!inChatMode) switchToChatMode();
@@ -694,6 +695,7 @@ function sendCommandSilent(cmdText, onBeforeSend) {
     sess._stoppedTurn = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     isStreaming = true;
     sess.messageStartTime = Date.now();
     setActiveSession(sess.sessionId);
@@ -741,6 +743,7 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
     sess.stopRequested = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     if (!sess.messageStartTime) sess.messageStartTime = Date.now();
     if (sess.sessionId === activeSessionId) {
         isStreaming = true;
@@ -1009,8 +1012,8 @@ function finishStream(sess) {
     sess.acceptingStream = false;
     // 仅标记“本页本轮已收尾”，刷新后不会带上该标记
     sess._streamClosed = true;
-    // 记录收尾时刻：用于区分“done 后的迟到尾包”与“后端新开一轮流”（见 handleWebGateChunk 自愈）
-    sess._streamClosedAt = Date.now();
+    // 记录收尾时所属的 runId：用于区分“本轮的迟到尾包”与“后端新开的一轮流”（见 canReopenClosedStream）
+    sess._closedRunId = sess.currentRunId || null;
     sess._pendingStreamChunks = null;
     if (sess._stopFallbackTimer) {
         clearTimeout(sess._stopFallbackTimer);
@@ -1228,6 +1231,11 @@ function finishStream(sess) {
     } else {
         sess._stoppedTurn = false;
     }
+
+    // 本轮已收尾：若末尾仍是用户消息（无 AI 回复），显示「继续运行」入口
+    if (typeof updateUserRerunButtons === 'function' && sess.container) {
+        updateUserRerunButtons(sess.container);
+    }
 }
 window.finishStream = finishStream;
 
@@ -1237,8 +1245,6 @@ var webGateReconnectAttempts = 0;
 var webGateHeartbeatTimer = null;
 var WEBGATE_MAX_RECONNECT = 10;
 var WEBGATE_PENDING_CHUNK_MAX = 300;
-/* done 之后多久内到达的 chunk 才算“本轮迟到尾包”（丢弃）；超过则视为后端新开了一轮流，自动解封 */
-var WEBGATE_LATE_CHUNK_GRACE_MS = 1500;
 
 /* 历史消息加载期间先缓存流式 chunk，加载完再回放，避免被 DOM 重建冲掉 */
 function bufferPendingStreamChunk(sess, chunk) {
@@ -1264,23 +1270,26 @@ window.flushPendingStreamChunks = flushPendingStreamChunks;
 /**
  * 已收尾（_streamClosed）的会话能否因新到的 chunk 重新开流。
  *
- * <p>done 之后极短时间内的 chunk 是本轮迟到尾包，仍应丢弃；但若超过宽限后又有数据到达，
- * 说明后端已为本会话新开了一轮流（HITL 恢复、命令触发任务、Loop 续跑等）而 reset 信号
- * 丢失或未覆盖。此时必须自愈，否则会话会永久哑掉：后端一直在推，前端全部静默丢弃。</p>
- * <p>用户显式 Stop 的轮次（_stoppedTurn）不自愈，避免被中断流的尾包反弹回 UI。</p>
+ * <p>判据是事件语义而非时间：后端每次任务运行都有独立的 runId（AgentEvent.runId），
+ * 因此“新一轮”= 到达的事件带着与收尾那一轮不同的 runId。同一 runId 的后续事件是
+ * 本轮 done 之后的迟到尾包，无论隔多久都应丢弃；不同 runId 则说明后端已为本会话新开了
+ * 一轮流（HITL 恢复、命令触发任务、Loop 续跑等）而 reset 信号丢失或未覆盖，必须自愈，
+ * 否则会话永久哑掉：后端一直在推，前端全部静默丢弃。</p>
+ * <p>无 runId 的事件不足以判定新一轮，保持丢弃。用户显式 Stop 的轮次（_stoppedTurn）
+ * 也不自愈，避免被中断流的尾包反弹回 UI。</p>
  */
-function canReopenClosedStream(sess) {
+function canReopenClosedStream(sess, webEvt) {
     if (!sess || sess._stoppedTurn || sess.stopRequested) return false;
-    var closedAt = sess._streamClosedAt;
-    if (!closedAt) return false;
-    return (Date.now() - closedAt) > WEBGATE_LATE_CHUNK_GRACE_MS;
+    var runId = webEvt && webEvt.runId;
+    if (!runId) return false;
+    return runId !== sess._closedRunId;
 }
 
 /** 有流式消息到来时，打开本会话的接收/展示状态 */
 function openStreamFromIncoming(sess) {
     if (!sess || sess.stopRequested) return false;
     sess._streamClosed = false;
-    sess._streamClosedAt = 0;
+    sess._closedRunId = null;
     sess.acceptingStream = true;
     if (sess.isStreaming) return true;
     sess.isStreaming = true;
@@ -1339,7 +1348,6 @@ function handleWebGateChunk(raw) {
         if (window._todoChunkHandlers) {
             var todoEvent = { toolName: p.name, text: p.result, args: p.args, sessionId: sid };
             window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
-            window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
         }
     }
 
@@ -1347,7 +1355,7 @@ function handleWebGateChunk(raw) {
     if (event === 'system.reset') {
         var sess = getOrCreateSession(sid);
         sess._streamClosed = false;
-        sess._streamClosedAt = 0;
+        sess._closedRunId = null;
         sess.acceptingStream = true;
         sess.stopRequested = false;
         return;
@@ -1357,7 +1365,7 @@ function handleWebGateChunk(raw) {
     if (event === 'system.user_input') {
         var userSess = getOrCreateSession(sid);
         userSess._streamClosed = false;
-        userSess._streamClosedAt = 0;
+        userSess._closedRunId = null;
         userSess.acceptingStream = true;
         userSess.stopRequested = false;
         if (typeof ensureChatInHistory === 'function') {
@@ -1383,7 +1391,7 @@ function handleWebGateChunk(raw) {
         if (sess2.stopRequested) return;
         // 本页已正常 finishStream 的迟到包丢弃；刷新后 _streamClosed 未设置，有流就显示
         if (!sess2.acceptingStream) {
-            if (sess2._streamClosed && !canReopenClosedStream(sess2)) return;
+            if (sess2._streamClosed && !canReopenClosedStream(sess2, webEvt)) return;
             if (!openStreamFromIncoming(sess2)) return;
         } else if (!openStreamFromIncoming(sess2)) {
             return;

@@ -719,6 +719,16 @@ public class WebGate extends SimpleWebSocketListener {
 
 
         if (ctx.isAgentTask() == false) {
+            // 命令回执自成一轮：只要此刻没有 agent 流在跑，就用完整的「reset ... done」信封包住它 ——
+            // 前端在上一轮 done 之后会置 _streamClosed 并丢弃后续 chunk，而命令事件不带 runId、
+            // 自愈判据用不上，缺了 reset 时远端触发（IM/API）的命令回执在 Web 端会静默消失。
+            // 反之若会话繁忙（流式期间来一条 /status），本轮归那条流：既不解封也不抢发 done，
+            // 否则会让前端提前收尾并丢掉该流后续输出（runId 未变，自愈同样兜不住）。
+            boolean ownTurn = (isSessionBusy(session) == false);
+            if (ownTurn) {
+                beginStreamTurn(wsContext, session);
+            }
+
             // rewind 命令走特殊通道：发送 rewind 事件让前端同步删除 DOM
             if ("rewind".equals(cmdName)) {
                 int rewindCount = 1;
@@ -745,7 +755,11 @@ public class WebGate extends SimpleWebSocketListener {
                 streamBuilder.replyToBoundChannel(wsContext, session.getSessionId(), text, true);
             }
 
-            emitToClient(wsContext, session.getSessionId(), WebEvent.ofDone());
+            // done 走统一出口（emitDoneOnce），使「所有 done 都经过去重门」这条不变量不被绕过；
+            // done 门已由上面的 beginStreamTurn 复位，否则会被上一轮的 doneSent 挡掉。
+            if (ownTurn) {
+                emitDoneOnce(wsContext, session);
+            }
         }
 
         return true;
@@ -855,8 +869,8 @@ public class WebGate extends SimpleWebSocketListener {
             return null;
         }
 
-        // Loop/Goal 异步 agent 流开始前重置前端的流状态（_streamClosed → false）
-        emitToClient(wsContext, sessionId, WebEvent.ofResetStream());
+        // 前端流门解封由 performAgentTaskSync → beginStreamTurn 统一下发（system.reset），
+        // 此处不再重复发送；user_input 先到也会解封，二者不冲突。
         emitToClient(wsContext, sessionId, WebEvent.ofUserInput(input, source));
 
         String agentName = null;

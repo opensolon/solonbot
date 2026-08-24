@@ -11,13 +11,25 @@ var CONTINUE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 /* 删除图标 */
 var DELETE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
-/* 更新用户消息的「重做」按钮：仅最后一条用户消息显示 */
+/* 更新用户消息的「重做/继续」按钮：重做仅最后一条用户消息显示；
+   继续运行仅在最后一条用户消息同时是整个消息列表末尾（其后无 AI 回复）、
+   且本会话当前不在流式运行中时显示（发出后到首段输出前不该出现「继续运行」） */
 function updateUserRerunButtons(container) {
     var userRows = $(container).find('.msg-row.user');
+    var allRows = $(container).find('.msg-row');
+    var lastRowEl = allRows.length ? allRows[allRows.length - 1] : null;
+    var sid = lastRowEl ? lastRowEl.getAttribute('data-session-id') : null;
+    var lastSess = (sid && window.sessionMap) ? window.sessionMap[sid] : null;
+    var busy = !!(lastSess && lastSess.isStreaming);
     userRows.each(function(i) {
+        var isLastUserRow = (i === userRows.length - 1);
         var btn = $(this).find('.rerun-btn')[0];
         if (btn) {
-            btn.style.display = (i === userRows.length - 1) ? '' : 'none';
+            btn.style.display = isLastUserRow ? '' : 'none';
+        }
+        var cBtn = $(this).find('.user-continue-btn')[0];
+        if (cBtn) {
+            cBtn.style.display = (isLastUserRow && lastRowEl === this && !busy) ? '' : 'none';
         }
     });
 }
@@ -27,7 +39,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     var row = $('<div>').addClass('msg-row user')[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
-    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
+    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-copy-btn user-continue-btn" data-i18n-title="msg.continue" style="display:none">' + CONTINUE_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
     if (window.I18n) window.I18n.apply(row);
     var bubble = $(row).find('.msg-bubble')[0];
 
@@ -122,6 +134,16 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
         }
         if (typeof sendMessage === 'function') {
             sendMessage();
+        }
+    });
+
+    // 继续运行：仅当用户消息是列表末尾（无后续 AI 回复）时可见，
+    // 复用后端 /continue 命令，不删除任何消息，新回复自然追加。
+    var continueUserBtn = $(row).find('.user-continue-btn')[0];
+    $(continueUserBtn).on('click', function() {
+        if (sess.isStreaming) return;
+        if (typeof sendCommandSilent === 'function') {
+            sendCommandSilent('/continue');
         }
     });
 
@@ -226,6 +248,8 @@ function ensureAssistantBubble(sess) {
             + '</div></div>';
         if (window.I18n) window.I18n.apply(row);
         $(sess.container).append(row);
+        // AI 回复出现后，隐藏末尾用户消息上的「继续运行」按钮
+        updateUserRerunButtons(sess.container);
         if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
         sess.currentBubbleEl = $(row).find('.md-content')[0];
         
@@ -1693,6 +1717,7 @@ function handleHitlResponse(sess, action, callId) {
         sess.stopRequested = false;
         sess.acceptingStream = true;
         sess._streamClosed = false;
+        sess._closedRunId = null;
         if (sess.sessionId === activeSessionId) {
             isStreaming = true;
             setBtnStopMode();
