@@ -320,7 +320,7 @@
             .attr('data-path', ws.name);
 
         var wsDisplayName = ws.name === '__current_workspace__' ? I18n.t('gitdiff.currentWorkspace') : ws.name;
-        var $row = $('<div>').addClass('file-node-row')
+        var $row = applyIndent($('<div>').addClass('file-node-row'), indent)
             .addClass(isReadonly ? 'file-workspace-readonly' : '')
             .attr('title', wsDisplayName + (isReadonly ? ' (' + I18n.t('filer.readonly') + ')' : ''));
 
@@ -442,6 +442,19 @@
         });
     }
 
+    // 缩进基准与每层步进（px）。行宽保持满宽，缩进用行自身的 padding-left 表达，
+    // 故层级不受 CSS 枚举规则限制，可无限加深。
+    var INDENT_BASE = 16;
+    var INDENT_STEP = 16;
+
+    /** 按层级为节点行设置缩进 */
+    function applyIndent($row, indent) {
+        var lv = parseInt(indent, 10);
+        if (isNaN(lv) || lv < 0) lv = 0;
+        $row.css('padding-left', (INDENT_BASE + lv * INDENT_STEP) + 'px');
+        return $row;
+    }
+
     // ---- 渲染树节点 ----
     function renderTree(nodes, $container, indent) {
         $container.html('');
@@ -457,7 +470,7 @@
             .attr('data-path', node.path)
             .attr('data-type', node.type);
 
-        var $row = $('<div>').addClass('file-node-row')
+        var $row = applyIndent($('<div>').addClass('file-node-row'), indent)
             .attr('title', node.type === 'directory'
                 ? I18n.t('filer.dirTip', {path: node.path})
                 : I18n.t('filer.fileTip', {path: node.path}));
