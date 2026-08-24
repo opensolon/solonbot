@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "預設 (DEBUG)",
   "general.logging.maxHistory": "存檔週期（天）",
   "general.logging.maxHistoryPlaceholder": "30（預設）",
+  "general.logging.openDir": "開啟日誌目錄",
   "general.logging.title": "日誌儲存",
   "general.loopGoal.budgetCritical": "預算緊急百分比",
   "general.loopGoal.budgetCriticalPlaceholder": "預設 85",

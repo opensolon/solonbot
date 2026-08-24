@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Predeterminado (DEBUG)",
   "general.logging.maxHistory": "Periodo de retención (días)",
   "general.logging.maxHistoryPlaceholder": "30 (predeterminado)",
+  "general.logging.openDir": "Abrir directorio de registros",
   "general.logging.title": "Guardado de registros",
   "general.loopGoal.budgetCritical": "Porcentaje crítico de presupuesto",
   "general.loopGoal.budgetCriticalPlaceholder": "predeterminado 85",

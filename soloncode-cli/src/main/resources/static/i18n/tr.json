@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Varsayılan (DEBUG)",
   "general.logging.maxHistory": "Saklama Süresi (gün)",
   "general.logging.maxHistoryPlaceholder": "30 (varsayılan)",
+  "general.logging.openDir": "Günlük dizinini aç",
   "general.logging.title": "Günlükleme",
   "general.loopGoal.budgetCritical": "Bütçe Kritik %",
   "general.loopGoal.budgetCriticalPlaceholder": "varsayılan 85",

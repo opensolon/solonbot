@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "ค่าเริ่มต้น (DEBUG)",
   "general.logging.maxHistory": "รอบการเก็บถาวร (วัน)",
   "general.logging.maxHistoryPlaceholder": "30 (ค่าเริ่มต้น)",
+  "general.logging.openDir": "เปิดโฟลเดอร์บันทึก",
   "general.logging.title": "การบันทึกล็อก",
   "general.loopGoal.budgetCritical": "เปอร์เซ็นต์งบประมาณวิกฤต",
   "general.loopGoal.budgetCriticalPlaceholder": "ค่าเริ่มต้น 85",

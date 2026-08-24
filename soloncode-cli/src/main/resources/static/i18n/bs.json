@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Zadano (DEBUG)",
   "general.logging.maxHistory": "Period arhiviranja (dani)",
   "general.logging.maxHistoryPlaceholder": "30 (zadano)",
+  "general.logging.openDir": "Open log directory",
   "general.logging.title": "Čuvanje zapisa",
   "general.loopGoal.budgetCritical": "Kritični postotak budžeta",
   "general.loopGoal.budgetCriticalPlaceholder": "zadano 85",

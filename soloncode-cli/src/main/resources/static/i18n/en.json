@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Default (DEBUG)",
   "general.logging.maxHistory": "Retention Period (days)",
   "general.logging.maxHistoryPlaceholder": "30 (default)",
+  "general.logging.openDir": "Open log directory",
   "general.logging.title": "Logging",
   "general.loopGoal.budgetCritical": "Budget Critical %",
   "general.loopGoal.budgetCriticalPlaceholder": "default 85",

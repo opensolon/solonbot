@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Défaut (DEBUG)",
   "general.logging.maxHistory": "Période de conservation (jours)",
   "general.logging.maxHistoryPlaceholder": "30 (défaut)",
+  "general.logging.openDir": "Ouvrir le dossier des journaux",
   "general.logging.title": "Journaux",
   "general.loopGoal.budgetCritical": "Pourcentage critique du budget",
   "general.loopGoal.budgetCriticalPlaceholder": "85 par défaut",

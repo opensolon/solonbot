@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "ডিফল্ট (DEBUG)",
   "general.logging.maxHistory": "আর্কাইভ পিরিয়ড (দিন)",
   "general.logging.maxHistoryPlaceholder": "30 (ডিফল্ট)",
+  "general.logging.openDir": "লগ ডিরেক্টরি খুলুন",
   "general.logging.title": "লগ সংরক্ষণ",
   "general.loopGoal.budgetCritical": "বাজেট ক্রিটিক্যাল শতাংশ",
   "general.loopGoal.budgetCriticalPlaceholder": "ডিফল্ট 85",

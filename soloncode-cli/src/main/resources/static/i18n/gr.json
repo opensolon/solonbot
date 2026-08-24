@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Προεπιλογή (DEBUG)",
   "general.logging.maxHistory": "Περίοδος διατήρησης (ημέρες)",
   "general.logging.maxHistoryPlaceholder": "30 (προεπιλογή)",
+  "general.logging.openDir": "Άνοιγμα φακέλου καταγραφών",
   "general.logging.title": "Αποθήκευση καταγραφών",
   "general.loopGoal.budgetCritical": "Κρίσιμο ποσοστό προϋπολογισμού",
   "general.loopGoal.budgetCriticalPlaceholder": "προεπιλογή 85",

@@ -21,6 +21,7 @@ import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -429,6 +430,9 @@ public class WorkspaceManager {
      */
     private WorkspaceContext createWorkspaceContext(WorkspaceMeta meta) throws Exception {
         String workspacePath = meta.getPath();
+
+        //清理旧版本遗留在工作区内的日志（<工作区>/.soloncode/logs/*.log），避免污染 IDE 全文搜索
+        LogDirUtil.cleanLegacyLogs(workspacePath);
 
         // 多工作区配置隔离：非默认工作区按目录加载 global + 工作区覆盖；
         // 默认工作区沿用注入的全局 settings（与 CLI 启动语义一致）

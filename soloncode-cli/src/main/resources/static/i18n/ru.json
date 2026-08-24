@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "По умолчанию (DEBUG)",
   "general.logging.maxHistory": "Период хранения (дней)",
   "general.logging.maxHistoryPlaceholder": "30 (по умолчанию)",
+  "general.logging.openDir": "Открыть каталог журналов",
   "general.logging.title": "Сохранение журнала",
   "general.loopGoal.budgetCritical": "Критический процент бюджета",
   "general.loopGoal.budgetCriticalPlaceholder": "по умолчанию 85",

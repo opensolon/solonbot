@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "기본 (DEBUG)",
   "general.logging.maxHistory": "보관 주기(일)",
   "general.logging.maxHistoryPlaceholder": "30(기본)",
+  "general.logging.openDir": "로그 디렉터리 열기",
   "general.logging.title": "로그 저장",
   "general.loopGoal.budgetCritical": "예산 임계 비율",
   "general.loopGoal.budgetCriticalPlaceholder": "기본 85",

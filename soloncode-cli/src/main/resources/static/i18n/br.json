@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Padrão (DEBUG)",
   "general.logging.maxHistory": "Período de Retenção (dias)",
   "general.logging.maxHistoryPlaceholder": "30 (padrão)",
+  "general.logging.openDir": "Digeriñ kavlec'h kerzhlevr",
   "general.logging.title": "Registro de Logs",
   "general.loopGoal.budgetCritical": "Orçamento Crítico %",
   "general.loopGoal.budgetCriticalPlaceholder": "padrão 85",

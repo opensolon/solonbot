@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "الافتراضي (DEBUG)",
   "general.logging.maxHistory": "فترة الاحتفاظ (أيام)",
   "general.logging.maxHistoryPlaceholder": "30 (الافتراضي)",
+  "general.logging.openDir": "فتح مجلد السجلات",
   "general.logging.title": "حفظ السجلات",
   "general.loopGoal.budgetCritical": "نسبة الميزانية الحرجة",
   "general.loopGoal.budgetCriticalPlaceholder": "الافتراضي 85",

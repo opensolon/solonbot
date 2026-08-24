@@ -487,7 +487,21 @@
             .always(function () { $generalSaveBtn.prop('disabled', false); });
     });
 
-    window._settingsGeneral = {
+        // 打开日志目录（在系统文件管理器中打开）
+        $(document).on('click', '#generalLogOpenDirBtn', function () {
+            var $btn = $(this).prop('disabled', true);
+            $.get('/web/settings/logs/open').done(function (resp) {
+                if (resp.code !== 200) {
+                    showToast(resp.message || (window.I18n ? window.I18n.t('toast.unknownError') : '打开失败'), 'error');
+                }
+            }).fail(function () {
+                showToast(window.I18n ? window.I18n.t('toast.unknownError') : '打开失败', 'error');
+            }).always(function () {
+                $btn.prop('disabled', false);
+            });
+        });
+
+        window._settingsGeneral = {
         load: loadGeneralSettings,
         revertFont: revertFont
     };

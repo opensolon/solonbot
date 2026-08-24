@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Standard (DEBUG)",
   "general.logging.maxHistory": "Aufbewahrungszeitraum (Tage)",
   "general.logging.maxHistoryPlaceholder": "30 (Standard)",
+  "general.logging.openDir": "Protokollverzeichnis öffnen",
   "general.logging.title": "Protokollierung",
   "general.loopGoal.budgetCritical": "Budget kritisch %",
   "general.loopGoal.budgetCriticalPlaceholder": "Standard 85",

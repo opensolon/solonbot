@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "За замовчуванням (DEBUG)",
   "general.logging.maxHistory": "Період зберігання (днів)",
   "general.logging.maxHistoryPlaceholder": "30 (за замовчуванням)",
+  "general.logging.openDir": "Відкрити каталог журналів",
   "general.logging.title": "Журналювання",
   "general.loopGoal.budgetCritical": "Критичний відсоток бюджету",
   "general.loopGoal.budgetCriticalPlaceholder": "за замовчуванням 85",

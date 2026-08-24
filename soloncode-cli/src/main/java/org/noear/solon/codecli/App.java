@@ -17,19 +17,16 @@ package org.noear.solon.codecli;
 
 import org.noear.solon.Solon;
 import org.noear.solon.SolonApp;
-import org.noear.solon.Utils;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.core.util.Assert;
-import org.noear.solon.core.util.JavaUtil;
+import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.scheduling.annotation.EnableScheduling;
 import org.noear.solon.web.cors.CrossFilter;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * Cli 应用
@@ -47,50 +44,12 @@ public class App {
         SLF4JBridgeHandler.install();
 
         //配置用户扩展目录
-        System.setProperty("soloncode.logkey", getWorkspaceLogKey());
+        System.setProperty(LogDirUtil.LOG_KEY_PROP, LogDirUtil.workspaceLogKey());
         System.setProperty("solon.extend", "!" + AgentFlags.getUserExtensions());
 
         Solon.start(App.class, args, app -> {
             initAgentProperties(app);
         });
-    }
-
-    private static String getWorkspaceLogKey() {
-        Path dir = Paths.get(AgentFlags.getUserDir()).toAbsolutePath().normalize();
-
-        //Windows 文件系统大小写不敏感：统一小写后再哈希，避免 "D:\\Work\\MyApp" 与 "D:\\work\\myapp" 生成两个日志目录
-        String hashSource = JavaUtil.IS_WINDOWS ? dir.toString().toLowerCase() : dir.toString();
-        String userDirMd5 = Utils.md5(hashSource);
-
-        return userDirMd5 + "-" + readableDirName(dir);
-    }
-
-    /**
-     * 生成可读的目录名片段。
-     * 根目录（如 "C:\\" 或 "/"）时 getFileName() 为 null，退化为清洗后的完整路径（如 "C_"）。
-     */
-    private static String readableDirName(Path dir) {
-        String name;
-        Path fileName = dir.getFileName();
-        if (fileName != null) {
-            name = fileName.toString();
-        } else {
-            //根目录：去掉末尾分隔符，清洗非法字符后作为名称（如 "C:" -> "C_"，"/" -> "root"）
-            name = dir.toString().replace("\\", "/");
-            if (name.endsWith("/")) {
-                name = name.substring(0, name.length() - 1);
-            }
-        }
-
-        name = name.replaceAll("[:/*?\"<>|\\s]", "_");
-        if (name.isEmpty()) {
-            name = "root";
-        }
-        //目录名长度兜底（各文件系统名称上限多在 255，这里留足余量）
-        if (name.length() > 60) {
-            name = name.substring(0, 60);
-        }
-        return name;
     }
 
     private static void initAgentProperties(SolonApp app) throws Exception {

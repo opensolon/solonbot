@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Domyślny (DEBUG)",
   "general.logging.maxHistory": "Okres archiwizacji (dni)",
   "general.logging.maxHistoryPlaceholder": "30 (domyślnie)",
+  "general.logging.openDir": "Otwórz katalog dzienników",
   "general.logging.title": "Zapisywanie logów",
   "general.loopGoal.budgetCritical": "Krytyczny procent budżetu",
   "general.loopGoal.budgetCriticalPlaceholder": "domyślnie 85",

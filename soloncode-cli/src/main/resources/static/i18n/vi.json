@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Mặc định (DEBUG)",
   "general.logging.maxHistory": "Chu kỳ lưu trữ (ngày)",
   "general.logging.maxHistoryPlaceholder": "30 (mặc định)",
+  "general.logging.openDir": "Mở thư mục nhật ký",
   "general.logging.title": "Lưu log",
   "general.loopGoal.budgetCritical": "Phần trăm ngân sách khẩn cấp",
   "general.loopGoal.budgetCriticalPlaceholder": "mặc định 85",

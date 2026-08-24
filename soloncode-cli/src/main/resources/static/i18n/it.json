@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Predefinito (DEBUG)",
   "general.logging.maxHistory": "Periodo di conservazione (giorni)",
   "general.logging.maxHistoryPlaceholder": "30 (predefinito)",
+  "general.logging.openDir": "Apri cartella log",
   "general.logging.title": "Salvataggio log",
   "general.loopGoal.budgetCritical": "Percentuale critica budget",
   "general.loopGoal.budgetCriticalPlaceholder": "Predefinito 85",

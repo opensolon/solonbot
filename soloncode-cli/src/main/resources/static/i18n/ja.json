@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "デフォルト (DEBUG)",
   "general.logging.maxHistory": "保持期間（日）",
   "general.logging.maxHistoryPlaceholder": "30（デフォルト）",
+  "general.logging.openDir": "ログディレクトリを開く",
   "general.logging.title": "ログ保存",
   "general.loopGoal.budgetCritical": "予算クリティカル(%)",
   "general.loopGoal.budgetCriticalPlaceholder": "デフォルト 85",

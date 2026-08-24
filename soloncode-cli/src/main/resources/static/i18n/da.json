@@ -146,6 +146,7 @@
   "general.logging.levelDefault": "Standard (DEBUG)",
   "general.logging.maxHistory": "Opbevaringsperiode (dage)",
   "general.logging.maxHistoryPlaceholder": "30 (standard)",
+  "general.logging.openDir": "Åbn logmappe",
   "general.logging.title": "Logopbevaring",
   "general.loopGoal.budgetCritical": "Budget kritisk %",
   "general.loopGoal.budgetCriticalPlaceholder": "standard 85",

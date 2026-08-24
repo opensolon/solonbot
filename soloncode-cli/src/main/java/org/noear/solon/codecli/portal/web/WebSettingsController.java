@@ -36,6 +36,8 @@ import org.noear.solon.codecli.config.entity.LspServerDo;
 import org.noear.solon.codecli.config.entity.McpServerDo;
 import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
+import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.OsOpenUtil;
 import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.portal.web.service.SkinService;
 import org.noear.solon.core.handle.Context;
@@ -44,6 +46,7 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -583,6 +586,32 @@ public class WebSettingsController extends BaseSettingsController {
     @Mapping("/web/settings/general")
     public Result<GeneralGroupDo> generalGet() {
         return Result.succeed(settings().getGeneral());
+    }
+
+    /**
+     * 打开当前进程的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）
+     * <p>logback 的 file appender 是 JVM 全局的，目录在启动时已固定；
+     * 多工作区共用同一份日志，故不按请求所属工作区推算目录。</p>
+     */
+    @Get
+    @Mapping("/web/settings/logs/open")
+    public Result logsOpen() {
+        try {
+            File dir = LogDirUtil.logDir();
+            if (dir.isDirectory() == false) {
+                //尚未产生日志文件（如文件日志未开启）：退到日志根目录
+                dir = LogDirUtil.logRootDir();
+            }
+
+            if (dir.isDirectory() == false && dir.mkdirs() == false) {
+                return Result.failure("无法创建日志目录: " + dir.getAbsolutePath());
+            }
+
+            OsOpenUtil.openDirectory(dir);
+            return Result.succeed(dir.getAbsolutePath());
+        } catch (Exception e) {
+            return Result.failure("打开失败: " + e.getMessage());
+        }
     }
 
     /**
