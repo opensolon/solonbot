@@ -26,7 +26,7 @@ solon.logging.appender:
   file:
     enable: false
     level: INFO
-    name: "${user.home}/.soloncode/logs/${soloncode.logkey}/${solon.app.name}"
+    name: "${user.home}/.soloncode/workspaces/${soloncode.wskey}/logs/${solon.app.name}"
     extension: ".log"
     maxFileSize: "10 MB"
     maxHistory: "7" #单位：天

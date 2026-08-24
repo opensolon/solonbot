@@ -563,7 +563,7 @@ public class WebGate extends SimpleWebSocketListener {
                 if (session.isEmpty() && Assert.isNotEmpty(input)) {
                     //如果是空，可能发的是 command（还没有对话记录）
                     try {
-                        Path sessionPath = Paths.get(wsContext.getEngine().getWorkspace(), wsContext.getEngine().getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+                        Path sessionPath = wsContext.getSessionPath(sessionId);
                         SessionMeta meta = SessionMeta.load(sessionPath);
                         if (Assert.isEmpty(meta.getLabel())) {
                             // 从用户输入生成 label（空会话场景，如纯命令输入）
@@ -624,7 +624,7 @@ public class WebGate extends SimpleWebSocketListener {
 
     /** 当前工作区的日志标识（无上下文时为 null，走默认路由） */
     private static String wsLogKey(WorkspaceContext wsContext) {
-        return wsContext == null ? null : LogDirUtil.workspaceLogKey(wsContext.getMeta().getPath());
+        return wsContext == null ? null : LogDirUtil.workspaceKey(wsContext.getMeta().getPath());
     }
 
     private void performAgentTaskAsync(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName) {

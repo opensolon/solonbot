@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * 会话僵尸目录清理器。
  *
- * <p>web.html 新建对话时会先创建 {@code .soloncode/sessions/web-xxx} 目录（含 _meta.json），
+ * <p>web.html 新建对话时会先创建会话目录（含 _meta.json，位于 ~/.soloncode/workspaces/&lt;标识&gt;/sessions/），
  * 用户未发消息即切走就会留下无实质内容的空壳目录，且会一直被 sessions 列表扫描。
  * 本清理器只处理 {@code web-} 前缀目录，判定"无实质内容"标准：</p>
  * <ul>
@@ -57,7 +57,7 @@ public class SessionJanitor {
     /**
      * 清理指定 sessions 根目录下的僵尸 web 会话目录。
      *
-     * @param sessionsRoot sessions 根目录（如 &lt;workspace&gt;/.soloncode/sessions）
+     * @param sessionsRoot sessions 根目录（~/.soloncode/workspaces/&lt;标识&gt;/sessions/）
      * @return 被清理的会话 ID 列表（无删除或目录不存在时为空列表）
      */
     public static List<String> cleanWebSessions(Path sessionsRoot) {

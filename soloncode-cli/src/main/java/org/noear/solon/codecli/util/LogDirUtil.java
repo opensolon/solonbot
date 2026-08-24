@@ -17,18 +17,16 @@ package org.noear.solon.codecli.util;
 
 import org.noear.solon.Utils;
 import org.noear.solon.codecli.config.AgentFlags;
-import org.noear.solon.core.util.JavaUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * 日志目录工具：统一计算工作区日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/），并清理旧版遗留日志。
+ * 日志目录工具：统一计算工作区日志目录（~/.soloncode/workspaces/&lt;工作区标识&gt;/logs/），并清理旧版遗留日志。
  * <p>
- * 打开目录请用 OsOpenUtil.openDirectory(File)。
+ * 目录标识与数据目录布局见 {@link WorkspaceDataUtil}；打开目录请用 OsOpenUtil.openDirectory(File)。
  *
  * @author noear
  * @since 3.9.1
@@ -37,9 +35,13 @@ public class LogDirUtil {
     private static final Logger log = LoggerFactory.getLogger(LogDirUtil.class);
 
     /**
-     * 用户主目录下的日志根目录名
+     * 旧版日志目录名（两种旧位置共用）：
+     * <ul>
+     *     <li>~/.soloncode/logs/&lt;标识&gt;/ —— 上一版的全局位置（按标识分片）</li>
+     *     <li>&lt;工作区&gt;/.soloncode/logs/ —— 更早版本写在工作区内，会污染 IDE 全文搜索</li>
+     * </ul>
      */
-    private static final String LOG_ROOT = ".soloncode/logs";
+    private static final String LEGACY_LOG_DIR = ".soloncode/logs";
 
     /**
      * 日志文件后缀（与 app.yml 中 solon.logging.appender.file.extension 一致）
@@ -47,106 +49,57 @@ public class LogDirUtil {
     private static final String LOG_EXTENSION = ".log";
 
     /**
-     * 日志目录标识的系统属性名（app.yml 中 file.name 引用 ${soloncode.logkey}）
+     * 日志目录标识的系统属性名（app.yml 中 file.name 引用 ${soloncode.wskey}）
      */
-    public static final String LOG_KEY_PROP = "soloncode.logkey";
+    public static final String WS_LABEL_PROP = "soloncode.wslabel";
 
     /**
      * MDC 中当前工作区日志标识的 key（由 WorkspaceFilter / WebGate 打标，WorkspaceLogRouter 消费）
      */
-    public static final String MDC_KEY = "soloncode.wskey";
+    public static final String WS_KEY = "soloncode.wskey";
 
     /**
-     * 计算进程启动目录的日志目录标识（供启动阶段写入 {@link #LOG_KEY_PROP}）
+     * 计算进程启动目录的日志目录标识（供启动阶段写入 {@link #WS_KEY}）
      *
-     * @see #workspaceLogKey(String)
+     * @see WorkspaceDataUtil#workspaceKey(String)
      */
-    public static String workspaceLogKey() {
-        return workspaceLogKey(AgentFlags.getUserDir());
+    public static String workspaceKey() {
+        return workspaceKey(AgentFlags.getUserDir());
     }
 
     /**
-     * 计算指定工作区的日志目录标识：md5(工作区目录) + "-" + 可读目录名
+     * 计算指定工作区的日志目录标识（等价于工作区数据目录标识）
      *
      * @param workspacePath 工作区目录（为空时回退到进程启动目录）
      */
-    public static String workspaceLogKey(String workspacePath) {
-        String pathStr = Utils.isEmpty(workspacePath) ? AgentFlags.getUserDir() : workspacePath;
-        Path dir = Paths.get(pathStr).toAbsolutePath().normalize();
-
-        //Windows 文件系统大小写不敏感：统一小写后再哈希，避免 "D:\\Work\\MyApp" 与 "D:\\work\\myapp" 生成两个日志目录
-        String hashSource = JavaUtil.IS_WINDOWS ? dir.toString().toLowerCase() : dir.toString();
-        String userDirMd5 = Utils.md5(hashSource);
-
-        return userDirMd5 + "-" + readableDirName(dir);
+    public static String workspaceKey(String workspacePath) {
+        return WorkspaceDataUtil.workspaceKey(workspacePath);
     }
 
     /**
-     * 生成可读的目录名片段。
-     * 根目录（如 "C:\" 或 "/"）时 getFileName() 为 null，退化为清洗后的完整路径（如 "C_"）。
-     */
-    private static String readableDirName(Path dir) {
-        String name;
-        Path fileName = dir.getFileName();
-        if (fileName != null) {
-            name = fileName.toString();
-        } else {
-            //根目录：去掉末尾分隔符，清洗非法字符后作为名称（如 "C:" -> "C_"，"/" -> "root"）
-            name = dir.toString().replace("\\", "/");
-            if (name.endsWith("/")) {
-                name = name.substring(0, name.length() - 1);
-            }
-        }
-
-        name = name.replaceAll("[:/*?\"<>|\\s]", "_");
-        if (name.isEmpty()) {
-            name = "root";
-        }
-        //目录名长度兜底（各文件系统名称上限多在 255，这里留足余量）
-        if (name.length() > 60) {
-            name = name.substring(0, 60);
-        }
-        return name;
-    }
-
-    /**
-     * 获取当前 JVM 默认（无 MDC 标记时）写入的日志目录，即启动工作区那份
-     */
-    public static File logDir() {
-        String logKey = System.getProperty(LOG_KEY_PROP);
-        if (Utils.isEmpty(logKey)) {
-            //兜底：未经 App.main 启动（如单元测试）时按启动目录推算
-            logKey = workspaceLogKey();
-        }
-
-        return new File(logRootDir(), logKey);
-    }
-
-    /**
-     * 获取指定工作区专属的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）。
+     * 获取指定工作区专属的日志目录（~/.soloncode/workspaces/&lt;工作区标识&gt;/logs/）。
      * <p>启用 WorkspaceLogRouter 后，每个工作区的日志分流到各自目录，本方法返回即真实写入位置。</p>
      */
     public static File logDir(String workspacePath) {
-        return new File(logRootDir(), workspaceLogKey(workspacePath));
+        return logDirByKey(workspaceKey(workspacePath));
     }
 
     /**
-     * 获取日志根目录（~/.soloncode/logs/）
+     * 获取指定标识的日志目录（~/.soloncode/workspaces/&lt;工作区标识&gt;/logs/）
      */
-    public static File logRootDir() {
-        return Paths.get(AgentFlags.getUserHome(), LOG_ROOT).toFile();
+    public static File logDirByKey(String logKey) {
+        return new File(WorkspaceDataUtil.dataDirByKey(logKey), WorkspaceDataUtil.DIR_LOGS);
     }
 
     /**
-     * 清理旧版本遗留在工作区目录下的日志（&lt;工作区&gt;/.soloncode/logs/*.log）。
+     * 清理旧版本遗留的日志（日志属于可丢弃数据，不做迁移）。
      * <p>
-     * 旧版本日志写在工作区内，会污染 IDE 全文搜索；新版本已统一改到 ~/.soloncode/logs/&lt;工作区标识&gt;/。
-     * 清理策略（保守）：
+     * 涉及两处旧位置：
      * <ul>
-     *     <li>仅删除该目录<b>直接子级</b>的 .log 文件，不递归子目录（子目录即新版按工作区标识分的日志目录）</li>
-     *     <li>其它类型文件一律保留；删除后目录为空则顺带移除空目录</li>
-     *     <li>任何失败（文件被占用、无权限等）静默跳过，绝不影响工作区创建</li>
+     *     <li>&lt;工作区&gt;/.soloncode/logs/*.log —— 更早的版本写在工作区内，会污染 IDE 全文搜索</li>
+     *     <li>~/.soloncode/logs/&lt;工作区标识&gt;/ —— 上一版的全局位置，现已按工作区聚合到 ~/.soloncode/workspaces/</li>
      * </ul>
+     * 清理策略（保守）：只删日志文件本身，不递归无关内容；任何失败（文件被占用、无权限等）静默跳过，绝不影响工作区创建。
      *
      * @param workspacePath 工作区目录
      */
@@ -155,58 +108,103 @@ public class LogDirUtil {
             return;
         }
 
+        cleanLegacyWorkspaceLogs(workspacePath);
+        cleanLegacyGlobalLogs(workspacePath);
+    }
+
+    /**
+     * 清理 &lt;工作区&gt;/.soloncode/logs/ 下的直接子级 .log 文件（子目录一概不动）
+     */
+    private static void cleanLegacyWorkspaceLogs(String workspacePath) {
         try {
-            File legacyDir = Paths.get(workspacePath, LOG_ROOT).toFile();
+            File legacyDir = Paths.get(workspacePath, LEGACY_LOG_DIR).toFile();
 
             if (legacyDir.isDirectory() == false) {
                 return;
             }
 
-            //工作区恰好就是用户主目录时，该目录即新版日志根目录：直接子级为各工作区日志子目录，不做清理
-            if (isSameDir(legacyDir, logRootDir())) {
-                return;
-            }
-
-            File[] files = legacyDir.listFiles();
-            if (files == null) {
-                return;
-            }
-
-            int deleted = 0;
-            int remained = 0;
-            for (File file : files) {
-                //只处理直接子级的普通文件，子目录（孙级）一概不动
-                if (file.isFile() && file.getName().toLowerCase().endsWith(LOG_EXTENSION)) {
-                    if (file.delete()) {
-                        deleted++;
-                    } else {
-                        //可能被旧实例占用（Windows 常见），保留即可
-                        remained++;
-                    }
-                } else {
-                    remained++;
-                }
-            }
-
-            //目录已空则移除，避免残留空目录继续出现在项目树里
-            if (remained == 0) {
-                legacyDir.delete();
-            }
-
+            int deleted = deleteLogFiles(legacyDir);
             if (deleted > 0) {
                 log.debug("Cleaned {} legacy log file(s) under: {}", deleted, legacyDir.getAbsolutePath());
             }
         } catch (Throwable e) {
-            //清理属于best-effort，任何异常都不应影响工作区创建
-            log.debug("Clean legacy logs failed: {}", workspacePath, e);
+            //清理属于 best-effort，任何异常都不应影响工作区创建
+            log.debug("Clean legacy workspace logs failed: {}", workspacePath, e);
         }
     }
 
-    private static boolean isSameDir(File a, File b) {
+    /**
+     * 清理 ~/.soloncode/logs/&lt;工作区标识&gt;/ （只处理当前工作区自己那一份，不碰其它工作区）
+     */
+    private static void cleanLegacyGlobalLogs(String workspacePath) {
         try {
-            return a.getCanonicalFile().equals(b.getCanonicalFile());
-        } catch (Exception e) {
-            return a.getAbsoluteFile().equals(b.getAbsoluteFile());
+            File legacyRoot = Paths.get(AgentFlags.getUserHome(), LEGACY_LOG_DIR).toFile();
+            if (legacyRoot.isDirectory() == false) {
+                return;
+            }
+
+            File legacyDir = new File(legacyRoot, workspaceKey(workspacePath));
+            if (legacyDir.isDirectory() == false) {
+                return;
+            }
+
+            int deleted = deleteLogFiles(legacyDir);
+            if (deleted > 0) {
+                log.debug("Cleaned {} legacy log file(s) under: {}", deleted, legacyDir.getAbsolutePath());
+            }
+
+            //旧根目录已空则一并移除（其它工作区尚未启动过时仍会保留其目录）
+            String[] remains = legacyRoot.list();
+            if (remains != null && remains.length == 0) {
+                legacyRoot.delete();
+            }
+        } catch (Throwable e) {
+            log.debug("Clean legacy global logs failed: {}", workspacePath, e);
         }
+    }
+
+    /**
+     * 删除目录下直接子级的日志文件；目录清空后一并移除该目录自身
+     *
+     * @return 实际删除的文件数
+     */
+    private static int deleteLogFiles(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return 0;
+        }
+
+        int deleted = 0;
+        int remained = 0;
+        for (File file : files) {
+            //只处理直接子级的普通文件，子目录（孙级）一概不动
+            if (file.isFile() && isLogFile(file.getName())) {
+                if (file.delete()) {
+                    deleted++;
+                } else {
+                    //可能被旧实例占用（Windows 常见），保留即可
+                    remained++;
+                }
+            } else {
+                remained++;
+            }
+        }
+
+        //目录已空则移除，避免残留空目录
+        if (remained == 0) {
+            dir.delete();
+        }
+
+        return deleted;
+    }
+
+    /**
+     * 是否日志文件（含滚动归档产物，如 soloncode_2026-08-24_0.log.gz）
+     */
+    private static boolean isLogFile(String name) {
+        String lower = name.toLowerCase();
+        return lower.endsWith(LOG_EXTENSION)
+                || lower.endsWith(LOG_EXTENSION + ".gz")
+                || lower.endsWith(LOG_EXTENSION + ".zip");
     }
 }

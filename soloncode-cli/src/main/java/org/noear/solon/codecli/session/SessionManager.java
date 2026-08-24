@@ -4,10 +4,10 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.lang.NonNull;
 import org.noear.solon.lang.Nullable;
 
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,10 +30,10 @@ public class SessionManager implements AgentSessionProvider {
 
     @Override
     public @NonNull AgentSession getSession(String sessionId) {
-        // 会话数据存到全局目录 ~/.soloncode/sessions/<sessionId>/
+        // 会话数据存到 ~/.soloncode/workspaces/<工作区标识>/sessions/<sessionId>/（不落在工作区内，避免污染项目目录）
 
         return sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, Paths.get(workspace, AgentFlags.getHarnessSessions()).resolve(key).normalize().toFile().toString()));
+                new FileAgentSession(key, WorkspaceDataUtil.sessionsDir(workspace).toPath().resolve(key).normalize().toString()));
     }
 
     public @Nullable AgentSession removeSession(String sessionId) {

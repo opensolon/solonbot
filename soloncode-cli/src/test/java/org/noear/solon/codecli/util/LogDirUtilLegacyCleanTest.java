@@ -59,24 +59,53 @@ public class LogDirUtilLegacyCleanTest {
     }
 
     @Test
-    public void case4_skip_when_workspace_is_user_home() throws Exception {
-        //工作区 == 用户主目录时，.soloncode/logs 即新版日志根目录，必须整体跳过
-        File root = LogDirUtil.logRootDir();
-        boolean created = false;
-        if (root.exists() == false) {
-            created = root.mkdirs();
-        }
-
-        Path probe = root.toPath().resolve("legacy-guard-probe.log");
-        Files.write(probe, "x".getBytes());
+    public void case4_new_log_dir_is_not_touched() throws Exception {
+        //工作区 == 用户主目录时，legacy 路径恰好是 ~/.soloncode/logs（旧全局位置）；
+        //新位置已改为 ~/.soloncode/workspaces/<标识>/logs，不能被清理逻辑误伤
+        String oldHome = System.getProperty("user.home");
+        Path home = Files.createTempDirectory("sc-home-");
+        System.setProperty("user.home", home.toString());
         try {
-            LogDirUtil.cleanLegacyLogs(System.getProperty("user.home"));
-            assertTrue(probe.toFile().exists(), "新版日志根目录下的文件不应被清理");
+            File newDir = LogDirUtil.logDir(home.toString());
+            assertTrue(newDir.mkdirs() || newDir.isDirectory());
+
+            Path probe = newDir.toPath().resolve("soloncode.log");
+            Files.write(probe, "x".getBytes());
+
+            LogDirUtil.cleanLegacyLogs(home.toString());
+
+            assertTrue(probe.toFile().exists(), "新版日志目录下的文件不应被清理");
         } finally {
-            Files.deleteIfExists(probe);
-            if (created) {
-                root.delete();
-            }
+            System.setProperty("user.home", oldHome);
+        }
+    }
+
+    @Test
+    public void case5_clean_legacy_global_log_dir_of_this_workspace() throws Exception {
+        //上一版全局位置 ~/.soloncode/logs/<标识>/ 应被清理（日志不做迁移），且不影响其它工作区
+        String oldHome = System.getProperty("user.home");
+        Path home = Files.createTempDirectory("sc-home-");
+        System.setProperty("user.home", home.toString());
+        try {
+            Path ws = Files.createTempDirectory("sc-ws-");
+            Path legacyRoot = home.resolve(".soloncode/logs");
+
+            Path mine = legacyRoot.resolve(LogDirUtil.workspaceKey(ws.toString()));
+            Files.createDirectories(mine);
+            Files.write(mine.resolve("soloncode.log"), "x".getBytes());
+            Files.write(mine.resolve("soloncode_2026-08-01_0.log.gz"), "x".getBytes());
+
+            Path other = legacyRoot.resolve("other-workspace-key");
+            Files.createDirectories(other);
+            Files.write(other.resolve("soloncode.log"), "x".getBytes());
+
+            LogDirUtil.cleanLegacyLogs(ws.toString());
+
+            assertFalse(mine.toFile().exists(), "本工作区的旧全局日志目录应被清理（含归档产物）");
+            assertTrue(other.resolve("soloncode.log").toFile().exists(), "其它工作区的日志不得被连带删除");
+            assertTrue(legacyRoot.toFile().isDirectory(), "旧根目录非空时应保留");
+        } finally {
+            System.setProperty("user.home", oldHome);
         }
     }
 }

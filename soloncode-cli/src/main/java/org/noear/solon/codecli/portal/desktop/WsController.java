@@ -16,6 +16,7 @@ import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -239,10 +240,11 @@ public class WsController {
         } catch (IllegalArgumentException e) {
             return Result.failure(400, "Invalid workspace");
         }
-        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
-        Path sourceDir = sessionsRoot.resolve(sourceId).normalize();
-        Path targetDir = sessionsRoot.resolve(targetId).normalize();
-        if (!sessionsRoot.startsWith(workspaceRoot) || !sourceDir.startsWith(sessionsRoot) || !targetDir.startsWith(sessionsRoot)) {
+        //会话根目录按目标工作区计算（支持跨工作区分叉），防穿越由目录落在对应 sessionsRoot 内保证
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(workspaceRoot.toString());
+        Path sourceDir = wsSessionsRoot.resolve(sourceId).normalize();
+        Path targetDir = wsSessionsRoot.resolve(targetId).normalize();
+        if (!sourceDir.startsWith(wsSessionsRoot) || !targetDir.startsWith(wsSessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
         Path sourceMessages = sourceDir.resolve(sourceId + ".messages.ndjson");
@@ -367,9 +369,9 @@ public class WsController {
     }
 
     private Path resolveSessionMessageFile(String sessionId) {
-        Path sessionsRoot = Paths.get(engine.getWorkspace(), engine.getHarnessSessions()).toAbsolutePath().normalize();
-        Path sessionDir = sessionsRoot.resolve(sessionId).normalize();
-        if (!sessionDir.startsWith(sessionsRoot)) {
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(engine.getWorkspace());
+        Path sessionDir = wsSessionsRoot.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(wsSessionsRoot)) {
             throw new IllegalArgumentException("Invalid session path");
         }
         return sessionDir.resolve(sessionId + ".messages.ndjson");
@@ -390,9 +392,9 @@ public class WsController {
         } catch (IllegalArgumentException e) {
             return Result.failure(400, "Invalid workspace");
         }
-        Path sessionsRoot = workspaceRoot.resolve(engine.getHarnessSessions()).toAbsolutePath().normalize();
-        Path sessionDir = sessionsRoot.resolve(sessionId).normalize();
-        if (!sessionsRoot.startsWith(workspaceRoot) || !sessionDir.startsWith(sessionsRoot)) {
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(workspaceRoot.toString());
+        Path sessionDir = wsSessionsRoot.resolve(sessionId).normalize();
+        if (!sessionDir.startsWith(wsSessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
         if (!Files.exists(sessionDir, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {

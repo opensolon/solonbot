@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 多工作区日志路由器：把原本 JVM 全局唯一的 file appender 替换为按工作区分流的路由 appender。
  *
- * <p>路由依据是 MDC 中的 {@link LogDirUtil#MDC_KEY}（由 WorkspaceFilter / WebGate 在请求与
+ * <p>路由依据是 MDC 中的 {@link LogDirUtil#WS_KEY}（由 WorkspaceFilter / WebGate 在请求与
  * agent 任务入口打标）；无标记的日志（启动阶段、后台线程）落入启动工作区那份文件。</p>
  *
  * <p>app.yml 中 solon.logging.appender.file 已设为 enable:false（全局文件 appender 不再创建），
@@ -68,7 +68,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        String logKey = resolveLogKey(event);
+        String logKey = resolveWsKey(event);
 
         try {
             appenders.computeIfAbsent(logKey, WorkspaceLogRouter::buildAppender).doAppend(event);
@@ -81,8 +81,8 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
     /**
      * 解析日志归属的工作区标识：MDC（任务提交血缘）→ 继承式标记（线程创建血缘）→ 启动工作区
      */
-    private static String resolveLogKey(ILoggingEvent event) {
-        String logKey = event.getMDCPropertyMap().get(LogDirUtil.MDC_KEY);
+    private static String resolveWsKey(ILoggingEvent event) {
+        String logKey = event.getMDCPropertyMap().get(LogDirUtil.WS_KEY);
         if (logKey != null && logKey.isEmpty() == false) {
             return logKey;
         }
@@ -93,15 +93,15 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
         }
 
         //无标记：落到启动工作区（App.main 写入的 logkey）
-        return startupLogKey();
+        return startupWsKey();
     }
 
     /**
      * 当前线程日志归属的工作区标识：MDC → 继承式标记 → 启动工作区。
-     * <p>与 {@link #resolveLogKey(ILoggingEvent)} 同一优先级，供诊断与测试使用。</p>
+     * <p>与 {@link #resolveWsKey(ILoggingEvent)} 同一优先级，供诊断与测试使用。</p>
      */
-    public static String currentLogKey() {
-        String logKey = MDC.get(LogDirUtil.MDC_KEY);
+    public static String currentWsKey() {
+        String logKey = MDC.get(LogDirUtil.WS_KEY);
         if (logKey != null && logKey.isEmpty() == false) {
             return logKey;
         }
@@ -111,11 +111,11 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
             return logKey;
         }
 
-        return startupLogKey();
+        return startupWsKey();
     }
 
-    private static String startupLogKey() {
-        return System.getProperty(LogDirUtil.LOG_KEY_PROP, LogDirUtil.workspaceLogKey());
+    private static String startupWsKey() {
+        return System.getProperty(LogDirUtil.WS_KEY, LogDirUtil.workspaceKey());
     }
 
     /**
@@ -130,7 +130,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
             return null;
         }
 
-        return beginScopeByKey(LogDirUtil.workspaceLogKey(workspacePath));
+        return beginScopeByKey(LogDirUtil.workspaceKey(workspacePath));
     }
 
     /**
@@ -141,8 +141,8 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
             return null;
         }
 
-        String[] prev = new String[]{MDC.get(LogDirUtil.MDC_KEY), INHERITED_KEY.get()};
-        MDC.put(LogDirUtil.MDC_KEY, logKey);
+        String[] prev = new String[]{MDC.get(LogDirUtil.WS_KEY), INHERITED_KEY.get()};
+        MDC.put(LogDirUtil.WS_KEY, logKey);
         INHERITED_KEY.set(logKey);
         return prev;
     }
@@ -157,9 +157,9 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
 
         String[] prev = (String[]) token;
         if (prev[0] == null) {
-            MDC.remove(LogDirUtil.MDC_KEY);
+            MDC.remove(LogDirUtil.WS_KEY);
         } else {
-            MDC.put(LogDirUtil.MDC_KEY, prev[0]);
+            MDC.put(LogDirUtil.WS_KEY, prev[0]);
         }
 
         if (prev[1] == null) {
@@ -201,7 +201,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
             return;
         }
         try {
-            String logKey = LogDirUtil.workspaceLogKey(workspacePath);
+            String logKey = LogDirUtil.workspaceKey(workspacePath);
             RollingFileAppender<ILoggingEvent> ap = r.appenders.remove(logKey);
             if (ap != null) {
                 ap.stop();
@@ -296,7 +296,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
                 }
                 //同步继承式标记：任务内新建的线程（如客户端 IO 线程）也能带上工作区归属
                 String effectiveKey = capturedKey != null ? capturedKey
-                        : (capturedMdc == null ? null : capturedMdc.get(LogDirUtil.MDC_KEY));
+                        : (capturedMdc == null ? null : capturedMdc.get(LogDirUtil.WS_KEY));
                 if (effectiveKey != null) {
                     INHERITED_KEY.set(effectiveKey);
                 }
@@ -305,7 +305,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
                     task.run();
                 } finally {
                     if (prevMdc == null) {
-                        MDC.remove(LogDirUtil.MDC_KEY);
+                        MDC.remove(LogDirUtil.WS_KEY);
                     } else {
                         MDC.setContextMap(prevMdc);
                     }
@@ -324,7 +324,7 @@ public class WorkspaceLogRouter extends AppenderBase<ILoggingEvent> {
      * 构建某个工作区专属的滚动文件 appender（参数读取 Solon.cfg()，即 yml 默认值 + settings.json 同步值）
      */
     private static RollingFileAppender<ILoggingEvent> buildAppender(String logKey) {
-        File dir = new File(LogDirUtil.logRootDir(), logKey);
+        File dir = LogDirUtil.logDirByKey(logKey);
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
 

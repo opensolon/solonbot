@@ -23,6 +23,7 @@ import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
@@ -41,6 +42,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 /**
  * 工作区管理器，用于统一管理多工作区的生命周期、实例化底层引擎及持久化最近工作区。
@@ -446,8 +448,12 @@ public class WorkspaceManager {
     private WorkspaceContext doCreateWorkspaceContext(WorkspaceMeta meta) throws Exception {
         String workspacePath = meta.getPath();
 
-        //清理旧版本遗留在工作区内的日志（<工作区>/.soloncode/logs/*.log），避免污染 IDE 全文搜索
+        //清理旧版本遗留的日志（工作区内的 + 上一版全局位置的），避免污染 IDE 全文搜索与残留空目录
         LogDirUtil.cleanLegacyLogs(workspacePath);
+
+        //会话已改存到 ~/.soloncode/workspaces/<标识>/sessions/：记录反查标记，并把旧版工作区内的会话搬迁过去
+        WorkspaceDataUtil.markWorkspace(workspacePath);
+        WorkspaceDataUtil.migrateLegacySessions(workspacePath);
 
         // 多工作区配置隔离：非默认工作区按目录加载 global + 工作区覆盖；
         // 默认工作区沿用注入的全局 settings（与 CLI 启动语义一致）
@@ -493,8 +499,16 @@ public class WorkspaceManager {
 
         engine.setDefaultModel(wsSettings.getDefaultModel());
 
+        engine.getTodoTalent().setWorkPathHook(new BiFunction<String, String, Path>() {
+            @Override
+            public Path apply(String __cwd, String __sessionId) {
+                return WorkspaceDataUtil.sessionsPath(__cwd).resolve(__sessionId);
+            }
+        });
+
         //清理 web 端遗留的僵尸会话目录（新建对话未发消息即切走产生的空壳）
-        SessionJanitor.cleanWebSessions(Paths.get(workspacePath, engine.getHarnessSessions()));
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(workspacePath);
+        SessionJanitor.cleanWebSessions(wsSessionsRoot);
 
         for (ModelDo model : wsSettings.getModels().values()) {
             engine.addModel(model);
@@ -742,19 +756,19 @@ public class WorkspaceManager {
                 LOG.debug("[Workspace] Filter entry (dir missing): {} -> {}", w.getId(), normalized);
                 continue;
             }
-        // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
-        //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
-        //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
-        boolean defaultIsUserHome = false;
-        try {
-            defaultIsUserHome = defaultPathStr != null
-                    && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
-        } catch (Exception ignore) {
-        }
+            // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
+            //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
+            //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
+            boolean defaultIsUserHome = false;
+            try {
+                defaultIsUserHome = defaultPathStr != null
+                        && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
+            } catch (Exception ignore) {
+            }
 
-        if (!defaultIsUserHome
-                && defaultPathStr != null && !w.isDefault()
-                && normalized.startsWith(defaultPathStr + File.separator)) {
+            if (!defaultIsUserHome
+                    && defaultPathStr != null && !w.isDefault()
+                    && normalized.startsWith(defaultPathStr + File.separator)) {
                 LOG.debug("[Workspace] Filter entry (inside default dir): {} -> {}", w.getId(), normalized);
                 continue;
             }

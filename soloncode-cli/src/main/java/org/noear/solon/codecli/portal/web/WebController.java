@@ -27,6 +27,7 @@ import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.config.AgentFlags;
@@ -295,7 +296,7 @@ public class WebController {
 
     /**
      * 加载 Web 端会话列表。
-     * <p>扫描工作区 .soloncode/sessions 目录下以 "web-" 开头的会话文件夹，
+     * <p>扫描 ~/.soloncode/workspaces/&lt;标识&gt;/sessions/ 下以 "web-" 开头的会话文件夹，
      * 读取每个会话的标签（优先使用 meta.json 自定义标签，否则取首条用户消息），
      * 按置顶 + 创建时间（createdAt）倒序排列返回。同时恢复每个会话关联的循环任务。</p>
      *
@@ -305,8 +306,7 @@ public class WebController {
     @Get
     @Mapping("/web/chat/sessions")
     public Result<List<Map>> sessions() throws Exception {
-        HarnessEngine currentEngine = engine();
-        Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsPath = currentContext().getSessionsRoot();
         File sessionsDir = sessionsPath.toFile();
         List<Map> data = new ArrayList<>();
 
@@ -404,9 +404,10 @@ public class WebController {
             return Result.failure(404, "Workspace not found");
         }
 
-        Path sessionsRoot = workspaceRoot.resolve(currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        //会话根目录按目标工作区计算（支持跨工作区删除），防穿越由 sessionPath 落在对应 sessionsRoot 内保证
+        Path sessionsRoot = WorkspaceDataUtil.sessionsPath(workspaceRoot.toString());
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
-        if (!sessionsRoot.startsWith(workspaceRoot) || !sessionPath.startsWith(sessionsRoot)) {
+        if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
         boolean sessionPathExists = Files.exists(sessionPath, java.nio.file.LinkOption.NOFOLLOW_LINKS);
@@ -457,8 +458,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sourcePath = sessionsRoot.resolve(sessionId).normalize();
         File sourceDir = sourcePath.toFile();
 
@@ -525,8 +525,7 @@ public class WebController {
             label = label.substring(0, 50);
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+        Path sessionPath = currentContext().getSessionPath(sessionId);
 
         if (!sessionPath.toFile().exists() || !sessionPath.toFile().isDirectory()) {
             return Result.failure(404, "Session not found");
@@ -554,8 +553,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -743,8 +741,8 @@ public class WebController {
         }
 
         List<Map> data = new ArrayList<>();
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -867,9 +865,8 @@ public class WebController {
         }
 
         try {
-            HarnessEngine currentEngine = engine();
-            Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-            File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
+            Path sessionPath = currentContext().getSessionPath(sessionId);
+            File msgFile = new File(sessionPath.toFile(), sessionId + ".messages.ndjson");
             if (msgFile.exists()) {
                 // 读取现有消息
                 java.util.List<String> lines = new ArrayList<>();
@@ -1972,8 +1969,7 @@ public class WebController {
      * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
      */
     private Path resolveSessionQueuePath(String sessionId) {
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return null;

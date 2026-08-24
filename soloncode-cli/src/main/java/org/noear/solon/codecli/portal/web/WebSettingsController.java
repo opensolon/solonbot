@@ -588,7 +588,7 @@ public class WebSettingsController extends BaseSettingsController {
     }
 
     /**
-     * 打开当前请求所属工作区的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）
+     * 打开当前请求所属工作区的日志目录（~/.soloncode/workspaces/&lt;工作区标识&gt;/logs/）
      * <p>启用 WorkspaceLogRouter 后，每个工作区的日志分流到各自目录，按当前工作区定位即真实写入位置。</p>
      */
     @Get
@@ -597,11 +597,8 @@ public class WebSettingsController extends BaseSettingsController {
         try {
             //按当前工作区定位（WorkspaceFilter 已解析并注入 WORKSPACE_CTX）
             File dir = LogDirUtil.logDir(currentContext().getMeta().getPath());
-            if (dir.isDirectory() == false) {
-                //尚未产生日志文件：退到日志根目录
-                dir = LogDirUtil.logRootDir();
-            }
 
+            //尚未产生日志文件时目录可能还不存在，直接建出来再打开
             if (dir.isDirectory() == false && dir.mkdirs() == false) {
                 return Result.failure("无法创建日志目录: " + dir.getAbsolutePath());
             }

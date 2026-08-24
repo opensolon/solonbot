@@ -45,7 +45,8 @@ public class App {
         SLF4JBridgeHandler.install();
 
         //配置用户扩展目录
-        System.setProperty(LogDirUtil.LOG_KEY_PROP, LogDirUtil.workspaceLogKey());
+        System.setProperty(LogDirUtil.WS_KEY, LogDirUtil.workspaceKey());
+
         System.setProperty("solon.extend", "!" + AgentFlags.getUserExtensions());
 
         Solon.start(App.class, args, app -> {

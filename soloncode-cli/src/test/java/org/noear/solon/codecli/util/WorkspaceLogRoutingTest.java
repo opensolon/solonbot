@@ -52,20 +52,20 @@ public class WorkspaceLogRoutingTest {
      */
     @Test
     public void scope_markAndRestore() {
-        String startup = WorkspaceLogRouter.currentLogKey();
-        String keyA = LogDirUtil.workspaceLogKey(WS_A);
+        String startup = WorkspaceLogRouter.currentWsKey();
+        String keyA = LogDirUtil.workspaceKey(WS_A);
         assertNotEquals(keyA, startup, "测试前提：WS_A 不能等于启动工作区");
 
         Object token = WorkspaceLogRouter.beginScope(WS_A);
         try {
-            assertEquals(keyA, WorkspaceLogRouter.currentLogKey());
-            assertEquals(keyA, MDC.get(LogDirUtil.MDC_KEY));
+            assertEquals(keyA, WorkspaceLogRouter.currentWsKey());
+            assertEquals(keyA, MDC.get(LogDirUtil.WS_KEY));
         } finally {
             WorkspaceLogRouter.endScope(token);
         }
 
-        assertEquals(startup, WorkspaceLogRouter.currentLogKey(), "退出作用域后必须还原");
-        assertTrue(MDC.get(LogDirUtil.MDC_KEY) == null, "退出作用域后 MDC 不应残留");
+        assertEquals(startup, WorkspaceLogRouter.currentWsKey(), "退出作用域后必须还原");
+        assertTrue(MDC.get(LogDirUtil.WS_KEY) == null, "退出作用域后 MDC 不应残留");
     }
 
     /**
@@ -73,18 +73,18 @@ public class WorkspaceLogRoutingTest {
      */
     @Test
     public void scope_nestedRestoreToOuter() {
-        String keyA = LogDirUtil.workspaceLogKey(WS_A);
-        String keyB = LogDirUtil.workspaceLogKey(WS_B);
+        String keyA = LogDirUtil.workspaceKey(WS_A);
+        String keyB = LogDirUtil.workspaceKey(WS_B);
 
         Object outer = WorkspaceLogRouter.beginScope(WS_A);
         try {
             Object inner = WorkspaceLogRouter.beginScope(WS_B);
             try {
-                assertEquals(keyB, WorkspaceLogRouter.currentLogKey());
+                assertEquals(keyB, WorkspaceLogRouter.currentWsKey());
             } finally {
                 WorkspaceLogRouter.endScope(inner);
             }
-            assertEquals(keyA, WorkspaceLogRouter.currentLogKey(), "内层退出应还原到外层工作区");
+            assertEquals(keyA, WorkspaceLogRouter.currentWsKey(), "内层退出应还原到外层工作区");
         } finally {
             WorkspaceLogRouter.endScope(outer);
         }
@@ -96,12 +96,12 @@ public class WorkspaceLogRoutingTest {
      */
     @Test
     public void childThread_inheritsWorkspace() throws Exception {
-        String keyA = LogDirUtil.workspaceLogKey(WS_A);
+        String keyA = LogDirUtil.workspaceKey(WS_A);
         AtomicReference<String> inChild = new AtomicReference<>();
 
         Object token = WorkspaceLogRouter.beginScope(WS_A);
         try {
-            Thread child = new Thread(() -> inChild.set(WorkspaceLogRouter.currentLogKey()));
+            Thread child = new Thread(() -> inChild.set(WorkspaceLogRouter.currentWsKey()));
             child.start();
             child.join(5000);
         } finally {
@@ -118,7 +118,7 @@ public class WorkspaceLogRoutingTest {
     public void reactorScheduler_propagatesWorkspace() throws Exception {
         WorkspaceLogRouter.installMdcPropagation();
 
-        String keyA = LogDirUtil.workspaceLogKey(WS_A);
+        String keyA = LogDirUtil.workspaceKey(WS_A);
         AtomicReference<String> inSource = new AtomicReference<>();
         AtomicReference<String> inDownstream = new AtomicReference<>();
         AtomicReference<String> inNestedThread = new AtomicReference<>();
@@ -127,9 +127,9 @@ public class WorkspaceLogRoutingTest {
         Object token = WorkspaceLogRouter.beginScope(WS_A);
         try {
             Flux.create(sink -> {
-                        inSource.set(WorkspaceLogRouter.currentLogKey());
+                        inSource.set(WorkspaceLogRouter.currentWsKey());
                         //模拟客户端在管道内新建 IO 线程
-                        Thread io = new Thread(() -> inNestedThread.set(WorkspaceLogRouter.currentLogKey()));
+                        Thread io = new Thread(() -> inNestedThread.set(WorkspaceLogRouter.currentWsKey()));
                         io.start();
                         try {
                             io.join(5000);
@@ -140,7 +140,7 @@ public class WorkspaceLogRoutingTest {
                         sink.complete();
                     })
                     .subscribeOn(Schedulers.boundedElastic())
-                    .doOnNext(v -> inDownstream.set(WorkspaceLogRouter.currentLogKey()))
+                    .doOnNext(v -> inDownstream.set(WorkspaceLogRouter.currentWsKey()))
                     .doFinally(s -> latch.countDown())
                     .subscribe();
         } finally {
@@ -160,10 +160,10 @@ public class WorkspaceLogRoutingTest {
     public void noMark_fallbackToStartupWorkspace() throws Exception {
         AtomicReference<String> inBareThread = new AtomicReference<>();
 
-        Thread bare = new Thread(() -> inBareThread.set(WorkspaceLogRouter.currentLogKey()));
+        Thread bare = new Thread(() -> inBareThread.set(WorkspaceLogRouter.currentWsKey()));
         bare.start();
         bare.join(5000);
 
-        assertEquals(LogDirUtil.workspaceLogKey(), inBareThread.get());
+        assertEquals(LogDirUtil.workspaceKey(), inBareThread.get());
     }
 }

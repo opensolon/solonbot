@@ -23,6 +23,7 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.talents.cli.TodoTalent;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.scheduling.ScheduledAnno;
 import org.noear.solon.scheduling.scheduled.manager.IJobManager;
@@ -540,12 +541,12 @@ public class LoopScheduler {
      * 恢复会话目录中持久化的全部循环任务。
      */
     public void restoreAll() {
-        Path sessionsPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions());
-        if (!Files.isDirectory(sessionsPath)) {
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(engine.getWorkspace());
+        if (!Files.isDirectory(wsSessionsRoot)) {
             return;
         }
 
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sessionsPath)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(wsSessionsRoot)) {
             for (Path sessionPath : stream) {
                 if (Files.isDirectory(sessionPath) && Files.exists(sessionPath.resolve(TASKS_FILE))) {
                     restore(sessionPath.getFileName().toString());
@@ -1144,7 +1145,8 @@ public class LoopScheduler {
     // ==================== JSON 持久化 ====================
 
     private Path getTasksFilePath(String sessionId) {
-        return Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId, TASKS_FILE);
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(engine.getWorkspace());
+        return wsSessionsRoot.resolve(sessionId).resolve(TASKS_FILE);
     }
 
     private void saveToFile(String sessionId, List<LoopTask> tasks) {

@@ -1,7 +1,8 @@
 
 ### v2026.8.24
 
-* 调整 soloncode 日志存放位置，转到 "~/.soloncode/logs/{workspaceLogKey}/" 下面
+* 调整 soloncode 工作区本地数据布局，按工作区聚合到 "~/.soloncode/workspaces/{workspaceKey}/" 下面（logs、sessions）
+* 调整 soloncode 会话存放位置，转出工作区（旧会话在工作区上下文创建时自动迁移，日志不迁移仅清理）
 * 优化 soloncode web 系统打开处理（浏览器，目录，文件）
 * 优化 soloncode web 用户侧消息增加子代理标识（方便识别是向谁请求的）
 * 优化 soloncode code 引导处理（增加4层扫描和缓存机制）
