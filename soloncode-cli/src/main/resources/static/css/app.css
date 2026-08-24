@@ -1439,7 +1439,7 @@ body {
 .file-panel-tree {
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     padding: 8px 0;
     font-size: var(--fs-base);
     line-height: 1.6;
@@ -1515,6 +1515,11 @@ body {
     display: flex;
     align-items: center;
     padding: 2px 12px 2px 16px;
+    /* 允许深层缩进的行按内容撑开宽度，配合 .file-panel-tree 的 overflow-x:auto 出横向滚动条 */
+    width: -moz-max-content;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
     cursor: pointer;
     border-radius: 4px;
     color: var(--text-sidebar);
@@ -1792,12 +1797,16 @@ body {
 .git-diff-file-list {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
     padding: 4px 0;
 }
 .git-file-item {
     display: flex;
     align-items: center;
     padding: 7px 12px;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
     cursor: pointer;
     font-size: var(--fs-sm);
     color: var(--text-sidebar);
@@ -3080,9 +3089,7 @@ pre:hover .code-copy-btn { opacity: 1; }
 .todo-text {
     flex: 1;
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
 }
 
 .todo-item:hover {
