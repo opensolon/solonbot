@@ -27,8 +27,10 @@ import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.scheduling.ScheduledAnno;
 import org.noear.solon.scheduling.scheduled.manager.IJobManager;
 import org.noear.solon.scheduling.simple.JobManager;
+import org.noear.solon.codecli.util.LogDirUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -610,6 +612,17 @@ public class LoopScheduler {
     }
 
     private void onTrigger(String sessionId, LoopTask task) {
+        // 调度线程（定时/手动触发/续行/重试）无工作区标记，统一在此打标：
+        // 本方法内所有日志（守卫、预算、轮次、错误）随工作区分流，不落到启动工作区文件
+        MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(engine.getWorkspace()));
+        try {
+            doTrigger(sessionId, task);
+        } finally {
+            MDC.remove(LogDirUtil.MDC_KEY);
+        }
+    }
+
+    private void doTrigger(String sessionId, LoopTask task) {
         // ① 前置守卫（禁用/过期/取消 → 繁忙 → 预算/状态/最大迭代）
         if (!checkGuardConditions(sessionId, task)) {
             notifyGoalChanged(sessionId, task, false);
