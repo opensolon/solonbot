@@ -1261,7 +1261,11 @@ function formatToolSummary(toolName, args) {
         if (args.path) grepSummary += (grepSummary ? ' · ' : '') + args.path;
         return grepSummary;
     }
-    if (name === 'glob') return args.pattern || args.path || '';
+    if (name === 'glob') {
+        var globSummary = args.pattern ? String(args.pattern) : '';
+        if (args.path) globSummary += (globSummary ? ' · ' : '') + args.path;
+        return globSummary;
+    }
     if (name === 'ls') return (args.path || '') + (args.recursive ? ' · ' + I18n.t('msg.recursive') : '');
     return formatToolArgsStr(args);
 }
