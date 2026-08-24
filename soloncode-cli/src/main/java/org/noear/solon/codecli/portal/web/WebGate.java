@@ -281,6 +281,44 @@ public class WebGate extends SimpleWebSocketListener {
     }
 
     /**
+     * 流未建立（或已失败）时的 done 出口。
+     *
+     * <p>done 门只在 {@link #beginStreamTurn} 里复位，因此开流之前的异常出口（参数解析、
+     * 模型/agent 解析、附件落盘、命令分发）直接 {@link #emitDoneOnce} 会被上一轮遗留的
+     * doneSent=true 静默吞掉 —— 前端已在发送时置 isStreaming=true，收不到 done 就永久
+     * 停在「正在思考」。故无活跃流时先复位门；有活跃流则不抢发，交给那条流的
+     * {@code doFinally} 收尾。</p>
+     */
+    private void emitDoneGuarded(WorkspaceContext wsContext, AgentSession session) {
+        if (isSessionBusy(session) == false) {
+            resetStreamDoneSent(session);
+        }
+
+        emitDoneOnce(wsContext, session);
+    }
+
+    /**
+     * 一轮流启动失败的收尾：发 error、归还句柄槽位、确保前端能收到 done。
+     *
+     * <p>订阅动作被调度到 boundedElastic 后，开流前的异常（如模型未配置、agent 不存在、
+     * 管道装配失败）不再落入 {@code onChatInput} 的 catch，而是被调度器吞掉：若不处理，
+     * composite 会长驻 attrs 使 {@link #isSessionBusy} 永久为真（Stop 也只能发假 done），
+     * 且前端收不到任何终态包。</p>
+     */
+    private void failStreamTurn(WorkspaceContext wsContext, AgentSession session, Disposable.Composite composite, Throwable e) {
+        LOG.error("Task fail: {}", e.getMessage(), e);
+
+        emitToClient(wsContext, session.getSessionId(), WebEvent.ofError(e));
+
+        if (composite != null) {
+            //本轮未挂上任何流（self=null）：仅当槽位已无其它活跃流时才清空
+            releaseStreamSlot(session, composite, null);
+        }
+
+        emitDoneGuarded(wsContext, session);
+    }
+
+    /**
      * 广播原始 JSON 字符串到所有 WebSocket 连接。
      *
      * <p>与 {@link #emitToClient} 不同，此方法不注入 sessionId，
@@ -516,7 +554,7 @@ public class WebGate extends SimpleWebSocketListener {
             emitToClient(wsContext, sessionId, WebEvent.ofError(e));
             // 流可能尚未建立：有 session 走去重出口，否则直接发 done
             if (session != null) {
-                emitDoneOnce(wsContext, session);
+                emitDoneGuarded(wsContext, session);
             } else {
                 emitToClient(wsContext, sessionId, WebEvent.ofDone());
             }
@@ -603,6 +641,9 @@ public class WebGate extends SimpleWebSocketListener {
             Object logScope = WorkspaceLogRouter.beginScopeByKey(wsLogKey);
             try {
                 doSubscribeAgentTask(wsContext, session, sessionCwd, prompt, selectedModel, agentName, composite);
+            } catch (Throwable e) {
+                //调度线程内的异常不会回到 onChatInput 的 catch，必须自行收尾
+                failStreamTurn(wsContext, session, composite, e);
             } finally {
                 WorkspaceLogRouter.endScope(logScope);
             }
@@ -636,6 +677,7 @@ public class WebGate extends SimpleWebSocketListener {
         // 新开流前重置：后端 done 门 + 前端流门（否则上一轮 done 会让本轮输出被前端丢弃）
         beginStreamTurn(wsContext, session);
 
+        AtomicReference<Disposable> selfRef = new AtomicReference<>();
         Disposable disposable = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
@@ -647,7 +689,7 @@ public class WebGate extends SimpleWebSocketListener {
                     emitToClient(wsContext,sessionId, WebEvent.ofError(e));
                 })
                 .doFinally(s -> {
-                    session.attrs().remove("disposable");  // 正常完成时清理
+                    releaseStreamSlot(session, composite, selfRef.get());  // 只摘自己那条流
 
                     // 流级终态只发一次（含 dispose / 正常 complete / error）
                     emitDoneOnce(wsContext,session);
@@ -657,9 +699,29 @@ public class WebGate extends SimpleWebSocketListener {
                 })
                 .subscribe();
 
+        selfRef.set(disposable);
         // add 到 composite：若 composite 已被 dispose()（interrupt 先到达），会立即 dispose 该 disposable
         composite.add(disposable);
 
+    }
+
+    /**
+     * 流结束时归还句柄槽位：只摘自己那条流。
+     *
+     * <p>HITL 审批恢复、命令触发的 agent 任务、连发 input 都会把多条流挂进同一个 composite。
+     * 若在 doFinally 里无条件 {@code remove("disposable")}，第一条流结束就把槽位摘空 ——
+     * 此后 {@link #isSessionBusy} 转假、Stop 取不到 composite 只能补一个假 done，
+     * 仍在跑的另一条流便再也无法取消。故先从 composite 摘掉自己，仅当已无活跃流时才清空槽位；
+     * 清空按值条件删除，避免误删后续新轮次刚放进去的 composite。</p>
+     */
+    private static void releaseStreamSlot(AgentSession session, Disposable.Composite composite, Disposable self) {
+        if (self != null) {
+            composite.remove(self);
+        }
+
+        if (composite.size() == 0) {
+            session.attrs().remove("disposable", composite);
+        }
     }
 
     /**
@@ -689,17 +751,17 @@ public class WebGate extends SimpleWebSocketListener {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         AtomicReference<String> finalAnswerRef = new AtomicReference<>("");
 
-        // 新开流前重置：后端 done 门 + 前端流门（否则上一轮 done 会让本轮输出被前端丢弃）
-        beginStreamTurn(wsContext, session);
-
-        // 提前注册 CompositeDisposable，消除注册窗口竞态（同 performAgentTaskAsync）
+        // 先注册句柄槽位，再开流：注册必须早于 beginStreamTurn。否则在「门已复位、句柄未挂」的窗口里，
+        // interrupt 会误入 no-active-stream 分支并真的发出一个 done，而随后的调度照常订阅 ——
+        // 本轮既不可取消（Loop 会一直跑），输出又因前端已收尾而被丢弃。
         Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
 
         final String wsLogKey = wsLogKey(wsContext);
         Runnable subscribeAction = () -> {
             Object logScope = WorkspaceLogRouter.beginScopeByKey(wsLogKey);
             try {
-                //调度窗口期内已被 interrupt：不再开流；必须释放闩锁，否则同步等待方（Loop）永久阻塞
+                //调度窗口期内已被 interrupt：不开流、不发 reset（否则刚收尾的前端会被解封成幽灵流）；
+                //但必须释放闩锁，否则同步等待方（Loop）永久阻塞
                 if (composite.isDisposed()) {
                     LOG.info("[WebGate] Session {} task aborted before subscribe (interrupted)", sessionId);
                     emitDoneOnce(wsContext, session);
@@ -707,6 +769,11 @@ public class WebGate extends SimpleWebSocketListener {
                     return;
                 }
 
+                // 新开流前重置：后端 done 门 + 前端流门（与 async 路径对称，放在 isDisposed 之后，
+                // 避免为一个已取消的轮次解封前端）
+                beginStreamTurn(wsContext, session);
+
+                AtomicReference<Disposable> selfRef = new AtomicReference<>();
                 Disposable d = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
@@ -725,7 +792,7 @@ public class WebGate extends SimpleWebSocketListener {
                     emitToClient(wsContext,sessionId, WebEvent.ofError(e));
                 })
                 .doFinally(s -> {
-                    session.attrs().remove("disposable");
+                    releaseStreamSlot(session, composite, selfRef.get());  // 只摘自己那条流
 
                     // 流级终态只发一次（含 dispose / 正常 complete / error）
                     emitDoneOnce(wsContext,session);
@@ -735,7 +802,13 @@ public class WebGate extends SimpleWebSocketListener {
                     //提前 remove 反而会让同一任务后续日志丢掉工作区归属
                 }).subscribe();
                 //subscribe 后立即挂上：同步等待线程可能已读到 null，若不在任务内补挂则 Stop/interrupt 无法取消本轮
+                selfRef.set(d);
                 composite.add(d);
+            } catch (Throwable e) {
+                //调度线程内的异常不会回到调用方；未订阅成功则 doFinally 不会跑，
+                //此处必须补发终态包并释放闩锁，否则同步等待方（Loop）永久阻塞
+                failStreamTurn(wsContext, session, composite, e);
+                countDownLatch.countDown();
             } finally {
                 WorkspaceLogRouter.endScope(logScope);
             }

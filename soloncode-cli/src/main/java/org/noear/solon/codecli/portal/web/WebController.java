@@ -34,6 +34,7 @@ import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceMeta;
@@ -310,6 +311,8 @@ public class WebController {
         List<Map> data = new ArrayList<>();
 
         if (sessionsDir.exists() && sessionsDir.isDirectory()) {
+            //先清理僵尸会话目录（无消息、无排队任务、meta 空），避免空壳一直出现在列表扫描中
+            SessionJanitor.cleanWebSessions(sessionsPath);
             File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
             if (dirs != null) {
                 // 不在 dirs 层面排序，后面统一按置顶+创建时间排序

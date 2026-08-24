@@ -20,6 +20,7 @@ import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
+import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.codecli.util.WorkspaceLogRouter;
@@ -491,6 +492,10 @@ public class WorkspaceManager {
                 .build();
 
         engine.setDefaultModel(wsSettings.getDefaultModel());
+
+        //清理 web 端遗留的僵尸会话目录（新建对话未发消息即切走产生的空壳）
+        SessionJanitor.cleanWebSessions(Paths.get(workspacePath, engine.getHarnessSessions()));
+
         for (ModelDo model : wsSettings.getModels().values()) {
             engine.addModel(model);
         }
