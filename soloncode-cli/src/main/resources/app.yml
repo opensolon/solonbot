@@ -24,6 +24,7 @@ solon.logging.appender:
   console:
     enable: false
   file:
+    enable: false
     level: INFO
     name: "${user.home}/.soloncode/logs/${soloncode.logkey}/${solon.app.name}"
     extension: ".log"

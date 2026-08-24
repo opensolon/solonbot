@@ -589,17 +589,17 @@ public class WebSettingsController extends BaseSettingsController {
     }
 
     /**
-     * 打开当前进程的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）
-     * <p>logback 的 file appender 是 JVM 全局的，目录在启动时已固定；
-     * 多工作区共用同一份日志，故不按请求所属工作区推算目录。</p>
+     * 打开当前请求所属工作区的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）
+     * <p>启用 WorkspaceLogRouter 后，每个工作区的日志分流到各自目录，按当前工作区定位即真实写入位置。</p>
      */
     @Get
     @Mapping("/web/settings/logs/open")
     public Result logsOpen() {
         try {
-            File dir = LogDirUtil.logDir();
+            //按当前工作区定位（WorkspaceFilter 已解析并注入 WORKSPACE_CTX）
+            File dir = LogDirUtil.logDir(currentContext().getMeta().getPath());
             if (dir.isDirectory() == false) {
-                //尚未产生日志文件（如文件日志未开启）：退到日志根目录
+                //尚未产生日志文件：退到日志根目录
                 dir = LogDirUtil.logRootDir();
             }
 

@@ -52,6 +52,11 @@ public class LogDirUtil {
     public static final String LOG_KEY_PROP = "soloncode.logkey";
 
     /**
+     * MDC 中当前工作区日志标识的 key（由 WorkspaceFilter / WebGate 打标，WorkspaceLogRouter 消费）
+     */
+    public static final String MDC_KEY = "soloncode.wskey";
+
+    /**
      * 计算进程启动目录的日志目录标识（供启动阶段写入 {@link #LOG_KEY_PROP}）
      *
      * @see #workspaceLogKey(String)
@@ -105,10 +110,7 @@ public class LogDirUtil {
     }
 
     /**
-     * 获取当前 JVM 实际写入的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）
-     * <p>logback 的 file appender 是 JVM 全局的：路径在启动时由 {@link #LOG_KEY_PROP} 一次性固定，
-     * 与运行期通过 Web 端切换的工作区无关。故这里以该系统属性为准（单一事实来源），
-     * 不按传入的工作区路径重新推算，避免指向一个并未写入日志的目录。</p>
+     * 获取当前 JVM 默认（无 MDC 标记时）写入的日志目录，即启动工作区那份
      */
     public static File logDir() {
         String logKey = System.getProperty(LOG_KEY_PROP);
@@ -118,6 +120,14 @@ public class LogDirUtil {
         }
 
         return new File(logRootDir(), logKey);
+    }
+
+    /**
+     * 获取指定工作区专属的日志目录（~/.soloncode/logs/&lt;工作区标识&gt;/）。
+     * <p>启用 WorkspaceLogRouter 后，每个工作区的日志分流到各自目录，本方法返回即真实写入位置。</p>
+     */
+    public static File logDir(String workspacePath) {
+        return new File(logRootDir(), workspaceLogKey(workspacePath));
     }
 
     /**

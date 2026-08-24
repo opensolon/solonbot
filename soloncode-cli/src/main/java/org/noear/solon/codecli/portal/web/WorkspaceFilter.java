@@ -9,6 +9,11 @@ import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 
+import org.noear.solon.codecli.util.LogDirUtil;
+import org.slf4j.MDC;
+
+import java.util.Map;
+
 /**
  * 工作区请求拦截器：只信任 X-Workspace-Id 请求头进行多工作区路由。
  *
@@ -61,6 +66,21 @@ public class WorkspaceFilter implements Filter {
             }
 
             ctx.attrSet("WORKSPACE_CTX", wctx);
+
+            //按工作区分流日志：入口打标，WorkspaceLogRouter 依据 MDC 路由到各自日志文件
+            Map<String, String> prevMdc = MDC.getCopyOfContextMap();
+            MDC.put(LogDirUtil.MDC_KEY, LogDirUtil.workspaceLogKey(wctx.getMeta().getPath()));
+            try {
+                chain.doFilter(ctx);
+            } finally {
+                //恢复而非简单 remove：避免吞掉上游（若存在）设置的其它 MDC 值
+                if (prevMdc == null) {
+                    MDC.remove(LogDirUtil.MDC_KEY);
+                } else {
+                    MDC.setContextMap(prevMdc);
+                }
+            }
+            return;
         }
 
         chain.doFilter(ctx);

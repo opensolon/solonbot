@@ -22,6 +22,7 @@ import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.scheduling.annotation.EnableScheduling;
 import org.noear.solon.web.cors.CrossFilter;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -50,6 +51,11 @@ public class App {
         Solon.start(App.class, args, app -> {
             initAgentProperties(app);
         });
+
+        //日志体系已初始化（logback 配置加载完成）：把全局 file appender 替换为按工作区分流的路由器
+        WorkspaceLogRouter.install();
+        //RxJava 调度器 MDC 传播：agent 管道跳线程不丢工作区日志标记（需在任何调度发生前）
+        WorkspaceLogRouter.installMdcPropagation();
     }
 
     private static void initAgentProperties(SolonApp app) throws Exception {

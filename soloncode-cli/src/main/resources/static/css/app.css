@@ -2001,6 +2001,7 @@ body {
     white-space: pre-wrap;
     word-break: break-all;
 }
+.bash-timeout { opacity: 0.6; font-size: 0.9em; }
 .bash-stdout {
     margin: 0;
     padding: 8px 12px 10px;

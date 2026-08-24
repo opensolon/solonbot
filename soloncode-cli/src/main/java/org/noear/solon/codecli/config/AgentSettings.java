@@ -100,7 +100,7 @@ public class AgentSettings implements Serializable {
                 general.setLogLevel(cfg.get("solon.logging.appender.file.level", "INFO"));
             }
             if (general.getLogFileMaxSize() == null) {
-                general.setLogFileMaxSize(cfg.get("solon.logging.appender.file.maxSize", "10MB"));
+                general.setLogFileMaxSize(cfg.get("solon.logging.appender.file.maxFileSize", "10 MB"));
             }
             if (general.getLogMaxHistory() == null) {
                 general.setLogMaxHistory(cfg.getInt("solon.logging.appender.file.maxHistory", 7));

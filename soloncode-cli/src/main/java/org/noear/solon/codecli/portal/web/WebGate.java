@@ -37,7 +37,9 @@ import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
 import org.noear.solon.codecli.session.SessionMeta;
+import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
+import org.slf4j.MDC;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -561,7 +563,40 @@ public class WebGate extends SimpleWebSocketListener {
         return true;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  工作区日志打标（WorkspaceLogRouter 依据 MDC 分流到各自日志文件）
+    // ═══════════════════════════════════════════════════════════════
+
+    /** 当前工作区的日志标识（无上下文时为 null，走默认路由） */
+    private static String wsLogKey(WorkspaceContext wsContext) {
+        return wsContext == null ? null : LogDirUtil.workspaceLogKey(wsContext.getMeta().getPath());
+    }
+
     private void performAgentTaskAsync(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName) {
+        //agent 执行主体在 boundedElastic 线程上跑，订阅动作包在 MDC 里：
+        //同步源的整个管道执行发生在 subscribe() 调用栈内，故管道主体线程携带工作区标记
+        final String wsLogKey = wsLogKey(wsContext);
+        Runnable subscribeAction = () -> {
+            if (wsLogKey != null) {
+                MDC.put(LogDirUtil.MDC_KEY, wsLogKey);
+            }
+            try {
+                doSubscribeAgentTask(wsContext, session, sessionCwd, prompt, selectedModel, agentName, wsLogKey);
+            } finally {
+                if (wsLogKey != null) {
+                    MDC.remove(LogDirUtil.MDC_KEY);
+                }
+            }
+        };
+
+        if (wsLogKey == null) {
+            subscribeAction.run();
+        } else {
+            Schedulers.boundedElastic().schedule(subscribeAction);
+        }
+    }
+
+    private void doSubscribeAgentTask(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName, String wsLogKey) {
         String sessionId = session.getSessionId();
 
         if (selectedModel != null) {
@@ -595,6 +630,11 @@ public class WebGate extends SimpleWebSocketListener {
 
                     // 流级终态只发一次（含 dispose / 正常 complete / error）
                     emitDoneOnce(wsContext,session);
+
+                    //boundedElastic 线程会被复用：清理 MDC，避免污染后续任务的路由
+                    if (wsLogKey != null) {
+                        MDC.remove(LogDirUtil.MDC_KEY);
+                    }
                 })
                 .subscribe();
 
@@ -636,7 +676,14 @@ public class WebGate extends SimpleWebSocketListener {
         // 提前注册 CompositeDisposable，消除注册窗口竞态（同 performAgentTaskAsync）
         Disposable.Composite composite = (Disposable.Composite)session.attrs().computeIfAbsent("disposable", k->Disposables.composite());
 
-        Disposable disposable = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
+        final String wsLogKey = wsLogKey(wsContext);
+        final Disposable[] disposableHolder = new Disposable[1];
+        Runnable subscribeAction = () -> {
+            if (wsLogKey != null) {
+                MDC.put(LogDirUtil.MDC_KEY, wsLogKey);
+            }
+            try {
+                Disposable d = streamBuilder.buildStreamFlux(wsContext, session, agent, chatModel, sessionCwd, prompt)
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnNext(line -> {
                     emitToClient(wsContext,sessionId, line);
@@ -659,11 +706,37 @@ public class WebGate extends SimpleWebSocketListener {
                     // 流级终态只发一次（含 dispose / 正常 complete / error）
                     emitDoneOnce(wsContext,session);
                     countDownLatch.countDown();
-                })
-                .subscribe();
 
-        composite.add(disposable);
-        RunUtil.runAndTry(countDownLatch::await);
+                    //boundedElastic 线程会被复用：清理 MDC，避免污染后续任务的路由
+                    if (wsLogKey != null) {
+                        MDC.remove(LogDirUtil.MDC_KEY);
+                    }
+                }).subscribe();
+                disposableHolder[0] = d;
+                //subscribe 后立即挂上：同步等待线程可能已读到 null，若不在任务内补挂则 Stop/interrupt 无法取消本轮
+                composite.add(d);
+            } finally {
+                if (wsLogKey != null) {
+                    MDC.remove(LogDirUtil.MDC_KEY);
+                }
+            }
+        };
+
+        if (wsLogKey == null) {
+            subscribeAction.run();
+        } else {
+            //订阅调度到携带 MDC 的 boundedElastic 线程：管道主体执行线程携带工作区标记
+            Schedulers.boundedElastic().schedule(subscribeAction);
+        }
+
+        //等待订阅完成（闩锁在 doFinally 释放）；disposable 已在 subscribeAction 内挂入 composite，Stop/interrupt 可随时取消
+        RunUtil.runAndTry(() -> {
+            try {
+                countDownLatch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
         return finalAnswerRef.get();
     }
 

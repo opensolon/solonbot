@@ -1135,7 +1135,14 @@ window._toolRenderers.bash = function(bodyEl, text, args) {
     bodyEl.classList.add('tool-body-terminal');
     var cmd = (args && args.command) ? args.command : '';
     var html = '<div class="bash-output">';
-    if (cmd) html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd) + '</div>';
+    if (cmd) {
+        html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd);
+        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
+            var t = Number(args.timeout);
+            html += ' <span class="bash-timeout"># timeout ' + (t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's') + '</span>';
+        }
+        html += '</div>';
+    }
     html += '<pre class="bash-stdout">' + escapeHtml(text || '(' + I18n.t('msg.noOutput') + ')') + '</pre>';
     html += '</div>';
     bodyEl.innerHTML = html;
@@ -1222,7 +1229,15 @@ function formatToolArgsStr(args) {
 function formatToolSummary(toolName, args) {
     if (!args || typeof args !== 'object') return '';
     var name = String(toolName || '').toLowerCase();
-    if (name === 'bash' && args.command) return String(args.command).replace(/\n/g, ' ');
+    if (name === 'bash' && args.command) {
+        var bashSummary = String(args.command).replace(/\n/g, ' ');
+        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
+            var t = Number(args.timeout);
+            var ts = t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's';
+            bashSummary += ' · timeout ' + ts;
+        }
+        return bashSummary;
+    }
     if ((name === 'read' || name === 'write' || name === 'edit') && args.file_path) {
         var fileSummary = String(args.file_path);
         if (name === 'read' && args.offset) {
@@ -1362,7 +1377,12 @@ function renderBashRunningBody(card, toolName, args) {
     if (!body) return;
     body.className = 'tool-card-body tool-body-terminal';
     body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> '
-        + escapeHtml(args.command) + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
+        + escapeHtml(args.command)
+        + (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0
+            ? ' <span class="bash-timeout"># timeout '
+              + (Number(args.timeout) >= 60000 ? (Number(args.timeout) / 60000) + 'm' : (Number(args.timeout) / 1000) + 's')
+              + '</span>' : '')
+        + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
 }
 
 function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reasonId, agentName, callId) {
