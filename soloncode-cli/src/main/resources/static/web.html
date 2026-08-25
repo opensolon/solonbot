@@ -1791,15 +1791,15 @@
                                 <div class="settings-gap-top-md">
                                     <div class="general-field-label" style="margin-bottom:8px" data-i18n="users.auth.mode">认证模式</div>
                                     <div class="user-auth-mode-toggle">
-                                        <button class="user-auth-mode-btn active" data-mode="file" type="button"><span class="mode-icon">📁</span> <span data-i18n="users.auth.modeFile">文件存储</span></button>
-                                        <button class="user-auth-mode-btn" data-mode="database" type="button"><span class="mode-icon">🗄️</span> <span data-i18n="users.auth.modeDb">数据库</span></button>
-                                        <button class="user-auth-mode-btn" data-mode="ldap" type="button"><span class="mode-icon">🔐</span> <span data-i18n="users.auth.modeLdap">LDAP</span></button>
+                                        <button class="user-auth-mode-btn active" data-mode="file" type="button"><svg class="mode-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span data-i18n="users.auth.modeFile">文件存储</span></button>
+                                        <button class="user-auth-mode-btn" data-mode="database" type="button"><svg class="mode-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> <span data-i18n="users.auth.modeDb">数据库</span></button>
+                                        <button class="user-auth-mode-btn" data-mode="ldap" type="button"><svg class="mode-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16.5" r="1.5"/></svg> <span data-i18n="users.auth.modeLdap">LDAP</span></button>
                                     </div>
                                 </div>
                                 
                                 <!-- 文件模式提示 -->
                                 <div class="user-auth-config-section" id="userAuthConfigFile">
-                                    <div class="general-toggle-desc settings-gap-top-md" data-i18n="users.auth.fileDesc">用户信息存储在本地文件中，适合单机使用。使用 <span class="user-auth-store-type" id="userAuthStoreType">file</span> 存储。</div>
+                                    <div class="general-toggle-desc settings-gap-top-md"><span data-i18n="users.auth.fileDesc">用户信息存储在本地文件中，适合单机使用</span><span data-i18n="users.auth.storeType">。当前存储：</span><span class="user-auth-store-type" id="userAuthStoreType">file</span></div>
                                 </div>
                                 
                                 <!-- 数据库配置 -->
