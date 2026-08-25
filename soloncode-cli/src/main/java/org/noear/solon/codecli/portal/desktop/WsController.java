@@ -16,7 +16,7 @@ import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.codecli.session.SessionManager;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
+import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;

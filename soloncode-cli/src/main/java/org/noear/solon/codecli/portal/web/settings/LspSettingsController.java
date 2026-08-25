@@ -1,12 +1,11 @@
 package org.noear.solon.codecli.portal.web.settings;
 
 import org.noear.snack4.ONode;
-import org.noear.solon.ai.harness.HarnessEngine;
+import org.noear.solon.ai.talents.lsp.LspManager;
 import org.noear.solon.ai.talents.lsp.LspServerParameters;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.annotation.*;
 import org.noear.solon.codecli.config.AgentFlags;
-import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.LspServerDo;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
@@ -71,22 +70,14 @@ public class LspSettingsController extends BaseSettingsController{
     }
 
     /**
-     * 检测 LSP 启动命令是否已安装（通过 which 检测可执行文件是否存在）
+     * 检测 LSP 启动命令是否已安装。
+     *
+     * <p>直接扫 PATH 而不是 fork {@code which}：本接口一次要判定十几个服务器，
+     * 逐个起进程的成本不可接受（结果在 LspManager 内进程级缓存）。
      */
     private boolean isCommandInstalled(List<String> command) {
         if (command == null || command.isEmpty()) return false;
-        String cmd = command.get(0);
-        if (cmd == null || cmd.isEmpty()) return false;
-        try {
-            ProcessBuilder pb = new ProcessBuilder("which", cmd);
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            int exitCode = p.waitFor();
-            return exitCode == 0;
-        } catch (Exception e) {
-            LOG.warn("[LSP] Failed to check command: {}", cmd);
-            return false;
-        }
+        return LspManager.isCommandAvailable(command.get(0));
     }
 
     /**

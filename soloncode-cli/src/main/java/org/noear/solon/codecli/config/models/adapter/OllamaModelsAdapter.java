@@ -75,7 +75,7 @@ public class OllamaModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[Ollama] Error fetching models from {}: {}", modelsUrl, e.getMessage());
+            log.warn("[Ollama] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
         }
 
         return result;

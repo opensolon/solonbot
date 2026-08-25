@@ -9,7 +9,6 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.config.AgentSettings;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.net.websocket.WebSocket;
 
 import java.io.Closeable;

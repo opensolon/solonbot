@@ -38,7 +38,7 @@ import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.LogDirUtil;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;

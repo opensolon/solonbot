@@ -4,7 +4,7 @@ import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentSessionProvider;
 import org.noear.solon.ai.agent.session.FileAgentSession;
 import org.noear.solon.codecli.config.AgentFlags;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
+import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.lang.NonNull;
 import org.noear.solon.lang.Nullable;
 

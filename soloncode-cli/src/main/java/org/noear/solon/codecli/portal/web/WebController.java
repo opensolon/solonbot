@@ -27,7 +27,7 @@ import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
+import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.config.AgentFlags;

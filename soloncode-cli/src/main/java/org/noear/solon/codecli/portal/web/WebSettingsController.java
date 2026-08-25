@@ -38,7 +38,7 @@ import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.codecli.util.OsOpenUtil;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.noear.solon.Solon;
 import org.noear.solon.codecli.market.Market;
 import org.noear.solon.codecli.portal.web.service.SkinService;

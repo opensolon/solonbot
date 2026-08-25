@@ -17,6 +17,7 @@ package org.noear.solon.codecli.util;
 
 import org.noear.solon.Utils;
 import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

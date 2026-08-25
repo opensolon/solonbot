@@ -71,7 +71,7 @@ public class OpenAIModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[OpenAI] Error fetching models from {}: {}", modelsUrl, e.getMessage());
+            log.warn("[OpenAI] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
         }
 
         return result;
