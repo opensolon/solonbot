@@ -758,7 +758,6 @@
   "msg.failed": "Mislykkedes",
   "msg.lspErrors": "{n} LSP-fejl",
   "msg.lspClean": "LSP tjekket, ingen fejl",
-  "msg.lspPending": "LSP-kontrol i gang, endnu intet resultat",
   "msg.lspMore": "{n} mere vises ikke",
   "msg.grepSummary": "{files} filer / {hits} matches",
   "msg.itemCount": "{count} elementer",

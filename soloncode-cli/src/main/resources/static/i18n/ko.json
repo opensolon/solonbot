@@ -758,7 +758,6 @@
   "msg.failed": "실패",
   "msg.lspErrors": "LSP 오류 {n}건",
   "msg.lspClean": "LSP 검사 완료, 오류 없음",
-  "msg.lspPending": "LSP 검사 중, 아직 결과 없음",
   "msg.lspMore": "{n}건 더 표시되지 않음",
   "msg.grepSummary": "파일 {files}개 / {hits}곳 일치",
   "msg.itemCount": "{count}개 항목",

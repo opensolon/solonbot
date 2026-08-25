@@ -758,7 +758,6 @@
   "msg.failed": "Thất bại",
   "msg.lspErrors": "{n} lỗi LSP",
   "msg.lspClean": "LSP đã kiểm tra, không có lỗi",
-  "msg.lspPending": "Đang kiểm tra LSP, chưa có kết quả",
   "msg.lspMore": "còn {n} chưa hiển thị",
   "msg.grepSummary": "{files} tệp / {hits} kết quả khớp",
   "msg.itemCount": "{count} mục",

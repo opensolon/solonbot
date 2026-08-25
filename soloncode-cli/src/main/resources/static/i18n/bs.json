@@ -758,7 +758,6 @@
   "msg.failed": "Neuspjeh",
   "msg.lspErrors": "{n} LSP greška(e)",
   "msg.lspClean": "LSP provjeren, bez grešaka",
-  "msg.lspPending": "LSP provjera u toku, rezultat još nije poznat",
   "msg.lspMore": "još {n} nije prikazano",
   "msg.grepSummary": "{files} datoteka / {hits} podudaranja",
   "msg.itemCount": "{count} stavki",

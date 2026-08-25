@@ -8,6 +8,7 @@ import org.noear.solon.ai.talents.lsp.LspManager;
 import org.noear.solon.ai.chat.CacheControl;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.HarnessExtension;
+import org.noear.solon.ai.talents.lsp.LspServerParameters;
 import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.codecli.command.builtin.*;
@@ -681,24 +682,16 @@ public class WorkspaceManager {
             engine.addLspServer(entry.getKey(), entry.getValue());
         }
 
-        addSystemLspServer(engine, wsSettings, "java", Arrays.asList("jdtls"), Arrays.asList(".java"));
-        addSystemLspServer(engine, wsSettings, "typescript", Arrays.asList("typescript-language-server", "--stdio"), Arrays.asList(".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"));
-        addSystemLspServer(engine, wsSettings, "go", Arrays.asList("gopls"), Arrays.asList(".go"));
-        addSystemLspServer(engine, wsSettings, "python", Arrays.asList("pyright-langserver", "--stdio"), Arrays.asList(".py", ".pyi"));
-        addSystemLspServer(engine, wsSettings, "rust", Arrays.asList("rust-analyzer"), Arrays.asList(".rs"));
-        addSystemLspServer(engine, wsSettings, "c-cpp", Arrays.asList("clangd", "--background-index", "--clang-tidy"), Arrays.asList(".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".c++", ".h++", ".hh"));
-        addSystemLspServer(engine, wsSettings, "csharp", Arrays.asList("roslyn-language-server", "--stdio", "--autoLoadProjects"), Arrays.asList(".cs", ".csx"));
-        addSystemLspServer(engine, wsSettings, "ruby", Arrays.asList("solargraph", "stdio"), Arrays.asList(".rb", ".rake", ".gemspec", ".ru"));
-        addSystemLspServer(engine, wsSettings, "php", Arrays.asList("intelephense", "--stdio"), Arrays.asList(".php"));
-        addSystemLspServer(engine, wsSettings, "bash", Arrays.asList("bash-language-server", "start"), Arrays.asList(".sh", ".bash", ".zsh", ".ksh"));
-        addSystemLspServer(engine, wsSettings, "lua", Arrays.asList("lua-language-server"), Arrays.asList(".lua"));
-        addSystemLspServer(engine, wsSettings, "dart", Arrays.asList("dart", "language-server", "--lsp"), Arrays.asList(".dart"));
-        addSystemLspServer(engine, wsSettings, "swift", Arrays.asList("sourcekit-lsp"), Arrays.asList(".swift", ".objc", ".objcpp"));
-        addSystemLspServer(engine, wsSettings, "kotlin", Arrays.asList("kotlin-language-server"), Arrays.asList(".kt", ".kts"));
-        addSystemLspServer(engine, wsSettings, "yaml", Arrays.asList("yaml-language-server", "--stdio"), Arrays.asList(".yaml", ".yml"));
+        //内置服务器清单收敛到 LspManager.buildLspServers() 单一来源：
+        //root 判据（哪些文件该交给哪个服务器）写在 LspRootResolver 里，不进 settings.json
+        for (Map.Entry<String, LspServerParameters> builtin
+                : LspManager.buildLspServers().entrySet()) {
+            addSystemLspServer(engine, wsSettings, builtin.getKey(),
+                    builtin.getValue().getCommand(), builtin.getValue().getExtensions());
+        }
 
         // 同步 LSP servers
-        for (Map.Entry<String, org.noear.solon.ai.talents.lsp.LspServerParameters> entry : engine.getLspServers().entrySet()) {
+        for (Map.Entry<String, LspServerParameters> entry : engine.getLspServers().entrySet()) {
             if (!wsSettings.getLspServers().containsKey(entry.getKey())) {
                 LspServerDo lspServer = new LspServerDo();
                 lspServer.setCommand(entry.getValue().getCommand());

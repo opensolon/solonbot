@@ -1241,18 +1241,17 @@ function applyLspBadge(card, lsp) {
     if (!group) return;
 
     $(group).find('.tool-lsp-badge').remove();
-    var badge = document.createElement('span');
+    //结论未知（冷启动索引中，等待超时）：无信息量，不渲染徽标，
+    //也不显示 ✓——不能冒充「检查过且没问题」
     var hasErr = hasLspErrors(lsp);
-    //结论未知（冷启动索引中，等待超时）：不能拿 ✓ 冒充「没问题」
-    var isPending = !hasErr && !!lsp.pending;
+    if (!hasErr && lsp.pending) return;
 
-    badge.className = 'tool-lsp-badge ' + (hasErr ? 'is-error' : (isPending ? 'is-pending' : 'is-clean'));
+    var badge = document.createElement('span');
+
+    badge.className = 'tool-lsp-badge ' + (hasErr ? 'is-error' : 'is-clean');
     if (hasErr) {
         badge.textContent = 'LSP ' + lsp.errorCount;
         badge.title = I18n.t('msg.lspErrors', { n: lsp.errorCount });
-    } else if (isPending) {
-        badge.textContent = 'LSP ⋯';
-        badge.title = I18n.t('msg.lspPending');
     } else {
         badge.textContent = 'LSP ✓';
         badge.title = I18n.t('msg.lspClean');

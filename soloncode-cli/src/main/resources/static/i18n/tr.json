@@ -758,7 +758,6 @@
   "msg.failed": "Başarısız",
   "msg.lspErrors": "{n} LSP hatası",
   "msg.lspClean": "LSP denetlendi, hata yok",
-  "msg.lspPending": "LSP denetimi sürüyor, henüz sonuç yok",
   "msg.lspMore": "{n} tane daha gösterilmiyor",
   "msg.grepSummary": "{files} dosya / {hits} eşleşme",
   "msg.itemCount": "{count} öğe",

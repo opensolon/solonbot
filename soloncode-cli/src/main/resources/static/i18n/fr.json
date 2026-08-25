@@ -758,7 +758,6 @@
   "msg.failed": "Échec",
   "msg.lspErrors": "{n} erreur(s) LSP",
   "msg.lspClean": "LSP vérifié, aucune erreur",
-  "msg.lspPending": "Vérification LSP en cours, pas encore de résultat",
   "msg.lspMore": "{n} autre(s) non affichée(s)",
   "msg.grepSummary": "{files} fichiers / {hits} correspondances",
   "msg.itemCount": "{count} éléments",

@@ -758,7 +758,6 @@
   "msg.failed": "Помилка",
   "msg.lspErrors": "Помилок LSP: {n}",
   "msg.lspClean": "LSP перевірено, помилок немає",
-  "msg.lspPending": "Перевірка LSP триває, результату ще немає",
   "msg.lspMore": "ще {n} не показано",
   "msg.grepSummary": "{files} файлів / {hits} збігів",
   "msg.itemCount": "{count} елем.",
