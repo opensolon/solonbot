@@ -12,6 +12,7 @@ import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.pipeline.ChannelBroadcastSink;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
+import org.noear.solon.codecli.portal.web.pipeline.UiRenderFilter;
 import org.noear.solon.codecli.portal.web.pipeline.WebEventMapper;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
@@ -89,6 +90,7 @@ public class WebStreamBuilder {
 
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
         ToolPresentationFilter toolFilter = new ToolPresentationFilter();
+        UiRenderFilter uiRenderFilter = new UiRenderFilter();
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
 
         return agent.prompt(prompt)
@@ -105,6 +107,7 @@ public class WebStreamBuilder {
                 .flatMap(event -> Flux.fromIterable(mapper.mapEvent(event)))
                 .filter(WebEvent::isNotEmpty)
                 .map(toolFilter::apply)
+                .map(uiRenderFilter::apply)
                 .doOnNext(event -> broadcastSink.broadcast(wsContext.getChannelHub(), event))
                 .doOnNext(metricsRecorder::record)
                 .onErrorResume(e -> {

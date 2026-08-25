@@ -1034,6 +1034,76 @@ public class WebController {
         }
     }
 
+    /**
+     * UI 动作回传入口（对应 SAEP 2.0 {@code ui.action}）。
+     *
+     * <p>前端在 UI 块（{@code ui.render} 渲染）上点击动作时调用本接口，将动作封装为
+     * {@code {"__ui_action__":{blockId, actionId, formData}}} 的标准回传结构，并复用既有聊天
+     * 输入通道（{@link WebGate#onChatInput}）作为一条用户消息下发，使 Agent 在新一轮中响应该动作。
+     * 与 HITL 不同，UI 动作不阻塞原工具：它作为独立的用户回合进入，由 LLM 决定后续行为。</p>
+     *
+     * @param sessionId  会话 ID，若为空则从请求头 X-Session-Id 获取
+     * @param blockId    UI 块实例稳定 ID（与 ui.render 的 blockId 对应），必填
+     * @param actionId   动作 ID（与 ui.render 的 actions[].id 对应），必填
+     * @param formData   动作附带的表单数据，JSON 对象字符串，可为空
+     * @param model      指定的 AI 模型名称，可为 null（使用默认模型）
+     * @param selectedAgent 子代理选择器指定的名称，可为 null 或空（使用主 Agent）
+     * @return 操作结果（Agent 响应通过 WebSocket 推送）
+     */
+    @Mapping("/web/chat/ui_action")
+    public Result chat_ui_action(Context ctx, String sessionId, String blockId, String actionId,
+                                  @Param(value = "formData", required = false) String formData,
+                                  String model,
+                                  @Param(value = "selectedAgent", required = false) String selectedAgent) {
+        try {
+            if (sessionId == null || sessionId.isEmpty()) {
+                sessionId = ctx.headerOrDefault("X-Session-Id", "web");
+            }
+            String sessionCwd = ctx.header("X-Session-Cwd");
+
+            if (!isValidSessionId(sessionId)) {
+                ctx.status(400);
+                ctx.output("Invalid Session ID");
+                return null;
+            }
+            if (Assert.isNotEmpty(sessionCwd) && sessionCwd.contains("..")) {
+                ctx.status(400);
+                ctx.output("Invalid Session Cwd");
+                return null;
+            }
+            if (Assert.isEmpty(blockId) || Assert.isEmpty(actionId)) {
+                ctx.status(400);
+                ctx.output("blockId and actionId are required");
+                return null;
+            }
+
+            ONode action = new ONode();
+            action.set("blockId", blockId);
+            action.set("actionId", actionId);
+            if (Assert.isNotEmpty(formData)) {
+                try {
+                    action.set("formData", ONode.ofJson(formData));
+                } catch (Throwable ex) {
+                    action.set("formData", new ONode());
+                }
+            } else {
+                action.set("formData", new ONode());
+            }
+            ONode payload = new ONode();
+            payload.set("__ui_action__", action);
+            String input = payload.toJson();
+
+            // 复用既有输入通道：作为一条来源为 web 的用户消息下发
+            webGate().onChatInput(currentContext(), sessionId, sessionCwd, input, model, null, null, null, "web",
+                    null, null, selectedAgent);
+
+            return Result.succeed();
+        } catch (Throwable e) {
+            LOG.error("[Web] chat_ui_action error: {}", e.getMessage());
+            return Result.failure(500, e.getMessage());
+        }
+    }
+
 
     // ==================== Git 集成（委派给 GitService） ====================
 
