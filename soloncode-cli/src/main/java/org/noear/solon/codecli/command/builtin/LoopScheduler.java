@@ -23,12 +23,16 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.talents.cli.TodoTalent;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.scheduling.ScheduledAnno;
 import org.noear.solon.scheduling.scheduled.manager.IJobManager;
 import org.noear.solon.scheduling.simple.JobManager;
+import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -537,12 +541,12 @@ public class LoopScheduler {
      * 恢复会话目录中持久化的全部循环任务。
      */
     public void restoreAll() {
-        Path sessionsPath = Paths.get(engine.getWorkspace(), engine.getHarnessSessions());
-        if (!Files.isDirectory(sessionsPath)) {
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(engine.getWorkspace());
+        if (!Files.isDirectory(wsSessionsRoot)) {
             return;
         }
 
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(sessionsPath)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(wsSessionsRoot)) {
             for (Path sessionPath : stream) {
                 if (Files.isDirectory(sessionPath) && Files.exists(sessionPath.resolve(TASKS_FILE))) {
                     restore(sessionPath.getFileName().toString());
@@ -610,6 +614,17 @@ public class LoopScheduler {
     }
 
     private void onTrigger(String sessionId, LoopTask task) {
+        // 调度线程（定时/手动触发/续行/重试）无工作区标记，统一在此打标：
+        // 本方法内所有日志（守卫、预算、轮次、错误）随工作区分流，不落到启动工作区文件
+        Object logScope = WorkspaceLogRouter.beginScope(engine.getWorkspace());
+        try {
+            doTrigger(sessionId, task);
+        } finally {
+            WorkspaceLogRouter.endScope(logScope);
+        }
+    }
+
+    private void doTrigger(String sessionId, LoopTask task) {
         // ① 前置守卫（禁用/过期/取消 → 繁忙 → 预算/状态/最大迭代）
         if (!checkGuardConditions(sessionId, task)) {
             notifyGoalChanged(sessionId, task, false);
@@ -1130,7 +1145,8 @@ public class LoopScheduler {
     // ==================== JSON 持久化 ====================
 
     private Path getTasksFilePath(String sessionId) {
-        return Paths.get(engine.getWorkspace(), engine.getHarnessSessions(), sessionId, TASKS_FILE);
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(engine.getWorkspace());
+        return wsSessionsRoot.resolve(sessionId).resolve(TASKS_FILE);
     }
 
     private void saveToFile(String sessionId, List<LoopTask> tasks) {

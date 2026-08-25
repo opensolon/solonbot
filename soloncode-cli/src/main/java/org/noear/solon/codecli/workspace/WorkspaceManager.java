@@ -20,7 +20,11 @@ import org.noear.solon.codecli.portal.FileWatchService;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
+import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
+import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -38,6 +42,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 
 /**
  * 工作区管理器，用于统一管理多工作区的生命周期、实例化底层引擎及持久化最近工作区。
@@ -371,6 +376,8 @@ public class WorkspaceManager {
             } catch (IOException e) {
                 LOG.error("Failed to close workspace: " + workspaceIdOrPath, e);
             }
+            //释放该工作区专属的日志 appender（停掉文件句柄，避免泄漏/文件锁）
+            WorkspaceLogRouter.releaseWorkspace(path);
         }
     }
 
@@ -428,7 +435,25 @@ public class WorkspaceManager {
      * 实例化一个新的 WorkspaceContext（仿照 Configurator 中的构建逻辑）
      */
     private WorkspaceContext createWorkspaceContext(WorkspaceMeta meta) throws Exception {
+        //整段构建过程（engine/LSP/MCP/挂载/记忆等初始化）都归属本工作区日志；
+        //构建期间新建的子线程（LSP 读取线程、MCP stdio 传输线程等）靠继承式标记自动带上归属
+        Object logScope = WorkspaceLogRouter.beginScope(meta.getPath());
+        try {
+            return doCreateWorkspaceContext(meta);
+        } finally {
+            WorkspaceLogRouter.endScope(logScope);
+        }
+    }
+
+    private WorkspaceContext doCreateWorkspaceContext(WorkspaceMeta meta) throws Exception {
         String workspacePath = meta.getPath();
+
+        //清理旧版本遗留的日志（工作区内的 + 上一版全局位置的），避免污染 IDE 全文搜索与残留空目录
+        LogDirUtil.cleanLegacyLogs(workspacePath);
+
+        //会话已改存到 ~/.soloncode/workspaces/<标识>/sessions/：记录反查标记，并把旧版工作区内的会话搬迁过去
+        WorkspaceDataUtil.markWorkspace(workspacePath);
+        WorkspaceDataUtil.migrateLegacySessions(workspacePath);
 
         // 多工作区配置隔离：非默认工作区按目录加载 global + 工作区覆盖；
         // 默认工作区沿用注入的全局 settings（与 CLI 启动语义一致）
@@ -473,6 +498,18 @@ public class WorkspaceManager {
                 .build();
 
         engine.setDefaultModel(wsSettings.getDefaultModel());
+
+        engine.getTodoTalent().setWorkPathHook(new BiFunction<String, String, Path>() {
+            @Override
+            public Path apply(String __cwd, String __sessionId) {
+                return WorkspaceDataUtil.sessionsPath(__cwd).resolve(__sessionId);
+            }
+        });
+
+        //清理 web 端遗留的僵尸会话目录（新建对话未发消息即切走产生的空壳）
+        Path wsSessionsRoot = WorkspaceDataUtil.sessionsPath(workspacePath);
+        SessionJanitor.cleanWebSessions(wsSessionsRoot);
+
         for (ModelDo model : wsSettings.getModels().values()) {
             engine.addModel(model);
         }
@@ -543,8 +580,8 @@ public class WorkspaceManager {
         // 快照为 null 会导致注册被跳过；改为 lambda 内动态取值，注入完成后自然生效。
         registerWebLoopExecutor(engine, meta.getId(), loopScheduler);
 
-        // FileWatchService
-        FileWatchService fileWatchService = new FileWatchService();
+        // FileWatchService（自建轮询/初始化线程，需显式带上工作区日志归属）
+        FileWatchService fileWatchService = new FileWatchService().logWorkspacePath(workspacePath);
         fileWatchService.addRoot("workspace", Paths.get(workspacePath).toAbsolutePath().normalize())
                 .addHandler(changes -> {
                     // 动态取 gate：默认工作区创建早于 setWebGate，字段快照可能为 null
@@ -584,7 +621,7 @@ public class WorkspaceManager {
 
         // 拉起本工作区的 IM 渠道长连接（微信/飞书/钉钉），恢复已持久化的绑定连接。
         // Link.run() 内部有 running CAS 幂等保护，重复调用安全。
-        RunUtil.async(context.getChannelHub()::start);
+        RunUtil.async(WorkspaceLogRouter.withWorkspaceLogKey(workspacePath, context.getChannelHub()::start));
 
         return context;
     }
@@ -719,19 +756,19 @@ public class WorkspaceManager {
                 LOG.debug("[Workspace] Filter entry (dir missing): {} -> {}", w.getId(), normalized);
                 continue;
             }
-        // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
-        //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
-        //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
-        boolean defaultIsUserHome = false;
-        try {
-            defaultIsUserHome = defaultPathStr != null
-                    && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
-        } catch (Exception ignore) {
-        }
+            // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
+            //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
+            //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
+            boolean defaultIsUserHome = false;
+            try {
+                defaultIsUserHome = defaultPathStr != null
+                        && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
+            } catch (Exception ignore) {
+            }
 
-        if (!defaultIsUserHome
-                && defaultPathStr != null && !w.isDefault()
-                && normalized.startsWith(defaultPathStr + File.separator)) {
+            if (!defaultIsUserHome
+                    && defaultPathStr != null && !w.isDefault()
+                    && normalized.startsWith(defaultPathStr + File.separator)) {
                 LOG.debug("[Workspace] Filter entry (inside default dir): {} -> {}", w.getId(), normalized);
                 continue;
             }

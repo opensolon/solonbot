@@ -13,6 +13,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.portal.FileWatchService;
+import org.noear.solon.codecli.util.OsOpenUtil;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
@@ -21,7 +22,6 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
 import java.io.File;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -292,30 +292,7 @@ public class MountSettingsController extends BaseSettingsController {
     public Result mountsOpen(@Param("path") String path) {
         if (Assert.isEmpty(path)) return Result.failure("路径为空");
         try {
-            File dir = new File(path);
-            if (!dir.exists()) return Result.failure("目录不存在: " + path);
-
-            // 优先尝试 Desktop.open，失败时 fallback 到系统命令
-            try {
-                if (Desktop.isDesktopSupported()) {
-                    Desktop.getDesktop().open(dir);
-                    return Result.succeed("已打开");
-                }
-            } catch (Exception ignored) {
-                // Desktop.open 失败，尝试 fallback
-            }
-
-            // Fallback: 使用系统命令打开目录
-            String os = System.getProperty("os.name", "").toLowerCase();
-            String[] cmd;
-            if (os.contains("mac")) {
-                cmd = new String[]{"open", dir.getAbsolutePath()};
-            } else if (os.contains("win")) {
-                cmd = new String[]{"explorer", dir.getAbsolutePath()};
-            } else {
-                cmd = new String[]{"xdg-open", dir.getAbsolutePath()};
-            }
-            new ProcessBuilder(cmd).start();
+            OsOpenUtil.openDirectory(new File(path));
             return Result.succeed("已打开");
         } catch (Exception e) {
             return Result.failure("打开失败: " + e.getMessage());

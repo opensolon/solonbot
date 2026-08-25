@@ -272,6 +272,26 @@ function buildDisplayText(text, filesToSend) {
     return !!(chatInput && chatInput.value.trim()) || (pendingFiles && pendingFiles.length > 0);
         }
 
+    /* 判定名称是否为已知子代理（commandList 由 app-history.js 加载） */
+    function isKnownSubagent(name) {
+    if (!name) return false;
+    if (typeof commandList === 'undefined' || !commandList) return false;
+    for (var i = 0; i < commandList.length; i++) {
+        if (commandList[i].type === 'subagent' && commandList[i].name === name) return true;
+    }
+    return false;
+}
+
+    /* 解析本条消息最终生效的子代理（规则与后端 WebGate.onChatInput 一致）：
+       输入开头的有效 "@agent " 优先，其次选择器值，都无效时返回空（主 Agent） */
+    function resolveEffectiveAgent(text, selectedAgent) {
+    if (text && text.charAt(0) === '@') {
+        var sp = text.indexOf(' ');
+        if (sp > 0 && isKnownSubagent(text.substring(1, sp))) return text.substring(1, sp);
+    }
+    return isKnownSubagent(selectedAgent) ? selectedAgent : '';
+}
+
     function applyQueuedItemToInput(item) {
     if (!item) return;
     if (!inChatMode) switchToChatMode();
@@ -340,6 +360,7 @@ function buildDisplayText(text, filesToSend) {
     sess._stoppedTurn = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     sess.messageStartTime = Date.now();
 
     if (!inChatMode) switchToChatMode();
@@ -354,7 +375,15 @@ function buildDisplayText(text, filesToSend) {
         if (filesToSend[i].type === 'image') imageDataUrls.push(filesToSend[i]);
         else fileAttachments.push(filesToSend[i]);
     }
-    appendUserMessage(sess, displayText, imageDataUrls, fileAttachments);
+    var effectiveAgent = resolveEffectiveAgent(text,
+        options.selectedAgent !== undefined ? options.selectedAgent
+            : (typeof getSelectedAgent === 'function' ? getSelectedAgent() : ''));
+    // 文本开头的 "@agent " 会被后端剔除后才入库，此处同步剔除，
+    // 避免刷新前后同一条消息文本不一致（子代理信息改由徽标展示）
+    if (effectiveAgent && displayText && displayText.indexOf('@' + effectiveAgent + ' ') === 0) {
+        displayText = displayText.substring(effectiveAgent.length + 2);
+    }
+    appendUserMessage(sess, displayText, imageDataUrls, fileAttachments, null, null, effectiveAgent);
 
     isStreaming = true;
     setBtnStopMode();
@@ -694,6 +723,7 @@ function sendCommandSilent(cmdText, onBeforeSend) {
     sess._stoppedTurn = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     isStreaming = true;
     sess.messageStartTime = Date.now();
     setActiveSession(sess.sessionId);
@@ -741,6 +771,7 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
     sess.stopRequested = false;
     sess.acceptingStream = true;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     if (!sess.messageStartTime) sess.messageStartTime = Date.now();
     if (sess.sessionId === activeSessionId) {
         isStreaming = true;
@@ -848,9 +879,10 @@ function processWebEventNow(sess, webEvt) {
                 var toolArgs = p.args || (p.diff ? { diff: p.diff } : {});
                 if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
                 sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId);
-                if (window._todoChunkHandlers) {
+                // todowrite 已在 handleWebGateChunk 入口统一派发过（会话不存在/未开流时也要更新左侧进度），
+                // 此处只补派其它工具，避免同一事件重复触发 todo 面板刷新
+                if (window._todoChunkHandlers && p.name !== 'todowrite') {
                     var todoEvent = { toolName: p.name, text: p.result, args: toolArgs, sessionId: sess.sessionId };
-                    window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                     window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
                 }
                 break;
@@ -1018,6 +1050,12 @@ function finishStream(sess) {
 
     // 先排空该会话尚未处理的 chunk 队列，避免丢尾部文本
         if (typeof drainWebEventQueue === 'function') drainWebEventQueue(sess, true);
+
+    // 记录收尾时所属的 runId：用于区分“本轮的迟到尾包”与“后端新开的一轮流”（见 canReopenClosedStream）。
+    // 必须在排空队列之后取：runId 由 processWebEventNow 写入 currentRunId，若队列里还压着本轮的
+    // delta（短轮次可能一帧都没来得及 drain），提前取会拿到 null/上一轮的值，导致本轮迟到尾包被
+    // 误判成“新一轮”而把已收尾的 UI 重新拉起。
+    sess._closedRunId = sess.currentRunId || null;
 
     // --- 强刷逻辑：必须在 resetStreamState 之前执行 ---
     // 1. 取消还没跑的动画帧
@@ -1226,6 +1264,11 @@ function finishStream(sess) {
     } else {
         sess._stoppedTurn = false;
     }
+
+    // 本轮已收尾：若末尾仍是用户消息（无 AI 回复），显示「继续运行」入口
+    if (typeof updateUserRerunButtons === 'function' && sess.container) {
+        updateUserRerunButtons(sess.container);
+    }
 }
 window.finishStream = finishStream;
 
@@ -1257,10 +1300,29 @@ function flushPendingStreamChunks(sess) {
 }
 window.flushPendingStreamChunks = flushPendingStreamChunks;
 
+/**
+ * 已收尾（_streamClosed）的会话能否因新到的 chunk 重新开流。
+ *
+ * <p>判据是事件语义而非时间：后端每次任务运行都有独立的 runId（AgentEvent.runId），
+ * 因此“新一轮”= 到达的事件带着与收尾那一轮不同的 runId。同一 runId 的后续事件是
+ * 本轮 done 之后的迟到尾包，无论隔多久都应丢弃；不同 runId 则说明后端已为本会话新开了
+ * 一轮流（HITL 恢复、命令触发任务、Loop 续跑等）而 reset 信号丢失或未覆盖，必须自愈，
+ * 否则会话永久哑掉：后端一直在推，前端全部静默丢弃。</p>
+ * <p>无 runId 的事件不足以判定新一轮，保持丢弃。用户显式 Stop 的轮次（_stoppedTurn）
+ * 也不自愈，避免被中断流的尾包反弹回 UI。</p>
+ */
+function canReopenClosedStream(sess, webEvt) {
+    if (!sess || sess._stoppedTurn || sess.stopRequested) return false;
+    var runId = webEvt && webEvt.runId;
+    if (!runId) return false;
+    return runId !== sess._closedRunId;
+}
+
 /** 有流式消息到来时，打开本会话的接收/展示状态 */
 function openStreamFromIncoming(sess) {
     if (!sess || sess.stopRequested) return false;
     sess._streamClosed = false;
+    sess._closedRunId = null;
     sess.acceptingStream = true;
     if (sess.isStreaming) return true;
     sess.isStreaming = true;
@@ -1319,14 +1381,14 @@ function handleWebGateChunk(raw) {
         if (window._todoChunkHandlers) {
             var todoEvent = { toolName: p.name, text: p.result, args: p.args, sessionId: sid };
             window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
-            window._todoChunkHandlers.forEach(function(h) { h(todoEvent); });
         }
     }
 
-    // Loop/Goal 异步 agent 流启动信号：重置流关闭状态，使后续文本能够正常开新气泡
+    // Loop/Goal 等后端新开流信号：重置流关闭状态，使后续文本能够正常开新气泡
     if (event === 'system.reset') {
         var sess = getOrCreateSession(sid);
         sess._streamClosed = false;
+        sess._closedRunId = null;
         sess.acceptingStream = true;
         sess.stopRequested = false;
         return;
@@ -1336,6 +1398,7 @@ function handleWebGateChunk(raw) {
     if (event === 'system.user_input') {
         var userSess = getOrCreateSession(sid);
         userSess._streamClosed = false;
+        userSess._closedRunId = null;
         userSess.acceptingStream = true;
         userSess.stopRequested = false;
         if (typeof ensureChatInHistory === 'function') {
@@ -1361,7 +1424,7 @@ function handleWebGateChunk(raw) {
         if (sess2.stopRequested) return;
         // 本页已正常 finishStream 的迟到包丢弃；刷新后 _streamClosed 未设置，有流就显示
         if (!sess2.acceptingStream) {
-            if (sess2._streamClosed) return;
+            if (sess2._streamClosed && !canReopenClosedStream(sess2, webEvt)) return;
             if (!openStreamFromIncoming(sess2)) return;
         } else if (!openStreamFromIncoming(sess2)) {
             return;

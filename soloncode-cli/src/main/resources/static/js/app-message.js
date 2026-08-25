@@ -11,27 +11,48 @@ var CONTINUE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 /* 删除图标 */
 var DELETE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
-/* 更新用户消息的「重做」按钮：仅最后一条用户消息显示 */
+/* 更新用户消息的「重做/继续」按钮：重做仅最后一条用户消息显示；
+   继续运行仅在最后一条用户消息同时是整个消息列表末尾（其后无 AI 回复）、
+   且本会话当前不在流式运行中时显示（发出后到首段输出前不该出现「继续运行」） */
 function updateUserRerunButtons(container) {
     var userRows = $(container).find('.msg-row.user');
+    var allRows = $(container).find('.msg-row');
+    var lastRowEl = allRows.length ? allRows[allRows.length - 1] : null;
+    var sid = lastRowEl ? lastRowEl.getAttribute('data-session-id') : null;
+    var lastSess = (sid && window.sessionMap) ? window.sessionMap[sid] : null;
+    var busy = !!(lastSess && lastSess.isStreaming);
     userRows.each(function(i) {
+        var isLastUserRow = (i === userRows.length - 1);
         var btn = $(this).find('.rerun-btn')[0];
         if (btn) {
-            btn.style.display = (i === userRows.length - 1) ? '' : 'none';
+            btn.style.display = isLastUserRow ? '' : 'none';
+        }
+        var cBtn = $(this).find('.user-continue-btn')[0];
+        if (cBtn) {
+            cBtn.style.display = (isLastUserRow && lastRowEl === this && !busy) ? '' : 'none';
         }
     });
 }
 
 /* ===== Message Rendering (Session-Aware) ===== */
-function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel) {
+function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName) {
     var row = $('<div>').addClass('msg-row user')[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
-    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
+    row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-copy-btn user-continue-btn" data-i18n-title="msg.continue" style="display:none">' + CONTINUE_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
     if (window.I18n) window.I18n.apply(row);
     var bubble = $(row).find('.msg-bubble')[0];
 
     // 来源标签（仅非空且非 "Web" 时显示；会在时间戳左侧追加）
+
+    // 子代理标记：这条消息实际交给了哪个子代理（主 Agent 不显示）
+    // 独立成行放在气泡顶部，不写入 data-md-raw，复制/重发仍是用户原文
+    if (agentName) {
+        var agentTag = $('<div>').addClass('user-agent-tag')[0];
+        agentTag.innerHTML = '<span class="user-agent-tag-at">@</span>' + escapeHtml(agentName);
+        agentTag.setAttribute('title', (window.I18n ? I18n.t('history.subagentLabel') : '') + agentName);
+        $(bubble).append(agentTag);
+    }
 
     // Multiple images（解码完成后再补滚，避免占位高度 0 导致贴底失效）
     if (imageDataUrls && imageDataUrls.length > 0) {
@@ -122,6 +143,16 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
         }
         if (typeof sendMessage === 'function') {
             sendMessage();
+        }
+    });
+
+    // 继续运行：仅当用户消息是列表末尾（无后续 AI 回复）时可见，
+    // 复用后端 /continue 命令，不删除任何消息，新回复自然追加。
+    var continueUserBtn = $(row).find('.user-continue-btn')[0];
+    $(continueUserBtn).on('click', function() {
+        if (sess.isStreaming) return;
+        if (typeof sendCommandSilent === 'function') {
+            sendCommandSilent('/continue');
         }
     });
 
@@ -226,6 +257,8 @@ function ensureAssistantBubble(sess) {
             + '</div></div>';
         if (window.I18n) window.I18n.apply(row);
         $(sess.container).append(row);
+        // AI 回复出现后，隐藏末尾用户消息上的「继续运行」按钮
+        updateUserRerunButtons(sess.container);
         if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
         sess.currentBubbleEl = $(row).find('.md-content')[0];
         
@@ -1111,7 +1144,14 @@ window._toolRenderers.bash = function(bodyEl, text, args) {
     bodyEl.classList.add('tool-body-terminal');
     var cmd = (args && args.command) ? args.command : '';
     var html = '<div class="bash-output">';
-    if (cmd) html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd) + '</div>';
+    if (cmd) {
+        html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd);
+        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
+            var t = Number(args.timeout);
+            html += ' <span class="bash-timeout"># timeout ' + (t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's') + '</span>';
+        }
+        html += '</div>';
+    }
     html += '<pre class="bash-stdout">' + escapeHtml(text || '(' + I18n.t('msg.noOutput') + ')') + '</pre>';
     html += '</div>';
     bodyEl.innerHTML = html;
@@ -1198,7 +1238,15 @@ function formatToolArgsStr(args) {
 function formatToolSummary(toolName, args) {
     if (!args || typeof args !== 'object') return '';
     var name = String(toolName || '').toLowerCase();
-    if (name === 'bash' && args.command) return String(args.command).replace(/\n/g, ' ');
+    if (name === 'bash' && args.command) {
+        var bashSummary = String(args.command).replace(/\n/g, ' ');
+        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
+            var t = Number(args.timeout);
+            var ts = t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's';
+            bashSummary += ' · timeout ' + ts;
+        }
+        return bashSummary;
+    }
     if ((name === 'read' || name === 'write' || name === 'edit') && args.file_path) {
         var fileSummary = String(args.file_path);
         if (name === 'read' && args.offset) {
@@ -1338,7 +1386,12 @@ function renderBashRunningBody(card, toolName, args) {
     if (!body) return;
     body.className = 'tool-card-body tool-body-terminal';
     body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> '
-        + escapeHtml(args.command) + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
+        + escapeHtml(args.command)
+        + (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0
+            ? ' <span class="bash-timeout"># timeout '
+              + (Number(args.timeout) >= 60000 ? (Number(args.timeout) / 60000) + 'm' : (Number(args.timeout) / 1000) + 's')
+              + '</span>' : '')
+        + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
 }
 
 function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reasonId, agentName, callId) {
@@ -1693,6 +1746,7 @@ function handleHitlResponse(sess, action, callId) {
         sess.stopRequested = false;
         sess.acceptingStream = true;
         sess._streamClosed = false;
+        sess._closedRunId = null;
         if (sess.sessionId === activeSessionId) {
             isStreaming = true;
             setBtnStopMode();

@@ -27,6 +27,7 @@ import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.config.AgentFlags;
@@ -34,6 +35,7 @@ import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceMeta;
@@ -294,7 +296,7 @@ public class WebController {
 
     /**
      * 加载 Web 端会话列表。
-     * <p>扫描工作区 .soloncode/sessions 目录下以 "web-" 开头的会话文件夹，
+     * <p>扫描 ~/.soloncode/workspaces/&lt;标识&gt;/sessions/ 下以 "web-" 开头的会话文件夹，
      * 读取每个会话的标签（优先使用 meta.json 自定义标签，否则取首条用户消息），
      * 按置顶 + 创建时间（createdAt）倒序排列返回。同时恢复每个会话关联的循环任务。</p>
      *
@@ -304,12 +306,13 @@ public class WebController {
     @Get
     @Mapping("/web/chat/sessions")
     public Result<List<Map>> sessions() throws Exception {
-        HarnessEngine currentEngine = engine();
-        Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsPath = currentContext().getSessionsRoot();
         File sessionsDir = sessionsPath.toFile();
         List<Map> data = new ArrayList<>();
 
         if (sessionsDir.exists() && sessionsDir.isDirectory()) {
+            //先清理僵尸会话目录（无消息、无排队任务、meta 空），避免空壳一直出现在列表扫描中
+            SessionJanitor.cleanWebSessions(sessionsPath);
             File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
             if (dirs != null) {
                 // 不在 dirs 层面排序，后面统一按置顶+创建时间排序
@@ -401,9 +404,10 @@ public class WebController {
             return Result.failure(404, "Workspace not found");
         }
 
-        Path sessionsRoot = workspaceRoot.resolve(currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        //会话根目录按目标工作区计算（支持跨工作区删除），防穿越由 sessionPath 落在对应 sessionsRoot 内保证
+        Path sessionsRoot = WorkspaceDataUtil.sessionsPath(workspaceRoot.toString());
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
-        if (!sessionsRoot.startsWith(workspaceRoot) || !sessionPath.startsWith(sessionsRoot)) {
+        if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
         boolean sessionPathExists = Files.exists(sessionPath, java.nio.file.LinkOption.NOFOLLOW_LINKS);
@@ -454,8 +458,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sourcePath = sessionsRoot.resolve(sessionId).normalize();
         File sourceDir = sourcePath.toFile();
 
@@ -522,8 +525,7 @@ public class WebController {
             label = label.substring(0, 50);
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
+        Path sessionPath = currentContext().getSessionPath(sessionId);
 
         if (!sessionPath.toFile().exists() || !sessionPath.toFile().isDirectory()) {
             return Result.failure(404, "Session not found");
@@ -551,8 +553,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -740,8 +741,8 @@ public class WebController {
         }
 
         List<Map> data = new ArrayList<>();
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
@@ -771,6 +772,12 @@ public class WebController {
                         if (source != null) {
                             item.put("source", source); //可能有 {source:xxx}
                             item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
+                        }
+
+                        // 子代理标记：该条用户消息实际交由哪个子代理执行（主 Agent 时无此字段）
+                        String agentMeta = metadata.get("agent").getString();
+                        if (agentMeta != null && !agentMeta.isEmpty()) {
+                            item.put("agentName", agentMeta);
                         }
 
                         // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
@@ -858,9 +865,8 @@ public class WebController {
         }
 
         try {
-            HarnessEngine currentEngine = engine();
-            Path sessionsPath = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions(), sessionId).toAbsolutePath().normalize();
-            File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
+            Path sessionPath = currentContext().getSessionPath(sessionId);
+            File msgFile = new File(sessionPath.toFile(), sessionId + ".messages.ndjson");
             if (msgFile.exists()) {
                 // 读取现有消息
                 java.util.List<String> lines = new ArrayList<>();
@@ -1963,8 +1969,7 @@ public class WebController {
      * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
      */
     private Path resolveSessionQueuePath(String sessionId) {
-        HarnessEngine currentEngine = engine();
-        Path sessionsRoot = Paths.get(currentEngine.getWorkspace(), currentEngine.getHarnessSessions()).toAbsolutePath().normalize();
+        Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return null;

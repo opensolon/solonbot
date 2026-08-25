@@ -1,4 +1,13 @@
 
+### v2026.8.24
+
+* 调整 soloncode 工作区本地数据布局，按工作区聚合到 "~/.soloncode/workspaces/{workspaceKey}/" 下面（logs、sessions）
+* 调整 soloncode 会话存放位置，转出工作区（旧会话在工作区上下文创建时自动迁移，日志不迁移仅清理）
+* 优化 soloncode web 系统打开处理（浏览器，目录，文件）
+* 优化 soloncode web 用户侧消息增加子代理标识（方便识别是向谁请求的）
+* 优化 soloncode code 引导处理（增加4层扫描和缓存机制）
+* 细节优化
+
 ### v2026.8.23
 
 * 添加 soloncode web 设置 Manage 工具支持开关（默认开启会占位置）
@@ -8,7 +17,7 @@
 * 修复 soloncode web 多语言有些 key 没有翻译的问题
 * 细节优化
 
-### v2026.8.23
+### v2026.8.22
 
 * 添加 soloncode web .uploads 等隐藏目录白名单使其在文件树中可见并统一目录过滤逻辑
 * 修复 soloncode web 有工具调用时输出文本会重复的问题（v2026.8.20 引起的）

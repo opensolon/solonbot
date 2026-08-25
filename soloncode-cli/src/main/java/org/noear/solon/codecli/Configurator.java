@@ -29,6 +29,7 @@ import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.BeanWrap;
+import org.noear.solon.codecli.util.OsOpenUtil;
 import org.noear.solon.core.util.JavaUtil;
 import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.net.websocket.WebSocketRouter;
@@ -271,15 +272,7 @@ public class Configurator {
             try {
                 Thread.sleep(500);
 
-                if (JavaUtil.IS_WINDOWS) {
-                    new ProcessBuilder("cmd", "/c", "start", url.replace("&", "^&")).start();
-                } else if (JavaUtil.IS_MAC) {
-                    new ProcessBuilder("open", url).start();
-                } else {
-                    new ProcessBuilder("xdg-open", url).start();
-                }
-
-
+                OsOpenUtil.openBrowser(url);
             } catch (Throwable e) { // 使用 Throwable 捕获更全面
                 LOG.warn("Failed to open browser: {}", e.getMessage());
             }

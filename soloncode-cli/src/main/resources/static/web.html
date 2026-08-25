@@ -1022,6 +1022,10 @@
                                     <div class="general-card-text">
                                         <div class="general-card-title" data-i18n="general.logging.title">日志保存</div>
                                     </div>
+                                    <button type="button" class="settings-btn" id="generalLogOpenDirBtn" title="" data-i18n-title="general.logging.openDir">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                        <span data-i18n="general.logging.openDir">打开日志目录</span>
+                                    </button>
                                 </div>
                                 <div class="general-card-body">
                                     <div class="general-field-row">
@@ -1211,7 +1215,7 @@
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label data-i18n="form.standard">接口规范</label>
+                                    <label data-i18n="form.apiStandard">API 规范</label>
                                     <select id="llmStandard" class="form-select-custom">
                                         <option value="" data-i18n="llm.standard.fullUrl">FullUrl / 完整地址（自动检测）</option>
                                         <option value="openai" data-i18n="llm.standard.openai">OpenAI Completions BaseUrl / 兼容接口</option>
@@ -1996,7 +2000,7 @@
                                  </div>
                                 </div>
                                 <div class="form-group">
-                                    <label data-i18n="form.standard">接口规范</label>
+                                    <label data-i18n="form.apiStandard">API 规范</label>
                                     <select id="providerStandard" class="form-select-custom">
                                         <option value="openai" data-i18n="provider.standard.openai">OpenAI Completions BaseUrl / 兼容接口</option>
                                         <option value="openai-responses" data-i18n="provider.standard.openaiResponses">OpenAI Responses BaseUrl / 兼容接口</option>

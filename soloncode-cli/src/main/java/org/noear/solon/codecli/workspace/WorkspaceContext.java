@@ -9,10 +9,12 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.net.websocket.WebSocket;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -24,6 +26,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class WorkspaceContext implements Closeable {
     private final WorkspaceMeta meta;
     private final HarnessEngine engine;
+    private final Path sessionsRoot;
     private final SessionManager sessionManager;
     private final FileService fileService;
     private final GitService gitService;
@@ -45,6 +48,8 @@ public class WorkspaceContext implements Closeable {
                             AgentSettings settings) {
         this.meta = meta;
         this.engine = engine;
+        //以 meta 路径为唯一来源（与 workspaceKey 的哈希源一致），避免 engine workspace 与 meta 出现差异时静默指向两个 key 目录
+        this.sessionsRoot = WorkspaceDataUtil.sessionsPath(meta.getPath());
         this.sessionManager = sessionManager;
         this.fileService = fileService;
         this.gitService = gitService;
@@ -66,6 +71,14 @@ public class WorkspaceContext implements Closeable {
 
     public HarnessEngine getEngine() {
         return engine;
+    }
+
+    public Path getSessionsRoot() {
+        return sessionsRoot;
+    }
+
+    public Path getSessionPath(String sessionId) {
+        return sessionsRoot.resolve(sessionId);
     }
 
     public SessionManager getSessionManager() {

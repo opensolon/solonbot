@@ -439,6 +439,24 @@ body {
     user-select: none;
 }
 
+/* 子代理标记 — 用户气泡顶部的 @agent 轻标注（纯文字，跟随气泡文字色，适配任意主题） */
+.user-agent-tag {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    margin-bottom: 2px;
+    font-size: var(--fs-2xs);
+    font-weight: 400;
+    line-height: 15px;
+    color: inherit;
+    opacity: 0.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+}
+.user-agent-tag-at { margin-right: 1px; }
+
 /* Markdown */
 .md-content { padding: 2px 0; color: var(--text-ai-msg); font-size: var(--fs-md); }
 /* 流式 Markdown：与完成态共用结构样式；仅做轻微区分（无高亮/无复制按钮也可读） */
@@ -2001,6 +2019,7 @@ body {
     white-space: pre-wrap;
     word-break: break-all;
 }
+.bash-timeout { opacity: 0.6; font-size: 0.9em; }
 .bash-stdout {
     margin: 0;
     padding: 8px 12px 10px;
