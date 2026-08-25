@@ -8,13 +8,15 @@ import org.noear.solon.codecli.util.WorkspaceDataUtil;
 import org.noear.solon.lang.NonNull;
 import org.noear.solon.lang.Nullable;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * 会话管理器，所有会话存储在传统路径 ~/.soloncode/workspaces/&lt;工作区标识&gt;/sessions/&lt;sessionId&gt;/ 下。
+ * 用户隔离通过会话元数据（_meta.json 中的 ownerUserId）实现，由 API 层过滤。
  *
  * @author noear 2026/7/12 created
- *
  */
 public class SessionManager implements AgentSessionProvider {
     private final String workspace;
@@ -30,10 +32,37 @@ public class SessionManager implements AgentSessionProvider {
 
     @Override
     public @NonNull AgentSession getSession(String sessionId) {
-        // 会话数据存到 ~/.soloncode/workspaces/<工作区标识>/sessions/<sessionId>/（不落在工作区内，避免污染项目目录）
-
+        // 会话数据存到 ~/.soloncode/workspaces/<工作区标识>/sessions/<sessionId>/
         return sessionMap.computeIfAbsent(sessionId, key ->
-                new FileAgentSession(key, WorkspaceDataUtil.sessionsDir(workspace).toPath().resolve(key).normalize().toString()));
+                new FileAgentSession(key, resolveSessionPath(key).toString()));
+    }
+
+    /**
+     * 带用户隔离的获取会话。当 userId 非空时，将会话所有者写入元数据。
+     */
+    public @NonNull AgentSession getSession(String sessionId, @Nullable String userId) {
+        AgentSession session = getSession(sessionId);
+        // 记录用户归属到会话元数据
+        if (userId != null && !userId.isEmpty()) {
+            try {
+                Path sessionDir = resolveSessionPath(sessionId);
+                SessionMeta meta = SessionMeta.load(sessionDir);
+                if (meta.getOwnerUserId() == null) {
+                    meta.setOwnerUserId(userId);
+                    meta.save(sessionDir);
+                }
+            } catch (Exception e) {
+                // 忽略写入失败
+            }
+        }
+        return session;
+    }
+
+    /**
+     * 解析会话存储路径
+     */
+    private Path resolveSessionPath(String sessionId) {
+        return WorkspaceDataUtil.sessionsDir(workspace).toPath().resolve(sessionId).normalize();
     }
 
     public @Nullable AgentSession removeSession(String sessionId) {

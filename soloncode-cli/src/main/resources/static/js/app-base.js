@@ -516,3 +516,13 @@ window.wsAndSuffix = function () {
     var w = window.wsId();
     return (w && w !== 'workspace') ? '&workspaceId=' + encodeURIComponent(w) : '';
 };
+
+/**
+ * 读取指定名称的 Cookie 值。
+ * @param {string} name Cookie 名称
+ * @returns {string|null} Cookie 值，不存在时返回 null
+ */
+window.getCookie = function (name) {
+    var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+};

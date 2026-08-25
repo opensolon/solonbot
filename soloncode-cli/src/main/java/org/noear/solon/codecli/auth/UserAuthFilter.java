@@ -20,6 +20,9 @@ import java.util.Set;
  * 当用户认证启用时，对需要认证的路径进行 token 验证。
  * 未认证的请求会被重定向到登录页面或返回 401。
  * 
+ * WebSocket 路径 (/web/gate) 也经过本过滤器验证：token 从 Cookie、Header 或查询参数中提取。
+ * 验证通过后将用户信息存入上下文属性，供后续处理使用。
+ * 
  * @author noear 2026/8/23 created
  */
 @Component(index = -98) // 在 WebAuthFilter 之后执行
@@ -71,13 +74,7 @@ public class UserAuthFilter implements Filter {
             }
         }
         
-        // 放行 WebSocket 路径（WebSocket 自带握手验证）
-        if (path.startsWith("/web/gate")) {
-            chain.doFilter(ctx);
-            return;
-        }
-        
-        // 检查用户 token
+        // 检查用户 token（WebSocket 路径也经过验证，token 从 Cookie/Header/查询参数提取）
         String token = UserLoginController.extractToken(ctx);
         UserSessionManager.UserSession session = sessionManager.getSession(token);
         

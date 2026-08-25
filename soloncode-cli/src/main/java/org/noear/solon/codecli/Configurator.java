@@ -184,24 +184,8 @@ public class Configurator {
         // 广播走 Context 内部 WebGate.broadcastRaw（与入口单例共享同一默认连接池）。
         // 此处不再新建/重复监听同一目录，避免默认工作区文件变更向前端重复推送。
         FileWatchService fileWatchService = defaultCtx.getFileWatchService();
-
-        //web
-        BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(workspaceManager));
-        Solon.app().router().add(webController);
-
-        addWebBean(new WebSettingsController(workspaceManager));
-        addWebBean(new AgentSettingsController(workspaceManager));
-        addWebBean(new MountSettingsController(workspaceManager));
-        addWebBean(new SkillSettingsController(workspaceManager));
-        addWebBean(new LlmSettingController(workspaceManager));
-
-        addWebBean(new McpSettingsController(workspaceManager));
-        addWebBean(new OpenapiSettingsController(workspaceManager));
-        addWebBean(new LspSettingsController(workspaceManager));
-
-        addWebBean(new MemoryController(agentRuntime));
         
-        // 用户认证系统
+        // 用户认证系统（先初始化，确保 WebController 等组件可以访问）
         UserAuthConfig userAuthConfig = agentSettings.getUserAuth();
         UserSessionManager userSessionManager = new UserSessionManager();
         userSessionManager.init(userAuthConfig);
@@ -219,6 +203,22 @@ public class Configurator {
         Solon.context().wrapAndPut(UserStore.class, userStore);
         Solon.context().wrapAndPut(UserSessionManager.class, userSessionManager);
         Solon.context().wrapAndPut(UserAuthConfig.class, userAuthConfig);
+
+        //web
+        BeanWrap webController = Solon.context().wrapAndPut(WebController.class, new WebController(workspaceManager));
+        Solon.app().router().add(webController);
+
+        addWebBean(new WebSettingsController(workspaceManager));
+        addWebBean(new AgentSettingsController(workspaceManager));
+        addWebBean(new MountSettingsController(workspaceManager));
+        addWebBean(new SkillSettingsController(workspaceManager));
+        addWebBean(new LlmSettingController(workspaceManager));
+
+        addWebBean(new McpSettingsController(workspaceManager));
+        addWebBean(new OpenapiSettingsController(workspaceManager));
+        addWebBean(new LspSettingsController(workspaceManager));
+
+        addWebBean(new MemoryController(agentRuntime));
         
         addWebBean(new UserLoginController(userStore, userSessionManager, userAuthConfig));
         addWebBean(new UserAuthController(userStore, userSessionManager, userAuthConfig, agentSettings));

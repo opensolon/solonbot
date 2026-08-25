@@ -48,7 +48,6 @@ public class WorkspaceContext implements Closeable {
                             AgentSettings settings) {
         this.meta = meta;
         this.engine = engine;
-        //以 meta 路径为唯一来源（与 workspaceKey 的哈希源一致），避免 engine workspace 与 meta 出现差异时静默指向两个 key 目录
         this.sessionsRoot = WorkspaceDataUtil.sessionsPath(meta.getPath());
         this.sessionManager = sessionManager;
         this.fileService = fileService;
@@ -102,9 +101,6 @@ public class WorkspaceContext implements Closeable {
     }
 
     public WebGate getWebGate() {
-        // 动态取值：webGate 由 Configurator 在 webServe 阶段注入 WorkspaceManager，
-        // 早于注入创建的默认工作区（IM Link/Loop 执行器等）通过本方法拿到最新实例，
-        // 消除初始化顺序导致的 null 快照问题。
         return manager != null ? manager.getWebGate() : null;
     }
 
@@ -118,7 +114,6 @@ public class WorkspaceContext implements Closeable {
 
     @Override
     public void close() throws IOException {
-        // 停止 IM 渠道长连接（微信/飞书/钉钉），释放与外部服务器的连接
         if (channelHub != null) {
             try {
                 channelHub.stop();
@@ -126,7 +121,6 @@ public class WorkspaceContext implements Closeable {
                 // Ignore
             }
         }
-        // 停止本工作区全部 loop/goal 定时任务（注销调度，任务文件随 stopAll 清理）
         if (loopScheduler != null) {
             try {
                 loopScheduler.shutdown();
@@ -134,7 +128,6 @@ public class WorkspaceContext implements Closeable {
                 // Ignore
             }
         }
-        // 释放 fileWatchService 资源
         if (fileWatchService != null) {
             try {
                 fileWatchService.stop();
@@ -142,7 +135,6 @@ public class WorkspaceContext implements Closeable {
                 // Ignore
             }
         }
-        // 清理 WebSocket 连接
         for (WebSocket socket : connections) {
             try {
                 socket.close();
