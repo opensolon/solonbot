@@ -545,6 +545,7 @@
   "lsp.scope": "স্কোপ",
   "lsp.scope.user": "ব্যবহারকারী (গ্লোবাল)",
   "lsp.scope.workspace": "কর্মক্ষেত্র (লোকাল)",
+  "lsp.scope.builtin": "অন্তর্নির্মিত",
   "lsp.title": "LSP সার্ভার",
   "lsp.toggle.disable": "নিষ্ক্রিয় করুন",
   "lsp.toggle.enable": "সক্রিয় করুন",

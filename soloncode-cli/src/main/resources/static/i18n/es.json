@@ -545,6 +545,7 @@
   "lsp.scope": "Ámbito",
   "lsp.scope.user": "Usuario (global)",
   "lsp.scope.workspace": "Espacio de trabajo (local)",
+  "lsp.scope.builtin": "Integrado",
   "lsp.title": "Servidores LSP",
   "lsp.toggle.disable": "Desactivar",
   "lsp.toggle.enable": "Activar",

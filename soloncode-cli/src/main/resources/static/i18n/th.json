@@ -545,6 +545,7 @@
   "lsp.scope": "ขอบเขต",
   "lsp.scope.user": "ผู้ใช้ (ทั่วโลก)",
   "lsp.scope.workspace": "พื้นที่ทำงาน (ในเครื่อง)",
+  "lsp.scope.builtin": "ในตัว",
   "lsp.title": "เซิร์ฟเวอร์ LSP",
   "lsp.toggle.disable": "ปิดใช้งาน",
   "lsp.toggle.enable": "เปิดใช้งาน",

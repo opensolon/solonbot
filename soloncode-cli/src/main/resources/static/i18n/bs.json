@@ -545,6 +545,7 @@
   "lsp.scope": "Opseg",
   "lsp.scope.user": "Korisnik (globalno)",
   "lsp.scope.workspace": "Radni prostor (lokalno)",
+  "lsp.scope.builtin": "Ugrađeno",
   "lsp.title": "LSP serveri",
   "lsp.toggle.disable": "Onemogući",
   "lsp.toggle.enable": "Omogući",

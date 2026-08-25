@@ -545,6 +545,7 @@
   "lsp.scope": "Phạm vi",
   "lsp.scope.user": "Người dùng (Toàn cục)",
   "lsp.scope.workspace": "Không gian làm việc (Cục bộ)",
+  "lsp.scope.builtin": "Tích hợp",
   "lsp.title": "Máy chủ LSP",
   "lsp.toggle.disable": "Tắt",
   "lsp.toggle.enable": "Bật",

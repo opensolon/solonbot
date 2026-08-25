@@ -682,23 +682,13 @@ public class WorkspaceManager {
             engine.addLspServer(entry.getKey(), entry.getValue());
         }
 
-        //内置服务器清单收敛到 LspManager.buildLspServers() 单一来源：
-        //root 判据（哪些文件该交给哪个服务器）写在 LspRootResolver 里，不进 settings.json
+        //内置服务器清单收敛到 LspManager.buildLspServers() 单一来源。
+        //只注册进引擎、不写入 settings.json：否则每个仓库的配置文件都会多出十几条与默认
+        //完全相同的噪声条目，还会在内置默认升级后反过来压制新值
         for (Map.Entry<String, LspServerParameters> builtin
                 : LspManager.buildLspServers().entrySet()) {
             addSystemLspServer(engine, wsSettings, builtin.getKey(),
                     builtin.getValue().getCommand(), builtin.getValue().getExtensions());
-        }
-
-        // 同步 LSP servers
-        for (Map.Entry<String, LspServerParameters> entry : engine.getLspServers().entrySet()) {
-            if (!wsSettings.getLspServers().containsKey(entry.getKey())) {
-                LspServerDo lspServer = new LspServerDo();
-                lspServer.setCommand(entry.getValue().getCommand());
-                lspServer.setExtensions(entry.getValue().getExtensions());
-                lspServer.setEnabled(entry.getValue().isEnabled());
-                wsSettings.getLspServers().put(entry.getKey(), lspServer);
-            }
         }
 
         // 运行时补 env（放在同步之后：不写回 settings，避免把本机 JDK 路径提交进仓库）
@@ -763,6 +753,13 @@ public class WorkspaceManager {
         LOG.info("[LSP] jdtls JAVA_HOME -> {} (current JAVA_HOME is below JDK {})", javaHome, JDTLS_MIN_JDK);
     }
 
+    /**
+     * 注册内置 LSP 服务器（只进引擎，不落 settings.json）
+     *
+     * <p>用户在 settings.json 中的同名条目是「覆盖」：已在前面的循环注册进引擎，此处原样保留。
+     * 存量文件里由旧版自动写入的条目不做清理——用户「有意停用某内置服务器」产生的条目与
+     * 旧版自动注入的条目在磁盘上无法区分，删除会误伤用户意图。
+     */
     private void addSystemLspServer(HarnessEngine engine, AgentSettings wsSettings, String name, List<String> command, List<String> extensions) {
         // 命令不在 PATH 就不启用：否则一旦被路由到（写文件时自动取诊断会路由）会反复 fork 失败进程
         boolean installed = LspManager.isCommandAvailable(command.get(0));
@@ -782,12 +779,9 @@ public class WorkspaceManager {
             return;
         }
 
-        LspServerDo lspServer = new LspServerDo();
-        lspServer.setCommand(command);
-        lspServer.setExtensions(extensions);
-        lspServer.setEnabled(installed);
-        lspServer.setScope(AgentFlags.SCOPE_LOCAL);
-        engine.addLspServer(name, lspServer);
+        LspServerParameters builtin = new LspServerParameters(command, extensions);
+        builtin.setEnabled(installed);
+        engine.addLspServer(name, builtin);
     }
 
     /**

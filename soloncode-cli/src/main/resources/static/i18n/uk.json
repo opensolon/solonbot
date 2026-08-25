@@ -545,6 +545,7 @@
   "lsp.scope": "Область",
   "lsp.scope.user": "Користувач (глобально)",
   "lsp.scope.workspace": "Робоча область (локально)",
+  "lsp.scope.builtin": "Вбудований",
   "lsp.title": "LSP-сервери",
   "lsp.toggle.disable": "Вимкнути",
   "lsp.toggle.enable": "Увімкнути",

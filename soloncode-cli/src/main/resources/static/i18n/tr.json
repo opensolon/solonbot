@@ -545,6 +545,7 @@
   "lsp.scope": "Kapsam",
   "lsp.scope.user": "Kullanıcı (Genel)",
   "lsp.scope.workspace": "Çalışma alanı (Yerel)",
+  "lsp.scope.builtin": "Yerleşik",
   "lsp.title": "LSP Sunucuları",
   "lsp.toggle.disable": "Devre dışı bırak",
   "lsp.toggle.enable": "Etkinleştir",

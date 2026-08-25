@@ -545,6 +545,7 @@
   "lsp.scope": "범위",
   "lsp.scope.user": "사용자(전역)",
   "lsp.scope.workspace": "작업 공간(로컬)",
+  "lsp.scope.builtin": "내장",
   "lsp.title": "LSP 서버",
   "lsp.toggle.disable": "비활성화",
   "lsp.toggle.enable": "활성화",

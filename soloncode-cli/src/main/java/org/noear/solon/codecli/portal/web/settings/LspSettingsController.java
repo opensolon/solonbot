@@ -40,18 +40,26 @@ public class LspSettingsController extends BaseSettingsController{
 
     /**
      * 获取已配置的 LSP 服务器列表
+     *
+     * <p>数据源是引擎的运行时清单而非 settings.json：内置服务器不落盘，
+     * settings.json 里只有用户的自定义与覆盖。有覆盖条目的报其 scope（user/workspace），
+     * 否则报 {@code builtin}，前端据此禁止删除。
      */
     @Get
     @Mapping("/web/settings/lsp/servers")
     public Result<List<Map>> lspServers() throws Exception {
+        Map<String, LspServerDo> overrides = settings().getLspServers();
+
         List<Map> list = new ArrayList<>();
-        for (Map.Entry<String, LspServerDo> entry : settings().getLspServers().entrySet()) {
+        for (Map.Entry<String, LspServerParameters> entry : engine().getLspServers().entrySet()) {
             String name = entry.getKey();
-            LspServerDo params = entry.getValue();
+            LspServerParameters params = entry.getValue();
+            LspServerDo override = overrides.get(name);
+
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", name);
             item.put("enabled", params.isEnabled());
-            item.put("scope", params.getScope() != null ? params.getScope() : AgentFlags.SCOPE_LOCAL);
+            item.put("scope", resolveScope(override));
             item.put("command", params.getCommand());
             item.put("extensions", params.getExtensions());
             item.put("installed", isCommandInstalled(params.getCommand()));
@@ -64,9 +72,35 @@ public class LspSettingsController extends BaseSettingsController{
             list.add(item);
         }
 
+        //被用户停用的服务器不在引擎清单里（停用即从引擎摘除），仍需展示以便重新开启
+        for (Map.Entry<String, LspServerDo> entry : overrides.entrySet()) {
+            if (engine().getLspServers().containsKey(entry.getKey())) {
+                continue;
+            }
+            LspServerDo params = entry.getValue();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", entry.getKey());
+            item.put("enabled", params.isEnabled());
+            item.put("scope", resolveScope(params));
+            item.put("command", params.getCommand());
+            item.put("extensions", params.getExtensions());
+            item.put("installed", isCommandInstalled(params.getCommand()));
+            list.add(item);
+        }
+
         sortByName(list, "name");
 
         return Result.succeed(list);
+    }
+
+    /**
+     * 无覆盖条目即为内置服务器
+     */
+    private static String resolveScope(LspServerDo override) {
+        if (override == null) {
+            return AgentFlags.SCOPE_BUILTIN;
+        }
+        return override.getScope() != null ? override.getScope() : AgentFlags.SCOPE_LOCAL;
     }
 
     /**
@@ -163,7 +197,15 @@ public class LspSettingsController extends BaseSettingsController{
         String lookupName = (originalName != null && !originalName.isEmpty()) ? originalName : name;
         LspServerDo existing = settings().getLspServers().get(lookupName);
         if (existing == null) {
-            return Result.failure("Server not found: " + lookupName);
+            //内置服务器不落 settings.json：以引擎里的运行时默认为基线，本次修改生成一条覆盖条目
+            LspServerParameters runtime = engine().getLspServers().get(lookupName);
+            if (runtime == null) {
+                return Result.failure("Server not found: " + lookupName);
+            }
+            existing = new LspServerDo();
+            existing.setCommand(runtime.getCommand());
+            existing.setExtensions(runtime.getExtensions());
+            existing.setEnabled(runtime.isEnabled());
         }
 
         if (!lookupName.equals(name)) {
@@ -234,6 +276,12 @@ public class LspSettingsController extends BaseSettingsController{
     /**
      * 移除 LSP 服务器配置
      */
+    /**
+     * 删除 LSP 服务器配置
+     *
+     * <p>内置服务器不存在于 settings.json，不可删除；删除一个内置名下的覆盖条目
+     * 意为「恢复内置默认」，而不是把该服务器从引擎里摘掉。
+     */
     @Post
     @Mapping("/web/settings/lsp/servers/remove")
     public Result lspServersRemove(@Body String json) throws Exception {
@@ -242,16 +290,31 @@ public class LspSettingsController extends BaseSettingsController{
         if (Assert.isEmpty(name)) {
             return Result.failure("name is required");
         }
-        LspServerDo params = settings().getLspServers().get(name);
+
+        LspServerParameters builtin = LspManager.buildLspServers().get(name);
+        if (settings().getLspServers().containsKey(name) == false && builtin != null) {
+            return Result.failure("Built-in server can not be removed: " + name);
+        }
+
         settings().getLspServers().remove(name);
         saveSettings();
-        engine().removeLspServer(name);
-        LOG.info("[Settings] LSP server removed: {}", name);
+
+        if (builtin == null) {
+            engine().removeLspServer(name);
+            LOG.info("[Settings] LSP server removed: {}", name);
+        } else {
+            builtin.setEnabled(isCommandInstalled(builtin.getCommand()));
+            engine().addLspServer(name, builtin);
+            LOG.info("[Settings] LSP server override removed, built-in default restored: {}", name);
+        }
         return Result.succeed();
     }
 
     /**
      * 切换 LSP 服务器启用/停用
+     *
+     * <p>内置服务器本身不落盘，因此首次切换时为它生成一条覆盖条目，
+     * 让「用户有意停用」这个意图能跨重启保留。
      */
     @Post
     @Mapping("/web/settings/lsp/servers/toggle")
@@ -260,12 +323,19 @@ public class LspSettingsController extends BaseSettingsController{
             return Result.failure("name is required");
         }
 
-        LspServerParameters params = settings().getLspServers().get(name);
+        LspServerDo params = settings().getLspServers().get(name);
         if (params == null) {
-            return Result.failure("Server not found: " + name);
-        } else {
-            params.setEnabled(enabled);
+            LspServerParameters runtime = engine().getLspServers().get(name);
+            if (runtime == null) {
+                return Result.failure("Server not found: " + name);
+            }
+            params = new LspServerDo();
+            params.setCommand(runtime.getCommand());
+            params.setExtensions(runtime.getExtensions());
+            params.setScope(AgentFlags.SCOPE_LOCAL);
+            settings().getLspServers().put(name, params);
         }
+        params.setEnabled(enabled);
 
         if (enabled) {
             engine().addLspServer(name, params);

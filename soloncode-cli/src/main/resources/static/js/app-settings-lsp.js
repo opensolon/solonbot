@@ -52,6 +52,7 @@
                 var installed = item.installed !== false;
                 var badges = '<span class="settings-inline-tag">[lsp]</span>';
                 if (item.scope === 'workspace') badges += ' <span class="mounts-scope-badge scope-workspace">' + I18n.t('lsp.scope.workspace') + '</span>';
+                else if (item.scope === 'builtin') badges += ' <span class="mounts-scope-badge">' + I18n.t('lsp.scope.builtin') + '</span>';
                 if (installed) badges += ' <span class="skill-installed-badge">' + I18n.t('lsp.installed') + '</span>';
                 html += '<div class="settings-list-item' + (item.enabled === false ? ' disabled' : '') + '" data-name="' + escapeAttr(name) + '">'
                     + '<div class="settings-list-icon">L</div>'
@@ -95,7 +96,8 @@
     }
 
     function fillLspForm(server) {
-        setScopeValue('lspScope', server.scope || 'user');
+        //内置服务器本身无作用域：编辑它等于为当前工作区新建一条覆盖
+        setScopeValue('lspScope', server.scope === 'builtin' ? 'workspace' : (server.scope || 'user'));
         var command = (server.command && server.command.length > 0) ? server.command.join(' ') : '';
         $('#lspCommand').val(command);
         var extensions = (server.extensions && server.extensions.length > 0) ? server.extensions.join(', ') : '';
@@ -132,8 +134,9 @@
         showLspFormView(I18n.t('lsp.editTitle'), true);
         $lspSaveBtn.text(I18n.t('lsp.updateBtn'));
         $('#lspName').val(server.name).prop('readOnly', true).addClass('readonly-gray');
-        setScopeValue('lspScope', server.scope || 'user');
-        $('#lspFormDeleteBtn').show();
+        setScopeValue('lspScope', server.scope === 'builtin' ? 'workspace' : (server.scope || 'user'));
+        //内置服务器不存在于配置文件，没有可删除的东西
+        if (server.scope === 'builtin') { $('#lspFormDeleteBtn').hide(); } else { $('#lspFormDeleteBtn').show(); }
         fillLspForm(server);
     }
 

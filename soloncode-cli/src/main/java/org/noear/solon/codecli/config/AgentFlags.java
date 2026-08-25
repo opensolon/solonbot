@@ -39,6 +39,7 @@ public class AgentFlags {
 
     public final static String SCOPE_USER = "user"; //作用域：用户（用局）
     public final static String SCOPE_LOCAL = "workspace"; //作用域：本地
+    public final static String SCOPE_BUILTIN = "builtin"; //作用域：内置（不落配置文件，不可删除）
 
     public static String getVersion() {
         return "v2026.8.24";

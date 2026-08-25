@@ -545,6 +545,7 @@
   "lsp.scope": "Εμβέλεια",
   "lsp.scope.user": "Χρήστης (Καθολικό)",
   "lsp.scope.workspace": "Χώρος εργασίας (Τοπικό)",
+  "lsp.scope.builtin": "Ενσωματωμένο",
   "lsp.title": "Διακομιστές LSP",
   "lsp.toggle.disable": "Απενεργοποίηση",
   "lsp.toggle.enable": "Ενεργοποίηση",

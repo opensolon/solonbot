@@ -545,6 +545,7 @@
   "lsp.scope": "スコープ",
   "lsp.scope.user": "ユーザー（全体）",
   "lsp.scope.workspace": "ワークスペース（ローカル）",
+  "lsp.scope.builtin": "組み込み",
   "lsp.title": "LSP サーバー",
   "lsp.toggle.disable": "無効化",
   "lsp.toggle.enable": "有効化",

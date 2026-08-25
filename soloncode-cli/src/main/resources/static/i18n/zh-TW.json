@@ -545,6 +545,7 @@
   "lsp.scope": "作用域",
   "lsp.scope.user": "使用者（全域）",
   "lsp.scope.workspace": "工作區（本機）",
+  "lsp.scope.builtin": "內建",
   "lsp.title": "LSP 伺服器",
   "lsp.toggle.disable": "停用",
   "lsp.toggle.enable": "啓用",

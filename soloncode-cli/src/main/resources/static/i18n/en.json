@@ -544,6 +544,7 @@
   "lsp.scope": "Scope",
   "lsp.scope.user": "User (Global)",
   "lsp.scope.workspace": "Workspace (Local)",
+  "lsp.scope.builtin": "Built-in",
   "lsp.title": "LSP Servers",
   "lsp.toggle.disable": "Disable",
   "lsp.toggle.enable": "Enable",

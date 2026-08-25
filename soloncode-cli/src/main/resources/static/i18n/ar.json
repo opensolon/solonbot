@@ -545,6 +545,7 @@
   "lsp.scope": "النطاق",
   "lsp.scope.user": "المستخدم (العالمي)",
   "lsp.scope.workspace": "مساحة العمل (المحلية)",
+  "lsp.scope.builtin": "مدمج",
   "lsp.title": "خوادم LSP",
   "lsp.toggle.disable": "تعطيل",
   "lsp.toggle.enable": "تفعيل",

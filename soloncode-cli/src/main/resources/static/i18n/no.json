@@ -545,6 +545,7 @@
   "lsp.scope": "Omfang",
   "lsp.scope.user": "Bruker (global)",
   "lsp.scope.workspace": "Arbeidsområde (lokalt)",
+  "lsp.scope.builtin": "Innebygd",
   "lsp.title": "LSP-servere",
   "lsp.toggle.disable": "Deaktiver",
   "lsp.toggle.enable": "Aktiver",
