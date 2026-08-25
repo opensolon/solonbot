@@ -116,6 +116,39 @@ public class WebController {
         return currentContext().getSessionManager();
     }
 
+    /**
+     * 获取当前用户 ID。
+     * 用户认证启用时返回 userId，否则返回 null（使用传统非隔离路径）。
+     * 优先从上下文属性获取，若未设置则尝试从 token 中提取。
+     */
+    private String getCurrentUserId() {
+        Context ctx = Context.current();
+        if (ctx != null) {
+            // 优先从 UserAuthFilter 设置的上下文属性获取
+            String userId = ctx.attr("user_id");
+            if (userId != null) {
+                return userId;
+            }
+            // 回退：从 token 中提取 userId（用于 UserAuthFilter 未设置属性但有有效 token 的场景）
+            try {
+                String token = org.noear.solon.codecli.auth.UserLoginController.extractToken(ctx);
+                if (token != null) {
+                    org.noear.solon.codecli.auth.UserSessionManager sessionMgr = 
+                            org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.auth.UserSessionManager.class);
+                    if (sessionMgr != null) {
+                        org.noear.solon.codecli.auth.UserSessionManager.UserSession session = sessionMgr.getSession(token);
+                        if (session != null) {
+                            return session.getUserId();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // 忽略异常，回退返回 null
+            }
+        }
+        return null;
+    }
+
     private FileService fileService() {
         return currentContext().getFileService();
     }
@@ -306,6 +339,8 @@ public class WebController {
     @Get
     @Mapping("/web/chat/sessions")
     public Result<List<Map>> sessions() throws Exception {
+        // 获取当前用户ID（用户认证启用时用于过滤会话，否则返回 null）
+        String userId = getCurrentUserId();
         Path sessionsPath = currentContext().getSessionsRoot();
         File sessionsDir = sessionsPath.toFile();
         List<Map> data = new ArrayList<>();
@@ -320,6 +355,15 @@ public class WebController {
                 for (File dir : dirs) {
                     String sid = dir.getName();
                     SessionMeta meta = SessionMeta.load(dir);
+
+                    // 用户认证启用时，过滤非当前用户的会话
+                    if (userId != null) {
+                        String ownerId = meta.getOwnerUserId();
+                        // 仅显示当前用户拥有的会话（无 owner 的会话视为旧版未隔离会话，也显示）
+                        if (ownerId != null && !ownerId.isEmpty() && !ownerId.equals(userId)) {
+                            continue;
+                        }
+                    }
 
                     // 优先使用自定义标签
                     String label = meta.getLabel();
@@ -406,7 +450,9 @@ public class WebController {
 
         //会话根目录按目标工作区计算（支持跨工作区删除），防穿越由 sessionPath 落在对应 sessionsRoot 内保证
         Path sessionsRoot = WorkspaceDataUtil.sessionsPath(workspaceRoot.toString());
-        Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
+        // 用户认证启用时，会话路径包含用户 ID 前缀
+        String userId = getCurrentUserId();
+        Path sessionPath = (userId != null ? sessionsRoot.resolve(userId) : sessionsRoot).resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
@@ -458,6 +504,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
+        String userId = getCurrentUserId();
         Path sessionsRoot = currentContext().getSessionsRoot();
         Path sourcePath = sessionsRoot.resolve(sessionId).normalize();
         File sourceDir = sourcePath.toFile();
@@ -525,6 +572,7 @@ public class WebController {
             label = label.substring(0, 50);
         }
 
+        String userId = getCurrentUserId();
         Path sessionPath = currentContext().getSessionPath(sessionId);
 
         if (!sessionPath.toFile().exists() || !sessionPath.toFile().isDirectory()) {
@@ -553,6 +601,7 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
+        String userId = getCurrentUserId();
         Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {
@@ -688,7 +737,8 @@ public class WebController {
                                 @Param(value = "modelName", required = false) String modelName,
                                 @Param(value = "reasoningEffort", required = false) String reasoningEffort,
                                 @Param(value = "thinkingMode", required = false) String thinkingMode) throws Exception {
-        AgentSession session = engine().getSession(sessionId);
+        String userId = getCurrentUserId();
+        AgentSession session = sessionManager().getSession(sessionId, userId);
 
         if (Assert.isNotEmpty(modelName)) {
             session.getContext().put(HarnessEngine.CTX_MODEL_SELECTED, modelName);
@@ -719,7 +769,8 @@ public class WebController {
     @Mapping("/web/chat/agents/select")
     public Result agents_select(@Param("sessionId") String sessionId,
                                 @Param(value = "agentName", required = false) String agentName) throws Exception {
-        AgentSession session = engine().getSession(sessionId);
+        String userId = getCurrentUserId();
+        AgentSession session = sessionManager().getSession(sessionId, userId);
         session.getContext().put(HarnessEngine.CTX_AGENT_SELECTED, agentName != null ? agentName : "");
         session.updateSnapshot();
         return Result.succeed();
@@ -742,6 +793,7 @@ public class WebController {
 
         List<Map> data = new ArrayList<>();
 
+        String userId = getCurrentUserId();
         Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsPath.startsWith(sessionsRoot)) {
@@ -865,6 +917,7 @@ public class WebController {
         }
 
         try {
+            String userId = getCurrentUserId();
             Path sessionPath = currentContext().getSessionPath(sessionId);
             File msgFile = new File(sessionPath.toFile(), sessionId + ".messages.ndjson");
             if (msgFile.exists()) {
@@ -1019,7 +1072,8 @@ public class WebController {
 
             // HITL 审批时，将前端回传的 callUuid 写入 session context，供 WebGate 精确定位决策
             if (Assert.isNotEmpty(hitlAction) && Assert.isNotEmpty(hitlCallId)) {
-                engine().getSession(sessionId).getContext().put(WebGate.CTX_HITL_CALL_ID, hitlCallId);
+                String userId = getCurrentUserId();
+                sessionManager().getSession(sessionId, userId).getContext().put(WebGate.CTX_HITL_CALL_ID, hitlCallId);
             }
 
             // 路由到 WebGate 处理（AI 结果通过 WebSocket 推送到前端）
@@ -1969,6 +2023,7 @@ public class WebController {
      * 解析并校验会话目录下的 queue-tasks.json 路径（防止路径穿越）。
      */
     private Path resolveSessionQueuePath(String sessionId) {
+        String userId = getCurrentUserId();
         Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionPath.startsWith(sessionsRoot)) {

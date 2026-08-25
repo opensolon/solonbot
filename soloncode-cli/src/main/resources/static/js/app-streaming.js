@@ -1438,6 +1438,9 @@ function connectWebGate() {
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/web/gate?_t=1' + window.wsAndSuffix();
+        // 用户认证启用时，将 user_token 传递给 WebSocket 握手验证
+        var utk = window.getCookie ? window.getCookie('user_token') : null;
+        if (utk) { wsUrl += '&user_token=' + encodeURIComponent(utk); }
         webGateSocket = new WebSocket(wsUrl);
     } catch(e) {
         console.error('[WebGate] create failed:', e);

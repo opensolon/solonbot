@@ -58,6 +58,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +85,9 @@ public class WebGate extends SimpleWebSocketListener {
     /** 流式响应构建器，负责组装 ReAct Agent 的流式输出并通过本网关推送 */
     private final WebStreamBuilder streamBuilder;
 
+    /** 记录 WebSocket 连接对应的用户 ID（用于按用户隔离广播） */
+    private final ConcurrentHashMap<String, String> socketUserMap = new ConcurrentHashMap<>();
+
     public WebGate(WorkspaceManager workspaceManager) {
         this.workspaceManager = workspaceManager;
         this.streamBuilder = new WebStreamBuilder();
@@ -98,6 +102,37 @@ public class WebGate extends SimpleWebSocketListener {
      */
     public WebStreamBuilder getStreamBuilder() {
         return streamBuilder;
+    }
+
+    /**
+     * 从当前请求上下文中解析用户 ID。
+     * 优先从 UserAuthFilter 设置的上下文属性获取，否则从 token 中提取。
+     */
+    private static String resolveUserIdFromContext() {
+        org.noear.solon.core.handle.Context ctx = org.noear.solon.core.handle.Context.current();
+        if (ctx != null) {
+            String userId = ctx.attr("user_id");
+            if (userId != null) {
+                return userId;
+            }
+            // 回退：从 token 中提取 userId
+            try {
+                String token = org.noear.solon.codecli.auth.UserLoginController.extractToken(ctx);
+                if (token != null) {
+                    org.noear.solon.codecli.auth.UserSessionManager sessionMgr =
+                            org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.auth.UserSessionManager.class);
+                    if (sessionMgr != null) {
+                        org.noear.solon.codecli.auth.UserSessionManager.UserSession session = sessionMgr.getSession(token);
+                        if (session != null) {
+                            return session.getUserId();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // 忽略异常，回退返回 null
+            }
+        }
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -121,6 +156,23 @@ public class WebGate extends SimpleWebSocketListener {
             LOG.warn("[WebGate] Reject websocket with unknown workspaceId: {}", wsId);
             socket.close();
             return;
+        }
+
+        // 如果用户认证启用，验证 WebSocket 连接携带的 user_token
+        String userToken = socket.param("user_token");
+        if (userToken != null && !userToken.isEmpty()) {
+            try {
+                org.noear.solon.codecli.auth.UserSessionManager sessionMgr =
+                        org.noear.solon.Solon.context().getBean(org.noear.solon.codecli.auth.UserSessionManager.class);
+                if (sessionMgr != null) {
+                    org.noear.solon.codecli.auth.UserSessionManager.UserSession userSession = sessionMgr.getSession(userToken);
+                    if (userSession != null) {
+                        socketUserMap.put(socket.id(), userSession.getUserId());
+                    }
+                }
+            } catch (Exception e) {
+                LOG.warn("[WebGate] Failed to authenticate user_token: {}", e.getMessage());
+            }
         }
 
         //WS 回调跑在容器 IO 线程上（不经 WorkspaceFilter），不打标则日志全部回退到启动工作区
@@ -161,6 +213,8 @@ public class WebGate extends SimpleWebSocketListener {
     @Override
     public void onClose(WebSocket socket) {
         String wsId = socket.param("workspaceId");
+        // 清理用户映射
+        socketUserMap.remove(socket.id());
         // 与 onOpen 对称：从目标工作区连接池中移除；兵底同时从本实例 connections 移除（共享引用时为同一列表，重复 remove 无害）。
         resolveConnections(wsId).remove(socket);
 
@@ -220,9 +274,35 @@ public class WebGate extends SimpleWebSocketListener {
 
         // 推送严格按 socket 所属工作区分组：直接遍历本实例（= 所属工作区上下文）的连接池，
         // 不再依赖 Context.current() 猜测（异步流线程下为 null 会回退到默认工作区而串流）。
+        // 用户认证启用时，只推送给拥有该会话的用户连接，实现会话隔离
+        // 从会话元数据中获取会话所有者
+        String sessionOwnerId = null;
+        try {
+            java.nio.file.Path sessionDir = wsContext.getSessionPath(sessionId);
+            if (java.nio.file.Files.isDirectory(sessionDir)) {
+                org.noear.solon.codecli.session.SessionMeta meta = org.noear.solon.codecli.session.SessionMeta.load(sessionDir);
+                sessionOwnerId = meta.getOwnerUserId();
+            }
+        } catch (Exception e) {
+            // 忽略异常
+        }
         for (WebSocket socket : wsContext.getConnections()) {
             if (socket != null) {
                 try {
+                    // 如果用户认证启用，检查该 socket 是否属于会话所有者
+                    if (!socketUserMap.isEmpty()) {
+                        String socketUserId = socketUserMap.get(socket.id());
+                        if (socketUserId == null) {
+                            // 未认证的连接，跳过
+                            continue;
+                        }
+                        // 如果会话有所有者，只推送给所有者
+                        if (sessionOwnerId != null && !sessionOwnerId.isEmpty()) {
+                            if (!socketUserId.equals(sessionOwnerId)) {
+                                continue;
+                            }
+                        }
+                    }
                     socket.send(enriched);
                 } catch (Throwable e) {
                     LOG.warn("[WebGate] Failed to send to socket {}: {}", socket.id(), e.getMessage());
@@ -406,7 +486,9 @@ public class WebGate extends SimpleWebSocketListener {
         try {
             // 本 WebGate 实例已绑定所属工作区的引擎（与 connections 同一上下文），
             // 无需再从 Context.current()/sessionId 猜测引擎，避免异步线程下回退默认引擎。
-            session = wsContext.getEngine().getSession(sessionId);
+            // 用户认证启用时，记录 userId 便于后续会话路径隔离
+            String userId = resolveUserIdFromContext();
+            session = wsContext.getSessionManager().getSession(sessionId, userId);
 
             // 写入会话级模型 / 推理（后续 StreamBuilder 与旁路任务均可读取）
             if (Assert.isNotEmpty(selectedModel)) {
@@ -1024,7 +1106,9 @@ public class WebGate extends SimpleWebSocketListener {
 
         AgentSession session;
         try {
-            session = wsContext.getEngine().getSession(sessionId);
+            // 使用用户隔离的会话管理器：safeChatInputAndCaptureLoop 由 Loop 调度器调用，
+            // 需要通过 sessionId 从 SessionManager 的 sessionUserMap 中查找 userId
+            session = wsContext.getSessionManager().getSession(sessionId);
             if (isSessionBusy(session)) {
                 LOG.warn("[WebGate] {} event skipped for session {}: task in progress", source, sessionId);
                 return null;
@@ -1155,7 +1239,7 @@ public class WebGate extends SimpleWebSocketListener {
      */
     public void interruptSession(WorkspaceContext wsContext,String sessionId) {
         try {
-            AgentSession session = wsContext.getEngine().getSession(sessionId);
+            AgentSession session = wsContext.getSessionManager().getSession(sessionId);
             Object slot = session.attrs().remove("disposable");
 
             // 无活跃流：不发取消语义；若尚未发 done 则兜底，便于前端收尾
