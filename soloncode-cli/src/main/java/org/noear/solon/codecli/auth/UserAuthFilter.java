@@ -37,6 +37,7 @@ public class UserAuthFilter implements Filter {
         "/web/user/login",
         "/web/user/logout",
         "/web/user/me",
+        "/login.html",
         "/web.html",
         "/web/chat/meta"
     ));
@@ -87,7 +88,7 @@ public class UserAuthFilter implements Filter {
                 return;
             }
             // 页面请求重定向到登录页
-            ctx.redirect("/web/user/login.html");
+            ctx.redirect("/login.html");
             return;
         }
         
