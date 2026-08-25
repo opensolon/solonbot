@@ -528,11 +528,6 @@ body {
 .tool-lsp-badge { display: inline-flex; align-items: center; padding: 0 6px; margin-left: 6px; font-size: var(--fs-2xs); font-weight: 600; line-height: 18px; border-radius: 4px; vertical-align: middle; white-space: nowrap; cursor: inherit; }
 .tool-lsp-badge.is-error { background: var(--color-warning); color: #fff; }
 .tool-lsp-badge.is-clean { background: transparent; color: var(--text-tertiary); border: 1px solid var(--border-color); font-weight: 500; }
-/* 工具本身执行成功了（文件已落盘），只是写入的内容有类型错误：
-   用左侧一条警告色竖条做 hint 级提示，不整条染 error 背景，
-   以免与「工具调用真的失败了」在视觉上混淆。竖条用 inset 阴影绘制，
-   不占布局、不与 hover/展开态的背景色互相覆盖。 */
-.tool-card.has-lsp-error > .tool-card-header { box-shadow: inset 3px 0 0 var(--color-warning); }
 
 .tool-lsp-panel { margin: 8px 0 0; border-top: 1px solid var(--border-color); padding-top: 8px; white-space: normal; }
 .tool-card-body.tool-body-diff .tool-lsp-panel,

@@ -1259,7 +1259,6 @@ function applyLspBadge(card, lsp) {
     group.appendChild(badge);
 
     if (hasErr) {
-        $(card).addClass('has-lsp-error');
         // 错误值得被看到：直接展开，省去用户一次点击
         if (!$(card).hasClass('expanded')) {
             $(card).addClass('expanded');
