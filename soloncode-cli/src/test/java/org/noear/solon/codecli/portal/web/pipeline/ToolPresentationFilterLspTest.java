@@ -3,6 +3,7 @@ package org.noear.solon.codecli.portal.web.pipeline;
 import org.junit.jupiter.api.Test;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
+import org.noear.solon.ai.talents.lsp.LspCheckState;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolLspDiagnostic;
 import org.noear.solon.codecli.portal.web.event.payload.ToolLspInfo;
@@ -107,7 +108,7 @@ public class ToolPresentationFilterLspTest {
     @Test
     public void noDiagnostics_coveredFileReportsCheckedClean() {
         ToolEndPayload payload = editPayload("文件 src/App.java 成功完成 1 处修改。");
-        applyFilter(new ToolPresentationFilter(path -> true), payload);
+        applyFilter(new ToolPresentationFilter(path -> LspCheckState.CLEAN), payload);
 
         ToolLspInfo lsp = payload.getLsp();
         assertNotNull(lsp, "被语言服务器覆盖的文件应上报已检查");
@@ -118,8 +119,20 @@ public class ToolPresentationFilterLspTest {
     @Test
     public void noDiagnostics_uncoveredFileReportsNothing() {
         ToolEndPayload payload = editPayload("文件 src/App.java 成功完成 1 处修改。");
-        applyFilter(new ToolPresentationFilter(path -> false), payload);
+        applyFilter(new ToolPresentationFilter(path -> LspCheckState.NONE), payload);
         assertNull(payload.getLsp(), "无语言服务器覆盖时不应出现 lsp 字段");
+    }
+
+    @Test
+    public void noDiagnostics_pendingFileIsNotReportedAsClean() {
+        ToolEndPayload payload = editPayload("\u6587\u4ef6 src/App.java \u6210\u529f\u5b8c\u6210 1 \u5904\u4fee\u6539\u3002");
+        applyFilter(new ToolPresentationFilter(path -> LspCheckState.PENDING), payload);
+
+        ToolLspInfo lsp = payload.getLsp();
+        assertNotNull(lsp, "\u5df2\u8bf7\u6c42\u68c0\u67e5\u5c31\u5e94\u4e0a\u62a5\uff0c\u5426\u5219\u524d\u7aef\u65e0\u6cd5\u533a\u5206\u300c\u672a\u8986\u76d6\u300d");
+        assertEquals(0, lsp.getErrorCount());
+        //\u5173\u952e\uff1a\u7b49\u5f85\u8d85\u65f6\u4e0d\u80fd\u88ab\u5f53\u6210\u300c\u786e\u8ba4\u65e0\u9519\u300d
+        assertTrue(lsp.isPending());
     }
 
     @Test
@@ -144,7 +157,7 @@ public class ToolPresentationFilterLspTest {
                 .args(args)
                 .build();
 
-        applyFilter(new ToolPresentationFilter(path -> true), payload);
+        applyFilter(new ToolPresentationFilter(path -> LspCheckState.CLEAN), payload);
         assertNull(payload.getLsp());
         assertEquals("a.txt", payload.getResult());
     }

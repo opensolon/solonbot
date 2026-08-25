@@ -758,6 +758,7 @@
   "msg.failed": "失敗",
   "msg.lspErrors": "LSP 報錯 {n} 處",
   "msg.lspClean": "LSP 已檢查，無錯誤",
+  "msg.lspPending": "LSP 檢查中，尚無結論",
   "msg.lspMore": "還有 {n} 處未顯示",
   "msg.grepSummary": "{files} 個檔案 / {hits} 處匹配",
   "msg.itemCount": "{count} 項",

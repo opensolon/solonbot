@@ -758,6 +758,7 @@
   "msg.failed": "Не удалось",
   "msg.lspErrors": "Ошибок LSP: {n}",
   "msg.lspClean": "LSP проверен, ошибок нет",
+  "msg.lspPending": "Проверка LSP выполняется, результата пока нет",
   "msg.lspMore": "ещё {n} не показано",
   "msg.grepSummary": "Файлов: {files} / совпадений: {hits}",
   "msg.itemCount": "Элементов: {count}",

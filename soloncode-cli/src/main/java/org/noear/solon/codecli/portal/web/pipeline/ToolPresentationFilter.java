@@ -2,6 +2,7 @@ package org.noear.solon.codecli.portal.web.pipeline;
 
 import org.noear.solon.ai.talents.cli.TerminalTalent;
 import org.noear.solon.ai.talents.cli.TodoTalent;
+import org.noear.solon.ai.talents.lsp.LspCheckState;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
@@ -10,7 +11,7 @@ import org.noear.solon.codecli.portal.web.event.payload.ToolLspInfo;
 import org.noear.solon.core.util.Assert;
 
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,18 +39,20 @@ public class ToolPresentationFilter {
     private static final String LSP_PROMPT_PREFIX = "LSP errors detected in this file";
 
     /**
-     * 判定某文件是否被启用的语言服务器覆盖：用于区分
-     * 「语言服务器检查过、没有错误」与「压根没有语言服务器」两种情况。
+     * 查询某文件最近一次写入的 LSP 检查状态。
+     *
+     * <p>必须是三态而非「有没有语言服务器」的布尔判定：语言服务器冷启动时诊断等待会超时，
+     * 此时既没有诊断也没有结论，若与真正的无错误合并展示，就会给出比实际更强的保证。
      * 为 null 时只上报有错误的场景。
      */
-    private final Predicate<String> lspCoverage;
+    private final Function<String, LspCheckState> lspState;
 
     public ToolPresentationFilter() {
         this(null);
     }
 
-    public ToolPresentationFilter(Predicate<String> lspCoverage) {
-        this.lspCoverage = lspCoverage;
+    public ToolPresentationFilter(Function<String, LspCheckState> lspState) {
+        this.lspState = lspState;
     }
 
     public WebEvent<?> apply(WebEvent<?> event) {
@@ -122,13 +125,19 @@ public class ToolPresentationFilter {
                 }
             }
 
-            //无诊断块：若该文件确实被语言服务器覆盖，说明已检查且无错误
-            if (lspCoverage != null && Assert.isNotEmpty(filePath) && lspCoverage.test(filePath)) {
+            //无诊断块：区分「已检查且无错误」与「已请求但未拿到结论」，后者不能声称文件干净
+            if (lspState == null || Assert.isEmpty(filePath)) {
+                return;
+            }
+
+            LspCheckState state = lspState.apply(filePath);
+            if (state == LspCheckState.CLEAN || state == LspCheckState.PENDING) {
                 payload.setLsp(ToolLspInfo.builder()
                         .file(filePath)
                         .errorCount(0)
                         .truncated(false)
                         .items(Collections.emptyList())
+                        .pending(state == LspCheckState.PENDING)
                         .build());
             }
         } catch (Throwable e) {

@@ -758,6 +758,7 @@
   "msg.failed": "ব্যর্থ",
   "msg.lspErrors": "{n}টি LSP ত্রুটি",
   "msg.lspClean": "LSP পরীক্ষিত, কোনো ত্রুটি নেই",
+  "msg.lspPending": "LSP পরীক্ষা চলছে, এখনো কোনো ফলাফল নেই",
   "msg.lspMore": "আরও {n}টি দেখানো হয়নি",
   "msg.grepSummary": "{files}টি ফাইল / {hits}টি ম্যাচ",
   "msg.itemCount": "{count}টি আইটেম",

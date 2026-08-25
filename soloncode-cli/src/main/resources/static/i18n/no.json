@@ -758,6 +758,7 @@
   "msg.failed": "Mislyktes",
   "msg.lspErrors": "{n} LSP-feil",
   "msg.lspClean": "LSP sjekket, ingen feil",
+  "msg.lspPending": "LSP-sjekk pågår, ingen resultat ennå",
   "msg.lspMore": "{n} flere vises ikke",
   "msg.grepSummary": "{files} filer / {hits} treff",
   "msg.itemCount": "{count} elementer",

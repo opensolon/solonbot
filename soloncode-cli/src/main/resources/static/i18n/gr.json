@@ -758,6 +758,7 @@
   "msg.failed": "Απέτυχε",
   "msg.lspErrors": "{n} σφάλματα LSP",
   "msg.lspClean": "Έλεγχος LSP, κανένα σφάλμα",
+  "msg.lspPending": "Ο έλεγχος LSP σε εξέλιξη, χωρίς αποτέλεσμα ακόμη",
   "msg.lspMore": "{n} ακόμη δεν εμφανίζονται",
   "msg.grepSummary": "{files} αρχεία / {hits} αντιστοιχίες",
   "msg.itemCount": "{count} στοιχεία",

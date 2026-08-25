@@ -758,6 +758,7 @@
   "msg.failed": "ล้มเหลว",
   "msg.lspErrors": "ข้อผิดพลาด LSP {n} รายการ",
   "msg.lspClean": "ตรวจสอบ LSP แล้ว ไม่พบข้อผิดพลาด",
+  "msg.lspPending": "กำลังตรวจสอบ LSP ยังไม่มีผลลัพธ์",
   "msg.lspMore": "อีก {n} รายการไม่ได้แสดง",
   "msg.grepSummary": "{files} ไฟล์ / {hits} รายการที่ตรงกัน",
   "msg.itemCount": "{count} รายการ",
