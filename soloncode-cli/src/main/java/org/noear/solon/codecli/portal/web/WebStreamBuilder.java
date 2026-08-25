@@ -35,6 +35,27 @@ public class WebStreamBuilder {
     }
 
     /**
+     * LSP 覆盖判定：纯查表（启用状态 + 扩展名匹配 + 是否已标记为启动失败），不起进程。
+     * 用于让 Web UI 区分「语言服务器检查过、没有错误」与「压根没有语言服务器」。
+     */
+    private java.util.function.Predicate<String> buildLspCoverage(WorkspaceContext wsContext) {
+        return filePath -> {
+            try {
+                HarnessEngine engine = wsContext.getEngine();
+                if (engine == null || engine.getLspTalent() == null) {
+                    return false;
+                }
+                if (engine.getLspTalent().isEnabled() == false) {
+                    return false;
+                }
+                return engine.getLspTalent().getLspManager().hasClientFor(filePath);
+            } catch (Throwable e) {
+                return false;
+            }
+        };
+    }
+
+    /**
      * 构建 SAEP 2.0 响应式事件流
      */
     public Flux<WebEvent<?>> buildStreamFlux(WorkspaceContext wsContext, AgentSession session, ReActAgent agent, ChatModel chatModel, String sessionCwd, Prompt prompt) {
@@ -88,7 +109,7 @@ public class WebStreamBuilder {
         ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
-        ToolPresentationFilter toolFilter = new ToolPresentationFilter();
+        ToolPresentationFilter toolFilter = new ToolPresentationFilter(buildLspCoverage(wsContext));
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
 
         return agent.prompt(prompt)

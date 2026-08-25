@@ -521,6 +521,28 @@ body {
 .tool-code-pre { margin: 0; padding: 10px 12px; overflow: auto; border-radius: 0; line-height: 1.5; }
 .tool-card-body .tool-code-pre > code.hljs { padding: 0; }
 .tool-card-body.tool-body-todo .tool-code-pre { padding: 10px 12px; }
+
+/* ===== LSP 诊断（写入后自动注入）=====
+   头部徽标是主要感知入口：不展开卡片也能看出哪次调用触发了语言服务器。
+   配色全走主题变量，保证 default/contrast/eyecare 三套皮肤不破。 */
+.tool-lsp-badge { display: inline-flex; align-items: center; padding: 0 6px; margin-left: 6px; font-size: var(--fs-2xs); font-weight: 600; line-height: 18px; border-radius: 4px; vertical-align: middle; white-space: nowrap; cursor: inherit; }
+.tool-lsp-badge.is-error { background: var(--color-warning); color: #fff; }
+.tool-lsp-badge.is-clean { background: transparent; color: var(--text-tertiary); border: 1px solid var(--border-color); font-weight: 500; }
+.tool-card.has-lsp-error > .tool-card-header { background: var(--error-bg, transparent); }
+
+.tool-lsp-panel { margin: 8px 0 0; border-top: 1px solid var(--border-color); padding-top: 8px; white-space: normal; }
+.tool-card-body.tool-body-diff .tool-lsp-panel,
+.tool-card-body.tool-body-code .tool-lsp-panel,
+.tool-card-body.tool-body-terminal .tool-lsp-panel { margin: 0; padding: 8px 12px; }
+.tool-lsp-panel-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--color-warning); }
+.tool-lsp-panel-head > svg { flex-shrink: 0; }
+.tool-lsp-file { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.tool-lsp-list { margin: 0; padding: 0; list-style: none; }
+.tool-lsp-item { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); }
+.tool-lsp-pos { flex-shrink: 0; min-width: 4em; text-align: right; font-family: var(--font-mono); color: var(--text-tertiary); }
+.tool-lsp-msg { flex: 1; min-width: 0; word-break: break-word; color: var(--error-text, var(--text-primary)); }
+.tool-lsp-source { flex-shrink: 0; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.tool-lsp-more { color: var(--text-tertiary); font-style: italic; padding-left: calc(4em + 8px); }
 .tool-body-deferred { color: var(--text-tertiary); }
 .tool-card > .tool-card-header[aria-expanded="true"] { background: var(--bg-hover); }
 
