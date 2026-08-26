@@ -1,5 +1,5 @@
 
-### README
+### v2026.8.26
 
 * 优化 soloncode 大模型上下文的默认长度配置为 1M（之前是 128K）
 * 优化 soloncode lsp 体验（集成在 edit, write 工具中）
