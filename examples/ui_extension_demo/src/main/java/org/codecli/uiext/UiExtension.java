@@ -22,9 +22,11 @@ public class UiExtension implements HarnessExtension {
 
     @Override
     public void configure(HarnessEngine engine, String agentName, ReActAgent.Builder agentBuilder) {
+        System.out.println("[ui_extension_demo] configure() called for agent: " + agentName);
         // 注册拦截器：在 ui_demo 工具执行前发射 UI 事件
         agentBuilder.defaultInterceptorAdd(new UiRenderInterceptor());
         // 注册工具：用户可显式调用，LLM 也会在收到 __ui_action__ 后再次调用
         agentBuilder.defaultToolAdd(new MethodToolProvider(new UiDemoTool()));
+        System.out.println("[ui_extension_demo] ui_demo tool + interceptor registered.");
     }
 }
