@@ -90,7 +90,7 @@ public class WebGate extends SimpleWebSocketListener {
 
     public WebGate(WorkspaceManager workspaceManager) {
         this.workspaceManager = workspaceManager;
-        this.streamBuilder = new WebStreamBuilder();
+        this.streamBuilder = new WebStreamBuilder(this);
     }
 
     /**
@@ -356,6 +356,9 @@ public class WebGate extends SimpleWebSocketListener {
         resetStreamDoneSent(session);
 
         if (session != null) {
+            // 新任务开流：清上一轮 runId。steer 接口在 runId 比对时若活跃值为 null 则接受
+            // （首个 reason 尚未跑，守卫1会自动推迟注入到第二轮），不会错投到已结束的任务
+            session.attrs().remove(SteerInterceptor.ATTR_ACTIVE_RUN_ID);
             emitToClient(wsContext, session.getSessionId(), WebEvent.ofResetStream());
         }
     }

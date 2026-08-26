@@ -167,13 +167,14 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onContextSizeEvent(ChatModel chatModel, ContextSizeEvent chunk) {
-        int limit = 0;
+        long limit = 0;
         if (chatModel != null && chatModel.getConfig() != null) {
-            limit = (int) chatModel.getConfig().getContextLength();
+            limit = chatModel.getConfig().getContextLength();
         }
         if (limit <= 0) {
-            limit = 128_000; // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
+            limit = chunk.getContextLength(); // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
         }
+
         Double cacheRate = null;
         if (chunk.getTrace() != null && chunk.getTrace().getMetrics() != null) {
             double cr = chunk.getTrace().getMetrics().getCacheRate();

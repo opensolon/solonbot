@@ -1191,5 +1191,17 @@
   "login.username": "Nome utente",
   "login.password": "Password",
   "login.loginBtn": "Accedi",
-  "login.footer": "SolonCode - Assistente di programmazione IA"
+  "login.footer": "SolonCode - Assistente di programmazione IA",
+  "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
+  "streaming.steerAccepted": "Steered. It will take effect on the next step",
+  "streaming.steerApplied": "Steered message applied",
+  "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
+  "streaming.steerTurnChanged": "Task changed; message moved to the queue",
+  "streaming.steerNotRunning": "Task ended; sending directly instead",
+  "streaming.steerBoxFull": "Too many steered messages; please wait or use queue",
+  "streaming.steerFailed": "Steer failed; text restored to the input box",
+  "streaming.steerBadgePending": "Pending",
+  "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerInsert": "Steer",
+  "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }

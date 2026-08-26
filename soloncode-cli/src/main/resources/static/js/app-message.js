@@ -1258,8 +1258,8 @@ function applyLspBadge(card, lsp) {
     }
     group.appendChild(badge);
 
-    if (hasErr) {
-        // 错误值得被看到：直接展开，省去用户一次点击
+    if (hasErr && window.cliPrintSimplified === true) {
+        // 错误值得被看到：配置开启时直接展开，省去用户一次点击；默认仅显示徽标不展开
         if (!$(card).hasClass('expanded')) {
             $(card).addClass('expanded');
             $(card).find('.tool-card-header').attr('aria-expanded', 'true');

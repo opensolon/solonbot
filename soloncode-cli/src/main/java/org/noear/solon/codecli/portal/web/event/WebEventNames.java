@@ -34,4 +34,6 @@ public interface WebEventNames {
     String SYSTEM_RESET = "system.reset";
     String SYSTEM_DONE = "system.done";
     String SYSTEM_ERROR = "system.error";
+    String SYSTEM_STEER_APPLIED = "system.steer_applied";
+    String SYSTEM_STEER_DROPPED = "system.steer_dropped";
 }

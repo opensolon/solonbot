@@ -159,6 +159,23 @@ public class WebEvent<T> implements Serializable {
                 .build());
     }
 
+    public static WebEvent<SteerPayload> ofSteerApplied(String runId, List<String> texts) {
+        return buildSteerEvent(WebEventNames.SYSTEM_STEER_APPLIED, runId, texts);
+    }
+
+    public static WebEvent<SteerPayload> ofSteerDropped(String runId, List<String> texts) {
+        return buildSteerEvent(WebEventNames.SYSTEM_STEER_DROPPED, runId, texts);
+    }
+
+    private static WebEvent<SteerPayload> buildSteerEvent(String event, String runId, List<String> texts) {
+        WebEvent<SteerPayload> evt = of(event, SteerPayload.builder()
+                .runId(runId)
+                .texts(texts)
+                .build());
+        evt.setRunId(runId);
+        return evt;
+    }
+
     public static String toSourceLabel(String source) {
         if (source == null) return "Web";
         switch (source) {
@@ -166,6 +183,7 @@ public class WebEvent<T> implements Serializable {
             case "feishu": return "飞书";
             case "dingtalk": return "钉钉";
             case "web": return "Web";
+            case "steer": return "插话";
             default: return source;
         }
     }

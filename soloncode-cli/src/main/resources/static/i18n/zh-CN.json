@@ -128,6 +128,8 @@
   "general.features.bashAsyncDesc": "开启后可支持 Bash 异步机制（一般没必要）；关闭可减少上下文消耗",
   "general.features.bashAsyncName": "Bash 异步机制",
   "general.features.lspDesc": "开启后提供代码补全、定义跳转等语言服务；关闭可减少上下文消耗",
+  "general.features.lspExpandDesc": "开启后，工具执行产生 LSP 错误时自动展开工具卡片；关闭时仅显示错误徽标",
+  "general.features.lspExpandName": "LSP 报错自动展开",
   "general.features.lspName": "LSP 代码智能",
   "general.features.mcpDesc": "开启后可连接外部 MCP 服务，扩展 AI 的工具调用能力；关闭可减少上下文消耗",
   "general.features.mcpName": "MCP 工具网关",
@@ -1191,5 +1193,17 @@
   "login.password": "密码",
   "login.loginBtn": "登 录",
   "login.footer": "SolonCode - AI 编码助手",
-  "general.logging.openDir": "打开日志目录"
+  "general.logging.openDir": "打开日志目录",
+  "streaming.steerPlaceholder": "任务运行中，Enter 立即插入 / Tab 加入排队…",
+  "streaming.steerAccepted": "已插入，将在下一步执行生效",
+  "streaming.steerApplied": "插入的消息已生效",
+  "streaming.steerDropped": "本轮已结束，插入的消息已转排队",
+  "streaming.steerTurnChanged": "任务已切换，改为加入排队",
+  "streaming.steerNotRunning": "任务已结束，改为直接发送",
+  "streaming.steerBoxFull": "插入消息过多，请稍候或改用排队",
+  "streaming.steerFailed": "插入失败，已恢复到输入框",
+  "streaming.steerBadgePending": "待生效",
+  "streaming.steerBadgeApplied": "已生效",
+  "streaming.steerInsert": "插入",
+  "streaming.steerAttachDemote": "带附件的消息已改为排队"
 }

@@ -894,6 +894,69 @@ public class WebController {
     }
 
     /**
+     * 运行中插话（steer）：向正在运行的会话任务插入一条用户消息。
+     *
+     * <p>消息存入会话级邮箱（transient，不落快照），由 SteerInterceptor 在下一个推理回合
+     * 开始时（onReasonStart 采样边界）注入工作记忆，不打断进行中的模型流与工具调用。
+     * 参考方案：docs/steering-inject-plan.md（对齐 Codex steering 三件套）。</p>
+     *
+     * <p>应答契约：200 STEERED=已接受（下一步生效）；409 NOT_RUNNING=会话空闲，前端回落为普通发送；
+     * 409 TURN_CHANGED=runId 与当前运行不符，前端转为排队；409 BOX_FULL=邮箱满；
+     * 400 EMPTY_TEXT / TEXT_TOO_LONG=参数非法。</p>
+     *
+     * @param sessionId 会话 ID
+     * @param runId     前端所见的当前运行 ID（可选；来自事件信封 runId，防跨任务错投）
+     * @param text      插话文本
+     * @return 操作结果
+     */
+    @Post
+    @Mapping("/web/chat/steer")
+    public Result steerSession(@Param("sessionId") String sessionId,
+                               @Param(value = "runId", required = false) String runId,
+                               @Param("text") String text) {
+        if (!isValidSessionId(sessionId)) {
+            return Result.failure(400, "Invalid sessionId");
+        }
+        if (text == null || text.trim().isEmpty()) {
+            return Result.failure(400, "EMPTY_TEXT");
+        }
+        text = text.trim();
+        if (text.length() > SteerInterceptor.MAX_TEXT_LENGTH) {
+            return Result.failure(400, "TEXT_TOO_LONG");
+        }
+        if (!webGate().isSessionBusy(engine(), sessionId)) {
+            return Result.failure(409, "NOT_RUNNING");
+        }
+
+        AgentSession session = engine().getSession(sessionId);
+        if (session == null) {
+            return Result.failure(409, "NOT_RUNNING");
+        }
+
+        // runId 防护：仅在前端携带 runId 且后端已记录活跃 runId 时比对。
+        // 任务刚启动、首个 reason 事件未到达时后端值为 null，此时接受是安全的
+        // （守卫1会把注入推迟到第二轮，仍属本任务）
+        String activeRunId = (String) session.attrs().get(SteerInterceptor.ATTR_ACTIVE_RUN_ID);
+        if (runId != null && activeRunId != null && !runId.equals(activeRunId)) {
+            return Result.failure(409, "TURN_CHANGED");
+        }
+
+        @SuppressWarnings("unchecked")
+        java.util.Queue<String> box = (java.util.Queue<String>) session.attrs()
+                .computeIfAbsent(SteerInterceptor.ATTR_STEER_BOX,
+                        k -> new java.util.concurrent.ConcurrentLinkedQueue<String>());
+        if (box.size() >= SteerInterceptor.MAX_BOX_SIZE) {
+            return Result.failure(409, "BOX_FULL");
+        }
+        box.offer(text);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("status", "STEERED");
+        data.put("queued", box.size());
+        return Result.succeed(data);
+    }
+
+    /**
      * 回退会话消息：删除指定会话最近 N 条消息记录。
      * <p>仅操作 ndjson 持久化文件（内存中的 AgentSession 会在重新生成时通过新的 prompt 重建上下文）。
      * 默认回退 2 条（即一对用户消息 + 助手回复）。</p>

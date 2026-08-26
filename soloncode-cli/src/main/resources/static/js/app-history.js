@@ -832,6 +832,19 @@ $(chatInput).on('keydown', function(e) {
     // 优先级2：历史面板导航（面板已打开时）
     handled = navigateHistory(e);
     if (handled) return;
+    // 优先级3：任务运行中 Tab=加入排队（补全/历史面板均未激活；修饰键排除，Shift+Tab 保留原生反向焦点）。
+    // 与 Enter=立即插入（steer）互补：排队在本轮结束后作为新任务发送（对齐 Codex v0.98 起的默认键位）
+    if (e.key === 'Tab' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        var tabSess = activeSessionId && sessionMap[activeSessionId];
+        if (tabSess && tabSess.isStreaming && !tabSess.stopRequested) {
+            e.preventDefault();
+            if (chatInput.value.trim() || pendingFiles.length) {
+                enqueueMessage(tabSess, getInputText(), pendingFiles.slice());
+                chatInput.focus();
+            }
+            return;
+        }
+    }
     // 触发条件：输入框为空 + 上/下键 → 打开历史面板
     if (!chatInput.value.trim() && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();

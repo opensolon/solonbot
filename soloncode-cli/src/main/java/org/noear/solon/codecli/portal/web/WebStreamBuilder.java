@@ -30,7 +30,16 @@ import java.util.function.Function;
  */
 @Slf4j
 public class WebStreamBuilder {
+    private final WebGate webGate;
     private final ChannelBroadcastSink broadcastSink = new ChannelBroadcastSink();
+
+    public WebStreamBuilder(WebGate webGate) {
+        this.webGate = webGate;
+    }
+
+    public WebStreamBuilder() {
+        this(null);
+    }
 
     public void replyToBoundChannel(WorkspaceContext wsContext, String sessionId, String text, boolean isFinal) {
         broadcastSink.replyToBoundChannel(wsContext.getChannelHub(), sessionId, text, isFinal);
@@ -123,12 +132,15 @@ public class WebStreamBuilder {
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
         ToolPresentationFilter toolFilter = new ToolPresentationFilter(buildLspState(wsContext));
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
+        // 运行中插话（steer）拦截器：请求级挂载，LinkedHashMap 插入序保证排在默认拦截器（含上下文压缩）之后
+        SteerInterceptor steerInterceptor = new SteerInterceptor(webGate, wsContext);
 
         return agent.prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.chatModel(chatModel);
                     ReasoningSupportUtil.applyToOptions(o, sessionThinkingMode, effectiveEffort);
+                    o.interceptorAdd(steerInterceptor);
 
                     if (Assert.isNotEmpty(sessionCwd)) {
                         o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);

@@ -14,6 +14,6 @@ import java.io.Serializable;
 public class SystemContextPayload implements Serializable {
     private Integer tokens;
     private Integer count;
-    private Integer contextLimit;
+    private Long contextLimit;
     private Double cacheRate;
 }

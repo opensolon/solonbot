@@ -128,6 +128,8 @@
   "general.features.bashAsyncDesc": "Enable async bash execution (usually unnecessary); disable to reduce context",
   "general.features.bashAsyncName": "Bash Async",
   "general.features.lspDesc": "Enable code completion, go-to-definition, and language services; disable to reduce context",
+  "general.features.lspExpandDesc": "Auto-expand tool cards when LSP errors occur; when off, only show an error badge",
+  "general.features.lspExpandName": "Auto-expand on LSP error",
   "general.features.lspName": "LSP Intelligence",
   "general.features.mcpDesc": "Connect to external MCP services for extended tool capabilities; disable to reduce context",
   "general.features.mcpName": "MCP Gateway",
@@ -1191,5 +1193,17 @@
   "login.password": "Password",
   "login.loginBtn": "Sign In",
   "login.footer": "SolonCode - AI Coding Assistant",
-  "general.logging.openDir": "Open Log Directory"
+  "general.logging.openDir": "Open Log Directory",
+  "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
+  "streaming.steerAccepted": "Steered. It will take effect on the next step",
+  "streaming.steerApplied": "Steered message applied",
+  "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
+  "streaming.steerTurnChanged": "Task changed; message moved to the queue",
+  "streaming.steerNotRunning": "Task ended; sending directly instead",
+  "streaming.steerBoxFull": "Too many steered messages; please wait or use queue",
+  "streaming.steerFailed": "Steer failed; text restored to the input box",
+  "streaming.steerBadgePending": "Pending",
+  "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerInsert": "Steer",
+  "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }
