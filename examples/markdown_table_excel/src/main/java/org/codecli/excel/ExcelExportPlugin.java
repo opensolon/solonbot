@@ -42,7 +42,7 @@ public class ExcelExportPlugin implements Plugin {
             @Override
             public void handle(Context ctx) throws Throwable {
                 ctx.contentType("application/javascript; charset=utf-8");
-                ctx.headerSet("Cache-Control", "private, max-age=3600");
+                ctx.headerSet("Cache-Control", "no-cache");
                 ctx.output(js.getBytes(StandardCharsets.UTF_8));
             }
         });

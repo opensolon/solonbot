@@ -851,31 +851,40 @@ function findUiBubble(sess) {
     return null;
 }
 
+function _uiBlockCells(val) {
+    if (val == null) return [];
+    if (Array.isArray(val)) return val.map(function (v) { return v == null ? '' : String(v); });
+    var s = String(val);
+    if (s.indexOf('|') >= 0) return s.split('|').map(function (x) { return x.trim(); });
+    return [s];
+}
+
 function renderUiBlockBody(body, payload) {
     var type = payload.type || 'card';
     var props = payload.props || {};
     if (type === 'table') {
-        var columns = props.columns || [];
-        var rows = props.rows || [];
+        var columns = _uiBlockCells(props.columns);
+        var rowsSrc = props.rows;
+        var rowList = Array.isArray(rowsSrc) ? rowsSrc : (rowsSrc == null ? [] : [rowsSrc]);
         var table = document.createElement('table');
         if (columns.length) {
             var thead = document.createElement('thead');
             var trh = document.createElement('tr');
             for (var c = 0; c < columns.length; c++) {
                 var th = document.createElement('th');
-                th.textContent = String(columns[c]);
+                th.textContent = columns[c];
                 trh.appendChild(th);
             }
             thead.appendChild(trh);
             table.appendChild(thead);
         }
         var tbody = document.createElement('tbody');
-        for (var r = 0; r < rows.length; r++) {
+        for (var r = 0; r < rowList.length; r++) {
             var tr = document.createElement('tr');
-            var row = rows[r] || [];
+            var row = _uiBlockCells(rowList[r]);
             for (var c2 = 0; c2 < row.length; c2++) {
                 var td = document.createElement('td');
-                td.textContent = String(row[c2]);
+                td.textContent = row[c2];
                 tr.appendChild(td);
             }
             tbody.appendChild(tr);

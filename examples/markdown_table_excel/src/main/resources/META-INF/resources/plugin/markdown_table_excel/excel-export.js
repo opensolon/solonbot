@@ -201,11 +201,40 @@
     ]);
   }
 
+  function cellText(el) {
+    return el.textContent || '';
+  }
+
+  // 还原被“逐字符拆成单元格”的脏 DOM：
+  //  - 若行内存在单独的 "|" 单元格（来自 "a|b" 形式的字符串列），以 "|" 为列分隔符重新拼回多列；
+  //  - 若整行都是单字符单元格（纯逐字符拆分、无分隔符），则合并为一列（保留完整文本，不再一格一字）。
+  function reconstructRow(raw) {
+    var hasSep = false;
+    for (var i = 0; i < raw.length; i++) {
+      if (raw[i] === '|') { hasSep = true; break; }
+    }
+    if (hasSep) {
+      var cols = [], cur = [];
+      for (var j = 0; j < raw.length; j++) {
+        if (raw[j] === '|') { cols.push(cur.join('').trim()); cur = []; }
+        else cur.push(raw[j]);
+      }
+      cols.push(cur.join('').trim());
+      return cols;
+    }
+    var allSingle = raw.length > 1;
+    for (var k = 0; k < raw.length; k++) {
+      if ((raw[k] || '').length !== 1) { allSingle = false; break; }
+    }
+    if (allSingle) return [raw.join('').trim()];
+    return raw.map(function (s) { return (s || '').trim(); });
+  }
+
   function readTable(table) {
-    var header = [];
+    var headerRaw = [];
     var headerCells = table.querySelectorAll('thead th');
     if (headerCells.length) {
-      for (var i = 0; i < headerCells.length; i++) header.push(headerCells[i].textContent.trim());
+      for (var i = 0; i < headerCells.length; i++) headerRaw.push(cellText(headerCells[i]));
     }
     var bodyRows = table.querySelectorAll('tbody tr');
     if (!bodyRows.length) {
@@ -215,9 +244,17 @@
     var rows = [];
     for (var r = 0; r < bodyRows.length; r++) {
       var cells = bodyRows[r].querySelectorAll('td,th');
-      var row = [];
-      for (var c = 0; c < cells.length; c++) row.push(cells[c].textContent.trim());
-      rows.push(row);
+      var raw = [];
+      for (var c = 0; c < cells.length; c++) raw.push(cellText(cells[c]));
+      rows.push(reconstructRow(raw));
+    }
+    var header = reconstructRow(headerRaw);
+    // 规整为矩形：列数取最大值，缺失单元格补空
+    var maxCols = header.length;
+    for (var m = 0; m < rows.length; m++) if (rows[m].length > maxCols) maxCols = rows[m].length;
+    while (header.length < maxCols) header.push('');
+    for (var p = 0; p < rows.length; p++) {
+      while (rows[p].length < maxCols) rows[p].push('');
     }
     return { header: header, rows: rows };
   }
