@@ -1,4 +1,13 @@
 
+### README
+
+* 优化 soloncode 大模型上下文的默认长度配置为 1M（之前是 128K）
+* 优化 soloncode lsp 体验（集成在 edit, write 工具中）
+* 优化 soloncode glob 工具摘要同时展示匹配模式与搜索路径
+* 优化 soloncode web 文件树、Git文件列表深层缩进支持横向滚动，待办文本改为自动换行不再截断省略
+* 优化 soloncode code.md 扫描层数
+* 细节优化
+
 ### v2026.8.24
 
 * 调整 soloncode 工作区本地数据布局，按工作区聚合到 "~/.soloncode/workspaces/{workspaceKey}/" 下面（logs、sessions）
