@@ -967,6 +967,178 @@ var _STREAM_BATCH_EVENTS = {
     'thought.delta': 1
 };
 
+/* ===== UI 扩展块渲染（SAEP 2.0 ui.render / ui.patch） ===== */
+var _uiBlockStylesInjected = false;
+function ensureUiBlockStyles() {
+    if (_uiBlockStylesInjected) return;
+    _uiBlockStylesInjected = true;
+    var css = ''
+        + '.ui-block{border:1px solid var(--border-color,#e3e3e8);border-radius:10px;margin:10px 0;overflow:hidden;background:var(--panel-bg,#fff);}'
+        + '.ui-block-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--panel-bg-2,#f6f7f9);border-bottom:1px solid var(--border-color,#e3e3e8);font-weight:600;}'
+        + '.ui-block-body{padding:10px 12px;overflow:auto;max-height:360px;}'
+        + '.ui-block table{border-collapse:collapse;width:100%;font-size:13px;}'
+        + '.ui-block th,.ui-block td{border:1px solid var(--border-color,#e3e3e8);padding:4px 8px;text-align:left;}'
+        + '.ui-block-actions{padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border-color,#e3e3e8);}'
+        + '.ui-block-actions button{cursor:pointer;}';
+    var style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+}
+
+function findUiBubble(sess) {
+    if (sess.currentBubbleEl) {
+        var b = $(sess.currentBubbleEl).closest('.msg-bubble')[0];
+        if (b) return b;
+    }
+    if (typeof ensureAssistantBubble === 'function') ensureAssistantBubble(sess);
+    if (sess.currentBubbleEl) return $(sess.currentBubbleEl).closest('.msg-bubble')[0];
+    return null;
+}
+
+function _uiBlockCells(val) {
+    if (val == null) return [];
+    if (Array.isArray(val)) return val.map(function (v) { return v == null ? '' : String(v); });
+    var s = String(val);
+    if (s.indexOf('|') >= 0) return s.split('|').map(function (x) { return x.trim(); });
+    return [s];
+}
+
+function renderUiBlockBody(body, payload) {
+    var type = payload.type || 'card';
+    var props = payload.props || {};
+    if (type === 'table') {
+        var columns = _uiBlockCells(props.columns);
+        var rowsSrc = props.rows;
+        var rowList = Array.isArray(rowsSrc) ? rowsSrc : (rowsSrc == null ? [] : [rowsSrc]);
+        var table = document.createElement('table');
+        if (columns.length) {
+            var thead = document.createElement('thead');
+            var trh = document.createElement('tr');
+            for (var c = 0; c < columns.length; c++) {
+                var th = document.createElement('th');
+                th.textContent = columns[c];
+                trh.appendChild(th);
+            }
+            thead.appendChild(trh);
+            table.appendChild(thead);
+        }
+        var tbody = document.createElement('tbody');
+        for (var r = 0; r < rowList.length; r++) {
+            var tr = document.createElement('tr');
+            var row = _uiBlockCells(rowList[r]);
+            for (var c2 = 0; c2 < row.length; c2++) {
+                var td = document.createElement('td');
+                td.textContent = row[c2];
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        body.appendChild(table);
+    } else {
+        var pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.textContent = JSON.stringify(props, null, 2);
+        body.appendChild(pre);
+    }
+}
+
+function renderUiBlock(sess, payload) {
+    if (!sess || !payload) return;
+    ensureUiBlockStyles();
+    if (!sess.uiBlocks) sess.uiBlocks = {};
+    var blockId = payload.blockId || ('blk-' + Math.random().toString(36).slice(2));
+    var bubble = findUiBubble(sess);
+    if (!bubble) return;
+
+    var block = document.createElement('div');
+    block.className = 'ui-block';
+    block.setAttribute('data-block-id', blockId);
+
+    var head = document.createElement('div');
+    head.className = 'ui-block-head';
+    var titleEl = document.createElement('span');
+    titleEl.className = 'ui-block-title';
+    titleEl.textContent = payload.title || '';
+    head.appendChild(titleEl);
+    if (payload.schemaVersion) {
+        var ver = document.createElement('span');
+        ver.style.opacity = '0.6';
+        ver.style.fontSize = '12px';
+        ver.textContent = 'v' + payload.schemaVersion;
+        head.appendChild(ver);
+    }
+    block.appendChild(head);
+
+    var body = document.createElement('div');
+    body.className = 'ui-block-body';
+    renderUiBlockBody(body, payload);
+    block.appendChild(body);
+
+    var actions = payload.actions || [];
+    if (actions.length) {
+        var actBar = document.createElement('div');
+        actBar.className = 'ui-block-actions';
+        for (var i = 0; i < actions.length; i++) {
+            (function(a) {
+                var btn = document.createElement('button');
+                var kind = a.kind || 'default';
+                btn.className = 'btn btn-' + (kind === 'danger' ? 'danger' : (kind === 'primary' ? 'primary' : 'default'));
+                btn.textContent = a.label || a.id || 'Action';
+                btn.setAttribute('data-action-id', a.id || '');
+                btn.addEventListener('click', function() {
+                    postUiAction(sess, blockId, a.id, {});
+                    btn.disabled = true;
+                });
+                actBar.appendChild(btn);
+            })(actions[i]);
+        }
+        block.appendChild(actBar);
+    }
+
+    // 插入 .msg-bubble 内（.msg-actions 之前），保持稳定不被流式清理移除
+    var actionsEl = bubble.querySelector('.msg-actions');
+    if (actionsEl) bubble.insertBefore(block, actionsEl);
+    else bubble.appendChild(block);
+
+    sess.uiBlocks[blockId] = { el: block, titleEl: titleEl, bodyEl: body };
+}
+
+function patchUiBlock(sess, payload) {
+    if (!sess || !payload || !sess.uiBlocks) return;
+    var ref = sess.uiBlocks[payload.blockId];
+    if (!ref) return;
+    var op = payload.op || 'replace';
+    var path = payload.path || '';
+    var value = payload.value;
+    if (path === '/title') {
+        if (ref.titleEl) ref.titleEl.textContent = (value == null ? '' : String(value));
+    } else if (path === '/props') {
+        if (ref.bodyEl) {
+            ref.bodyEl.innerHTML = '';
+            renderUiBlockBody(ref.bodyEl, { type: payload.type || 'card', props: value || {} });
+        }
+    } else if (op === 'replace') {
+        if (ref.bodyEl) {
+            ref.bodyEl.innerHTML = '';
+            renderUiBlockBody(ref.bodyEl, { type: payload.type || 'card', props: value || {} });
+        }
+    }
+}
+
+function postUiAction(sess, blockId, actionId, formData) {
+    if (!sess) return;
+    $.post('/web/chat/ui_action', {
+        sessionId: sess.sessionId,
+        blockId: blockId,
+        actionId: actionId,
+        formData: JSON.stringify(formData || {})
+    }).fail(function(err) {
+        console.warn('[ui_action] post failed:', err);
+    });
+}
+window.postUiAction = postUiAction;
+
 function processWebEventNow(sess, webEvt) {
     if (!webEvt || !webEvt.event) return;
     try {
@@ -1084,6 +1256,14 @@ function processWebEventNow(sess, webEvt) {
             case 'system.error':
                 finishThinkingBlock(sess);
                 sourceEl = appendErrorChunk(sess, p.message || '未知错误', taskId, p.title, agentName, p.code);
+                break;
+
+            case 'ui.render':
+                renderUiBlock(sess, p);
+                break;
+
+            case 'ui.patch':
+                patchUiBlock(sess, p);
                 break;
         }
 

@@ -15,6 +15,8 @@ import org.noear.solon.ai.harness.agent.TaskWrapEvent;
 import org.noear.solon.ai.talents.memory.MemoryTalent;
 import org.noear.solon.codecli.command.builtin.GoalTalent;
 import org.noear.solon.codecli.portal.web.WebStreamBuilder;
+import org.noear.solon.codecli.portal.web.event.UiPatchEvent;
+import org.noear.solon.codecli.portal.web.event.UiRenderEvent;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemContextPayload;
@@ -76,7 +78,17 @@ public class WebEventMapper {
 
         List<WebEvent<?>> result = new ArrayList<>();
 
-        if (event instanceof ContextSizeEvent) {
+        if (event instanceof UiRenderEvent) {
+            UiRenderEvent uiEvent = (UiRenderEvent) event;
+            WebEvent<?> evt = WebEvent.ofUiRender(uiEvent.getPayload());
+            fillMeta(evt, session, parentRunId, taskId, uiEvent.getReasonId(), taskAgentName, event.getRunId());
+            result.add(evt);
+        } else if (event instanceof UiPatchEvent) {
+            UiPatchEvent uiPatch = (UiPatchEvent) event;
+            WebEvent<?> evt = WebEvent.ofUiPatch(uiPatch.getPayload());
+            fillMeta(evt, session, parentRunId, taskId, uiPatch.getReasonId(), taskAgentName, event.getRunId());
+            result.add(evt);
+        } else if (event instanceof ContextSizeEvent) {
             WebEvent<?> evt = onContextSizeEvent(chatModel, (ContextSizeEvent) event);
             fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
             result.add(evt);

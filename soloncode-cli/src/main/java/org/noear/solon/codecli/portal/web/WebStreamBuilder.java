@@ -13,6 +13,7 @@ import org.noear.solon.codecli.portal.web.pipeline.ChannelBroadcastSink;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
 import org.noear.solon.ai.talents.lsp.LspCheckState;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
+import org.noear.solon.codecli.portal.web.pipeline.UiRenderFilter;
 import org.noear.solon.codecli.portal.web.pipeline.WebEventMapper;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
@@ -131,6 +132,7 @@ public class WebStreamBuilder {
 
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
         ToolPresentationFilter toolFilter = new ToolPresentationFilter(buildLspState(wsContext));
+        UiRenderFilter uiRenderFilter = new UiRenderFilter();
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
         // 运行中插话（steer）拦截器：请求级挂载，LinkedHashMap 插入序保证排在默认拦截器（含上下文压缩）之后
         SteerInterceptor steerInterceptor = new SteerInterceptor(webGate, wsContext);
@@ -150,6 +152,7 @@ public class WebStreamBuilder {
                 .flatMap(event -> Flux.fromIterable(mapper.mapEvent(event)))
                 .filter(WebEvent::isNotEmpty)
                 .map(toolFilter::apply)
+                .map(uiRenderFilter::apply)
                 .doOnNext(event -> broadcastSink.broadcast(wsContext.getChannelHub(), event))
                 .doOnNext(metricsRecorder::record)
                 .onErrorResume(e -> {
