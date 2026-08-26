@@ -2220,6 +2220,24 @@
 <script src="/js/app-loop.js"></script>
 <script src="/js/studio.js"></script>
 
+<!-- 动态加载扩展贡献的前端脚本：由后端 /web/frontend/scripts 返回当前已注册插件的前端资源 -->
+<script>
+    (function () {
+        fetch('/web/frontend/scripts')
+            .then(function (r) { return r.json(); })
+            .then(function (resp) {
+                var list = (resp && resp.data) ? resp.data : resp;
+                if (!Array.isArray(list)) return;
+                list.forEach(function (src) {
+                    var s = document.createElement('script');
+                    s.src = src;
+                    document.head.appendChild(s);
+                });
+            })
+            .catch(function () {});
+    })();
+</script>
+
 <!-- 设置模块：首次打开设置时再加载，降低首屏解析成本 -->
 <script>
     (function () {

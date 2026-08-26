@@ -24,6 +24,11 @@ public interface WebEventNames {
     String TASK_START = "task.start";
     String TASK_DONE = "task.done";
 
+    // ui 命名空间（协议层 UI 扩展：结构化 UI 块渲染 / 增量更新 / 交互回传）
+    String UI_RENDER = "ui.render";
+    String UI_PATCH = "ui.patch";
+    String UI_ACTION = "ui.action";
+
     // system 命名空间
     String SYSTEM_TRACE = "system.trace";
     String SYSTEM_CONTEXT = "system.context";

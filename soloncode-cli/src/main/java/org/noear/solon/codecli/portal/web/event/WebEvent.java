@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.noear.solon.codecli.portal.web.event.payload.*;
+import org.noear.solon.codecli.portal.web.event.payload.UiPatchPayload;
+import org.noear.solon.codecli.portal.web.event.payload.UiRenderPayload;
 
 import java.io.Serializable;
 import java.util.List;
@@ -157,6 +159,14 @@ public class WebEvent<T> implements Serializable {
                 .text(text)
                 .source(source)
                 .build());
+    }
+
+    public static WebEvent<UiRenderPayload> ofUiRender(UiRenderPayload payload) {
+        return of(WebEventNames.UI_RENDER, payload);
+    }
+
+    public static WebEvent<UiPatchPayload> ofUiPatch(UiPatchPayload payload) {
+        return of(WebEventNames.UI_PATCH, payload);
     }
 
     public static String toSourceLabel(String source) {
