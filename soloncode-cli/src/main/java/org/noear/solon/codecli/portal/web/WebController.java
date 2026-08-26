@@ -47,10 +47,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.util.List;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -259,6 +261,27 @@ public class WebController {
      * @return 包含 appTitle、appVersion、workspace、workname 的结果对象
      * @throws Exception 读取配置异常
      */
+    /**
+     * 前端脚本清单：返回所有已加载扩展登记的前端脚本 URL，前端据此动态注入。
+     * 各扩展在自己的 Plugin.start() 中向系统属性 "soloncode.frontend.scripts" 追加自身脚本地址，
+     * 核心对此无感知。
+     *
+     * @return 脚本 URL 列表
+     */
+    @Get
+    @Mapping("/web/frontend/scripts")
+    public Result<List<String>> frontendScripts() {
+        String v = System.getProperty("soloncode.frontend.scripts", "");
+        List<String> list = new ArrayList<>();
+        if (!v.isEmpty()) {
+            for (String s : v.split(",")) {
+                s = s.trim();
+                if (!s.isEmpty()) list.add(s);
+            }
+        }
+        return Result.succeed(list);
+    }
+
     @Get
     @Mapping("/web/chat/meta")
     public Result<Map> meta() {

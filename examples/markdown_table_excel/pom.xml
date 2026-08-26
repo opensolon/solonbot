@@ -11,7 +11,7 @@
         <relativePath>../../soloncode-parent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>ui_extension_demo</artifactId>
+    <artifactId>markdown_table_excel</artifactId>
     <name>${project.artifactId}</name>
     <packaging>jar</packaging>
 
@@ -21,7 +21,7 @@
             <artifactId>solon-ai-harness</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- UI 协议类（UiRenderEvent 等）所在的普通 jar 模块，由 soloncode-ui-extension 在运行时提供 -->
+        <!-- UI 协议与前端注册表（FrontendScriptRegistry 等）所在的普通 jar 模块，由 soloncode-ui-extension 在运行时提供 -->
         <dependency>
             <groupId>org.noear</groupId>
             <artifactId>soloncode-ui-extension</artifactId>

@@ -22,6 +22,7 @@
 
         <module>examples/extension_demo</module>
         <module>examples/ui_extension_demo</module>
+        <module>examples/markdown_table_excel</module>
     </modules>
 
 </project>
