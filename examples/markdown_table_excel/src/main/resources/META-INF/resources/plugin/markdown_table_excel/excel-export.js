@@ -145,7 +145,7 @@
     var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n';
     sheet += '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
     sheet += '<sheetData>';
-    var all = header.concat(rows);
+    var all = [header].concat(rows);
     for (var r = 0; r < all.length; r++) {
       sheet += '<row r="' + (r + 1) + '">';
       var cells = all[r];
