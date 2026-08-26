@@ -479,6 +479,7 @@ public class WorkspaceManager {
                 .autoRethink(wsSettings.getGeneral().isAutoRethink())
                 .sessionWindowSize(wsSettings.getGeneral().getSessionWindowSize())
                 .sessionProvider(new SessionManager(workspacePath))
+                .compressionDefaultContextLength(1024_000L) //1024k -> 1m
                 .compressionThreshold(wsSettings.getGeneral().getCompressionThresholdMessages(), wsSettings.getGeneral().getCompressionThresholdPercent() / 100.0D)
                 .memoryEnabled(wsSettings.getGeneral().isMemoryEnabled())
                 .memoryRelevanceCount(wsSettings.getGeneral().getMemoryRelevanceCount())
@@ -503,6 +504,7 @@ public class WorkspaceManager {
                 .build();
 
         engine.setDefaultModel(wsSettings.getDefaultModel());
+
 
         engine.getTodoTalent().setWorkPathHook(new BiFunction<String, String, Path>() {
             @Override
