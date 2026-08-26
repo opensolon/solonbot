@@ -4,9 +4,11 @@ import org.noear.snack4.ONode;
 import org.noear.snack4.Feature;
 import org.noear.solon.Solon;
 import org.noear.solon.Utils;
+import org.noear.solon.ai.talents.lsp.LspManager;
 import org.noear.solon.ai.chat.CacheControl;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.HarnessExtension;
+import org.noear.solon.ai.talents.lsp.LspServerParameters;
 import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.codecli.command.builtin.*;
@@ -22,9 +24,8 @@ import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionManager;
+import org.noear.solon.codecli.util.JdkHomeUtil;
 import org.noear.solon.codecli.util.LogDirUtil;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.RunUtil;
@@ -51,6 +52,10 @@ import java.util.function.BiFunction;
  */
 public class WorkspaceManager {
     private static final Logger LOG = LoggerFactory.getLogger(WorkspaceManager.class);
+    /**
+     * jdtls 启动所需的最低 JDK 主版本
+     */
+    private static final int JDTLS_MIN_JDK = 21;
     private static final String WORKSPACES_FILE_PATH = Paths.get(AgentFlags.getUserHome(), ".soloncode", "workspaces.json").toString();
 
     private final Map<String, WorkspaceContext> contexts = new ConcurrentHashMap<>();
@@ -474,6 +479,7 @@ public class WorkspaceManager {
                 .autoRethink(wsSettings.getGeneral().isAutoRethink())
                 .sessionWindowSize(wsSettings.getGeneral().getSessionWindowSize())
                 .sessionProvider(new SessionManager(workspacePath))
+                .compressionDefaultContextLength(1024_000L) //1024k -> 1m
                 .compressionThreshold(wsSettings.getGeneral().getCompressionThresholdMessages(), wsSettings.getGeneral().getCompressionThresholdPercent() / 100.0D)
                 .memoryEnabled(wsSettings.getGeneral().isMemoryEnabled())
                 .memoryRelevanceCount(wsSettings.getGeneral().getMemoryRelevanceCount())
@@ -498,6 +504,7 @@ public class WorkspaceManager {
                 .build();
 
         engine.setDefaultModel(wsSettings.getDefaultModel());
+
 
         engine.getTodoTalent().setWorkPathHook(new BiFunction<String, String, Path>() {
             @Override
@@ -677,46 +684,117 @@ public class WorkspaceManager {
             engine.addLspServer(entry.getKey(), entry.getValue());
         }
 
-        addSystemLspServer(engine, wsSettings, "java", Arrays.asList("jdtls"), Arrays.asList(".java"));
-        addSystemLspServer(engine, wsSettings, "typescript", Arrays.asList("typescript-language-server", "--stdio"), Arrays.asList(".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"));
-        addSystemLspServer(engine, wsSettings, "go", Arrays.asList("gopls"), Arrays.asList(".go"));
-        addSystemLspServer(engine, wsSettings, "python", Arrays.asList("pyright-langserver", "--stdio"), Arrays.asList(".py", ".pyi"));
-        addSystemLspServer(engine, wsSettings, "rust", Arrays.asList("rust-analyzer"), Arrays.asList(".rs"));
-        addSystemLspServer(engine, wsSettings, "c-cpp", Arrays.asList("clangd", "--background-index", "--clang-tidy"), Arrays.asList(".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hxx", ".c++", ".h++", ".hh"));
-        addSystemLspServer(engine, wsSettings, "csharp", Arrays.asList("roslyn-language-server", "--stdio", "--autoLoadProjects"), Arrays.asList(".cs", ".csx"));
-        addSystemLspServer(engine, wsSettings, "ruby", Arrays.asList("solargraph", "stdio"), Arrays.asList(".rb", ".rake", ".gemspec", ".ru"));
-        addSystemLspServer(engine, wsSettings, "php", Arrays.asList("intelephense", "--stdio"), Arrays.asList(".php"));
-        addSystemLspServer(engine, wsSettings, "bash", Arrays.asList("bash-language-server", "start"), Arrays.asList(".sh", ".bash", ".zsh", ".ksh"));
-        addSystemLspServer(engine, wsSettings, "lua", Arrays.asList("lua-language-server"), Arrays.asList(".lua"));
-        addSystemLspServer(engine, wsSettings, "dart", Arrays.asList("dart", "language-server", "--lsp"), Arrays.asList(".dart"));
-        addSystemLspServer(engine, wsSettings, "swift", Arrays.asList("sourcekit-lsp"), Arrays.asList(".swift", ".objc", ".objcpp"));
-        addSystemLspServer(engine, wsSettings, "kotlin", Arrays.asList("kotlin-language-server"), Arrays.asList(".kt", ".kts"));
-        addSystemLspServer(engine, wsSettings, "yaml", Arrays.asList("yaml-language-server", "--stdio"), Arrays.asList(".yaml", ".yml"));
-
-        // 同步 LSP servers
-        for (Map.Entry<String, org.noear.solon.ai.talents.lsp.LspServerParameters> entry : engine.getLspServers().entrySet()) {
-            if (!wsSettings.getLspServers().containsKey(entry.getKey())) {
-                LspServerDo lspServer = new LspServerDo();
-                lspServer.setCommand(entry.getValue().getCommand());
-                lspServer.setExtensions(entry.getValue().getExtensions());
-                lspServer.setEnabled(entry.getValue().isEnabled());
-                wsSettings.getLspServers().put(entry.getKey(), lspServer);
-            }
+        //内置服务器清单收敛到 LspManager.buildLspServers() 单一来源。
+        //只注册进引擎、不写入 settings.json：否则每个仓库的配置文件都会多出十几条与默认
+        //完全相同的噪声条目，还会在内置默认升级后反过来压制新值
+        for (Map.Entry<String, LspServerParameters> builtin
+                : LspManager.buildLspServers().entrySet()) {
+            addSystemLspServer(engine, wsSettings, builtin.getKey(),
+                    builtin.getValue().getCommand(), builtin.getValue().getExtensions());
         }
+
+        // 运行时补 env（放在同步之后：不写回 settings，避免把本机 JDK 路径提交进仓库）
+        applyJdtlsJavaHome(engine);
     }
 
-    private void addSystemLspServer(HarnessEngine engine, AgentSettings wsSettings, String name, List<String> command, List<String> extensions) {
-        // 以当前工作区合并后的 settings（global+workspace）为准，而非启动目录的 defaultSettings，
-        // 否则非默认工作区在自身 settings.json 中自定义的同名 LSP 会被误跳过注入
-        if (wsSettings.getLspServers().containsKey(name)) {
+    /**
+     * jdtls 要求 JDK 21+ 才能启动，而 soloncode 自身可能跑在 JDK 8 上；
+     * 子进程会继承父进程的 JAVA_HOME，于是直接被 jdtls 的版本校验拒绝
+     * （表现为进程启动后立刻退出、stderr 是一段 Python Traceback）。
+     *
+     * <p>这里为内置的 java 服务器补一个满足下限的 JAVA_HOME。只改注册到引擎的运行时副本，
+     * 不动 settings 里的条目——那个文件可能随仓库提交，不该写入本机绝对路径。
+     */
+    private void applyJdtlsJavaHome(HarnessEngine engine) {
+        org.noear.solon.ai.talents.lsp.LspServerParameters params = engine.getLspServers().get("java");
+
+        if (params == null || params.isEnabled() == false) {
             return;
         }
-        LspServerDo lspServer = new LspServerDo();
-        lspServer.setCommand(command);
-        lspServer.setExtensions(extensions);
-        lspServer.setEnabled(false);
-        lspServer.setScope(AgentFlags.SCOPE_LOCAL);
-        engine.addLspServer(name, lspServer);
+
+        List<String> command = params.getCommand();
+        if (command == null || command.isEmpty()
+                || getLastSegment(command.get(0)).startsWith("jdtls") == false) {
+            // 用户换了别的 Java 语言服务器，版本约束未必相同，不越权干预
+            return;
+        }
+
+        if (params.getEnv() != null && params.getEnv().containsKey("JAVA_HOME")) {
+            // 用户已显式指定，尊重其配置
+            return;
+        }
+
+        if (JdkHomeUtil.currentJavaHomeSatisfies(JDTLS_MIN_JDK)) {
+            return;
+        }
+
+        String javaHome = JdkHomeUtil.findJavaHomeAtLeast(JDTLS_MIN_JDK);
+        if (javaHome == null) {
+            LOG.warn("[LSP] jdtls requires JDK {}+, none found on this machine. "
+                    + "Java diagnostics will be unavailable", JDTLS_MIN_JDK);
+            return;
+        }
+
+        org.noear.solon.ai.talents.lsp.LspServerParameters runtime =
+                new org.noear.solon.ai.talents.lsp.LspServerParameters();
+        runtime.setCommand(params.getCommand());
+        runtime.setExtensions(params.getExtensions());
+        runtime.setEnabled(true);
+        if (params.getInitialization() != null) {
+            runtime.setInitialization(new LinkedHashMap<>(params.getInitialization()));
+        }
+
+        Map<String, String> env = new LinkedHashMap<>();
+        if (params.getEnv() != null) {
+            env.putAll(params.getEnv());
+        }
+        env.put("JAVA_HOME", javaHome);
+        runtime.setEnv(env);
+
+        engine.addLspServer("java", runtime);
+        LOG.info("[LSP] jdtls JAVA_HOME -> {} (current JAVA_HOME is below JDK {})", javaHome, JDTLS_MIN_JDK);
+    }
+
+    /**
+     * 注册内置 LSP 服务器（只进引擎，不落 settings.json）
+     *
+     * <p>用户在 settings.json 中的同名条目是「覆盖」：已在前面的循环注册进引擎，此处原样保留。
+     * 存量文件里由旧版自动写入的条目不做清理——用户「有意停用某内置服务器」产生的条目与
+     * 旧版自动注入的条目在磁盘上无法区分，删除会误伤用户意图。
+     */
+    private void addSystemLspServer(HarnessEngine engine, AgentSettings wsSettings, String name, List<String> command, List<String> extensions) {
+        // 命令不在 PATH 就不启用：否则一旦被路由到（写文件时自动取诊断会路由）会反复 fork 失败进程
+        boolean installed = LspManager.isCommandAvailable(command.get(0));
+
+        // 以当前工作区合并后的 settings（global+workspace）为准，而非启动目录的 defaultSettings，
+        // 否则非默认工作区在自身 settings.json 中自定义的同名 LSP 会被误跳过注入
+        LspServerDo existing = wsSettings.getLspServers().get(name);
+        if (existing != null) {
+            // 迁移：早期版本把内置服务器一律注入为 enabled=false，导致 LSP 默认全哑。
+            // 仅当条目与内置默认完全一致（即用户从没改过）且命令确实可用时，才自动放开，
+            // 避免覆盖用户“有意关掉”的意图。
+            if (installed && existing.isEnabled() == false && isPristineSystemLspEntry(existing, command, extensions)) {
+                existing.setEnabled(true);
+                engine.addLspServer(name, existing);
+                LOG.info("[LSP] system server '{}' enabled (command found in PATH)", name);
+            }
+            return;
+        }
+
+        LspServerParameters builtin = new LspServerParameters(command, extensions);
+        builtin.setEnabled(installed);
+        engine.addLspServer(name, builtin);
+    }
+
+    /**
+     * 判定一个已存在的条目是否“仅由旧版自动注入、用户未修改过”
+     */
+    private static boolean isPristineSystemLspEntry(LspServerDo entry, List<String> command, List<String> extensions) {
+        return AgentFlags.SCOPE_LOCAL.equals(entry.getScope())
+                && command.equals(entry.getCommand())
+                && extensions.equals(entry.getExtensions())
+                && (entry.getEnv() == null || entry.getEnv().isEmpty())
+                && (entry.getInitialization() == null || entry.getInitialization().isEmpty());
     }
 
     private static String getLastSegment(String pathStr) {

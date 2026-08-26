@@ -17,6 +17,7 @@ package org.noear.solon.codecli.util;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.slf4j.MDC;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;

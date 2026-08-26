@@ -102,7 +102,7 @@ public class GoogleModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[Google] Error fetching models from {}: {}", modelsUrl, e.getMessage());
+            log.warn("[Google] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
         }
 
         return result;

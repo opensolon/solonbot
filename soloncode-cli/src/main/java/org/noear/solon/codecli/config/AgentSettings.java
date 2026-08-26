@@ -3,6 +3,7 @@ package org.noear.solon.codecli.config;
 import lombok.Getter;
 import lombok.Setter;
 import org.noear.solon.Solon;
+import org.noear.solon.codecli.auth.UserAuthConfig;
 import org.noear.solon.codecli.config.entity.*;
 import org.noear.solon.core.Props;
 import org.noear.solon.core.util.Assert;
@@ -36,6 +37,8 @@ public class AgentSettings implements Serializable {
     private final GeneralGroupDo general = new GeneralGroupDo();
     //permission 权限
     private final PermissionGroupDo permission = new PermissionGroupDo();
+    //用户认证配置
+    private final UserAuthConfig userAuth = new UserAuthConfig();
     //loop Goal 配置
     private final LoopGroupDo loop = new LoopGroupDo();
 
@@ -312,6 +315,7 @@ public class AgentSettings implements Serializable {
         replaceMap(this.apiServers, other.apiServers);
         replaceMap(this.lspServers, other.lspServers);
         replaceMap(this.providers, other.providers);
+        copyUserAuth(this.userAuth, other.userAuth);
     }
 
     private static void copyGeneral(GeneralGroupDo target, GeneralGroupDo source) {
@@ -400,9 +404,30 @@ public class AgentSettings implements Serializable {
         node.set("apiServers", ONode.ofBean(s.apiServers));
         node.set("lspServers", ONode.ofBean(s.lspServers));
         node.set("providers", ONode.ofBean(s.providers));
+        node.set("userAuth", ONode.ofBean(s.userAuth));
         return node.toJson();
     }
 
+    private static void copyUserAuth(UserAuthConfig target, UserAuthConfig source) {
+        if (source == null) {
+            source = new UserAuthConfig();
+        }
+        target.setEnabled(source.isEnabled());
+        target.setMode(source.getMode());
+        target.setDbUrl(source.getDbUrl());
+        target.setDbUser(source.getDbUser());
+        target.setDbPassword(source.getDbPassword());
+        target.setDbDriverClass(source.getDbDriverClass());
+        target.setLdapUrl(source.getLdapUrl());
+        target.setLdapAdminDn(source.getLdapAdminDn());
+        target.setLdapAdminPassword(source.getLdapAdminPassword());
+        target.setLdapBaseDn(source.getLdapBaseDn());
+        target.setLdapUserFilter(source.getLdapUserFilter());
+        target.setLdapSsl(source.isLdapSsl());
+        target.setSessionTimeoutMinutes(source.getSessionTimeoutMinutes());
+        target.setSessionTokenLength(source.getSessionTokenLength());
+    }
+    
     private static <K, V> void replaceMap(Map<K, V> target, Map<K, V> source) {
         target.clear();
         if (source != null && source.size() > 0) {

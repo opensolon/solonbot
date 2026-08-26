@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.noear.solon.codecli.util;
+package org.noear.solon.codecli.workspace;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -26,6 +26,7 @@ import ch.qos.logback.core.util.FileSize;
 import ch.qos.logback.classic.filter.ThresholdFilter;
 import ch.qos.logback.core.encoder.LayoutWrappingEncoder;
 import ch.qos.logback.classic.PatternLayout;
+import org.noear.solon.codecli.util.LogDirUtil;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 

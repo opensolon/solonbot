@@ -22,7 +22,7 @@ import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.codecli.util.LogDirUtil;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.noear.solon.scheduling.annotation.EnableScheduling;
 import org.noear.solon.web.cors.CrossFilter;
 import org.slf4j.bridge.SLF4JBridgeHandler;

@@ -9,11 +9,7 @@ import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 
-import org.noear.solon.codecli.util.LogDirUtil;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
-import org.slf4j.MDC;
-
-import java.util.Map;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 
 /**
  * 工作区请求拦截器：只信任 X-Workspace-Id 请求头进行多工作区路由。

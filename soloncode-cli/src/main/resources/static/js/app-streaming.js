@@ -1050,7 +1050,7 @@ function processWebEventNow(sess, webEvt) {
             case 'tool.end':
                 var toolArgs = p.args || (p.diff ? { diff: p.diff } : {});
                 if (p.diff && !toolArgs.diff) toolArgs.diff = p.diff;
-                sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId);
+                sourceEl = appendActionEndChunk(sess, segment, p.name, p.result || '', toolArgs, p.title || p.name, reasonId, agentName, p.callId, p.lsp);
                 // todowrite 已在 handleWebGateChunk 入口统一派发过（会话不存在/未开流时也要更新左侧进度），
                 // 此处只补派其它工具，避免同一事件重复触发 todo 面板刷新
                 if (window._todoChunkHandlers && p.name !== 'todowrite') {
@@ -1618,6 +1618,9 @@ function connectWebGate() {
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/web/gate?_t=1' + window.wsAndSuffix();
+        // 用户认证启用时，将 user_token 传递给 WebSocket 握手验证
+        var utk = window.getCookie ? window.getCookie('user_token') : null;
+        if (utk) { wsUrl += '&user_token=' + encodeURIComponent(utk); }
         webGateSocket = new WebSocket(wsUrl);
     } catch(e) {
         console.error('[WebGate] create failed:', e);

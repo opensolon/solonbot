@@ -1188,6 +1188,86 @@ function renderToolBody(bodyEl, toolName, text, args) {
     return false;
 }
 
+/* ===== LSP 诊断展示 =====
+   payload.lsp 是后端下发的结构化字段（errorCount / items / truncated / file），
+   前端不解析工具输出文本：诊断文本是给模型看的，措辞会随 prompt 调优变化。
+   errorCount === 0 表示语言服务器检查过且无错误；lsp 为空表示没有语言服务器覆盖该文件。 */
+function hasLspErrors(lsp) {
+    return !!(lsp && lsp.errorCount > 0);
+}
+
+/* 卡片体尾部追加诊断区块：与工具种类无关，故挂在分发层而非各 renderer */
+function appendLspPanel(bodyEl, lsp) {
+    if (!bodyEl || !hasLspErrors(lsp)) return;
+
+    var items = lsp.items || [];
+    var html = '<div class="tool-lsp-panel">'
+        + '<div class="tool-lsp-panel-head">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
+        + '<span>' + escapeHtml(I18n.t('msg.lspErrors', { n: lsp.errorCount })) + '</span>';
+    if (lsp.file) {
+        html += '<span class="tool-lsp-file" title="' + escapeHtml(lsp.file) + '">' + escapeHtml(lsp.file) + '</span>';
+    }
+    html += '</div><ul class="tool-lsp-list">';
+
+    for (var i = 0; i < items.length; i++) {
+        var it = items[i] || {};
+        var pos = (it.line || 0) + ':' + (it.column || 0);
+        html += '<li class="tool-lsp-item">'
+            + '<span class="tool-lsp-pos">' + escapeHtml(pos) + '</span>'
+            + '<span class="tool-lsp-msg">' + escapeHtml(it.message || '') + '</span>';
+        if (it.source) {
+            html += '<span class="tool-lsp-source">' + escapeHtml(it.source) + '</span>';
+        }
+        html += '</li>';
+    }
+
+    if (lsp.truncated && items.length < lsp.errorCount) {
+        html += '<li class="tool-lsp-item tool-lsp-more">'
+            + escapeHtml(I18n.t('msg.lspMore', { n: lsp.errorCount - items.length })) + '</li>';
+    }
+    html += '</ul></div>';
+
+    var panel = document.createElement('div');
+    panel.innerHTML = html;
+    bodyEl.appendChild(panel.firstChild);
+}
+
+/* 卡片头部徽标：让用户不展开卡片就能看出这次调用触发了语言服务器。
+   有错误 → 警示徽标 + warn 状态图标 + 自动展开；已检查无错 → 极轻量的 ✓ 徽标。 */
+function applyLspBadge(card, lsp) {
+    if (!card || !lsp) return;
+    var group = $(card).find('.tool-card-title-group')[0];
+    if (!group) return;
+
+    $(group).find('.tool-lsp-badge').remove();
+    //结论未知（冷启动索引中，等待超时）：无信息量，不渲染徽标，
+    //也不显示 ✓——不能冒充「检查过且没问题」
+    var hasErr = hasLspErrors(lsp);
+    if (!hasErr && lsp.pending) return;
+
+    var badge = document.createElement('span');
+
+    badge.className = 'tool-lsp-badge ' + (hasErr ? 'is-error' : 'is-clean');
+    if (hasErr) {
+        badge.textContent = 'LSP ' + lsp.errorCount;
+        badge.title = I18n.t('msg.lspErrors', { n: lsp.errorCount });
+    } else {
+        badge.textContent = 'LSP ✓';
+        badge.title = I18n.t('msg.lspClean');
+    }
+    group.appendChild(badge);
+
+    if (hasErr) {
+        // 错误值得被看到：直接展开，省去用户一次点击
+        if (!$(card).hasClass('expanded')) {
+            $(card).addClass('expanded');
+            $(card).find('.tool-card-header').attr('aria-expanded', 'true');
+            if (card._pendingToolRender && !card._toolBodyRendered) card._pendingToolRender();
+        }
+    }
+}
+
 /* 检查容器内容是否超出当前 CSS 限高，若超出则添加溢出指示器 */
 function checkOverflow(el) {
     if (!el) return;
@@ -1261,7 +1341,11 @@ function formatToolSummary(toolName, args) {
         if (args.path) grepSummary += (grepSummary ? ' · ' : '') + args.path;
         return grepSummary;
     }
-    if (name === 'glob') return args.pattern || args.path || '';
+    if (name === 'glob') {
+        var globSummary = args.pattern ? String(args.pattern) : '';
+        if (args.path) globSummary += (globSummary ? ' · ' : '') + args.path;
+        return globSummary;
+    }
     if (name === 'ls') return (args.path || '') + (args.recursive ? ' · ' + I18n.t('msg.recursive') : '');
     return formatToolArgsStr(args);
 }
@@ -1353,7 +1437,7 @@ function bindToolCardToggle(card) {
     header.attr('aria-expanded', $(card).hasClass('expanded') ? 'true' : 'false');
 }
 
-function fillToolCardBody(card, toolName, text, args) {
+function fillToolCardBody(card, toolName, text, args, lsp) {
     var body = $(card).find('.tool-card-body')[0];
     if (!body) return;
     function doRender() {
@@ -1361,10 +1445,11 @@ function fillToolCardBody(card, toolName, text, args) {
         card._toolBodyRendered = true;
         body.className = 'tool-card-body';
         if (!renderToolBody(body, toolName, text, args)) body.textContent = text || '';
+        appendLspPanel(body, lsp);
         checkOverflow(body);
     }
     // 展开态或没有简化开关时立即渲染；折叠态延迟到用户展开
-    if ($(card).hasClass('expanded') || window.cliPrintSimplified === false) {
+    if ($(card).hasClass('expanded') || window.cliPrintSimplified === false || hasLspErrors(lsp)) {
         doRender();
     } else {
         card._pendingToolRender = doRender;
@@ -1430,7 +1515,7 @@ function resolveTaskSegmentFromCard(sess, card) {
     return (taskId && sess.taskSegments[taskId]) || null;
 }
 
-function appendActionEndChunk(sess, segment, toolName, text, args, toolTitle, reasonId, agentName, callId) {
+function appendActionEndChunk(sess, segment, toolName, text, args, toolTitle, reasonId, agentName, callId, lsp) {
     var pendingMatch = findPendingToolCard(sess, callId, null);
     var card = pendingMatch.pending && pendingMatch.pending.started ? pendingMatch.pending.card : null;
     if (card) delete sess.pendingToolCards[pendingMatch.key];
@@ -1445,9 +1530,19 @@ function appendActionEndChunk(sess, segment, toolName, text, args, toolTitle, re
         bindToolCardToggle(card);
     }
     card._toolBodyRendered = false;
-    fillToolCardBody(card, toolName, text, args);
+    fillToolCardBody(card, toolName, text, args, lsp);
     var icon = $(card).find('.tool-status-icon')[0];
-    if (icon) { icon.className = 'tool-status-icon done'; icon.innerHTML = '<i class="layui-icon layui-icon-ok"></i>'; }
+    // 工具本身执行成功，但 LSP 报错时用 warn 图标提醒（区别于工具失败的红色路径）
+    if (icon) {
+        if (hasLspErrors(lsp)) {
+            icon.className = 'tool-status-icon warn';
+            icon.innerHTML = '<i class="layui-icon layui-icon-tips"></i>';
+        } else {
+            icon.className = 'tool-status-icon done';
+            icon.innerHTML = '<i class="layui-icon layui-icon-ok"></i>';
+        }
+    }
+    applyLspBadge(card, lsp);
     if (callId) card.setAttribute('data-call-id', callId);
     // 优先用 chunk 上的 task segment；若 action_end 缺 taskId，则从已挂载的 tool-card 反查归属
     var taskSegment = (segment && segment.taskId) ? segment : resolveTaskSegmentFromCard(sess, card);

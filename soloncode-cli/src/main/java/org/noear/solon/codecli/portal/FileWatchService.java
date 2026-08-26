@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import org.noear.solon.codecli.util.WorkspaceLogRouter;
+import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 
 import java.util.*;
 import java.util.concurrent.*;

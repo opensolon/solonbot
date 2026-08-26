@@ -78,7 +78,7 @@ public class AnthropicModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[Anthropic] Error fetching models from {}: {}", modelsUrl, e.getMessage());
+            log.warn("[Anthropic] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
         }
 
         return result;

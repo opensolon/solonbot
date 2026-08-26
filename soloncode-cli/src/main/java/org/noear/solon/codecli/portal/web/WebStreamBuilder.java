@@ -11,6 +11,7 @@ import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.pipeline.ChannelBroadcastSink;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
+import org.noear.solon.ai.talents.lsp.LspCheckState;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
 import org.noear.solon.codecli.portal.web.pipeline.UiRenderFilter;
 import org.noear.solon.codecli.portal.web.pipeline.WebEventMapper;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * 响应式 Web 流构建器 (SAEP 2.0 管道装配入口)
@@ -33,6 +35,37 @@ public class WebStreamBuilder {
 
     public void replyToBoundChannel(WorkspaceContext wsContext, String sessionId, String text, boolean isFinal) {
         broadcastSink.replyToBoundChannel(wsContext.getChannelHub(), sessionId, text, isFinal);
+    }
+
+    /**
+     * LSP 检查状态查询：纯查表（最近一次写入后的结论 + 启用状态/扩展名匹配），不起进程。
+     *
+     * <p>让 Web UI 能区分三件不同的事：已检查且无错误、已请求但未拿到结论（冷启动索引中）、
+     * 以及根本没有语言服务器覆盖。把后两者混为一谈会让界面给出比实际更强的确定性保证。
+     */
+    private Function<String, LspCheckState> buildLspState(WorkspaceContext wsContext) {
+        return filePath -> {
+            try {
+                HarnessEngine engine = wsContext.getEngine();
+                if (engine == null || engine.getLspTalent() == null) {
+                    return LspCheckState.NONE;
+                }
+                if (engine.getLspTalent().isEnabled() == false) {
+                    return LspCheckState.NONE;
+                }
+
+                LspCheckState state = engine.getLspTalent().getFileCheckState(filePath);
+                if (state != LspCheckState.NONE) {
+                    return state;
+                }
+
+                //没有记录（如诊断钩子未走到）：退回到覆盖判定，有服务器但无结论就是 PENDING
+                boolean covered = engine.getLspTalent().getLspManager().hasClientFor(filePath);
+                return covered ? LspCheckState.PENDING : LspCheckState.NONE;
+            } catch (Throwable e) {
+                return LspCheckState.NONE;
+            }
+        };
     }
 
     /**
@@ -89,7 +122,7 @@ public class WebStreamBuilder {
         ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);
-        ToolPresentationFilter toolFilter = new ToolPresentationFilter();
+        ToolPresentationFilter toolFilter = new ToolPresentationFilter(buildLspState(wsContext));
         UiRenderFilter uiRenderFilter = new UiRenderFilter();
         SessionMetricsRecorder metricsRecorder = new SessionMetricsRecorder(session);
 

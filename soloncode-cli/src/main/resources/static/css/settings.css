@@ -1215,6 +1215,188 @@ select[disabled] {
 .permission-category-toggle { background: none; border: none; color: var(--accent); font-size: var(--fs-xs); cursor: pointer; padding: 4px 8px; border-radius: 4px; }
 .permission-category-toggle:hover { background: var(--accent-light); }
 .permission-category-tools { padding: 4px 0; }
+
+/* ===== User Auth Management ===== */
+.user-auth-mode-toggle {
+    display: flex;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-input-box);
+}
+
+.user-auth-mode-btn {
+    flex: 1;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font-size: var(--fs-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.user-auth-mode-btn.active {
+    background: var(--accent-fill, var(--accent));
+    color: #fff;
+}
+
+.user-auth-mode-btn .mode-icon {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    pointer-events: none;
+}
+
+.user-auth-config-section {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+}
+
+.user-auth-store-type {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* User list */
+.user-list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    gap: 12px;
+    transition: all 0.15s;
+}
+
+.user-list-item:hover {
+    border-color: var(--border-color);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.user-list-item.disabled {
+    opacity: 0.5;
+}
+
+.user-list-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover, #3b5de7));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.user-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-list-name {
+    font-size: var(--fs-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.user-list-username {
+    font-size: var(--fs-xs);
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.user-list-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.user-role-tag {
+    font-size: var(--fs-2xs);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.user-role-admin {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
+}
+
+.user-role-user {
+    background: rgba(59, 130, 246, 0.08);
+    color: #3b82f6;
+}
+
+.user-role-readonly {
+    background: rgba(107, 114, 128, 0.08);
+    color: #6b7280;
+}
+
+.user-list-email {
+    font-size: var(--fs-2xs);
+    color: var(--text-secondary);
+}
+
+.user-list-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.user-empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-secondary);
+    font-size: var(--fs-base);
+}
+
+/* User header button */
+.user-header-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-sm);
+    font-family: inherit;
+}
+
+.user-header-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.user-header-label {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .permission-tool-item { display: flex; align-items: center; padding: 8px 12px; gap: 10px; transition: background 0.15s; }
 .permission-tool-item:hover { background: var(--bg-hover); }
 .permission-tool-checkbox { position: relative; display: flex; align-items: center; cursor: pointer; }

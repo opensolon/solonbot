@@ -521,6 +521,27 @@ body {
 .tool-code-pre { margin: 0; padding: 10px 12px; overflow: auto; border-radius: 0; line-height: 1.5; }
 .tool-card-body .tool-code-pre > code.hljs { padding: 0; }
 .tool-card-body.tool-body-todo .tool-code-pre { padding: 10px 12px; }
+
+/* ===== LSP 诊断（写入后自动注入）=====
+   头部徽标是主要感知入口：不展开卡片也能看出哪次调用触发了语言服务器。
+   配色全走主题变量，保证 default/contrast/eyecare 三套皮肤不破。 */
+.tool-lsp-badge { display: inline-flex; align-items: center; padding: 0 6px; margin-left: 6px; font-size: var(--fs-2xs); font-weight: 600; line-height: 18px; border-radius: 4px; vertical-align: middle; white-space: nowrap; cursor: inherit; }
+.tool-lsp-badge.is-error { background: var(--color-warning); color: #fff; }
+.tool-lsp-badge.is-clean { background: transparent; color: var(--text-tertiary); border: 1px solid var(--border-color); font-weight: 500; }
+
+.tool-lsp-panel { margin: 8px 0 0; border-top: 1px solid var(--border-color); padding-top: 8px; white-space: normal; }
+.tool-card-body.tool-body-diff .tool-lsp-panel,
+.tool-card-body.tool-body-code .tool-lsp-panel,
+.tool-card-body.tool-body-terminal .tool-lsp-panel { margin: 0; padding: 8px 12px; }
+.tool-lsp-panel-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--color-warning); }
+.tool-lsp-panel-head > svg { flex-shrink: 0; }
+.tool-lsp-file { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.tool-lsp-list { margin: 0; padding: 0; list-style: none; }
+.tool-lsp-item { display: flex; align-items: flex-start; gap: 8px; padding: 2px 0; font-size: var(--fs-sm); line-height: 1.5; color: var(--text-secondary); }
+.tool-lsp-pos { flex-shrink: 0; min-width: 4em; text-align: right; font-family: var(--font-mono); color: var(--text-tertiary); }
+.tool-lsp-msg { flex: 1; min-width: 0; word-break: break-word; color: var(--error-text, var(--text-primary)); }
+.tool-lsp-source { flex-shrink: 0; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.tool-lsp-more { color: var(--text-tertiary); font-style: italic; padding-left: calc(4em + 8px); }
 .tool-body-deferred { color: var(--text-tertiary); }
 .tool-card > .tool-card-header[aria-expanded="true"] { background: var(--bg-hover); }
 
@@ -1439,7 +1460,7 @@ body {
 .file-panel-tree {
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     padding: 8px 0;
     font-size: var(--fs-base);
     line-height: 1.6;
@@ -1515,6 +1536,11 @@ body {
     display: flex;
     align-items: center;
     padding: 2px 12px 2px 16px;
+    /* 允许深层缩进的行按内容撑开宽度，配合 .file-panel-tree 的 overflow-x:auto 出横向滚动条 */
+    width: -moz-max-content;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
     cursor: pointer;
     border-radius: 4px;
     color: var(--text-sidebar);
@@ -1541,11 +1567,8 @@ body {
     white-space: nowrap;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
-.file-node[data-indent="1"] .file-node-row { padding-left: 28px; }
-.file-node[data-indent="2"] .file-node-row { padding-left: 44px; }
-.file-node[data-indent="3"] .file-node-row { padding-left: 60px; }
-.file-node[data-indent="4"] .file-node-row { padding-left: 76px; }
-.file-node[data-indent="5"] .file-node-row { padding-left: 92px; }
+/* 缩进由 app-filer.js 按 data-indent 计算为行内 padding-left（16px + 层级 * 16px），
+   不再用固定层级选择器枚举，避免超过枚举层数后退化为平层显示 */
 
 .file-node-icon {
     width: 16px;
@@ -1795,12 +1818,16 @@ body {
 .git-diff-file-list {
     flex: 1;
     overflow-y: auto;
+    overflow-x: auto;
     padding: 4px 0;
 }
 .git-file-item {
     display: flex;
     align-items: center;
     padding: 7px 12px;
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
     cursor: pointer;
     font-size: var(--fs-sm);
     color: var(--text-sidebar);
@@ -3083,9 +3110,7 @@ pre:hover .code-copy-btn { opacity: 1; }
 .todo-text {
     flex: 1;
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    word-break: break-word;
 }
 
 .todo-item:hover {

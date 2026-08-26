@@ -19,11 +19,10 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.harness.command.CommandContext;
 import org.noear.solon.codecli.config.entity.LoopGroupDo;
-import org.noear.solon.codecli.util.WorkspaceDataUtil;
+import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import reactor.core.Disposable;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
