@@ -1311,8 +1311,8 @@ function applyLspBadge(card, lsp) {
     }
     group.appendChild(badge);
 
-    if (hasErr && window.cliPrintSimplified === true) {
-        // 错误值得被看到：仅精简模式需要特地展开（非精简模式卡片本就默认展开）
+    if (hasErr && window.cliPrintSimplified === false) {
+        // 错误值得被看到：仅在关闭精简模式（cliPrintSimplified = false）时自动展开
         if (!$(card).hasClass('expanded')) {
             $(card).addClass('expanded');
             $(card).find('.tool-card-header').attr('aria-expanded', 'true');
@@ -1502,7 +1502,7 @@ function fillToolCardBody(card, toolName, text, args, lsp) {
         checkOverflow(body);
     }
     // 展开态或没有简化开关时立即渲染；折叠态延迟到用户展开
-    if ($(card).hasClass('expanded') || window.cliPrintSimplified === false || hasLspErrors(lsp)) {
+    if ($(card).hasClass('expanded') || window.cliPrintSimplified === false) {
         doRender();
     } else {
         card._pendingToolRender = doRender;

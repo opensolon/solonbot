@@ -43,7 +43,7 @@ public class AgentFlags {
     public final static String SCOPE_BUILTIN = "builtin"; //作用域：内置（不落配置文件，不可删除）
 
     public static String getVersion() {
-        return "v2026.8.26";
+        return "v2026.8.27";
     }
 
     private static String lastVersion;
