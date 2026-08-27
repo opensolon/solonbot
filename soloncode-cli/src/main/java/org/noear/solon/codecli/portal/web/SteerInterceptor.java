@@ -13,22 +13,24 @@ import org.noear.solon.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
 /**
- * 运行中插话拦截器（Steering，方案 A）
+ * 运行中插话拦截器（Steering）
  *
  * <p>参考 Codex 的 steering 设计：用户在任务运行中插入的纠偏/补充消息存放在
  * {@link AgentSession#attrs()} 的邮箱队列（transient，不落 snapshot.json，任务级易失），
  * 由本拦截器在 {@code onReasonStart}（消息组装前的采样边界）排空并注入工作记忆。
  * 不打断进行中的模型流与工具调用；注入的消息只进当前任务的工作记忆，
- * 任务结束即失效（方案 A：不作为正式会话历史重新进入后续任务上下文）。</p>
+ * 任务结束即失效。</p>
+ *
+ * <p><b>零持久化</b>：插话完全不写入 *.messages.ndjson，也不经 {@code session.addMessage}。
+ * 因此它不占用 sessionWindowSize 名额、不会在后续任务中被当作初心（META_FIRST）重新入场，
+ * 刷新页面后插话气泡即消失（刻意取舍）。展示层由前端在收到 steer_applied 时就地渲染进
+ * 当前 AI 流式气泡内部，属纯客户端呈现。与上游 Codex 的差异：Codex 双写
+ * （response_item + event_msg）且进模型上下文、重启后仍保留，我们不做。</p>
  *
  * <p>守卫体系（对齐 Codex 已踩过的坑）：</p>
  * <ul>
@@ -109,7 +111,6 @@ public class SteerInterceptor implements ReActInterceptor {
         // 必须广播 applied：它是「注入已生效」的唯一信号。前端据此清除待生效态并落气泡；
         // 若不发，前端 finishStream 的防御定时器会把已执行过的插话当作未消费重新入队，导致重复执行
         emitSteer(session, WebEvent.ofSteerApplied(trace.getRunId(), texts));
-        persistSteerHistory(session, texts);
     }
 
     @Override
@@ -175,34 +176,4 @@ public class SteerInterceptor implements ReActInterceptor {
         }
     }
 
-    /**
-     * 展示层记录：把已生效的插话追加到 *.messages.ndjson（metadata.source=steer），
-     * 使刷新/重开后历史回放仍可见。仅直接追加文件，不经过 FileAgentSession 内存层，
-     * 故不影响本任务后续回合与本次会话的 LLM 上下文（进程重启后按普通历史加载，属已知取舍）。
-     */
-    private void persistSteerHistory(AgentSession session, List<String> texts) {
-        if (wsContext == null) {
-            return;
-        }
-        try {
-            java.nio.file.Path sessionDir = wsContext.getSessionPath(session.getSessionId());
-            if (sessionDir == null) {
-                return;
-            }
-
-            File msgFile = new File(sessionDir.toFile(), session.getSessionId() + ".messages.ndjson");
-            StringBuilder buf = new StringBuilder();
-            for (String text : texts) {
-                ChatMessage message = ChatMessage.ofUser(text);
-                message.addMetadata("source", "steer");
-                buf.append(ChatMessage.toJson(message)).append('\n');
-            }
-
-            try (OutputStream out = new FileOutputStream(msgFile, true)) {
-                out.write(buf.toString().getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (Throwable e) {
-            LOG.warn("[SteerInterceptor] persist steer history failed: {}", e.toString());
-        }
-    }
 }

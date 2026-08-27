@@ -478,12 +478,14 @@ function buildDisplayText(text, filesToSend) {
                 }
             }
         }
-        // 插话气泡插入所属用户消息之后（见 appendUserMessage 的 steerAnchor 定位），
-        // 上方无流式增长内容，位置稳定且与历史回放顺序一致，无需切断当前流式气泡
+        // 插话渲染进当前 AI 流式气泡内部（流片段的一部分），不再占用独立 .msg-row。
+        // 插入点即当前增长尾部，后续思考块/工具卡落在其下方，位置稳定不抖。
         for (var k = 0; k < texts.length; k++) {
-            // 第 6 参置 null、第 8 参置 true：appendUserMessage 内部统一填本地化插话标签，
-            // 与历史加载（sourceLabel 通道）渲染为同一样式
-            appendUserMessage(sess, texts[k], null, null, null, null, null, true);
+            // 流内渲染失败（无 AI 气泡可挂，如流状态已重置）时回落为独立行，
+            // 绝不让已生效的插话不上屏（docs/codex-steer.md 记的 Codex #13595 教训）
+            if (typeof appendSteerNote !== 'function' || !appendSteerNote(sess, texts[k])) {
+                appendUserMessage(sess, texts[k], null, null, null, null, null, true);
+            }
         }
     } else {
         // 任务结束仍未消费：后端兜底广播，前端转为排队消息（绝不“已接受但永不生效”）

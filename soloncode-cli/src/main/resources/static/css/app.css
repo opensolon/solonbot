@@ -457,11 +457,41 @@ body {
 }
 .user-agent-tag-at { margin-right: 1px; }
 
-/* 插话消息：标识走 .msg-source-label（时间戳左侧浅色小字），与历史加载一致，无专属样式。
+/* 存量会话的插话行（已写入 ndjson，历史回放仍为独立 .msg-row）：
+   标识走 .msg-source-label（时间戳左侧浅色小字），无专属样式。
    插话属于上一轮任务的过程侧输入，不提供重发/继续/删除 */
 .msg-row.user.steer .rerun-btn,
 .msg-row.user.steer .user-continue-btn,
 .msg-row.user.steer .user-del-btn { display: none !important; }
+
+/* 运行中插话（实时路径）：作为 AI 流式气泡内的一个流片段节点就地展示。
+   弱于正文：左侧 accent 竖线 + 淡底，表明“这是用户插入的，不是模型输出”。
+   不复用 .msg-bubble，避免继承气泡宽度约束；margin 由 .main-stream-segment > * 置 0。 */
+.steer-note {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 10px;
+    border-left: 2px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    background: var(--accent-fill, rgba(0, 120, 212, 0.08));
+}
+.steer-note-badge {
+    flex-shrink: 0;
+    font-size: var(--fs-2xs, 10px);
+    font-weight: 600;
+    color: var(--accent);
+    opacity: 0.9;
+    user-select: none;
+}
+.steer-note-text {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-sm, 13px);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 
 /* Markdown */
 .md-content { padding: 2px 0; color: var(--text-ai-msg); font-size: var(--fs-md); }

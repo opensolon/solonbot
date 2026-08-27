@@ -41,9 +41,12 @@ function updateUserRerunButtons(container) {
 var STEER_SOURCE_LABEL = '插话';
 
 /* isSteer 为真表示这是运行中插话（steer）：仅用于打 data-steer 标记（隐藏重发/继续按钮）。
- * 插话标识本身走 sourceLabel 通道渲染，与历史加载路径保持同一套样式。
- * 注意：插话已由 SteerInterceptor.persistSteerHistory 追加进 *.messages.ndjson，
- * 故必须计入 calcServerCount，不能跳过，否则 rewind 会少删导致尾部残留陈旧记录。 */
+ * 插话标识本身走 sourceLabel 通道渲染。
+ * 注意：新产生的插话已不再走本函数（改为 appendSteerNote 渲染进 AI 流式气泡内），
+ * 此分支只为两个回落场景保留：
+ *   a) 存量会话——历史改动前已写入 ndjson 的 source=steer 行，回放时仍按独立行展示，
+ *      且仍需计入 calcServerCount（它有对应的服务端记录），否则 rewind 会少删导致尾部残留；
+ *   b) 实时路径下 appendSteerNote 返回 false（无 AI 气泡可挂）时的上屏兼底。 */
 function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName, isSteer) {
     // 插话归一：历史加载走后端 sourceLabel（WebEvent.toSourceLabel 硬编码中文），实时推送走 isSteer；
     // 两路在此汇聚为同一种表达（本地化文案 + 相同样式 + 相同 data-steer 行为）
@@ -214,21 +217,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     $(bubble).append(timeEl);
 
     addImageLightbox(bubble);
-    // 插话（steer）插在所属用户消息之后、AI 回复之前，与 ndjson 行序（user → steer → assistant）
-    // 及历史回放顺序一致；同时避免落在流式气泡下方——正文在其上方持续增高会把它反复下推造成抖动。
-    // 历史加载时该分支等价于 append（此刻锚点用户行就是末行），故两路共用同一逻辑。
-    var steerAnchor = null;
-    if (isSteer) {
-        var userRows = $(sess.container).find('.msg-row.user:not([data-steer])');
-        steerAnchor = userRows.length ? userRows[userRows.length - 1] : null;
-        // 已有连续插话行时接在其后，保持多条插话的提交先后顺序
-        while (steerAnchor && steerAnchor.nextElementSibling
-            && steerAnchor.nextElementSibling.hasAttribute('data-steer')) {
-            steerAnchor = steerAnchor.nextElementSibling;
-        }
-    }
-    if (steerAnchor) $(steerAnchor).after(row);
-    else $(sess.container).append(row);
+    $(sess.container).append(row);
     if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
     // 容器不在 DOM 树中（如 loadMessages 的临时容器阶段）时跳过滚动，避免无效回流
     if (sess.sessionId === activeSessionId && document.contains(sess.container)) {
@@ -825,6 +814,40 @@ function insertBeforeActions(sess, el) {
         if (content) { $(content).append(el); return; }
     }
     $(sess.currentBubbleEl.parentNode).find('.msg-actions').first().before(el);
+}
+
+/* 运行中插话（steer）就地渲染：作为 AI 流式气泡内的一个流片段节点，而非独立的 .msg-row。
+ * 零持久化（后端不写 ndjson），故刷新即消失，也不进 calcServerCount 视野。
+ *
+ * 两个必须遵守的约束：
+ * 1) 必须插进 main 段的 bodyEl 内部。若插在段外（.msg-content 尾部），ensureStreamSegment 的
+ *    短路会复用仍在上方的旧 main 段，后续 reason-group 追加进去会把插话反复下推造成抖动。
+ *    插在段内时，下一轮 reasonId 必为新值（ReasonTask 先跑完 onReasonStart 才 newCurrentReasonId），
+ *    reason-group 必定新建并 append 到插话下方，增长点在下，位置稳定。
+ * 2) 文本节点不得带 .md-content 与 data-md-raw。AI 气泡的复制按钮会逆序扫 .md-content 取
+ *    首个非空 data-md-raw（无则回退 innerText），带了会把插话文本当成最终答案复制出去；
+ *    finishStream 的 hasTextOutput 与空节点回收同样以 .md-content 为凭。故此处渲染纯文本。
+ * 返回 false 表示无气泡可挂，由调用方回落为独立行上屏。 */
+function appendSteerNote(sess, text) {
+    if (!sess || !sess.container) return false;
+    ensureAssistantBubble(sess);
+    if (!sess.currentBubbleEl) return false;
+
+    var el = $('<div>').addClass('steer-note')[0];
+    el.setAttribute('data-steer', '1');
+    if (sess.currentRunId) el.setAttribute('data-run-id', sess.currentRunId);
+    var label = (window.I18n ? I18n.t('streaming.steerTag') : STEER_SOURCE_LABEL);
+    el.innerHTML = '<span class="steer-note-badge">' + escapeHtml(label) + '</span>'
+        + '<span class="steer-note-text">' + escapeHtml(text) + '</span>';
+
+    // 当前段是子代理 task 段时不能插进去：插话属主 trace，放进 .task-group-body 会随分组收起而隐藏。
+    // 此时落气泡内容尾部，下一个主段由 ensureStreamSegment 新建并追加在其下方，同样不抖。
+    var seg = sess.currentStreamSegment;
+    if (seg && !seg.taskId && seg.bodyEl) $(seg.bodyEl).append(el);
+    else insertBeforeActions(sess, el);
+
+    if (sess.sessionId === activeSessionId && document.contains(sess.container)) scrollToBottom(true);
+    return true;
 }
 
 function finishThinkingBlock(sess, reasonId) {
@@ -1905,7 +1928,8 @@ function calcServerCount(container, startRow) {
     var count = 0;
     for (var i = idx; i < rows.length; i++) {
         var r = rows[i];
-        // 插话（steer）已由 persistSteerHistory 写入 ndjson，须计入，不可跳过
+        // 存量会话的插话行（改动前已写入 ndjson）有服务端记录，须计入不可跳过，否则 rewind 会少删；
+        // 新产生的插话已零持久化、且渲染为 AI 气泡内的 .steer-note（不是 .msg-row），不进本函数视野
         // 用户消息中，以 / 开头的命令在 ndjson 中无记录，跳过
         if ($(r).hasClass('user')) {
             var textEl = $(r).find('.user-msg-text')[0];
