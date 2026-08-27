@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.config;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.core.Plugin;
 import org.noear.solon.core.util.DateUtil;
 import org.noear.solon.core.util.IoUtil;
 import org.noear.solon.codecli.config.ProxyConfig;
@@ -100,8 +101,9 @@ public class AgentFlags {
         return System.getProperty("user.home");
     }
 
-    public static String getUserExtensions() {
-        return Paths.get(getUserHome(), getHarnessHome(), "extensions").toString();
+    public static String getUserPlugins() {
+        return Paths.get(getUserHome(), getHarnessHome(), "plugins").toString();
+
     }
 
     public static URL getConfigUrl() throws MalformedURLException {

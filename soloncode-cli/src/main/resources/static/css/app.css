@@ -457,22 +457,8 @@ body {
 }
 .user-agent-tag-at { margin-right: 1px; }
 
-/* 运行中插话标识 — 描边小胶囊，跟随气泡文字色适配任意主题 */
-.user-steer-tag {
-    display: inline-flex;
-    align-items: center;
-    margin-bottom: 3px;
-    padding: 0 5px;
-    border: 1px solid currentColor;
-    border-radius: 8px;
-    font-size: var(--fs-2xs);
-    line-height: 15px;
-    color: inherit;
-    opacity: 0.55;
-    white-space: nowrap;
-    user-select: none;
-}
-/* 插话消息未写入会话历史，不提供重发/继续/删除（避免与后端记录错位） */
+/* 插话消息：标识走 .msg-source-label（时间戳左侧浅色小字），与历史加载一致，无专属样式。
+   插话属于上一轮任务的过程侧输入，不提供重发/继续/删除 */
 .msg-row.user.steer .rerun-btn,
 .msg-row.user.steer .user-continue-btn,
 .msg-row.user.steer .user-del-btn { display: none !important; }

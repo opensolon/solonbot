@@ -48,10 +48,12 @@
         var _copyBtn = document.getElementById('gitViewerCopyBtn');
         var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
         var _memNewBtn = document.getElementById('gitViewerMemNew');
+        var _memClearBtn = document.getElementById('gitViewerMemClear');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = '';
+        if (_memClearBtn) _memClearBtn.style.display = '';
 
         // 清理 git 模块可能残留的操作栏
         var oldActions = gitViewer.querySelector('.git-viewer-actions');
@@ -403,6 +405,39 @@
     var gitViewerMemNew = document.getElementById('gitViewerMemNew');
     if (gitViewerMemNew) {
         gitViewerMemNew.addEventListener('click', function () { startCreate(); });
+    }
+
+    // header 「清空记忆」按钮：确认后调用后端 clear 接口
+    var gitViewerMemClear = document.getElementById('gitViewerMemClear');
+    if (gitViewerMemClear) {
+        gitViewerMemClear.addEventListener('click', function () {
+            if (!memoryList.length) { memToast(I18n.t('memory.empty'), false); return; }
+
+            var doClear = function () {
+                fetch('/web/chat/memory/clear', { method: 'POST' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (res && res.code === 200) {
+                            detailCache = {};
+                            expandedKey = null;
+                            loadMemoryList();
+                            memToast(I18n.t('memory.confirmClearTitle') + ' ✓', false);
+                        } else {
+                            memToast((res && res.description) || I18n.t('toast.operateFailed'), true);
+                        }
+                    })
+                    .catch(function (e) { memToast(I18n.t('toast.saveFailed') + ': ' + e.message, true); });
+            };
+
+            if (typeof layer !== 'undefined' && layer.confirm) {
+                layer.confirm(I18n.t('memory.confirmClear'), { title: I18n.t('memory.confirmClearTitle'), btn: [I18n.t('common.delete'), I18n.t('common.cancel')], icon: 3, offset: '120px' }, function (index) {
+                    layer.close(index);
+                    doClear();
+                });
+            } else if (window.confirm(I18n.t('memory.confirmClear'))) {
+                doClear();
+            }
+        });
     }
     // Esc 关闭时一并清理
     document.addEventListener('keydown', function (e) {

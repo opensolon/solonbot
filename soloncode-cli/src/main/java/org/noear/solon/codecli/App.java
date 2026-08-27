@@ -47,7 +47,7 @@ public class App {
         //配置用户扩展目录
         System.setProperty(LogDirUtil.WS_KEY, LogDirUtil.workspaceKey());
 
-        System.setProperty("solon.extend", "!" + AgentFlags.getUserExtensions());
+        System.setProperty("solon.extend", "!" + AgentFlags.getUserPlugins());
 
         Solon.start(App.class, args, app -> {
             initAgentProperties(app);

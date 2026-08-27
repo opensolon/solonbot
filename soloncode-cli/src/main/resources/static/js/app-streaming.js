@@ -478,13 +478,12 @@ function buildDisplayText(text, filesToSend) {
                 }
             }
         }
-        // 断开当前流式气泡：插话气泡之后的正文另起新气泡，避免正文在插话上方持续增长
-        // 造成插话气泡位置抖动（steer_applied 发生在下一个推理回合的起点，此处正是天然的分块点）
-        sess.currentBubbleEl = null;
-        sess.nextContentBlock = false;
-        var steerTagLabel = I18n.t('streaming.steerTag');
+        // 插话气泡插入所属用户消息之后（见 appendUserMessage 的 steerAnchor 定位），
+        // 上方无流式增长内容，位置稳定且与历史回放顺序一致，无需切断当前流式气泡
         for (var k = 0; k < texts.length; k++) {
-            appendUserMessage(sess, texts[k], null, null, null, null, null, steerTagLabel);
+            // 第 6 参置 null、第 8 参置 true：appendUserMessage 内部统一填本地化插话标签，
+            // 与历史加载（sourceLabel 通道）渲染为同一样式
+            appendUserMessage(sess, texts[k], null, null, null, null, null, true);
         }
     } else {
         // 任务结束仍未消费：后端兜底广播，前端转为排队消息（绝不“已接受但永不生效”）
@@ -686,10 +685,9 @@ function cancelLastQueuedToInput(sess) {
             chatInput.placeholder = I18n.t('streaming.stoppingPlaceholder');
             return;
         }
-        var n = (sess.messageQueue || []).length;
-        chatInput.placeholder = n > 0
-            ? I18n.t('streaming.queuePosition', {n: n + 1})
-            : I18n.t('streaming.steerPlaceholder');
+        // 常显按键提示：排队条数已由 queue dock 标题与折叠角标表达，
+        // placeholder 专职提示“现在按什么键”（易失知识，比条数更需要常驻）
+        chatInput.placeholder = I18n.t('streaming.steerPlaceholder');
         return;
     }
     // 空闲但有任务排队：提示 Enter 续发（冷恢复后不自动发）

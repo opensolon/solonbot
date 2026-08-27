@@ -15,7 +15,9 @@ var DELETE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
    继续运行仅在最后一条用户消息同时是整个消息列表末尾（其后无 AI 回复）、
    且本会话当前不在流式运行中时显示（发出后到首段输出前不该出现「继续运行」） */
 function updateUserRerunButtons(container) {
-    var userRows = $(container).find('.msg-row.user');
+    // 插话行（.steer）不参与“最后一条用户消息”的认定：它自身的重做/继续/删除已由 CSS 隐藏，
+    // 若计入则会把真正的末条用户消息挤成“非末条”，导致其重做按钮消失。
+    var userRows = $(container).find('.msg-row.user:not(.steer)');
     var allRows = $(container).find('.msg-row');
     var lastRowEl = allRows.length ? allRows[allRows.length - 1] : null;
     var sid = lastRowEl ? lastRowEl.getAttribute('data-session-id') : null;
@@ -35,13 +37,22 @@ function updateUserRerunButtons(container) {
 }
 
 /* ===== Message Rendering (Session-Aware) ===== */
-/* steerLabel 非空表示这是运行中插话（steer）：气泡顶部打标识，且该消息未写入会话历史
- * （方案 A：仅注入工作记忆），故标记 data-steer 让 calcServerCount 跳过，避免 rewind 多删。 */
-function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName, steerLabel) {
-    var row = $('<div>').addClass('msg-row user' + (steerLabel ? ' steer' : ''))[0];
+/* 后端 WebEvent.toSourceLabel("steer") 的固定返回值，用作历史加载路径的插话识别键 */
+var STEER_SOURCE_LABEL = '插话';
+
+/* isSteer 为真表示这是运行中插话（steer）：仅用于打 data-steer 标记（隐藏重发/继续按钮）。
+ * 插话标识本身走 sourceLabel 通道渲染，与历史加载路径保持同一套样式。
+ * 注意：插话已由 SteerInterceptor.persistSteerHistory 追加进 *.messages.ndjson，
+ * 故必须计入 calcServerCount，不能跳过，否则 rewind 会少删导致尾部残留陈旧记录。 */
+function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName, isSteer) {
+    // 插话归一：历史加载走后端 sourceLabel（WebEvent.toSourceLabel 硬编码中文），实时推送走 isSteer；
+    // 两路在此汇聚为同一种表达（本地化文案 + 相同样式 + 相同 data-steer 行为）
+    if (sourceLabel === STEER_SOURCE_LABEL) isSteer = true;
+    if (isSteer) sourceLabel = (window.I18n ? I18n.t('streaming.steerTag') : STEER_SOURCE_LABEL);
+    var row = $('<div>').addClass('msg-row user' + (isSteer ? ' steer' : ''))[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
-    if (steerLabel) row.setAttribute('data-steer', '1');
+    if (isSteer) row.setAttribute('data-steer', '1');
     row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-copy-btn user-continue-btn" data-i18n-title="msg.continue" style="display:none">' + CONTINUE_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
     if (window.I18n) window.I18n.apply(row);
     var bubble = $(row).find('.msg-bubble')[0];
@@ -50,12 +61,6 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
 
     // 子代理标记：这条消息实际交给了哪个子代理（主 Agent 不显示）
     // 独立成行放在气泡顶部，不写入 data-md-raw，复制/重发仍是用户原文
-    // 插话标识：独立成行放在气泡顶部，不写入 data-md-raw，复制仍是用户原文
-    if (steerLabel) {
-        var steerTag = $('<div>').addClass('user-steer-tag').text(steerLabel)[0];
-        $(bubble).append(steerTag);
-    }
-
     if (agentName) {
         var agentTag = $('<div>').addClass('user-agent-tag')[0];
         agentTag.innerHTML = '<span class="user-agent-tag-at">@</span>' + escapeHtml(agentName);
@@ -209,7 +214,21 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     $(bubble).append(timeEl);
 
     addImageLightbox(bubble);
-    $(sess.container).append(row);
+    // 插话（steer）插在所属用户消息之后、AI 回复之前，与 ndjson 行序（user → steer → assistant）
+    // 及历史回放顺序一致；同时避免落在流式气泡下方——正文在其上方持续增高会把它反复下推造成抖动。
+    // 历史加载时该分支等价于 append（此刻锚点用户行就是末行），故两路共用同一逻辑。
+    var steerAnchor = null;
+    if (isSteer) {
+        var userRows = $(sess.container).find('.msg-row.user:not([data-steer])');
+        steerAnchor = userRows.length ? userRows[userRows.length - 1] : null;
+        // 已有连续插话行时接在其后，保持多条插话的提交先后顺序
+        while (steerAnchor && steerAnchor.nextElementSibling
+            && steerAnchor.nextElementSibling.hasAttribute('data-steer')) {
+            steerAnchor = steerAnchor.nextElementSibling;
+        }
+    }
+    if (steerAnchor) $(steerAnchor).after(row);
+    else $(sess.container).append(row);
     if (typeof observeMessagesHeight === 'function') observeMessagesHeight(row);
     // 容器不在 DOM 树中（如 loadMessages 的临时容器阶段）时跳过滚动，避免无效回流
     if (sess.sessionId === activeSessionId && document.contains(sess.container)) {
@@ -1886,8 +1905,7 @@ function calcServerCount(container, startRow) {
     var count = 0;
     for (var i = idx; i < rows.length; i++) {
         var r = rows[i];
-        // 运行中插话（steer）仅注入工作记忆， ndjson 中无记录，跳过
-        if (r.getAttribute && r.getAttribute('data-steer') === '1') continue;
+        // 插话（steer）已由 persistSteerHistory 写入 ndjson，须计入，不可跳过
         // 用户消息中，以 / 开头的命令在 ndjson 中无记录，跳过
         if ($(r).hasClass('user')) {
             var textEl = $(r).find('.user-msg-text')[0];

@@ -216,6 +216,33 @@ public class MemoryController {
     }
 
     /**
+     * 清空：移除当前工作区可见的全部记忆（含用户全局域与工作区域中合并出的所有 key）。
+     */
+    @Mapping("/web/chat/memory/clear")
+    public Result clear() {
+        MemorySolution ms = solution();
+        if (ms == null || ms.getStorer() == null) {
+            return Result.failure("记忆存储未配置");
+        }
+
+        try {
+            int removed = 0;
+            if (ms.getSearcher() != null) {
+                List<MemorySearchResult> results = ms.getSearcher().listAll(MemorySolutionProvider.SHARED_USER_ID, LIST_ALL_LIMIT);
+                for (MemorySearchResult r : results) {
+                    ms.getStorer().remove(MemorySolutionProvider.SHARED_USER_ID, r.getKey());
+                    ms.getSearcher().removeIndex(MemorySolutionProvider.SHARED_USER_ID, r.getKey());
+                    removed++;
+                }
+            }
+            return Result.succeed(removed);
+        } catch (Exception e) {
+            LOG.error("MemoryController clear error", e);
+            return Result.failure("清空失败：" + e.getMessage());
+        }
+    }
+
+    /**
      * 删除：按 key 全域移除一条记忆（所有作用域中的同名条目都会被清除）。
      */
     @Mapping("/web/chat/memory/remove")
