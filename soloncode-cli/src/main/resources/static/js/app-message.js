@@ -35,10 +35,13 @@ function updateUserRerunButtons(container) {
 }
 
 /* ===== Message Rendering (Session-Aware) ===== */
-function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName) {
-    var row = $('<div>').addClass('msg-row user')[0];
+/* steerLabel 非空表示这是运行中插话（steer）：气泡顶部打标识，且该消息未写入会话历史
+ * （方案 A：仅注入工作记忆），故标记 data-steer 让 calcServerCount 跳过，避免 rewind 多删。 */
+function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName, steerLabel) {
+    var row = $('<div>').addClass('msg-row user' + (steerLabel ? ' steer' : ''))[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
+    if (steerLabel) row.setAttribute('data-steer', '1');
     row.innerHTML = '<div class="user-msg-col"><div class="msg-bubble"></div><div class="msg-actions"><button class="user-copy-btn" data-i18n-title="common.copy">' + COPY_SVG + '</button><button class="user-copy-btn rerun-btn" data-i18n-title="msg.redo" style="display:none">' + RERUN_SVG + '</button><button class="user-copy-btn user-continue-btn" data-i18n-title="msg.continue" style="display:none">' + CONTINUE_SVG + '</button><button class="user-del-btn" data-i18n-title="msg.deleteHereAndAfter">' + DELETE_SVG + '</button></div></div>';
     if (window.I18n) window.I18n.apply(row);
     var bubble = $(row).find('.msg-bubble')[0];
@@ -47,6 +50,12 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
 
     // 子代理标记：这条消息实际交给了哪个子代理（主 Agent 不显示）
     // 独立成行放在气泡顶部，不写入 data-md-raw，复制/重发仍是用户原文
+    // 插话标识：独立成行放在气泡顶部，不写入 data-md-raw，复制仍是用户原文
+    if (steerLabel) {
+        var steerTag = $('<div>').addClass('user-steer-tag').text(steerLabel)[0];
+        $(bubble).append(steerTag);
+    }
+
     if (agentName) {
         var agentTag = $('<div>').addClass('user-agent-tag')[0];
         agentTag.innerHTML = '<span class="user-agent-tag-at">@</span>' + escapeHtml(agentName);
@@ -1259,7 +1268,7 @@ function applyLspBadge(card, lsp) {
     group.appendChild(badge);
 
     if (hasErr && window.cliPrintSimplified === true) {
-        // 错误值得被看到：配置开启时直接展开，省去用户一次点击；默认仅显示徽标不展开
+        // 错误值得被看到：仅精简模式需要特地展开（非精简模式卡片本就默认展开）
         if (!$(card).hasClass('expanded')) {
             $(card).addClass('expanded');
             $(card).find('.tool-card-header').attr('aria-expanded', 'true');
@@ -1877,6 +1886,8 @@ function calcServerCount(container, startRow) {
     var count = 0;
     for (var i = idx; i < rows.length; i++) {
         var r = rows[i];
+        // 运行中插话（steer）仅注入工作记忆， ndjson 中无记录，跳过
+        if (r.getAttribute && r.getAttribute('data-steer') === '1') continue;
         // 用户消息中，以 / 开头的命令在 ndjson 中无记录，跳过
         if ($(r).hasClass('user')) {
             var textEl = $(r).find('.user-msg-text')[0];

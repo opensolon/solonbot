@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * SteerInterceptor 单元测试：守卫体系、方案 A 注入语义、onAgentEnd 兜底与清理。
  *
- * <p>覆盖：首轮不注入、非首轮注入（workingMemory + systemPrompt + 邮箱清空 + runId 记录）、
+ * <p>覆盖：首轮不注入、非首轮注入（workingMemory + 邮箱清空 + runId 记录）、
  * tool_calls 未闭合跳过、任务结束残留转 dropped、正常清理。</p>
  */
 public class SteerInterceptorTest {
@@ -79,13 +79,13 @@ public class SteerInterceptorTest {
     }
 
     @Test
-    @DisplayName("非首轮：注入工作记忆（带前缀+metadata）、追加 systemPrompt、清空邮箱、记录 runId")
+    @DisplayName("非首轮：注入工作记忆（带前缀+metadata）、不污染 systemPrompt、清空邮箱、记录 runId")
     public void laterTurn_injected() {
         ConcurrentLinkedQueue<String> box = newBox("改用方案B", "注意性能");
         trace.nextTurn();
         trace.nextTurn(); // 第二轮
 
-        StringBuilder sp = new StringBuilder();
+        StringBuilder sp = new StringBuilder("base");
         interceptor.onReasonStart(trace, sp);
 
         List<ChatMessage> messages = trace.getWorkingMemory().getMessages();
@@ -94,7 +94,8 @@ public class SteerInterceptorTest {
         assertTrue(messages.get(0).getContent().contains("改用方案B"));
         assertEquals("steer", messages.get(0).getMetadata().get("source"));
         assertEquals("user", messages.get(0).getRole().name().toLowerCase());
-        assertTrue(sp.toString().contains("用户实时补充"), "应追加 systemPrompt 说明");
+        // 注入消息自带 STEER_PREFIX 已足够表意，不再追加 systemPrompt（避免重复提示）
+        assertEquals("base", sp.toString(), "systemPrompt 不应被修改");
         assertTrue(box.isEmpty(), "注入后邮箱应清空");
         assertEquals(trace.getRunId(), session.attrs().get(SteerInterceptor.ATTR_ACTIVE_RUN_ID));
     }

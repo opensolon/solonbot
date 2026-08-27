@@ -356,10 +356,23 @@ public class WebGate extends SimpleWebSocketListener {
         resetStreamDoneSent(session);
 
         if (session != null) {
-            // 新任务开流：清上一轮 runId。steer 接口在 runId 比对时若活跃值为 null 则接受
-            // （首个 reason 尚未跑，守卫1会自动推迟注入到第二轮），不会错投到已结束的任务
+            // 新任务开流：清上一轮 runId 与残留插话邮箱。
+            // onAgentEnd 不在 finally 中（interrupt/异常路径不触发），若不在此清理，
+            // 上一任务未消费的插话会在新任务第二轮被注入，破坏方案 A 的任务级隔离。
+            // 残留不能静默丢弃（包括 HITL 挂起期间提交的插话），一律广播 dropped 让前端转排队
             session.attrs().remove(SteerInterceptor.ATTR_ACTIVE_RUN_ID);
+            @SuppressWarnings("unchecked")
+            Queue<String> staleBox = (Queue<String>) session.attrs().remove(SteerInterceptor.ATTR_STEER_BOX);
+
             emitToClient(wsContext, session.getSessionId(), WebEvent.ofResetStream());
+
+            if (staleBox != null && staleBox.isEmpty() == false) {
+                java.util.List<String> stale = new java.util.ArrayList<>();
+                for (String t; (t = staleBox.poll()) != null; ) {
+                    stale.add(t);
+                }
+                emitToClient(wsContext, session.getSessionId(), WebEvent.ofSteerDropped(null, stale));
+            }
         }
     }
 

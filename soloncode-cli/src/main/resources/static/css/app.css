@@ -457,6 +457,26 @@ body {
 }
 .user-agent-tag-at { margin-right: 1px; }
 
+/* 运行中插话标识 — 描边小胶囊，跟随气泡文字色适配任意主题 */
+.user-steer-tag {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 3px;
+    padding: 0 5px;
+    border: 1px solid currentColor;
+    border-radius: 8px;
+    font-size: var(--fs-2xs);
+    line-height: 15px;
+    color: inherit;
+    opacity: 0.55;
+    white-space: nowrap;
+    user-select: none;
+}
+/* 插话消息未写入会话历史，不提供重发/继续/删除（避免与后端记录错位） */
+.msg-row.user.steer .rerun-btn,
+.msg-row.user.steer .user-continue-btn,
+.msg-row.user.steer .user-del-btn { display: none !important; }
+
 /* Markdown */
 .md-content { padding: 2px 0; color: var(--text-ai-msg); font-size: var(--fs-md); }
 /* 流式 Markdown：与完成态共用结构样式；仅做轻微区分（无高亮/无复制按钮也可读） */

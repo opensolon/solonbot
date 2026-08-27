@@ -186,6 +186,9 @@ public class WebEventMapper {
         if (limit <= 0) {
             limit = chunk.getContextLength(); // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
         }
+        if (limit <= 0) {
+            limit = 128_000L;
+        }
 
         Double cacheRate = null;
         if (chunk.getTrace() != null && chunk.getTrace().getMetrics() != null) {

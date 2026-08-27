@@ -973,6 +973,17 @@ public class WebController {
         }
         box.offer(text);
 
+        // offer 后复查（决策点原子性兜底）：本方法与 SteerInterceptor.onAgentEnd 的
+        // attrs().remove(ATTR_STEER_BOX) 存在竞态。若在 remove 之后才 offer，本条会写进
+        // 一个无人排空的孤儿队列——既不会生效也不会有 dropped 事件（悬挂）。
+        // 此处发现任务已结束或邮箱已被摘掉则回滚本条，改报 NOT_RUNNING 让前端回落为普通发送
+        if (!webGate().isSessionBusy(engine(), sessionId)
+                || session.attrs().get(SteerInterceptor.ATTR_STEER_BOX) != box) {
+            box.remove(text);
+            session.attrs().remove(SteerInterceptor.ATTR_STEER_BOX, box);
+            return Result.failure(409, "NOT_RUNNING");
+        }
+
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("status", "STEERED");
         data.put("queued", box.size());

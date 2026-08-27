@@ -436,7 +436,6 @@ function buildDisplayText(text, filesToSend) {
                     createdAt: Date.now()
                 });
                 if (typeof renderQueueDock === 'function') renderQueueDock();
-                showToast(I18n.t('streaming.steerAccepted'), 'info', 1800);
                 chatInput.focus();
                 return;
             }
@@ -479,11 +478,13 @@ function buildDisplayText(text, filesToSend) {
                 }
             }
         }
+        // 断开当前流式气泡：插话气泡之后的正文另起新气泡，避免正文在插话上方持续增长
+        // 造成插话气泡位置抖动（steer_applied 发生在下一个推理回合的起点，此处正是天然的分块点）
+        sess.currentBubbleEl = null;
+        sess.nextContentBlock = false;
+        var steerTagLabel = I18n.t('streaming.steerTag');
         for (var k = 0; k < texts.length; k++) {
-            appendUserMessage(sess, texts[k], null, null, null, null);
-        }
-        if (typeof showToast === 'function') {
-            showToast(I18n.t('streaming.steerApplied'), 'info', 1500);
+            appendUserMessage(sess, texts[k], null, null, null, null, null, steerTagLabel);
         }
     } else {
         // 任务结束仍未消费：后端兜底广播，前端转为排队消息（绝不“已接受但永不生效”）
@@ -592,6 +593,9 @@ function cancelLastQueuedToInput(sess) {
     function clearMessageQueue(sess) {
     if (!sess) return;
     sess.messageQueue = [];
+    // 队列 dock 同时承载“待生效”插话，一并出清并撤掉防御定时器，避免定时器把已清空的项重新入队
+    sess.steerPending = [];
+    if (sess._steerFallbackTimer) { clearTimeout(sess._steerFallbackTimer); sess._steerFallbackTimer = null; }
     if (typeof renderQueueDock === 'function') renderQueueDock();
     if (typeof updateStreamingPlaceholder === 'function') updateStreamingPlaceholder();
     if (typeof schedulePersistMessageQueue === 'function') schedulePersistMessageQueue(sess);
@@ -1537,6 +1541,9 @@ function finishStream(sess) {
     if (sess._pendingClear) {
         sess._pendingClear = false;
         sess.messageQueue = [];
+        // /clear 语义为清空会话上下文与界面，残留的待生效插话一并作废
+        sess.steerPending = [];
+        if (sess._steerFallbackTimer) { clearTimeout(sess._steerFallbackTimer); sess._steerFallbackTimer = null; }
         if (typeof schedulePersistMessageQueue === 'function') schedulePersistMessageQueue(sess);
         if (sess.sessionId === activeSessionId && typeof renderQueueDock === 'function') {
             renderQueueDock();
@@ -1589,6 +1596,15 @@ function finishStream(sess) {
         if (sess.messageQueue && sess.messageQueue.length) {
             sess.messageQueue = [];
             if (typeof schedulePersistMessageQueue === 'function') schedulePersistMessageQueue(sess);
+            if (sess.sessionId === activeSessionId && typeof renderQueueDock === 'function') {
+                renderQueueDock();
+            }
+        }
+        // 同理丢弃“待生效”插话并撤掉防御定时器：否则 5s 后会被转成排队消息自动续发，
+        // 与用户刚刚点下 Stop 的意图相反
+        if (sess._steerFallbackTimer) { clearTimeout(sess._steerFallbackTimer); sess._steerFallbackTimer = null; }
+        if (sess.steerPending && sess.steerPending.length) {
+            sess.steerPending = [];
             if (sess.sessionId === activeSessionId && typeof renderQueueDock === 'function') {
                 renderQueueDock();
             }
@@ -1728,6 +1744,9 @@ function handleWebGateChunk(raw) {
         sess._closedRunId = null;
         sess.acceptingStream = true;
         sess.stopRequested = false;
+        // 后端 beginStreamTurn 已摘掉残留插话邮箱并紧随其后广播 dropped，
+        // 此处撤掉防御定时器，避免与该 dropped 事件重复入队
+        if (sess._steerFallbackTimer) { clearTimeout(sess._steerFallbackTimer); sess._steerFallbackTimer = null; }
         return;
     }
 

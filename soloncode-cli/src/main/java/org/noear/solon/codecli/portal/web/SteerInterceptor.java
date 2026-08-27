@@ -104,12 +104,11 @@ public class SteerInterceptor implements ReActInterceptor {
             trace.getWorkingMemory().addMessage(message);
         }
 
-        // 感觉不应该给系统提示词加内容
-//        systemPromptBuf.append("\n\n[用户实时补充说明]\n")
-//                .append("用户在任务执行中追加了指令（见最新一条 user 消息）。")
-//                .append("若与原计划冲突，以最新指令为准并简要说明调整；若为补充信息，请结合其继续执行。");
+        // 不追加 systemPrompt 说明：注入消息自带 STEER_PREFIX 已足够表意，避免重复提示
 
-        //emitSteer(session, WebEvent.ofSteerApplied(trace.getRunId(), texts));
+        // 必须广播 applied：它是「注入已生效」的唯一信号。前端据此清除待生效态并落气泡；
+        // 若不发，前端 finishStream 的防御定时器会把已执行过的插话当作未消费重新入队，导致重复执行
+        emitSteer(session, WebEvent.ofSteerApplied(trace.getRunId(), texts));
         persistSteerHistory(session, texts);
     }
 
@@ -120,7 +119,13 @@ public class SteerInterceptor implements ReActInterceptor {
             return;
         }
 
-        Queue<String> box = steerBox(session);
+        // 先摘下邮箱再排空（方案 A：任务结束即失效）。顺序不可颠倒：
+        // 若先 drain 再 remove，落在两步之间的 offer 会随 remove 静默丢失。
+        // 摘下后并发到达的 offer 会写进一个新建的孤儿队列，由 steer 接口的 offer 后复查兜住
+        @SuppressWarnings("unchecked")
+        Queue<String> box = (Queue<String>) session.attrs().remove(ATTR_STEER_BOX);
+        session.attrs().remove(ATTR_ACTIVE_RUN_ID);
+
         if (box != null && !box.isEmpty()) {
             // 残留兜底：任务已结束（单轮直接回答、守卫持续跳过后 END 等），
             // 未消费的插话绝不能静默丢弃——广播 dropped，前端转为排队消息发送
@@ -129,10 +134,6 @@ public class SteerInterceptor implements ReActInterceptor {
                 emitSteer(session, WebEvent.ofSteerDropped(trace.getRunId(), dropped));
             }
         }
-
-        // 方案 A：任务结束即失效
-        session.attrs().remove(ATTR_STEER_BOX);
-        session.attrs().remove(ATTR_ACTIVE_RUN_ID);
     }
 
     /**
@@ -180,6 +181,9 @@ public class SteerInterceptor implements ReActInterceptor {
      * 故不影响本任务后续回合与本次会话的 LLM 上下文（进程重启后按普通历史加载，属已知取舍）。
      */
     private void persistSteerHistory(AgentSession session, List<String> texts) {
+        if (wsContext == null) {
+            return;
+        }
         try {
             java.nio.file.Path sessionDir = wsContext.getSessionPath(session.getSessionId());
             if (sessionDir == null) {
