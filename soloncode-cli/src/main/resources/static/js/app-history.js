@@ -503,6 +503,13 @@ function loadMessages(sess) {
                     var el = ensureAssistantBubble(sess);
                     // 记住末尾的 AI 气泡行：若后面回放了执行过程，需把它重新挪到末尾
                     gate.lastAssistantRow = (el && el.closest) ? el.closest('.msg-row') : null;
+                    /* 补 runId：历史行是 loadMessages 建的，此刻 sess.currentRunId 还是空的，
+                     * ensureAssistantBubble 打不上 data-run-id。缺了它，删除/重跑只能退化成
+                     * 「只处理当前这一行」，同一轮里其它带 data-run-id 的行会留在屏上。
+                     * 回放路径（mergeReplayRowInto）也会补，但它依赖 trace 对齐，不能指望。 */
+                    if (gate.lastAssistantRow && m.runId && !gate.lastAssistantRow.getAttribute('data-run-id')) {
+                        gate.lastAssistantRow.setAttribute('data-run-id', m.runId);
+                    }
                     sess.reasonBuffer = isConsecutive ? sess.reasonBuffer + '\n\n' + m.content : m.content;
                     // 与流结束路径统一：先写入 MD；高亮/mermaid 循环后对真实容器统一跑一次
                     if (typeof finalizeMdElement === 'function') {

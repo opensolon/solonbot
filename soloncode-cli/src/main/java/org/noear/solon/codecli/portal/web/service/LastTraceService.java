@@ -379,57 +379,42 @@ public class LastTraceService {
     /**
      * 把一条聚合消息的 content 还原成有序的「思考/正文」段序列。
      *
-     * <p>覆盖四种形态：
-     * <ol>
-     *   <li>{@code isThinking()==true}：整条都是思考（模型把答案也写进了 reasoning 通道，
-     *       流末才补 {@code </think>}，数据层面没有边界可拆）；</li>
-     *   <li>多对 {@code <think>...</think>} 与正文交替；</li>
-     *   <li>悬空 {@code <think>} 无闭合（任务在思考中被打断）—— 直读到末尾，
-     *       否则 {@code getThinking()} 与 {@code getAnswer()} 会双双返回空，整段凭空消失；</li>
-     *   <li>先出现 {@code </think>} 而无开标签（开标签在裁剪/往返中丢失）—— 前半段按思考处理。</li>
-     * </ol></p>
+     * <p><b>一条聚合消息可以同时具备思考、正文与 toolCalls</b>，三者并存是常态而非例外：
+     * 非流式路径把 reasoning 直接拼成 {@code <think>…</think>} 前置到正文
+     * （{@code AbstractChatDialect} 单次返回分支），流式路径则逐帧注入标记后由
+     * {@code contentBuilder} 累积成同一个 content。所以不能按「要么思考要么正文」去解析，
+     * 只能按标签切段并保持原序。</p>
+     *
+     * <p>{@code isThinking()} <b>不能</b>用来判定「整条都是思考」：聚合消息的该标记取自
+     * <b>最后一帧</b>的 {@code in_thinking}（{@code ChatResponseDefault#getAggregationMessage}），
+     * 只描述流末停在哪个通道。末帧在思考，完全不妨碍 content 前面已经有过
+     * {@code <think>T1</think>A1} 的交替 —— 早期实现在此短路，把整条按思考处理，
+     * A1/A2 被 {@code getThinking()} 的 replace 抹掉标签后糊进同一个思考块，
+     * 又制造了一次「思考和答案合到一起」。</p>
+     *
+     * <p>它只在一处有用：content <b>完全没有</b>标签时，凭内容无法判断这段来自 reasoning
+     * 通道还是 content 通道，此时以末帧状态定性。</p>
+     *
+     * <p>其余覆盖形态：多对标签与正文交替；悬空 {@code <think>} 无闭合（任务在思考中被打断，
+     * 旧实现下 {@code getThinking()} 与 {@code getAnswer()} 会双双返回空，整段凭空消失）；
+     * 先出现 {@code </think>} 而无开标签（开标签在裁剪 / 序列化往返中丢失），前半段按思考处理。</p>
      */
     private List<Segment> splitSegments(AssistantMessage msg) {
         List<Segment> out = new ArrayList<>();
-
-        if (msg.isThinking()) {
-            // getThinking() 已负责剥掉标签
-            addSegment(out, true, msg.getThinking());
-            return out;
-        }
 
         String src = msg.getContent();
         if (src == null || src.isEmpty()) {
             return out;
         }
 
-        int pos = 0;
-        while (pos < src.length()) {
-            int open = src.indexOf(THINK_OPEN, pos);
-            int close = src.indexOf(THINK_CLOSE, pos);
+        String thinking = msg.getThinking();
+        if (Assert.isNotEmpty(thinking)) {
+            addSegment(out, true, thinking);
+        }
 
-            if (open < 0 && close < 0) {
-                addSegment(out, false, src.substring(pos));
-                break;
-            }
-
-            if (close >= 0 && (open < 0 || close < open)) {
-                // 闭合先到：这一段是缺了开标签的思考
-                addSegment(out, true, src.substring(pos, close));
-                pos = close + THINK_CLOSE.length();
-                continue;
-            }
-
-            addSegment(out, false, src.substring(pos, open));
-            pos = open + THINK_OPEN.length();
-
-            close = src.indexOf(THINK_CLOSE, pos);
-            if (close < 0) {
-                addSegment(out, true, src.substring(pos));
-                break;
-            }
-            addSegment(out, true, src.substring(pos, close));
-            pos = close + THINK_CLOSE.length();
+        String answer = msg.getAnswer();
+        if (Assert.isNotEmpty(answer)) {
+            addSegment(out, false, answer);
         }
 
         return out;

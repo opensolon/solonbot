@@ -19,6 +19,7 @@ import org.noear.snack4.Feature;
 import org.noear.snack4.ONode;
 import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
+import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.AgentDefinition;
@@ -101,6 +102,10 @@ public class WebController {
      * 「最后一轮执行过程」还原服务（无状态，可共享）
      */
     private static final LastTraceService LAST_TRACE_SERVICE = new LastTraceService();
+    /**
+     * 主代理 trace 在会话上下文中的固定键（与 WebGate / ContinueCommand 一致）
+     */
+    private static final String TRACE_KEY_MAIN = "__main";
 
     private final WorkspaceManager workspaceManager;
 
@@ -861,6 +866,14 @@ public class WebController {
                             item.put("agentName", agentMeta);
                         }
 
+                        /* 运行 ID：同一轮任务产出的所有消息共享它（落 ndjson 时打上）。
+                         * 前端历史行据此打 data-run-id，删除/重跑才能把该轮的气泡、思考块、
+                         * 工具卡成批清掉；缺了它只能退化成「只删当前行」。 */
+                        String runIdMeta = metadata.get(AgentTrace.META_RUN_ID).getString();
+                        if (runIdMeta != null && !runIdMeta.isEmpty()) {
+                            item.put("runId", runIdMeta);
+                        }
+
                         // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
                         ONode attachMeta = metadata.get("attachments");
                         if (attachMeta != null) {
@@ -932,7 +945,7 @@ public class WebController {
             boolean running = webGate().isSessionBusy(engine(), sessionId);
 
             // "__main" 为主代理 trace 在会话上下文中的固定键（与 WebGate/ContinueCommand 一致）
-            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, "__main", running, lastUserMsg);
+            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, TRACE_KEY_MAIN, running, lastUserMsg);
             return Result.succeed(data);
         } catch (Throwable e) {
             // 回放属于增强能力，失败即静默降级，不能让它影响会话切换
@@ -1134,6 +1147,12 @@ public class WebController {
                 }
             }
 
+            /* 快照里的最后一轮执行过程必须一起清掉：ndjson 被截断后，
+             * /messages/last-trace 仍会从 snapshot.json 读出 ReActTrace 的 WorkingMemory 回放。
+             * 尤其是「只删最后一条 AI 消息」这种情形 —— 末条用户消息没变，isAligned 依旧成立，
+             * 刷新后被删掉的思考与工具卡会原样长回来。 */
+            clearLastTrace(sessionId);
+
             // 丢弃内存会话，下一次请求从已回退的持久化记录重建上下文。
             // 多工作区隔离：用当前工作区的 sessionManager()，避免命中默认工作区的会话管理器。
             sessionManager().removeSession(sessionId);
@@ -1142,6 +1161,32 @@ public class WebController {
         } catch (Exception e) {
             LOG.error("Rewind failed for session {}: {}", sessionId, e.getMessage());
             return Result.failure(500, "Session rewind failed");
+        }
+    }
+
+    /**
+     * 清除会话上下文中主代理的执行过程快照（{@code __main} 的 ReActTrace）并落盘。
+     *
+     * <p>只清 trace 一项，不动上下文里其它数据（如 HITL 决策、循环任务状态），
+     * 也不删整个 snapshot.json —— 回退是「删几条消息」，不该顺手抹掉会话的其它状态。</p>
+     *
+     * <p>必须显式 {@code updateSnapshot()}：内存会话随后就被丢弃，不落盘等于没清。</p>
+     */
+    private void clearLastTrace(String sessionId) {
+        try {
+            Path sessionPath = currentContext().getSessionPath(sessionId);
+            File snapshotFile = new File(sessionPath.toFile(), sessionId + ".snapshot.json");
+            if (!snapshotFile.exists()) {
+                // 从未运行过（或 fork 出的纯消息副本）：无过程可清，不为它凭空建内存会话
+                return;
+            }
+
+            AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
+            session.getContext().remove(TRACE_KEY_MAIN);
+            session.updateSnapshot();
+        } catch (Throwable e) {
+            // 清理失败只影响回放残留，不能让回退主流程失败
+            LOG.debug("[WebController] clear last-trace failed for session {}: {}", sessionId, e.getMessage());
         }
     }
 

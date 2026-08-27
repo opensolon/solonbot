@@ -1003,6 +1003,12 @@ public class WebGate extends SimpleWebSocketListener {
                 }
 
                 //加一条删掉自己发出的一条
+                /* 被回退的那一轮，其执行过程还留在上下文快照里（__main 的 ReActTrace）。
+                 * 不清掉的话，刷新页面时 /messages/last-trace 会把已删掉的思考与工具卡
+                 * 原样回放回来 —— 与 /web/chat/rewind 同理。 */
+                session.getContext().remove("__main");
+                session.updateSnapshot();
+
                 emitToClient(wsContext, session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
             } else {
                 final String text;

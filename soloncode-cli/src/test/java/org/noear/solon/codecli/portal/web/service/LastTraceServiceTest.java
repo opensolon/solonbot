@@ -266,6 +266,54 @@ public class LastTraceServiceTest {
     }
 
     @Test
+    public void thinking_flag_must_not_swallow_answer_and_tool_calls() {
+        /* 一条聚合消息可以同时有思考、正文和 toolCalls，且 isThinking 仍为 true ——
+         * 该标记取自聚合时最后一帧的 in_thinking（ChatResponseDefault#getAggregationMessage），
+         * 只说明流末停在 reasoning 通道，不代表整条都是思考。
+         * 早期实现在 isThinking 处短路，把整条丢给 getThinking()，后者用 replace 抹掉标签，
+         * 于是 T1/A1/T2 全糊成一个思考块 —— 又一次「思考和答案合到一起」。 */
+        ReActTrace trace = new ReActTrace();
+        ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
+        trace.getWorkingMemory().addMessage(new AssistantMessage(
+                "<think>T1</think>A1<think>T2</think>", true,
+                null, null, Collections.singletonList(call), null));
+        trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
+
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
+        assertEquals(Arrays.asList("thinking", "note", "thinking", "tool"), kinds(events));
+        assertEquals(Arrays.asList("T1", "A1", "T2"), texts(events.subList(0, 3)));
+    }
+
+    @Test
+    public void trailing_text_after_close_tag_is_answer_even_while_thinking() {
+        /* 末帧在思考，但尾段已经被 </think> 界定过 —— 该段确实来自 content 通道，必须算正文。
+         * isThinking 仅在「整条无任何标签」时才用于定性。 */
+        ReActTrace trace = new ReActTrace();
+        ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
+        trace.getWorkingMemory().addMessage(new AssistantMessage(
+                "<think>先想一下</think>我来读一下", true,
+                null, null, Collections.singletonList(call), null));
+        trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
+
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
+        assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
+        assertEquals("我来读一下", events.get(1).get("text"));
+    }
+
+    @Test
+    public void untagged_content_falls_back_to_thinking_flag() {
+        // 完全无标签时凭内容分不出通道，只能以末帧状态定性；同形态下 flag 为 false 则算正文
+        ReActTrace trace = new ReActTrace();
+        ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
+        trace.getWorkingMemory().addMessage(newToolCallMessage("没标签的正文", call));
+        trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("没标签的思考", true));
+
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
+        assertEquals(Arrays.asList("note", "tool", "thinking"), kinds(events));
+    }
+
+    @Test
     public void dangling_think_open_should_not_be_lost() {
         /* 任务在思考中被打断：content 只有开标签没有闭合。此时 getThinking() 因不含 </think>
          * 返回空、getAnswer() 因含 <think> 也返回空，整段凭空消失。 */

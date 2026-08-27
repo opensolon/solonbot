@@ -1884,6 +1884,16 @@ function mergeReplayRowInto(sess, replayRow, anchorRow) {
         frag.appendChild(node);
     }
     to.insertBefore(frag, to.firstChild);
+
+    /* runId 要补到锚行上：历史行由 loadMessages 建成时 sess.currentRunId 还是空的
+     * （回放才把它填上），行上就没有 data-run-id。缺了它，「重新运行」只能走兼容分支
+     * 删掉这一行本身，同一轮里其它带 data-run-id 的行（被中断的孤立回放行、
+     * 流重开后新起的气泡行）会留在屏上，与后端回退不一致。 */
+    var runId = replayRow.getAttribute('data-run-id');
+    if (runId && !anchorRow.getAttribute('data-run-id')) {
+        anchorRow.setAttribute('data-run-id', runId);
+    }
+
     $(replayRow).remove();
     if (sess) sess.inlineThinkingEl = null;
     return true;
