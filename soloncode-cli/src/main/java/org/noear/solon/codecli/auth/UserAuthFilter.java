@@ -25,7 +25,7 @@ import java.util.Set;
  * 
  * @author noear 2026/8/23 created
  */
-@Component(index = -98) // 在 WebAuthFilter 之后执行
+//@Component(index = -98) // 在 WebAuthFilter 之后执行 //ps: 不能用注解，否则不是 web 或 serve 都会启动
 public class UserAuthFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(UserAuthFilter.class);
     

@@ -15,7 +15,7 @@ import java.util.Map;
  * 
  * @author noear 2026/8/23 created
  */
-@Controller
+//@Controller //ps: 不能用注解，否则不是 web 或 serve 都会启动
 public class UserLoginController {
     private static final Logger LOG = LoggerFactory.getLogger(UserLoginController.class);
     
