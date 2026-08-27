@@ -469,12 +469,19 @@ body {
    不复用 .msg-bubble，避免继承气泡宽度约束；margin 由 .main-stream-segment > * 置 0。 */
 .steer-note {
     display: flex;
-    align-items: baseline;
+    /* flex-start：折行时 badge 不随基线下坠。
+       行高必须用长度值而非数字 1.7 —— 数字值按各自 font-size 计算，badge(10px) 与
+       正文(14px) 会得到 17px / 23.8px 两种行盒，flex-start 顶对齐后文字中心差约 3.4px。
+       在父级下发长度型行高，两者继承同一行盒高度，首行即天然纵向居中对齐。 */
+    align-items: flex-start;
+    line-height: calc(var(--fs-md) * 1.7);
     gap: 6px;
     padding: 6px 10px;
     border-left: 2px solid var(--accent);
     border-radius: 0 4px 4px 0;
-    background: var(--accent-fill, rgba(0, 120, 212, 0.08));
+    /* 用 --accent-rgb 而非 --accent-fill：后者是强调色实心填充（contrast 皮肤为不透明 #3a3a3a），
+       此处需要与竖线同色系的淡底，且要随皮肤走 */
+    background: rgba(var(--accent-rgb, 79, 110, 247), 0.07);
 }
 .steer-note-badge {
     flex-shrink: 0;
@@ -484,10 +491,12 @@ body {
     opacity: 0.9;
     user-select: none;
 }
+/* 字号与 .reason-group-text 一致：插话是用户原话，不应比模型思考更难读。
+   行高继承自 .steer-note（与数字 1.7 在 --fs-md 下等价，折行行距不变） */
 .steer-note-text {
     flex: 1;
     min-width: 0;
-    font-size: var(--fs-sm, 13px);
+    font-size: var(--fs-md);
     color: var(--text-primary);
     white-space: pre-wrap;
     word-break: break-word;
@@ -3063,7 +3072,8 @@ pre:hover .code-copy-btn { opacity: 1; }
 
 /* 运行中插话（steer）：待生效项 */
 .queue-item-steer {
-    background: var(--accent-fill, rgba(0, 120, 212, 0.08));
+    /* 同 .steer-note：--accent-fill 是实心填充色，此处需随皮肤的淡底 */
+    background: rgba(var(--accent-rgb, 79, 110, 247), 0.07);
 }
 .queue-item-steer .queue-item-text {
     color: var(--text-primary);

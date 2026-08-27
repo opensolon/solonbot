@@ -90,6 +90,7 @@
 
     /* Accent */
     --accent: #4f6ef7;
+    --accent-rgb: 79, 110, 247;
     --accent-hover: #3b5de7;
     --accent-light: #eef1fe;
 
@@ -211,6 +212,7 @@
 
     /* Accent */
     --accent: #6b8aff;
+    --accent-rgb: 107, 138, 255;
     --accent-hover: #5a75e6;
     --accent-light: #1e2240;
 
@@ -347,6 +349,7 @@
 
         /* Accent */
         --accent: #6b8aff;
+        --accent-rgb: 107, 138, 255;
         --accent-hover: #5a75e6;
         --accent-light: #1e2240;
 
