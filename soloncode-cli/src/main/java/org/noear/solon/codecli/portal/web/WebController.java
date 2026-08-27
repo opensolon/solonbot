@@ -34,6 +34,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
+import org.noear.solon.codecli.portal.web.service.LastTraceService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.SessionMeta;
@@ -95,6 +96,11 @@ public class WebController {
      * 日志记录器
      */
     private static final Logger LOG = LoggerFactory.getLogger(WebController.class);
+
+    /**
+     * 「最后一轮执行过程」还原服务（无状态，可共享）
+     */
+    private static final LastTraceService LAST_TRACE_SERVICE = new LastTraceService();
 
     private final WorkspaceManager workspaceManager;
 
@@ -884,6 +890,84 @@ public class WebController {
         }
 
         return Result.succeed(data);
+    }
+
+    /**
+     * 获取指定会话「最后一轮」的工具执行过程，供前端在历史消息之上回放执行细节。
+     *
+     * <p>ndjson 只落用户输入与最终回答，中间的工具调用过程仅存在于会话上下文的
+     * {@link org.noear.solon.ai.agent.react.ReActTrace} WorkingMemory 中。该接口把最近一轮的
+     * 工具调用序列取出，前端据此合成与实时流同构的事件回放，使刷新页面后仍能看到执行过程。</p>
+     *
+     * <p>本接口是纯增量能力：任何异常/不对齐/无过程的情况都返回 {@code aligned=false}，
+     * 前端随即退回原有纯文本渲染，因此不会影响历史加载主路径。</p>
+     *
+     * @param sessionId 会话 ID
+     * @return {@code {aligned, running, runId, turns[], truncated}}
+     */
+    @Get
+    @Mapping("/web/chat/messages/last-trace")
+    public Result<Map<String, Object>> messages_lastTrace(@Param("sessionId") String sessionId) {
+        if (!isValidSessionId(sessionId)) {
+            return Result.failure(400, "Invalid sessionId");
+        }
+
+        try {
+            Path sessionsRoot = currentContext().getSessionsRoot();
+            Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
+            if (!sessionsPath.startsWith(sessionsRoot)) {
+                return Result.failure(400, "Invalid session path");
+            }
+
+            // 快照不存在说明该会话从未运行过（或为 fork 出来的纯消息副本）：
+            // 不走 getSession，避免为其凭空创建内存会话
+            File snapshotFile = new File(sessionsPath.toFile(), sessionId + ".snapshot.json");
+            if (!snapshotFile.exists()) {
+                return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, null, false, null));
+            }
+
+            String lastUserMsg = readLastUserMessage(new File(sessionsPath.toFile(), sessionId + ".messages.ndjson"));
+
+            AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
+            boolean running = webGate().isSessionBusy(engine(), sessionId);
+
+            // "__main" 为主代理 trace 在会话上下文中的固定键（与 WebGate/ContinueCommand 一致）
+            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, "__main", running, lastUserMsg);
+            return Result.succeed(data);
+        } catch (Throwable e) {
+            // 回放属于增强能力，失败即静默降级，不能让它影响会话切换
+            LOG.debug("[WebController] last-trace failed for session {}: {}", sessionId, e.getMessage());
+            return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, null, false, null));
+        }
+    }
+
+    /**
+     * 读取 ndjson 中最后一条用户消息的内容，用于 trace 对齐校验。
+     *
+     * @return 最后一条 USER 消息内容；无则返回 null
+     */
+    private String readLastUserMessage(File msgFile) {
+        if (msgFile == null || !msgFile.exists()) {
+            return null;
+        }
+
+        String lastUser = null;
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(msgFile), "UTF-8"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                ONode node = ONode.ofJson(line);
+                if ("USER".equals(node.get("role").getString())) {
+                    lastUser = node.get("content").getString();
+                }
+            }
+        } catch (Exception e) {
+            return null;
+        }
+
+        return lastUser;
     }
 
     /**

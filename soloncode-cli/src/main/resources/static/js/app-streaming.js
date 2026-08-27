@@ -779,7 +779,7 @@ function cancelLastQueuedToInput(sess) {
 
     if (!text && pendingFiles.length === 0) return;
 
-    /* 活动会话 streaming：Enter=立即插入（steer）；附件降级排队（附件语义属“新任务”） */
+    /* 活动会话 streaming：Enter=立即插话（steer）；附件降级排队（附件语义属“新任务”） */
     if (streamSess && streamSess.isStreaming) {
         if (streamSess.stopRequested) {
             showToast(I18n.t('streaming.stoppingWaitSend'), 'info', 1500);
@@ -1636,10 +1636,28 @@ var WEBGATE_PENDING_CHUNK_MAX = 300;
 function bufferPendingStreamChunk(sess, chunk) {
     if (!sess || !chunk) return;
     if (!sess._pendingStreamChunks) sess._pendingStreamChunks = [];
-    if (sess._pendingStreamChunks.length >= WEBGATE_PENDING_CHUNK_MAX) {
-        sess._pendingStreamChunks.shift();
+    var buf = sess._pendingStreamChunks;
+
+    /* 高频 delta 就地合并再计数：任务运行中刷新页面时，正文/思考的 delta 可能在
+     * 历史加载的这一小段窗口里瞬间打满上限，若按条数 shift 会从最早的包开始丢，
+     * 于是「历史补上了、实时开头却缺了一截」，反而制造出新的空洞。 */
+    var ev = chunk.event;
+    if (ev === 'message.delta' || ev === 'thought.delta') {
+        var last = buf.length ? buf[buf.length - 1] : null;
+        if (last && last.event === ev && last.payload && chunk.payload &&
+                last.reasonId === chunk.reasonId && last.taskId === chunk.taskId) {
+            var prev = (last.payload.delta != null) ? last.payload.delta : (last.payload.content || '');
+            var cur = (chunk.payload.delta != null) ? chunk.payload.delta : (chunk.payload.content || '');
+            last.payload.delta = prev + cur;
+            if (last.payload.content != null) last.payload.content = last.payload.delta;
+            return;
+        }
     }
-    sess._pendingStreamChunks.push(chunk);
+
+    if (buf.length >= WEBGATE_PENDING_CHUNK_MAX) {
+        buf.shift();
+    }
+    buf.push(chunk);
 }
 
 function flushPendingStreamChunks(sess) {
@@ -1652,6 +1670,307 @@ function flushPendingStreamChunks(sess) {
     }
 }
 window.flushPendingStreamChunks = flushPendingStreamChunks;
+
+/* ===== 最后一轮执行过程回放 =====
+ *
+ * ndjson 只落用户输入与最终回答，中间的思考、插话与工具调用只存在于后端 ReActTrace 的
+ * WorkingMemory 里。刷新页面 / 切换会话后，/web/chat/messages/last-trace 把最近一轮的过程取回
+ * ——一条线性事件序列（steer / thinking / note / tool，严格保持 WorkingMemory 原序）——
+ * 这里逐条合成与实时流同构的 thought.delta / message.delta / tool.start / tool.end 事件，
+ * 交给同一套渲染管线（processWebEventNow）铺开，使最后一条 AI 消息也能像流式那样展开执行过程。
+ *
+ * 为什么必须逐段回放而不是每轮一份「思考 + 正文」：
+ *   流式聚合会在一条 AssistantMessage 里注入多对 <think> 标记（推理与正文交替就反复开合）。
+ *   把它压成两个字符串，第二段思考就会被当成答案铺进气泡、段间也没有边界，表现就是
+ *   「几个思考消息和答案消息合到了一起」。后端已按段拆好，这里只负责保序转发。
+ *
+ * 与实时流的冲突处理（任务运行中刷新是常态）：
+ *  - 时序：必须在 _loadingHistory 置 false 之后、flushPendingStreamChunks 之前回放，
+ *    保证「历史文本 → 回放过程 → 实时增量」三段顺序不乱；
+ *  - 去重：WS 连接通常早于 last-trace 返回，[连上, 快照] 区间的事件两边都有。
+ *    以 callId 为锚按「组」去重（见 collectReplayedGroups）；
+ *  - 幂等：同一 runId 只回放一次，防止重复 loadMessages 叠加。
+ *
+ * DOM 形态必须与流式一致：实时流的一整轮只有一个 .msg-row.assistant，正文块、思考块、工具卡
+ * 全在它的 .msg-content 内，行尾仅一套 .msg-actions。因此本轮已结束时，回放内容要并入历史那条
+ * AI 气泡行（插在最终回答之前），而不是另起一行 —— 否则会多出一套复制/重跑/删除按钮，且
+ * calcServerCount 按 .msg-row 计数换算 rewind 条数，会让删除多删一条真实消息。
+ */
+function replayLastTrace(sess, data, anchorRow) {
+    if (!sess || !data || !data.aligned) return false;
+
+    var events = data.events || [];
+    if (!events.length) return false;
+
+    // 同一轮只回放一次
+    var runId = data.runId || '';
+    if (sess._traceReplayedRunId && sess._traceReplayedRunId === runId) return false;
+    sess._traceReplayedRunId = runId;
+
+    /* 任务仍在跑时不并行：此刻 ndjson 里那条末尾 AI 气泡属于上一轮，本轮的过程连同随后的实时
+     * 增量必须待在自己的行里 —— 那一行就是本轮的 AI 行，收尾时由 finishStream 正常显示操作按钮。 */
+    var running = !!data.running;
+    var canMerge = !running && anchorRow && anchorRow.parentNode === sess.container;
+
+    // 回放前清干净流状态，让卡片直接落在会话容器上而不是残留的 task-group 里
+    resetStreamState(sess);
+    // 回放期间让 currentRunId 生效：steer note / 工具卡都靠 data-run-id 被 /clear 与 rewind 成批清除
+    sess.currentRunId = runId || sess.currentRunId;
+
+    /* 插话去重表：插话没有 callId，只能按原文比对。实时路径（steer_applied）与回放都可能
+     * 渲染同一条，取 DOM 里已有的 .steer-note-text 建计数表，命中即消耗一个名额。
+     * 用计数而非布尔，避免用户连发两条相同文本时被同一个 DOM 节点抵消掉两次。 */
+    var steerSeen = collectRenderedSteers(sess);
+    var skipGroups = collectReplayedGroups(sess, events);
+    var replayed = 0;
+
+    for (var i = 0; i < events.length; i++) {
+        var e = events[i];
+        if (!e || !e.kind) continue;
+
+        /* 插话按原位回放，且不参与分组去重：某张工具卡已由实时路径渲染过，
+         * 不代表这条插话也渲染过（它可能发生在 WS 连上之前）。 */
+        if (e.kind === 'steer') {
+            replayed += replaySteers(sess, [e.text], steerSeen);
+            continue;
+        }
+
+        // 该组的工具卡已全部由实时流渲染 ⇒ 同组的思考/正文当时也已上屏，整组跳过
+        if (skipGroups[e.group]) continue;
+
+        /* 同一条 AssistantMessage 的思考、正文与工具卡共享 reasonId 才能聚成一组；
+         * 跨消息必须换 reasonId，否则后一条的思考会挤进已收尾的思考块里。
+         * 组内多段交替是安全的：正文到来时 finishThinkingBlock 会把思考块收尾并置空，
+         * 下一段思考于是新建一个块，按 DOM 顺序追加在正文之后。 */
+        var reasonId = 'replay-' + (runId || 'last') + '-g' + (e.group || 1);
+
+        if (e.kind === 'thinking') {
+            if (!e.text) continue;
+            processWebEventNow(sess, makeReplayEvent(sess, runId, reasonId, 'thought.delta', { delta: e.text }));
+            replayed++;
+            continue;
+        }
+
+        if (e.kind === 'note') {
+            if (!e.text) continue;
+            processWebEventNow(sess, makeReplayEvent(sess, runId, reasonId, 'message.delta', { delta: e.text }));
+            replayed++;
+            continue;
+        }
+
+        if (e.kind !== 'tool' || !e.callId) continue;
+
+        processWebEventNow(sess, makeReplayEvent(sess, runId, reasonId, 'tool.start', {
+            name: e.name,
+            title: e.title || e.name,
+            args: e.args || {},
+            callId: e.callId
+        }));
+
+        if (e.done) {
+            var result = e.result || '';
+            if (e.resultTruncated) {
+                result += '\n\n… 内容过长已截断（共 ' + (e.resultChars || 0) + ' 字符）';
+            } else if (e.omitted) {
+                result = '… 本轮结果体积过大，已省略';
+            }
+            /* args 必须用后端加工过的 endArgs：实时流的 tool.end 走 ToolPresentationFilter，
+             * edit 的 edits 已换成 diff、write/todowrite 的正文已提到 result 并从 args 摘除。
+             * 若这里仍传 tool.start 的原始 args，diff 视图会是空的、正文会重复铺一遍。 */
+            processWebEventNow(sess, makeReplayEvent(sess, runId, reasonId, 'tool.end', {
+                name: e.name,
+                title: e.title || e.name,
+                args: e.endArgs || e.args || {},
+                diff: e.diff || null,
+                lsp: e.lsp || null,
+                result: result,
+                callId: e.callId
+            }));
+        } else if (!running) {
+            /* 无结果且任务已不在跑 = 被中断。回放没有后续事件来收尾这张卡，
+             * 放着会永久转圈；也不能标成绿勾假称成功，故落到 warn 态。
+             * 任务仍在跑时保持 pending，等实时的 tool.end 来精确配对完成。 */
+            markReplayUnfinishedTool(sess, e.callId);
+        }
+
+        replayed++;
+    }
+
+    if (!replayed) return false;
+
+    // 思考块的 spinner 需要显式收尾（回放以思考结尾时，没有后续事件帮它停转）
+    finishReplayThinkingBlocks(sess);
+
+    var replayRow = sess.currentBubbleEl ? $(sess.currentBubbleEl).closest('.msg-row')[0] : null;
+
+    if (canMerge && replayRow && replayRow !== anchorRow) {
+        mergeReplayRowInto(sess, replayRow, anchorRow);
+        // 内容已搬走，流状态指向的节点已失效
+        resetStreamState(sess);
+    } else if (replayRow && !running) {
+        markOrphanReplayRow(replayRow);
+    }
+
+    return true;
+}
+window.replayLastTrace = replayLastTrace;
+
+/* 按「组」判定哪些事件已由实时流渲染过。
+ *
+ * 一组 = 同一条 AssistantMessage 产出的思考、正文与工具卡。去重只能靠 callId（思考与正文
+ * 没有任何可比对的标识），但不能逐卡跳过：那会把同一组的思考/正文一并呑掉。
+ * 故以组为单位：组内有工具且全部已在 DOM 里 ⇒ 当时实时流已把这一组铺完，整组跳过；
+ * 只要有一张缺失（或本组完全无工具 —— 纯思考消息就是这种）就整组回放。
+ *
+ * 残留缺口：运行中刷新且某个纯思考消息恰好落在 [WS 连上, 快照] 区间时，会重复一份。
+ * 宁可重复也不能丢：这类消息正是推理模型把答案写进 reasoning 通道的产物，丢了就是一大段空白。 */
+function collectReplayedGroups(sess, events) {
+    var skip = {};
+    if (!sess || !sess.container) return skip;
+
+    var stat = {};
+    for (var i = 0; i < events.length; i++) {
+        var e = events[i];
+        if (!e || e.kind !== 'tool' || !e.callId) continue;
+        var g = e.group || 1;
+        if (!stat[g]) stat[g] = { total: 0, seen: 0 };
+        stat[g].total++;
+        if (sess.container.querySelector('[data-call-id="' + e.callId + '"]')) stat[g].seen++;
+    }
+
+    for (var g2 in stat) {
+        if (!Object.prototype.hasOwnProperty.call(stat, g2)) continue;
+        if (stat[g2].total > 0 && stat[g2].total === stat[g2].seen) skip[g2] = true;
+    }
+    return skip;
+}
+
+/* 收尾回放产生的所有思考块。
+ *
+ * 回放每条消息自己一个 reasonId，无参的 finishThinkingBlock(sess) 只走旧式
+ * sess.thinkingBlockEl 分支，构不到分组内的块 —— 以思考结尾的组会永久转圈。
+ * 只收 replay- 开头的：任务仍在跑时，实时流那些组还要继续追加，不能替它们收尾。 */
+function finishReplayThinkingBlocks(sess) {
+    if (typeof finishThinkingBlock !== 'function') return;
+
+    var segment = sess.currentStreamSegment;
+    if (segment && segment.reasonEntries && typeof streamReasonKey === 'function') {
+        for (var rid in segment.reasonEntries) {
+            if (!Object.prototype.hasOwnProperty.call(segment.reasonEntries, rid)) continue;
+            if (rid.indexOf('replay-') !== 0) continue;
+            if (segment.reasonEntries[rid].thinkingBlockEl) {
+                finishThinkingBlock(sess, streamReasonKey(segment, rid));
+            }
+        }
+    }
+
+    // 无分组的旧式思考块（reasonId 缺失时的降级路径）同样要收
+    finishThinkingBlock(sess);
+}
+
+/* 把回放行的内容并入历史 AI 气泡行：过程在前、最终回答在后，合成流式那样的单行结构。
+ * 复制按钮逆序扫 .md-content 取首个非空 data-md-raw，过程插在前面才不会被复制成「最终答案」。 */
+function mergeReplayRowInto(sess, replayRow, anchorRow) {
+    var from = $(replayRow).find('.msg-bubble > .msg-content')[0];
+    var to = $(anchorRow).find('.msg-bubble > .msg-content')[0];
+    if (!from || !to) return false;
+
+    var frag = document.createDocumentFragment();
+    while (from.firstChild) {
+        var node = from.firstChild;
+        from.removeChild(node);
+        // 流式中预建的内联等待指示器属于运行态装饰，历史里不该出现
+        if (node.nodeType === 1 && $(node).hasClass('inline-thinking')) continue;
+        frag.appendChild(node);
+    }
+    to.insertBefore(frag, to.firstChild);
+    $(replayRow).remove();
+    if (sess) sess.inlineThinkingEl = null;
+    return true;
+}
+
+/* 独立成行的回放过程（本轮被中断、无最终回答）：这一行在 ndjson 里没有对应记录，
+ * 既不能给它复制/重跑/删除按钮（删除按 .msg-row 计数换算 rewind，会多删一条真实消息），
+ * 也不能显示编造的时间戳。打 data-replay 标记供 calcServerCount 与末行判定跳过。 */
+function markOrphanReplayRow(row) {
+    row.setAttribute('data-replay', '1');
+    $(row).find('.msg-actions').remove();
+    $(row).find('.msg-time').remove();
+    $(row).find('.inline-thinking').remove();
+    if (typeof updateUserRerunButtons === 'function') {
+        updateUserRerunButtons(row.parentNode);
+    }
+}
+
+/* 把回放出来的未完成工具卡标为 warn（中断），并从 pending 中摘除 */
+function markReplayUnfinishedTool(sess, callId) {
+    var match = findPendingToolCard(sess, callId, null);
+    var card = (match && match.pending) ? match.pending.card : null;
+    if (!card) return;
+    var icon = $(card).find('.tool-status-icon')[0];
+    if (icon) {
+        icon.className = 'tool-status-icon warn';
+        icon.innerHTML = '<i class="layui-icon layui-icon-tips"></i>';
+    }
+    card.setAttribute('title', window.I18n ? I18n.t('msg.toolInterrupted') : '');
+    if (match.key && sess.pendingToolCards) delete sess.pendingToolCards[match.key];
+}
+
+/* 扫 DOM 里已渲染的插话原文，建「文本 → 份数」计数表供回放去重。
+ * 不用属性选择器匹配文本（插话含引号/换行会把选择器打碎），改为逐个节点比 textContent。 */
+function collectRenderedSteers(sess) {
+    var seen = {};
+    if (!sess || !sess.container) return seen;
+    var nodes = sess.container.querySelectorAll('.steer-note .steer-note-text');
+    for (var i = 0; i < nodes.length; i++) {
+        var key = nodes[i].textContent || '';
+        seen[key] = (seen[key] || 0) + 1;
+    }
+    return seen;
+}
+
+/* 回放一批插话（运行中的用户纠偏）。
+ *
+ * 插话是零持久化的：不写 ndjson，只存在于后端 WorkingMemory。不回放它，刷新后用户会
+ * 看到 AI 忽然改了方向却找不到自己那句话。渲染走与实时路径同一个 appendSteerNote，
+ * 保证它落在 AI 气泡内部而不是变成独立的 .msg-row（后者会多出一套操作按钮，
+ * 并让 calcServerCount 按 .msg-row 换算的 rewind 条数多删一条真实消息）。
+ *
+ * @return 实际上屏条数（计入 replayed，否则全量去重时会把刚建的气泡当空行丢下） */
+function replaySteers(sess, texts, seen) {
+    if (!texts || !texts.length) return 0;
+    if (typeof appendSteerNote !== 'function') return 0;
+
+    var n = 0;
+    for (var i = 0; i < texts.length; i++) {
+        var text = texts[i];
+        if (!text) continue;
+
+        // 实时路径已渲染过同文本：消耗一个名额并跳过
+        if (seen && seen[text] > 0) {
+            seen[text]--;
+            continue;
+        }
+
+        if (appendSteerNote(sess, text)) n++;
+    }
+    return n;
+}
+
+/* 合成一个与实时流同构的 webEvent；replay 标记供渲染层区分「回放」与「实时」 */
+function makeReplayEvent(sess, runId, reasonId, event, payload) {
+    return {
+        event: event,
+        payload: payload,
+        sessionId: sess.sessionId,
+        runId: runId || null,
+        taskId: null,
+        reasonId: reasonId,
+        agentName: null,
+        replay: true
+    };
+}
+
 
 /**
  * 已收尾（_streamClosed）的会话能否因新到的 chunk 重新开流。

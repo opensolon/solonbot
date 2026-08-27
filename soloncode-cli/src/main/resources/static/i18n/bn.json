@@ -760,6 +760,7 @@
   "msg.deleteFailed": "মুছে ফেলা ব্যর্থ:",
   "msg.deleteHereAndAfter": "এখানে ও পরে বার্তা মুছুন",
   "msg.executing": "চালানো হচ্ছে...",
+  "msg.toolInterrupted": "বাধাপ্রাপ্ত (ফলাফল নেই)",
   "msg.expand": "প্রসারিত",
   "msg.expanded": "প্রসারিত হয়েছে",
   "msg.failed": "ব্যর্থ",
@@ -1203,6 +1204,5 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
-  "streaming.steerInsert": "Steer",
   "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }

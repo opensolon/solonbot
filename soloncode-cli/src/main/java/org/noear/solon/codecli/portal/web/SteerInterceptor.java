@@ -58,8 +58,12 @@ public class SteerInterceptor implements ReActInterceptor {
     /** 单条插话长度上限 */
     public static final int MAX_TEXT_LENGTH = 4096;
 
-    /** 注入到工作记忆的消息前缀，向模型标识这是运行中的用户补充 */
-    static final String STEER_PREFIX = "[用户实时补充] ";
+    /** 注入到工作记忆的消息前缀，向模型标识这是运行中的用户补充。
+     * 同时是 LastTraceService 回放时识别插话的兜底判据（metadata 可能在快照序列化中丢失） */
+    public static final String STEER_PREFIX = "[用户实时补充] ";
+
+    /** 插话消息的 metadata 标记值（{@code source=steer}） */
+    public static final String STEER_SOURCE = "steer";
 
     private final WebGate webGate;
     private final WorkspaceContext wsContext;
@@ -102,7 +106,7 @@ public class SteerInterceptor implements ReActInterceptor {
 
         for (String text : texts) {
             ChatMessage message = ChatMessage.ofUser(STEER_PREFIX + text);
-            message.addMetadata("source", "steer");
+            message.addMetadata("source", STEER_SOURCE);
             trace.getWorkingMemory().addMessage(message);
         }
 

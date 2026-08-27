@@ -760,6 +760,7 @@
   "msg.deleteFailed": "삭제 실패: ",
   "msg.deleteHereAndAfter": "여기와 이후 메시지 삭제",
   "msg.executing": "실행 중...",
+  "msg.toolInterrupted": "중단됨(결과 없음)",
   "msg.expand": "펼치기",
   "msg.expanded": "펼쳐짐",
   "msg.failed": "실패",
@@ -1203,6 +1204,5 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
-  "streaming.steerInsert": "Steer",
   "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }

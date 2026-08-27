@@ -18,7 +18,9 @@ function updateUserRerunButtons(container) {
     // 插话行（.steer）不参与“最后一条用户消息”的认定：它自身的重做/继续/删除已由 CSS 隐藏，
     // 若计入则会把真正的末条用户消息挤成“非末条”，导致其重做按钮消失。
     var userRows = $(container).find('.msg-row.user:not(.steer)');
-    var allRows = $(container).find('.msg-row');
+    // 回放行（data-replay）是无 ndjson 记录的过程展示，不能算作「最后一行」：
+    // 否则中断的任务回放后，末条用户消息上的「继续运行」会被错误隐藏
+    var allRows = $(container).find('.msg-row:not([data-replay])');
     var lastRowEl = allRows.length ? allRows[allRows.length - 1] : null;
     var sid = lastRowEl ? lastRowEl.getAttribute('data-session-id') : null;
     var lastSess = (sid && window.sessionMap) ? window.sessionMap[sid] : null;
@@ -1928,6 +1930,9 @@ function calcServerCount(container, startRow) {
     var count = 0;
     for (var i = idx; i < rows.length; i++) {
         var r = rows[i];
+        // 最后一轮执行过程的回放行（data-replay）源于 ReActTrace 而非 ndjson，服务端无对应记录，
+        // 计入则 rewind 会每行多删一条真实消息
+        if (r.getAttribute('data-replay')) continue;
         // 存量会话的插话行（改动前已写入 ndjson）有服务端记录，须计入不可跳过，否则 rewind 会少删；
         // 新产生的插话已零持久化、且渲染为 AI 气泡内的 .steer-note（不是 .msg-row），不进本函数视野
         // 用户消息中，以 / 开头的命令在 ndjson 中无记录，跳过

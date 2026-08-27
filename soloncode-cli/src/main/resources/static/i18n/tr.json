@@ -760,6 +760,7 @@
   "msg.deleteFailed": "Silme başarısız: ",
   "msg.deleteHereAndAfter": "Buradan ve sonrasını sil",
   "msg.executing": "Çalıştırılıyor...",
+  "msg.toolInterrupted": "Kesildi (sonuç yok)",
   "msg.expand": "Genişlet",
   "msg.expanded": "genişletildi",
   "msg.failed": "Başarısız",
@@ -1203,6 +1204,5 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
-  "streaming.steerInsert": "Steer",
   "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }

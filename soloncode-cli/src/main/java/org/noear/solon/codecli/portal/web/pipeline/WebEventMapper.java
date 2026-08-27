@@ -240,16 +240,11 @@ public class WebEventMapper {
 
     private WebEvent<?> onToolCallStartEvent(ToolCallStartEvent event, String taskAgentName) {
         String toolName = event.getToolName();
-        if (isInternalTool(toolName)) {
+        if (ToolViewUtil.isInternalTool(toolName)) {
             return WebEvent.EMPTY;
         }
 
-        String toolTitle = toolName;
-        if (Assert.isNotEmpty(taskAgentName)) {
-            toolTitle = taskAgentName + "/" + toolName;
-        } else if ("main".equals(event.getAgentName()) == false) {
-            toolTitle = event.getAgentName() + "/" + toolName;
-        }
+        String toolTitle = ToolViewUtil.buildToolTitle(toolName, taskAgentName, event.getAgentName());
 
         Map<String, Object> args = event.getArgs();
         WebEvent<ToolStartPayload> evt = WebEvent.ofToolCallStart(toolName, toolTitle, args);
@@ -259,16 +254,11 @@ public class WebEventMapper {
 
     private WebEvent<?> onToolCallEndEvent(ToolCallEndEvent event, String taskAgentName) {
         String toolName = event.getToolName();
-        if (isInternalTool(toolName)) {
+        if (ToolViewUtil.isInternalTool(toolName)) {
             return WebEvent.EMPTY;
         }
 
-        String toolTitle = toolName;
-        if (Assert.isNotEmpty(taskAgentName)) {
-            toolTitle = taskAgentName + "/" + toolName;
-        } else if ("main".equals(event.getAgentName()) == false) {
-            toolTitle = event.getAgentName() + "/" + toolName;
-        }
+        String toolTitle = ToolViewUtil.buildToolTitle(toolName, taskAgentName, event.getAgentName());
 
         return WebEvent.of(WebEventNames.TOOL_END, ToolEndPayload.builder()
                 .callId(event.getCallId())
@@ -357,11 +347,4 @@ public class WebEventMapper {
         return WebEvent.ofTrace(model, totalTokens, elapsedSeconds, finalAnswer);
     }
 
-    private boolean isInternalTool(String toolName) {
-        return Assert.isEmpty(toolName) ||
-                TaskTalent.TOOL_MULTITASK.equals(toolName) ||
-                TaskTalent.TOOL_TASK.equals(toolName) ||
-                MemoryTalent.isMemoryTool(toolName) ||
-                GoalTalent.isGoalTool(toolName);
-    }
 }

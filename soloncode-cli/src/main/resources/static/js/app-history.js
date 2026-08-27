@@ -397,6 +397,72 @@ function selectSession(idx) {
 function loadMessages(sess) {
     // 历史加载期间：流式 chunk 先缓存，加载完再回放，避免被 DOM 重建冲掉
     sess._loadingHistory = true;
+
+    /* 两路请求并行，均就绲后才收尾：
+     *  - /web/chat/messages：历史纯文本（主路径）
+     *  - /web/chat/messages/last-trace：最后一轮的工具执行过程（增强项）
+     * last-trace 只是锦上添花，给它 1.5s 硬超时：超时/失败就当作无过程处理，
+     * 绝不允许它拖慢或卡住会话切换。 */
+    var gate = {
+        domDone: false,
+        traceDone: false,
+        traceData: null,
+        lastAssistantRow: null,
+        finished: false
+    };
+
+    var traceTimer = setTimeout(function() { onTraceReady(null); }, 1500);
+
+    function onTraceReady(data) {
+        if (gate.traceDone) return;
+        gate.traceDone = true;
+        clearTimeout(traceTimer);
+        gate.traceData = data;
+        tryFinishLoad();
+    }
+
+    function tryFinishLoad() {
+        if (gate.finished || !gate.domDone || !gate.traceDone) return;
+        gate.finished = true;
+
+        // 必须先解除加载态：回放走的是与实时流同一条渲染管线，
+        // 若仍为 _loadingHistory 会被当成实时包反向缓存起来
+        sess._loadingHistory = false;
+
+        try {
+            /* 任务仍在跑（刷新页面的典型场景）：先把流式 UI 打开，再回放。顺序不能反 ——
+             * ensureAssistantBubble 按 sess.isStreaming 决定是否隐藏复制/重跑/删除按钮，
+             * 先开流才能让回放出来的这一行与实时流行为一致（转圈/Stop/计时恢复，
+             * 按钮待 finishStream 收尾时统一显示），接下来的实时增量直接接续在回放内容之后。 */
+            if (gate.traceData && gate.traceData.running &&
+                    typeof openStreamFromIncoming === 'function' && !sess.isStreaming) {
+                openStreamFromIncoming(sess);
+            }
+
+            /* 本轮已结束时，回放的过程会并入历史末尾这条 AI 气泡行（插在最终回答之前），
+             * 保持与流式一样的单行结构；故错位修正与行合并都在 replayLastTrace 内完成。 */
+            if (typeof replayLastTrace === 'function') {
+                replayLastTrace(sess, gate.traceData, gate.lastAssistantRow);
+            }
+        } catch (e) {
+            // 回放属于增强项，异常不得影响历史展示
+            console.warn('[replayLastTrace]', e);
+        }
+
+        // 回放加载期间缓存的流式 chunk（刷新后后端仍在推的内容）
+        if (typeof flushPendingStreamChunks === 'function') {
+            flushPendingStreamChunks(sess);
+        }
+        if (typeof scheduleMsgNavRebuild === 'function') scheduleMsgNavRebuild();
+        if (sess.sessionId === activeSessionId) scrollToBottom(true);
+    }
+
+    $.get('/web/chat/messages/last-trace?sessionId=' + encodeURIComponent(sess.sessionId), function(resp) {
+        onTraceReady(resp && resp.data);
+    }).fail(function() {
+        onTraceReady(null);
+    });
+
     $.get('/web/chat/messages?sessionId=' + encodeURIComponent(sess.sessionId), function(resp) {
         var realContainer = sess.container;
         try {
@@ -409,6 +475,7 @@ function loadMessages(sess) {
                 var m = msgs[i];
                 if (m.role === 'USER') {
                     resetStreamState(sess);
+                    gate.lastAssistantRow = null;
                     // 从附件元数据中分离出图片附件，构造 read-raw URL 实现历史图片预览
                     var historyImages = null;
                     var historyFileAttachments = null;
@@ -434,6 +501,8 @@ function loadMessages(sess) {
                     var isConsecutive = (i > 0 && msgs[i - 1].role === 'ASSISTANT');
                     if (!isConsecutive) resetStreamState(sess);
                     var el = ensureAssistantBubble(sess);
+                    // 记住末尾的 AI 气泡行：若后面回放了执行过程，需把它重新挪到末尾
+                    gate.lastAssistantRow = (el && el.closest) ? el.closest('.msg-row') : null;
                     sess.reasonBuffer = isConsecutive ? sess.reasonBuffer + '\n\n' + m.content : m.content;
                     // 与流结束路径统一：先写入 MD；高亮/mermaid 循环后对真实容器统一跑一次
                     if (typeof finalizeMdElement === 'function') {
@@ -467,19 +536,15 @@ function loadMessages(sess) {
         } catch (e) {
             // 异常时确保容器恢复
             if (realContainer) sess.container = realContainer;
+            gate.lastAssistantRow = null;
         } finally {
-            sess._loadingHistory = false;
-            // 回放加载期间缓存的流式 chunk（刷新后后端仍在推的内容）
-            if (typeof flushPendingStreamChunks === 'function') {
-                flushPendingStreamChunks(sess);
-            }
-            if (typeof scheduleMsgNavRebuild === 'function') scheduleMsgNavRebuild();
+            gate.domDone = true;
+            tryFinishLoad();
         }
     }).fail(function() {
-        sess._loadingHistory = false;
-        if (typeof flushPendingStreamChunks === 'function') {
-            flushPendingStreamChunks(sess);
-        }
+        gate.domDone = true;
+        gate.lastAssistantRow = null;
+        tryFinishLoad();
     });
 }
 
@@ -833,7 +898,7 @@ $(chatInput).on('keydown', function(e) {
     handled = navigateHistory(e);
     if (handled) return;
     // 优先级3：任务运行中 Tab=加入排队（补全/历史面板均未激活；修饰键排除，Shift+Tab 保留原生反向焦点）。
-    // 与 Enter=立即插入（steer）互补：排队在本轮结束后作为新任务发送（对齐 Codex v0.98 起的默认键位）
+    // 与 Enter=立即插话（steer）互补：排队在本轮结束后作为新任务发送（对齐 Codex v0.98 起的默认键位）
     if (e.key === 'Tab' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
         var tabSess = activeSessionId && sessionMap[activeSessionId];
         if (tabSess && tabSess.isStreaming && !tabSess.stopRequested) {

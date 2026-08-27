@@ -759,6 +759,7 @@
   "msg.deleteFailed": "Deletion failed: ",
   "msg.deleteHereAndAfter": "Delete here and after",
   "msg.executing": "Executing...",
+  "msg.toolInterrupted": "Interrupted (no result)",
   "msg.expand": "Expand",
   "msg.expanded": "expanded",
   "msg.failed": "Failed",
@@ -1203,6 +1204,5 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
-  "streaming.steerInsert": "Steer",
   "streaming.steerAttachDemote": "Message with attachments was queued instead"
 }
