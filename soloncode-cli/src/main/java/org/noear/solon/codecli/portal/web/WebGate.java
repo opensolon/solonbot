@@ -757,9 +757,12 @@ public class WebGate extends SimpleWebSocketListener {
     private void doSubscribeAgentTask(WorkspaceContext wsContext, AgentSession session, String sessionCwd, Prompt prompt, String selectedModel, String agentName, Disposable.Composite composite) {
         String sessionId = session.getSessionId();
 
-        //调度窗口期内已被 interrupt：不开流、不发 reset（否则刚收尾的前端会被解封成幽灵流）
+        //调度窗口期内已被 interrupt：不开流、不发 reset（否则刚收尾的前端会被解封成幽灵流）。
+        //与 sync 路径对称地补发终态：若 interrupt 已发过 done，会被 emitDoneOnce 的去重门
+        //静默吞掉（无害）；若上游异常路径未发过，则前端不至因收不到任何事件而卡在等待态
         if (composite.isDisposed()) {
             LOG.info("[WebGate] Session {} task aborted before subscribe (interrupted)", sessionId);
+            emitDoneOnce(wsContext, session);
             return;
         }
 
@@ -967,6 +970,15 @@ public class WebGate extends SimpleWebSocketListener {
         WebCommandContext ctx = new WebCommandContext(session, wsContext.getEngine(), input, cmdName, args,
                 (prompt, model) -> {
                     try {
+                        //防重入：会话已有流在跑（含上一轮 doFinally 尚未归还槽位的瞬时窗口）时，
+                        //再开一条流会与在跑流共享同一 ReActTrace —— 旧流把 route 置 END 后
+                        //新流立即空转结束，表现为「点了没反应、马上结束」。故忙碌时忽略并提示
+                        if (isSessionBusy(session)) {
+                            LOG.warn("[WebGate] Session {} agent task via /{} skipped: another task in progress", session.getSessionId(), cmdName);
+                            emitToClient(wsContext, session.getSessionId(), WebEvent.ofCommand("当前有任务正在执行，本次触发已忽略"));
+                            return;
+                        }
+
                         if (model == null) {
                             model = selectedModel;
                         }
