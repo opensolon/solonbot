@@ -26,6 +26,7 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.content.Contents;
 import org.noear.solon.ai.chat.content.ImageBlock;
 import org.noear.solon.ai.chat.content.TextBlock;
+import org.noear.solon.ai.chat.message.AssistantMessage;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.message.UserMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
@@ -33,6 +34,7 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
+import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
@@ -1295,11 +1297,15 @@ public class WebGate extends SimpleWebSocketListener {
                 return;
             }
 
-            // 1) 取消语义：error + 可选 final/trace
-            session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
-        emitToClient(wsContext, sessionId, WebEvent.ofError("用户已取消任务."));
-
+            // 1) 取消语义：error + 可选 final/trace（落库消息带上 runId，便于按 runId 锚点删除）
+            AssistantMessage cancelMessage = ChatMessage.ofAssistant("用户已取消任务.");
             ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+            if (trace != null) {
+                cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
+            }
+            session.addMessage(cancelMessage);
+            emitToClient(wsContext, sessionId, WebEvent.ofError("用户已取消任务."));
+
             if (trace != null) {
                 Long totalTokens = (trace.getMetrics() != null) ? trace.getMetrics().getTotalTokens() : 0L;
             long elapsedSeconds = 0L;

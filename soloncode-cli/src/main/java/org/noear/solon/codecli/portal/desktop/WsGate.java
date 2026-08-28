@@ -28,6 +28,8 @@ import org.noear.solon.ai.agent.react.task.ThoughtChunk;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatConfigReadonly;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.agent.AgentTrace;
+import org.noear.solon.ai.chat.message.AssistantMessage;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.message.UserMessage;
 import org.noear.solon.ai.chat.content.Contents;
@@ -528,7 +530,12 @@ public class WsGate extends SimpleWebSocketListener {
                     loopScheduler.remove(sessionId, activeGoal);
                     return;
                 }
-                session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
+                AssistantMessage cancelMessage = ChatMessage.ofAssistant("用户已取消任务.");
+                ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+                if (trace != null) {
+                    cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
+                }
+                session.addMessage(cancelMessage);
                 LOG.info("用户已取消任务.");
 
                 String interruptModelName = req.getModel();
