@@ -10,8 +10,9 @@
     var loopPanelVisible = false;
     var loopEditId = null;
 
-    // 使用 layui layer 风格的浮动提示
+    // 使用 layui layer 风格的浮动提示（统一委托全局 showToast）
     function showToast(msg, type) {
+        if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
         if (typeof layer !== 'undefined' && layer.msg) {
             layer.msg(msg, { icon: type === 'error' ? 2 : 1, time: 2500, offset: '120px' });
         }

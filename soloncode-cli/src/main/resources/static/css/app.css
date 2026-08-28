@@ -2559,47 +2559,6 @@ body.memory-active .main-header { display: none; }
     to { opacity: 1; transform: none; }
 }
 
-/* ===== Toast Notification ===== */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none;
-}
-.toast-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 18px;
-    border-radius: 10px;
-    background: var(--bg-input-box);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-lg);
-    font-size: var(--fs-base);
-    color: var(--text-primary);
-    pointer-events: auto;
-    animation: toast-in 0.3s ease-out;
-    max-width: 360px;
-}
-.toast-item.success { border-left: 3px solid var(--color-success); }
-.toast-item.error { border-left: 3px solid var(--color-danger); }
-.toast-item.info { border-left: 3px solid var(--accent); }
-.toast-item.leaving {
-    animation: toast-out 0.25s ease-in forwards;
-}
-@keyframes toast-in {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: none; }
-}
-@keyframes toast-out {
-    from { opacity: 1; transform: none; }
-    to { opacity: 0; transform: translateX(20px); }
-}
-
 /* ===== Network Status Bar ===== */
 .network-bar {
     position: fixed;

@@ -26,6 +26,8 @@
     }
 
     function showToast(msg, type) {
+        // 统一委托全局 showToast（app-base.js，标准 = layer.msg）
+        if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
         if (typeof layer !== 'undefined' && layer.msg) {
             layer.msg(msg, { icon: type === 'error' ? 2 : 1, time: 2500, offset: '120px' });
         } else {

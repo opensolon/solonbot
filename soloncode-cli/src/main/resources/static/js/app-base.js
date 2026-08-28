@@ -465,14 +465,31 @@ function clearInput() {
 
 /* ===== Toast Notification ===== */
 var toastContainer = null;
+/**
+ * 全局统一提示入口（标准 = layer.msg：顶部 120px、语义图标、自动消失）。
+ * @param {string} message 提示文案
+ * @param {string} [type] 'error' | 'success' | 'info'，缺省为 info
+ * @param {number} [duration] 展示毫秒数；缺省时 error=3000，其余=2200
+ * layer 未加载时降级为自绘 DOM toast，保证功能不缺失。
+ */
 function showToast(message, type, duration) {
+    type = type || 'info';
+    if (typeof layer !== 'undefined' && layer.msg) {
+        var icon = type === 'error' ? 2 : (type === 'success' ? 1 : 0);
+        layer.msg(String(message == null ? '' : message), {
+            icon: icon,
+            time: duration || (type === 'error' ? 3000 : 2200),
+            offset: '120px'
+        });
+        return;
+    }
     if (!toastContainer) {
         toastContainer = $('<div>')[0];
         $(toastContainer).addClass('toast-container');
         $('body').append(toastContainer);
     }
     var item = $('<div>')[0];
-    $(item).addClass('toast-item ' + (type || 'info'));
+    $(item).addClass('toast-item ' + type);
     var icons = { success: '\u2714', error: '\u2716', info: '\u2139' };
     $(item).html('<span>' + (icons[type] || icons.info) + '</span><span>' + escapeHtml(message) + '</span>');
     $(toastContainer).append(item);
@@ -483,6 +500,9 @@ function showToast(message, type, duration) {
         }, 250);
     }, duration || 3000);
 }
+/* notify 为 showToast 的语义别名；显式挂到 window，供按需引用的模块使用 */
+window.showToast = showToast;
+window.notify = showToast;
 
 /* ===== Network Status Bar ===== */
 var networkBar = null;

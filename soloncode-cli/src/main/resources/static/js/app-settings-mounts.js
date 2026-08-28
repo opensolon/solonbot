@@ -159,7 +159,7 @@
                 data: JSON.stringify({ alias: alias, enabled: enabled }),
                 success: function (resp) {
                     if (resp.code === 200) {
-                        layer.msg(enabled ? I18n.t('mounts.enabled') : I18n.t('mounts.disabled'), { icon: 1, time: 1500, offset: '120px' });
+                        layer.msg(enabled ? I18n.t('mounts.enabled') : I18n.t('mounts.disabled'), { icon: 1, time: 2200, offset: '120px' });
                         refreshPanels();
                         loadMountsList();
                     } else {

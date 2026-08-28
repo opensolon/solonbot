@@ -8,7 +8,7 @@
 
     var esc = window._settingsCore ? window._settingsCore.escapeHtml : function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
     var postJson = window._settingsCore ? window._settingsCore.postJson : function(url, data, done) { $.ajax({ url: url, method: 'POST', data: JSON.stringify(data), contentType: 'application/json', dataType: 'json' }).done(done); };
-    var showToast = window._settingsCore ? window._settingsCore.showToast : function(msg, type) { if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: type === 'error' ? 2 : 1, time: 2500, offset: '120px' }); else alert(msg); };
+    var showToast = window.showToast || (window._settingsCore ? window._settingsCore.showToast : function(msg, type) { if (typeof layer !== 'undefined' && layer.msg) layer.msg(msg, { icon: type === 'error' ? 2 : 1, time: 2500, offset: '120px' }); else alert(msg); });
 
     // ============== 状态 ==============
     var currentMode = 'file';

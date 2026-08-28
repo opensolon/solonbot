@@ -2281,7 +2281,7 @@
                                     ta.value = cmd; document.body.appendChild(ta); ta.select();
                                     document.execCommand('copy'); document.body.removeChild(ta);
                                 }
-                                layer.msg(t_('update.copied') || '已复制', { icon: 1, time: 1500 });
+                                layer.msg(t_('update.copied') || '已复制', { icon: 1, time: 2200, offset: '120px' });
                             } catch (e) { /* ignore */ }
                         };
                     });
@@ -2424,7 +2424,7 @@
 
         function toastSettingsError() {
             if (window.layer && typeof layer.msg === 'function') {
-                layer.msg((window.I18n ? window.I18n.t('toast.settingsLoadFailed') : '\u8bbe\u7f6e\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5'), { icon: 2, time: 2500 });
+                layer.msg((window.I18n ? window.I18n.t('toast.settingsLoadFailed') : '\u8bbe\u7f6e\u6a21\u5757\u52a0\u8f7d\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5'), { icon: 2, time: 3000, offset: '120px' });
             } else {
                 console.error('[settings] modules failed to load');
             }
@@ -2710,7 +2710,7 @@
                 if (!window.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'))) return;
                 fetch('/web/workspace/remove', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'id=' + encodeURIComponent(rm) })
                     .then(function (r) { return r.json(); })
-                    .then(function (res) { if (res.code === 200) load(); else alert(res.description || 'remove failed'); });
+                    .then(function (res) { if (res.code === 200) load(); else showToast(res.description || 'remove failed', 'error'); });
                 return;
             }
             var item = e.target.closest ? e.target.closest('.ws-home-card') : null;
@@ -2730,25 +2730,25 @@
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); closeHome(); }
-                    else alert(res.description || res.message || 'open failed');
+                    else showToast(res.description || res.message || 'open failed', 'error');
                 })
-                .catch(function () { alert('open failed'); });
+                .catch(function () { showToast('open failed', 'error'); });
         });
 
         function openNew() {
             var path = (searchInput.value || '').trim();
             if (!path) return;
             var isAbs = looksLikePath(path);
-            if (!isAbs || path.indexOf('..') >= 0) { alert(t('sidebar.wsPathInvalid', '请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）')); return; }
+            if (!isAbs || path.indexOf('..') >= 0) { showToast(t('sidebar.wsPathInvalid', '请输入合法的本地绝对路径（以 / 或盘符开头，且不含 ..）'), 'error'); return; }
             goBtn.disabled = true;
             fetch('/web/workspace/open', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'path=' + encodeURIComponent(path) })
                 .then(function (r) { return r.json(); })
                 .then(function (res) {
                     goBtn.disabled = false;
                     if (res.code === 200 && res.data && res.data.id) { window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank'); closeHome(); }
-                    else alert(res.description || res.message || 'open failed');
+                    else showToast(res.description || res.message || 'open failed', 'error');
                 })
-                .catch(function () { goBtn.disabled = false; alert('open failed'); });
+                .catch(function () { goBtn.disabled = false; showToast('open failed', 'error'); });
         }
 
         openBtn.addEventListener('click', openHome);

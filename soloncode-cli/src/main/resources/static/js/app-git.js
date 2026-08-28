@@ -1305,13 +1305,13 @@
                         loadGitStatus();
                         closeCenterViewer();
                     } else {
-                        alert(I18n.t('toast.operateFailed') + '：' + gitActionError(res));
+                        showToast(I18n.t('toast.operateFailed') + '：' + gitActionError(res), 'error');
                         addBtn.disabled = false;
                         addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.addToGit');
                     }
                 })
                 .catch(function(e) {
-                    alert(I18n.t('toast.operateFailed') + '：' + e.message);
+                    showToast(I18n.t('toast.operateFailed') + '：' + e.message, 'error');
                     addBtn.disabled = false;
                     addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.addToGit');
                 });
@@ -1339,13 +1339,13 @@
                         loadGitStatus();
                         closeCenterViewer();
                     } else {
-                        alert(I18n.t('toast.operateFailed') + '：' + gitActionError(res));
+                        showToast(I18n.t('toast.operateFailed') + '：' + gitActionError(res), 'error');
                         unstageBtn.disabled = false;
                         unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.unstage');
                     }
                 })
                 .catch(function(e) {
-                    alert(I18n.t('toast.operateFailed') + '：' + e.message);
+                    showToast(I18n.t('toast.operateFailed') + '：' + e.message, 'error');
                     unstageBtn.disabled = false;
                     unstageBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('gitdiff.unstage');
                 });
@@ -1387,21 +1387,13 @@
                             loadGitStatus();
                             closeCenterViewer();
                         } else {
-                            if (typeof layer !== 'undefined' && layer.msg) {
-                                layer.msg(I18n.t('gitdiff.discardFailed', { error: gitActionError(res) }), { icon: 2, time: 3000, offset: '120px' });
-                            } else if (typeof showToast === 'function') {
-                                showToast(I18n.t('gitdiff.discardFailed', { error: gitActionError(res) }), 'error');
-                            }
+                            showToast(I18n.t('gitdiff.discardFailed', { error: gitActionError(res) }), 'error');
                             discardBtn.disabled = false;
                             discardBtn.innerHTML = discardIconHtml;
                         }
                     })
                     .catch(function(e) {
-                        if (typeof layer !== 'undefined' && layer.msg) {
-                            layer.msg(I18n.t('gitdiff.discardFailed', { error: e.message }), { icon: 2, time: 3000, offset: '120px' });
-                        } else if (typeof showToast === 'function') {
-                            showToast(I18n.t('gitdiff.discardFailed', { error: e.message }), 'error');
-                        }
+                        showToast(I18n.t('gitdiff.discardFailed', { error: e.message }), 'error');
                         discardBtn.disabled = false;
                         discardBtn.innerHTML = discardIconHtml;
                     });
@@ -1585,8 +1577,7 @@
 
             var files = getSelectedFiles();
             if (files.length === 0) {
-                if (typeof showToast === 'function') showToast(I18n.t('gitdiff.selectAtLeastOneFile'), 'error');
-                else alert(I18n.t('gitdiff.selectAtLeastOneFile'));
+                showToast(I18n.t('gitdiff.selectAtLeastOneFile'), 'error');
                 return;
             }
 
@@ -1616,13 +1607,11 @@
                     }
                 } else {
                     var errMsg = (res && res.description) || I18n.t('toast.unknownError');
-                    if (typeof showToast === 'function') showToast(I18n.t('gitdiff.generateSummaryFailed', { error: errMsg }), 'error');
-                    else alert(I18n.t('gitdiff.generateSummaryFailed', { error: errMsg }));
+                    showToast(I18n.t('gitdiff.generateSummaryFailed', { error: errMsg }), 'error');
                 }
             })
             .catch(function(e) {
-                if (typeof showToast === 'function') showToast(I18n.t('gitdiff.generateSummaryFailed', { error: e.message }), 'error');
-                    else alert(I18n.t('gitdiff.generateSummaryFailed', { error: e.message }));
+                showToast(I18n.t('gitdiff.generateSummaryFailed', { error: e.message }), 'error');
             })
             .finally(function() {
                 isGeneratingSummary = false;
@@ -1677,11 +1666,11 @@
                         loadGitStatus();
                         // 提交成功，不显示提示
                     } else {
-                        alert(I18n.t('gitdiff.commitFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }));
+                        showToast(I18n.t('gitdiff.commitFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }), 'error');
                     }
                 })
                 .catch(function(e) {
-                    alert(I18n.t('gitdiff.commitFailed', { error: e.message }));
+                    showToast(I18n.t('gitdiff.commitFailed', { error: e.message }), 'error');
                 })
                 .finally(function() {
                     isCommitting = false;
@@ -1721,14 +1710,14 @@
                     if (res && res.code === 200) {
                         loadGitStatus();
                     } else {
-                        alert(I18n.t('gitdiff.initFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }));
+                        showToast(I18n.t('gitdiff.initFailed', { error: ((res && res.data && res.data.message) || I18n.t('toast.unknownError')) }), 'error');
                         gitInitBtn.disabled = false;
                         gitInitBtn.innerHTML =
                             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('git.initBtn');
                     }
                 })
                 .catch(function(e) {
-                    alert(I18n.t('gitdiff.initFailed', { error: e.message }));
+                    showToast(I18n.t('gitdiff.initFailed', { error: e.message }), 'error');
                     gitInitBtn.disabled = false;
                     gitInitBtn.innerHTML =
                         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> ' + I18n.t('git.initBtn');

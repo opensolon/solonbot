@@ -312,6 +312,7 @@
     }
 
     function memToast(msg, isError) {
+        if (typeof window.showToast === 'function') { window.showToast(msg, isError ? 'error' : 'success'); return; }
         if (typeof layer !== 'undefined' && layer.msg) {
             layer.msg(msg, { icon: isError ? 2 : 1, time: 2500, offset: '120px' });
         } else {

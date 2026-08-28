@@ -165,7 +165,7 @@
                 }
             },
             error: function () {
-                layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2 });
+                layui.layer.msg(I18n.t('provider.loadFailed'), { icon: 2, time: 3000, offset: '120px' });
             }
         });
     }
@@ -301,7 +301,7 @@
             var maxTokens = $overlay.find('#manualModelTokens').val().trim();
 
             if (!modelId) {
-                layui.layer.msg(I18n.t('provider.modelNameRequired'), { icon: 0 });
+                layui.layer.msg(I18n.t('provider.modelNameRequired'), { icon: 0, time: 2200, offset: '120px' });
                 return;
             }
 
@@ -309,7 +309,7 @@
                 return m.id === modelId;
             });
             if (exists) {
-                layui.layer.msg(I18n.t('provider.modelExists', {name: modelId}), { icon: 0 });
+                layui.layer.msg(I18n.t('provider.modelExists', {name: modelId}), { icon: 0, time: 2200, offset: '120px' });
                 return;
             }
 
@@ -363,7 +363,7 @@
         var standard = $('#providerStandard').val();
 
         if (!apiUrl) {
-            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0 });
+            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0, time: 2200, offset: '120px' });
             return;
         }
 
@@ -432,17 +432,17 @@
                         });
                         fetchedModels = fetchedMapped;
                         renderModelsList();
-                        layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedModels.length}), { icon: 1 });
+                        layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedModels.length}), { icon: 1, time: 2200, offset: '120px' });
                     } catch (e) {
-                        layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2 });
+                        layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2, time: 3000, offset: '120px' });
                     }
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('provider.fetchFailed'), { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('provider.fetchFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
             error: function (xhr) {
                 $btn.prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>');
-                layui.layer.msg(I18n.t('provider.fetchListFailed') + ': ' + (xhr.responseText || I18n.t('toast.networkError')), { icon: 2 });
+                layui.layer.msg(I18n.t('provider.fetchListFailed') + ': ' + (xhr.responseText || I18n.t('toast.networkError')), { icon: 2, time: 3000, offset: '120px' });
             }
         });
     }
@@ -578,7 +578,7 @@
                 var raw = layero.find('#providerCtxInput').val();
                 var tokens = parseContextLength(raw);
                 if (tokens === null) {
-                    layui.layer.msg(I18n.t('provider.contextInvalid'), { icon: 2 });
+                    layui.layer.msg(I18n.t('provider.contextInvalid'), { icon: 2, time: 3000, offset: '120px' });
                     return;
                 }
                 setModelContextLength(modelId, tokens);
@@ -598,11 +598,11 @@
                 if (res.code === 200) {
                     showForm(res.data);
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('provider.loadDetailFailed'), { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('provider.loadDetailFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
             error: function () {
-                layui.layer.msg(I18n.t('provider.loadDetailFailed'), { icon: 2 });
+                layui.layer.msg(I18n.t('provider.loadDetailFailed'), { icon: 2, time: 3000, offset: '120px' });
             }
         });
     }
@@ -635,11 +635,11 @@
         });
 
         if (!name) {
-            layui.layer.msg(I18n.t('provider.nameRequired'), { icon: 0 });
+            layui.layer.msg(I18n.t('provider.nameRequired'), { icon: 0, time: 2200, offset: '120px' });
             return;
         }
         if (!apiUrl) {
-            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0 });
+            layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0, time: 2200, offset: '120px' });
             return;
         }
 
@@ -667,16 +667,16 @@
             data: JSON.stringify(data),
             success: function (res) {
                 if (res.code === 200) {
-                    layui.layer.msg(I18n.t(currentProvider ? 'provider.updated' : 'provider.added'), { icon: 1 });
+                    layui.layer.msg(I18n.t(currentProvider ? 'provider.updated' : 'provider.added'), { icon: 1, time: 2200, offset: '120px' });
                     // 同步模型到 LLM 模型列表
                     syncModelsToLlm(data);
                     showList();
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('toast.saveFailed'), { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('toast.saveFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
             error: function () {
-                layui.layer.msg(I18n.t('toast.saveFailed'), { icon: 2 });
+                layui.layer.msg(I18n.t('toast.saveFailed'), { icon: 2, time: 3000, offset: '120px' });
             }
         });
     }
@@ -721,7 +721,7 @@
                 data: { name: currentProvider.name },
                 success: function (res) {
                     if (res.code === 200) {
-                        layui.layer.msg(I18n.t('provider.deleted'), { icon: 1 });
+                        layui.layer.msg(I18n.t('provider.deleted'), { icon: 1, time: 2200, offset: '120px' });
                         showList();
                         // 刷新 LLM 模型列表（供应商删除时关联模型也会删除）
                         if (window._settingsLlm) {
@@ -732,11 +732,11 @@
                             window.reloadModels();
                         }
                     } else {
-                        layui.layer.msg(res.msg || I18n.t('provider.deleteFailed'), { icon: 2 });
+                        layui.layer.msg(res.msg || I18n.t('provider.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
                     }
                 },
                 error: function () {
-                    layui.layer.msg(I18n.t('provider.deleteFailed'), { icon: 2 });
+                    layui.layer.msg(I18n.t('provider.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             });
         });
@@ -749,7 +749,7 @@
             data: { name: name, enabled: enabled },
             success: function (res) {
                 if (res.code === 200) {
-                    layui.layer.msg(I18n.t(enabled ? 'provider.enableOk' : 'provider.disableOk'), { icon: 1 });
+                    layui.layer.msg(I18n.t(enabled ? 'provider.enableOk' : 'provider.disableOk'), { icon: 1, time: 2200, offset: '120px' });
                     // 刷新供应商列表 UI（更新 disabled 样式）
                     loadProvidersList();
                     // 刷新 LLM 模型列表（供应商禁用时关联模型会禁用）
@@ -761,12 +761,12 @@
                         window.reloadModels();
                     }
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('toast.operateFailed'), { icon: 2 });
+                    layui.layer.msg(res.msg || I18n.t('toast.operateFailed'), { icon: 2, time: 3000, offset: '120px' });
                     loadProvidersList();
                 }
             },
             error: function () {
-                layui.layer.msg(I18n.t('toast.operateFailed'), { icon: 2 });
+                layui.layer.msg(I18n.t('toast.operateFailed'), { icon: 2, time: 3000, offset: '120px' });
                 loadProvidersList();
             }
         });

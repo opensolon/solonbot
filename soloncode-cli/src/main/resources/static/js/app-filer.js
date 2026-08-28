@@ -117,10 +117,10 @@
                         if (res.code === 200 && res.data && res.data.id) {
                             window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank');
                         } else {
-                            alert(res.description || res.message || I18n.t('filer.ctxOpenFailed', '打开失败'));
+                            showToast(res.description || res.message || I18n.t('filer.ctxOpenFailed', '打开失败'), 'error');
                         }
                     })
-                    .catch(function() { alert(I18n.t('filer.ctxOpenFailed', '打开失败')); });
+                    .catch(function() { showToast(I18n.t('filer.ctxOpenFailed', '打开失败'), 'error'); });
             });
         }
 

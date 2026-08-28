@@ -290,21 +290,13 @@ function forkSession(idx) {
                 if (newIdx >= 0) selectSession(newIdx);
 
                 if (typeof layer !== 'undefined' && layer.msg) {
-                    layer.msg(I18n.t('history.forkSuccess'), { icon: 1, time: 2000, offset: '120px' });
+                    layer.msg(I18n.t('history.forkSuccess'), { icon: 1, time: 2200, offset: '120px' });
                 }
             } catch (e) {
-                if (typeof layer !== 'undefined' && layer.msg) {
-                    layer.msg(I18n.t('history.forkFailed'), { icon: 2, time: 3000, offset: '120px' });
-                } else {
-                    alert(I18n.t('history.forkFailed'));
-                }
+                    showToast(I18n.t('history.forkFailed'), 'error');
             }
         }).fail(function() {
-            if (typeof layer !== 'undefined' && layer.msg) {
-                layer.msg(I18n.t('history.forkFailed'), { icon: 2, time: 3000, offset: '120px' });
-            } else {
-                alert(I18n.t('history.forkFailed'));
-            }
+            showToast(I18n.t('history.forkFailed'), 'error');
         });
     });
 }
@@ -338,11 +330,7 @@ function deleteSession(idx) {
 
         updateHistoryUI();
     }).fail(function () {
-        if (typeof layer !== 'undefined' && layer.msg) {
-            layer.msg(I18n.t('history.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
-        } else {
-            alert(I18n.t('history.deleteFailed'));
-        }
+            showToast(I18n.t('history.deleteFailed'), 'error');
     });
     });
 }
@@ -360,11 +348,7 @@ function togglePin(idx) {
         entry.isPinned = newPinned;
         updateHistoryUI();
     }).fail(function() {
-        if (typeof layer !== 'undefined' && layer.msg) {
-            layer.msg(I18n.t('history.operateFailedRetry'), { icon: 2, time: 3000, offset: '120px' });
-        } else {
-            alert(I18n.t('history.operateFailedRetry'));
-        }
+            showToast(I18n.t('history.operateFailedRetry'), 'error');
     });
 }
 
