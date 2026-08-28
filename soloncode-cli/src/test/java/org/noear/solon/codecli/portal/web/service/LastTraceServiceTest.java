@@ -229,8 +229,8 @@ public class LastTraceServiceTest {
     @Test
     public void alternating_think_segments_should_stay_separate() {
         /* 这是「几个思考消息和答案消息被合到一起」的根因用例。
-         * 流式聚合逐帧维护 in_thinking，reasoning 与正文交替就会反复注入 <think>/</think>，
-         * 一条消息里出现多对标记；而 getThinking()/getAnswer() 只认第一对：
+         * text 里可以内嵌多对标签（非流式路径前置 reasoning / 旧快照遗留）：
+         * 简单地取 getThinking()+getText() 只能拿到「一段思考 + 整段带标签正文」，
          * 第二段思考会被当成答案铺进气泡，段间也没有边界。 */
         ReActTrace trace = new ReActTrace();
         ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
@@ -257,7 +257,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
         trace.getWorkingMemory().addMessage(
-                new AssistantMessage("<think>思考连着答案都在这里</think>", true));
+                new AssistantMessage("", "思考连着答案都在这里", true));
 
         List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
         assertEquals(Arrays.asList("tool", "thinking"), kinds(events));
@@ -268,20 +268,22 @@ public class LastTraceServiceTest {
     @Test
     public void thinking_flag_must_not_swallow_answer_and_tool_calls() {
         /* 一条聚合消息可以同时有思考、正文和 toolCalls，且 isThinking 仍为 true ——
-         * 该标记取自聚合时最后一帧的 in_thinking（ChatResponseDefault#getAggregationMessage），
-         * 只说明流末停在 reasoning 通道，不代表整条都是思考。
-         * 早期实现在 isThinking 处短路，把整条丢给 getThinking()，后者用 replace 抹掉标签，
-         * 于是 T1/A1/T2 全糊成一个思考块 —— 又一次「思考和答案合到一起」。 */
+         * 该标记取自聚合时最后一帧的状态，只说明流末停在 reasoning 通道，不代表整条都是思考。
+         * 早期实现在 isThinking 处短路，把整条丢给思考块，正文与工具卡一并被吞。
+         *
+         * 新形态下思考/正文分居 thinking/text 双通道，交替顺序已不可恢复：
+         * 源串还原为 <think>T1T2</think>A1，切出「一段思考 + 一段正文」——
+         * 思考在前是存储形态保留的唯一顺序信息（也是推理模型的实际行为）。 */
         ReActTrace trace = new ReActTrace();
         ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
-        trace.getWorkingMemory().addMessage(new AssistantMessage(
-                "<think>T1</think>A1<think>T2</think>", true,
+        trace.getWorkingMemory().addMessage(new AssistantMessage("A1",
+                "T1T2", true,
                 null, null, Collections.singletonList(call), null));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
         List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
-        assertEquals(Arrays.asList("thinking", "note", "thinking", "tool"), kinds(events));
-        assertEquals(Arrays.asList("T1", "A1", "T2"), texts(events.subList(0, 3)));
+        assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
+        assertEquals(Arrays.asList("T1T2", "A1"), texts(events.subList(0, 2)));
     }
 
     @Test
@@ -291,7 +293,8 @@ public class LastTraceServiceTest {
         ReActTrace trace = new ReActTrace();
         ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
         trace.getWorkingMemory().addMessage(new AssistantMessage(
-                "<think>先想一下</think>我来读一下", true,
+                "我来读一下",
+                "先想一下", true,
                 null, null, Collections.singletonList(call), null));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
@@ -307,7 +310,7 @@ public class LastTraceServiceTest {
         ToolCall call = new ToolCall("0", "call_1", "read", "{}", new HashMap<>());
         trace.getWorkingMemory().addMessage(newToolCallMessage("没标签的正文", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
-        trace.getWorkingMemory().addMessage(new AssistantMessage("没标签的思考", true));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("","没标签的思考", true));
 
         List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
         assertEquals(Arrays.asList("note", "tool", "thinking"), kinds(events));
@@ -350,7 +353,7 @@ public class LastTraceServiceTest {
         ToolCall c3 = new ToolCall("1", "call_3", "grep", "{}", new HashMap<>());
 
         trace.getWorkingMemory().addMessage(
-                new AssistantMessage(null, false, null, null, Arrays.asList(c1, c2), null));
+                new AssistantMessage("","", false, null, null, Arrays.asList(c1, c2), null));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("a", "read", "call_1"));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("b", "read", "call_2"));
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, c3));
@@ -396,7 +399,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, c1));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("a", "read", "call_1"));
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser(SteerInterceptor.STEER_PREFIX + "别改测试"));
-        trace.getWorkingMemory().addMessage(new AssistantMessage("<think>好的</think>", true));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("","好的", true));
 
         List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), "__main", false, null));
         assertEquals(Arrays.asList("tool", "steer", "thinking"), kinds(events));
@@ -454,7 +457,7 @@ public class LastTraceServiceTest {
     public void steer_alone_should_not_align() {
         // 插话不能单独支撑回放：它依附于 AI 的思考/工具过程才有语境
         ReActTrace trace = new ReActTrace();
-        trace.getWorkingMemory().addMessage(new AssistantMessage("", false));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("","", false));
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser(SteerInterceptor.STEER_PREFIX + "换个思路"));
 
         Map<String, Object> data = service.buildLastTrace(newSession(trace), "__main", false, null);
@@ -498,7 +501,7 @@ public class LastTraceServiceTest {
         steer1.addMetadata("source", SteerInterceptor.STEER_SOURCE);
         trace.getWorkingMemory().addMessage(steer1);
         // #4 isThinking=true，思考与答案同在一对标签内，无 toolCalls
-        trace.getWorkingMemory().addMessage(new AssistantMessage("<think>雨天推荐…</think>", true));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("","雨天推荐…", true));
         // #5 ReasonTask 注入的格式修正指令（系统内务，不得上屏）
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser("【系统指令：输出格式修正】…"));
         // #6 第二条插话
@@ -506,7 +509,7 @@ public class LastTraceServiceTest {
         steer2.addMetadata("source", SteerInterceptor.STEER_SOURCE);
         trace.getWorkingMemory().addMessage(steer2);
         // #7 同 #4 形态
-        trace.getWorkingMemory().addMessage(new AssistantMessage("<think>花费大概…</think>", true));
+        trace.getWorkingMemory().addMessage(new AssistantMessage("","花费大概…", true));
         // #8 再一条格式修正指令
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser("【系统指令：输出格式修正】…"));
         // #9 最终回答（已落 ndjson）
@@ -525,7 +528,7 @@ public class LastTraceServiceTest {
 
     /** 构造一条「带 toolCalls 的助手消息」——即模型发起工具调用的那一轮 */
     private AssistantMessage newToolCallMessage(String content, ToolCall call) {
-        return new AssistantMessage(content, false, null, null, Collections.singletonList(call), null);
+        return new AssistantMessage(content, "", false, null, null, Collections.singletonList(call), null);
     }
 
     /** 模拟 ndjson 载入的往轮消息：带别的 runId 与「初心」标记 */

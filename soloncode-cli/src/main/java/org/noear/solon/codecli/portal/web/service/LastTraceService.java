@@ -255,10 +255,6 @@ public class LastTraceService {
              * 但思考只存在于 WorkingMemory，历史渲染时被 stripThinkTags 剥掉了，必须回放。 */
             boolean isFinalAnswer = isCurrentRunAssistant(am, currentRunId);
 
-            /* 按段扫描而不是用 getThinking()/getAnswer()：流式聚合会在一条消息里注入<b>多对</b>
-             * think 标记（AbstractChatDialect 逐帧维护 in_thinking，reasoning 与正文交替就反复
-             * 开合），而那两个方法只认第一对 —— 第二段思考会被当成答案铺进气泡，段间也没有边界，
-             * 表现就是「几个思考消息和答案消息被合到一起」。 */
             for (Segment seg : splitSegments(am)) {
                 if (seg.think == false && isFinalAnswer) {
                     continue;
@@ -377,42 +373,33 @@ public class LastTraceService {
     }
 
     /**
-     * 把一条聚合消息的 content 还原成有序的「思考/正文」段序列。
+     * 把一条聚合消息还原成有序的「思考/正文」段序列。
      *
-     * <p><b>一条聚合消息可以同时具备思考、正文与 toolCalls</b>，三者并存是常态而非例外：
-     * 非流式路径把 reasoning 直接拼成 {@code <think>…</think>} 前置到正文
-     * （{@code AbstractChatDialect} 单次返回分支），流式路径则逐帧注入标记后由
-     * {@code contentBuilder} 累积成同一个 content。所以不能按「要么思考要么正文」去解析，
-     * 只能按标签切段并保持原序。</p>
+     * <p>solon-ai 4.1 起想法与正文分居 {@code thinking} / {@code text} 两个字段，这是新数据的
+     * 正式形态，直接按双通道取即可。但仅取两个字段并不够 —— {@code text} 里仍可能内嵌
+     * {@code <think>} 标签，此时必须按标签切段并保持原序：</p>
+     * <ul>
+     *   <li>升级前的存量快照：想法缝在 {@code content} 里（可能<b>多对</b>标签与正文交替），
+     *       反序列化落到旧字段后，{@code getThinking()} 只认第一对、{@code getText()} 只剥到第一个
+     *       闭标签为止，剩下的标签会原样留在正文里；</li>
+     *   <li>部分模型把标签直接写进 content 通道，方言未及归并时同样表现为正文内嵌标签。</li>
+     * </ul>
+     * <p>不切段的后果是：第二段思考被当成答案铺进气泡、段间没有边界，且 {@code <think>}
+     * 字面标签直接显示给用户 —— 也就是「几个思考消息和答案消息合到了一起」。</p>
      *
-     * <p>{@code isThinking()} <b>不能</b>用来判定「整条都是思考」：聚合消息的该标记取自
-     * <b>最后一帧</b>的 {@code in_thinking}（{@code ChatResponseDefault#getAggregationMessage}），
-     * 只描述流末停在哪个通道。末帧在思考，完全不妨碍 content 前面已经有过
-     * {@code <think>T1</think>A1} 的交替 —— 早期实现在此短路，把整条按思考处理，
-     * A1/A2 被 {@code getThinking()} 的 replace 抹掉标签后糊进同一个思考块，
-     * 又制造了一次「思考和答案合到一起」。</p>
-     *
-     * <p>它只在一处有用：content <b>完全没有</b>标签时，凭内容无法判断这段来自 reasoning
-     * 通道还是 content 通道，此时以末帧状态定性。</p>
-     *
-     * <p>其余覆盖形态：多对标签与正文交替；悬空 {@code <think>} 无闭合（任务在思考中被打断，
-     * 旧实现下 {@code getThinking()} 与 {@code getAnswer()} 会双双返回空，整段凭空消失）；
-     * 先出现 {@code </think>} 而无开标签（开标签在裁剪 / 序列化往返中丢失），前半段按思考处理。</p>
+     * <p>{@code isThinking()} 不参与判定：该标记取自聚合时<b>最后一帧</b>的通道状态
+     * （{@code ChatResponseDefault#getAggregationMessage}），只说明流末停在哪，不代表整条都是思考；
+     * 据它短路会把正文与工具卡一并吞进思考块。</p>
      */
     private List<Segment> splitSegments(AssistantMessage msg) {
         List<Segment> out = new ArrayList<>();
-
-        String src = msg.getContent();
-        if (src == null || src.isEmpty()) {
-            return out;
-        }
 
         String thinking = msg.getThinking();
         if (Assert.isNotEmpty(thinking)) {
             addSegment(out, true, thinking);
         }
 
-        String answer = msg.getAnswer();
+        String answer = msg.getText();
         if (Assert.isNotEmpty(answer)) {
             addSegment(out, false, answer);
         }

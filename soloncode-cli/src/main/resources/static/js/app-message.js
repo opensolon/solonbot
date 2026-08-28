@@ -149,20 +149,27 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
         var idx = rows.index(row);
         if (idx < 0) return;
         var serverCount = calcServerCount(sess.container, row);
-        $.post('/web/chat/rewind', {
-            sessionId: sess.sessionId,
-            count: serverCount
+        /* 必须等回退回调再发新消息：旧实现不等，新任务一旦先启动，回退会被服务端
+         * busy 守卫拒成 409，而那个 post 既无回调也无 fail 处理 —— 静默失败，旧消息留在
+         * ndjson 里形成重复。AI 行的删除一直是等回调的，两边应当一致。 */
+        $.post('/web/chat/rewind', buildRewindPayload(sess, row), function(resp) {
+            if (!resp || resp.code !== 200) {
+                handleRewindFailure(sess, resp);
+                return;
+            }
+            handleRewind(sess, rows.length - idx);
+            // 将用户消息填入输入框并发送
+            if (inChatMode) {
+                chatInput.value = text;
+            } else {
+                newChatInput.value = text;
+            }
+            if (typeof sendMessage === 'function') {
+                sendMessage();
+            }
+        }).fail(function() {
+            showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
         });
-        handleRewind(sess, rows.length - idx);
-        // 将用户消息填入输入框并发送
-        if (inChatMode) {
-            chatInput.value = text;
-        } else {
-            newChatInput.value = text;
-        }
-        if (typeof sendMessage === 'function') {
-            sendMessage();
-        }
     });
 
     // 继续运行：仅当用户消息是列表末尾（无后续 AI 回复）时可见，
@@ -187,19 +194,15 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
             var idx = rows.index(row);
             if (idx < 0) { layer.close(index); return; }
             layer.close(index);
-            // 后端只删有 ndjson 记录的消息（排除命令消息），避免多删
-            var serverCount = calcServerCount(sess.container, row);
+            // 删除起点由 runId 锚点定位，服务端在真实消息列表上算条数
             // 后端删除成功后，前端才删除；失败则保留界面并提示
-            $.post('/web/chat/rewind', {
-                sessionId: sess.sessionId,
-                count: serverCount
-            }, function(resp) {
+            $.post('/web/chat/rewind', buildRewindPayload(sess, row), function(resp) {
                 if (resp && resp.code === 200) {
                     // 前端删所有可视行（含命令消息的无记录行），保持界面干净
                     handleRewind(sess, rows.length - idx);
                     updateUserRerunButtons(sess.container);
                 } else {
-                    showToast(I18n.t('msg.deleteFailed') + ((resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded')), 'error');
+                    handleRewindFailure(sess, resp);
                 }
             }).fail(function() {
                 showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
@@ -351,18 +354,14 @@ function ensureAssistantBubble(sess) {
                 var idx = rows.index(row);
                 if (idx < 0) { layer.close(index); return; }
                 layer.close(index);
-                // 后端只删有 ndjson 记录的消息（排除命令消息），避免多删
-                var serverCount = calcServerCount(sess.container, row);
+                // 删除起点由 runId 锚点定位，服务端在真实消息列表上算条数
                 // 后端删除成功后，前端才删除；失败则保留界面并提示
-                $.post('/web/chat/rewind', {
-                    sessionId: sess.sessionId,
-                    count: serverCount
-                }, function(resp) {
+                $.post('/web/chat/rewind', buildRewindPayload(sess, row), function(resp) {
                     if (resp && resp.code === 200) {
                         // 前端删所有可视行（含命令消息的无记录行），保持界面干净
                         handleRewind(sess, rows.length - idx);
                     } else {
-                        showToast(I18n.t('msg.deleteFailed') + ((resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded')), 'error');
+                        handleRewindFailure(sess, resp);
                     }
                 }).fail(function() {
                     showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
@@ -1920,6 +1919,32 @@ function handleHitlResponse(sess, action, callId) {
     });
 }
 
+/* ===== Rewind Anchor =====
+ * 回退锚点：以「同一轮任务的 runId」定位删除起点，条数交由服务端在真实消息列表上算。
+ * 前端能数的 DOM 行与 ndjson 行并非一一对应（系统通知行、被中断轮次的空气泡无服务端记录；
+ * 连续 assistant 会被历史渲染合并成一个气泡），按行数删必然多删或少删。 */
+function buildRewindPayload(sess, row) {
+    var payload = { sessionId: sess.sessionId };
+    var runId = row && row.getAttribute ? row.getAttribute('data-run-id') : null;
+    if (runId) {
+        payload.anchorRunId = runId;
+        payload.anchorRole = $(row).hasClass('user') ? 'user' : 'assistant';
+    }
+    // count 仅作老数据（无 runId）降级用；服务端有 anchorRunId 时不看它
+    payload.count = calcServerCount(sess.container, row);
+    return payload;
+}
+
+/* 回退失败的统一处理：锚点对不上时不猜条数，改为重载历史让界面回到与服务端一致的状态。 */
+function handleRewindFailure(sess, resp) {
+    var desc = (resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded');
+    showToast(I18n.t('msg.deleteFailed') + desc, 'error');
+    if (resp && resp.code === 409 && String(desc).indexOf('ANCHOR_NOT_FOUND') >= 0) {
+        // 服务端没找到锚点（一条未删）：界面可能已与服务端不同步，重载以对齐
+        if (typeof loadMessages === 'function') loadMessages(sess.sessionId);
+    }
+}
+
 /* ===== Server Record Count =====
  * 计算从 startRow 到末尾、在 ndjson 中有服务端记录的消息数量。
  * 命令消息（以 / 开头）在 ndjson 中无记录，不计入，避免后端多删。 */
@@ -1933,6 +1958,9 @@ function calcServerCount(container, startRow) {
         // 最后一轮执行过程的回放行（data-replay）源于 ReActTrace 而非 ndjson，服务端无对应记录，
         // 计入则 rewind 会每行多删一条真实消息
         if (r.getAttribute('data-replay')) continue;
+        // 系统通知行（.system-notice）由前端就地生成，ndjson 里没有它：计入会让降级删除多删一条真实消息。
+        // 它自身没有删除按钮，但循环是从锚点一路数到末尾的，删其它行时会把它扫进来。
+        if ($(r).hasClass('system-notice')) continue;
         // 存量会话的插话行（改动前已写入 ndjson）有服务端记录，须计入不可跳过，否则 rewind 会少删；
         // 新产生的插话已零持久化、且渲染为 AI 气泡内的 .steer-note（不是 .msg-row），不进本函数视野
         // 用户消息中，以 / 开头的命令在 ndjson 中无记录，跳过
@@ -1943,7 +1971,7 @@ function calcServerCount(container, startRow) {
                 if (raw.trim().startsWith('/') && /^\/[a-zA-Z][a-zA-Z0-9_-]*(\s.*)?$/.test(raw.trim())) continue;
             }
         }
-        // 系统通知也可能无记录，但删除按钮不存在于系统通知上，无需处理
+        // 系统通知无服务端记录，已在上面按 .system-notice 跳过
         count++;
     }
     return count;

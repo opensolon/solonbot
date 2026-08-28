@@ -15,6 +15,7 @@ import org.noear.solon.codecli.config.models.ModelsAdapterManager;
 import org.noear.solon.codecli.command.builtin.GoalState;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.command.builtin.LoopTask;
+import org.noear.solon.codecli.session.MessageLineUtil;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.core.handle.Context;
@@ -300,7 +301,8 @@ public class WsController {
                 }
                 ONode node = ONode.ofJson(line);
                 String role = node.get("role").getString();
-                String content = node.get("content").getString();
+                // 助手消息自 solon-ai 4.1 起不再落 content 字段（拆成 text/thinking），须按兼容顺序读
+                String content = MessageLineUtil.readContent(node);
                 if (role == null || content == null) {
                     continue;
                 }

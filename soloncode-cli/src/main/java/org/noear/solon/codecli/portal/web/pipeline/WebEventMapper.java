@@ -212,7 +212,7 @@ public class WebEventMapper {
         } else {
             // 正文必须携带 reasonId，前端据此将同一轮正文分组；
             // 丢失后多轮正文会塔缩到同一 __default__ 分组，导致最终消息错接到前一组。
-            return WebEvent.ofText(chunk.getReasonId(), chunk.getAnswer());
+            return WebEvent.ofText(chunk.getReasonId(), chunk.getText());
         }
     }
 

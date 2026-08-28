@@ -38,7 +38,9 @@ import org.noear.solon.codecli.portal.web.service.GitService;
 import org.noear.solon.codecli.portal.web.service.LastTraceService;
 import org.noear.solon.codecli.session.SessionManager;
 import org.noear.solon.codecli.session.SessionJanitor;
+import org.noear.solon.codecli.session.MessageLineUtil;
 import org.noear.solon.codecli.session.SessionMeta;
+import org.noear.solon.codecli.session.SessionRewindService;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceMeta;
 import org.noear.solon.core.handle.Context;
@@ -102,6 +104,7 @@ public class WebController {
      * 「最后一轮执行过程」还原服务（无状态，可共享）
      */
     private static final LastTraceService LAST_TRACE_SERVICE = new LastTraceService();
+    private static final SessionRewindService REWIND_SERVICE = new SessionRewindService();
     /**
      * 主代理 trace 在会话上下文中的固定键（与 WebGate / ContinueCommand 一致）
      */
@@ -844,7 +847,8 @@ public class WebController {
                     if (line.isEmpty()) continue;
                     ONode node = ONode.ofJson(line);
                     String role = node.get("role").getString();
-                    String content = node.get("content").getString();
+                    // 助手消息自 solon-ai 4.1 起不再落 content 字段（拆成 text/thinking），须按兼容顺序读
+                    String content = MessageLineUtil.readContent(node);
 
                     if (role != null && content != null) {
                         ONode metadata = node.get("metadata");
@@ -973,7 +977,7 @@ public class WebController {
                 if (line.isEmpty()) continue;
                 ONode node = ONode.ofJson(line);
                 if ("USER".equals(node.get("role").getString())) {
-                    lastUser = node.get("content").getString();
+                    lastUser = MessageLineUtil.readContent(node);
                 }
             }
         } catch (Exception e) {
@@ -1088,18 +1092,29 @@ public class WebController {
     }
 
     /**
-     * 回退会话消息：删除指定会话最近 N 条消息记录。
-     * <p>仅操作 ndjson 持久化文件（内存中的 AgentSession 会在重新生成时通过新的 prompt 重建上下文）。
-     * 默认回退 2 条（即一对用户消息 + 助手回复）。</p>
+     * 回退会话消息：删除锚点消息（含）之后的全部消息。
      *
-     * @param sessionId 会话 ID
-     * @param count     回退条数，默认为 2
-     * @return 操作结果
-     * @throws Exception 文件读写异常
+     * <p>删除经由 {@link org.noear.solon.codecli.session.SessionRewindService} 走
+     * {@code AgentSession.removeLatestMessage}，与 CLI 的 {@code /rewind} 同一条路径。
+     * 早期实现是直接截断 ndjson 文件：会话是「内存缓存 + 文件」双层结构，绕过缓存改文件后，
+     * 任何后续持久化都会把陈旧缓存写回、已删消息成批复活，且按行删还会留下孤立 ToolMessage。</p>
+     *
+     * <p>定位优先用 {@code anchorRunId}（同一轮任务的消息共享它）。{@code count} 仅作老数据降级，
+     * 因为前端能数的 DOM 行与 ndjson 行并非一一对应（系统通知行、被中断轮次的空气泡无服务端记录；
+     * 连续 assistant 会被历史渲染合并成一个气泡）。</p>
+     *
+     * @param sessionId   会话 ID
+     * @param count       降级条数（无 anchorRunId 时生效），默认 2（一对用户消息 + 助手回复）
+     * @param anchorRunId 锚点运行 ID
+     * @param anchorRole  锚点角色（assistant / user）
+     * @return 操作结果，data 含 removed / effectiveAnchor / degraded
      */
     @Post
     @Mapping("/web/chat/rewind")
-    public Result rewindSession(@Param("sessionId") String sessionId, @Param(value = "count", required = false) Integer count) throws Exception {
+    public Result rewindSession(@Param("sessionId") String sessionId,
+                                @Param(value = "count", required = false) Integer count,
+                                @Param(value = "anchorRunId", required = false) String anchorRunId,
+                                @Param(value = "anchorRole", required = false) String anchorRole) throws Exception {
         if (!isValidSessionId(sessionId)) {
             return Result.failure(400, "Invalid sessionId");
         }
@@ -1111,82 +1126,23 @@ public class WebController {
         }
 
         try {
-            String userId = getCurrentUserId();
-            Path sessionPath = currentContext().getSessionPath(sessionId);
-            File msgFile = new File(sessionPath.toFile(), sessionId + ".messages.ndjson");
-            if (msgFile.exists()) {
-                // 读取现有消息
-                java.util.List<String> lines = new ArrayList<>();
-                try (BufferedReader br = new BufferedReader(
-                        new InputStreamReader(new FileInputStream(msgFile), "UTF-8"))) {
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        line = line.trim();
-                        if (!line.isEmpty()) lines.add(line);
-                    }
-                }
-                // 移除最后 count 条
-                int removeCount = Math.min(count, lines.size());
-                for (int i = 0; i < removeCount; i++) {
-                    lines.remove(lines.size() - 1);
-                }
-                // 先写同目录临时文件，再原子替换，避免进程中断留下半个 ndjson。
-                StringBuilder sb = new StringBuilder();
-                for (String l : lines) {
-                    sb.append(l).append("\n");
-                }
-                Path tempFile = msgFile.toPath().resolveSibling(msgFile.getName() + ".rewind.tmp");
-                java.nio.file.Files.write(tempFile, sb.toString().getBytes("UTF-8"));
-                try {
-                    java.nio.file.Files.move(tempFile, msgFile.toPath(),
-                            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                    java.nio.file.Files.move(tempFile, msgFile.toPath(),
-                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                }
+            AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
+            SessionRewindService.RewindResult rr = REWIND_SERVICE.rewind(
+                    session, TRACE_KEY_MAIN, anchorRunId, anchorRole, count);
+
+            if (rr.isAnchorMissing()) {
+                // 宁可不删，也不能删错条数：前端应改为重载历史
+                return Result.failure(409, "ANCHOR_NOT_FOUND");
             }
 
-            /* 快照里的最后一轮执行过程必须一起清掉：ndjson 被截断后，
-             * /messages/last-trace 仍会从 snapshot.json 读出 ReActTrace 的 WorkingMemory 回放。
-             * 尤其是「只删最后一条 AI 消息」这种情形 —— 末条用户消息没变，isAligned 依旧成立，
-             * 刷新后被删掉的思考与工具卡会原样长回来。 */
-            clearLastTrace(sessionId);
-
-            // 丢弃内存会话，下一次请求从已回退的持久化记录重建上下文。
-            // 多工作区隔离：用当前工作区的 sessionManager()，避免命中默认工作区的会话管理器。
-            sessionManager().removeSession(sessionId);
-
-            return Result.succeed();
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("removed", rr.getRemoved());
+            data.put("effectiveAnchor", rr.getEffectiveAnchor());
+            data.put("degraded", rr.isDegraded());
+            return Result.succeed(data);
         } catch (Exception e) {
             LOG.error("Rewind failed for session {}: {}", sessionId, e.getMessage());
             return Result.failure(500, "Session rewind failed");
-        }
-    }
-
-    /**
-     * 清除会话上下文中主代理的执行过程快照（{@code __main} 的 ReActTrace）并落盘。
-     *
-     * <p>只清 trace 一项，不动上下文里其它数据（如 HITL 决策、循环任务状态），
-     * 也不删整个 snapshot.json —— 回退是「删几条消息」，不该顺手抹掉会话的其它状态。</p>
-     *
-     * <p>必须显式 {@code updateSnapshot()}：内存会话随后就被丢弃，不落盘等于没清。</p>
-     */
-    private void clearLastTrace(String sessionId) {
-        try {
-            Path sessionPath = currentContext().getSessionPath(sessionId);
-            File snapshotFile = new File(sessionPath.toFile(), sessionId + ".snapshot.json");
-            if (!snapshotFile.exists()) {
-                // 从未运行过（或 fork 出的纯消息副本）：无过程可清，不为它凭空建内存会话
-                return;
-            }
-
-            AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
-            session.getContext().remove(TRACE_KEY_MAIN);
-            session.updateSnapshot();
-        } catch (Throwable e) {
-            // 清理失败只影响回放残留，不能让回退主流程失败
-            LOG.debug("[WebController] clear last-trace failed for session {}: {}", sessionId, e.getMessage());
         }
     }
 
@@ -2025,7 +1981,7 @@ public class WebController {
                 ONode node = ONode.ofJson(line);
                 String role = node.get("role").getString();
                 if ("USER".equals(role)) {
-                    return node.get("content").getString();
+                    return MessageLineUtil.readContent(node);
                 }
             }
         } catch (Exception e) {

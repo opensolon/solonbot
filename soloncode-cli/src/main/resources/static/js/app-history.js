@@ -497,6 +497,15 @@ function loadMessages(sess) {
                         if (historyFileAttachments.length === 0) historyFileAttachments = null;
                     }
                     appendUserMessage(sess, m.content, historyImages, historyFileAttachments, m.createdAt, m.sourceLabel, m.agentName);
+                    /* 补 runId：与 assistant 行同理，历史行建立时 sess.currentRunId 还是空的。
+                     * 缺了它，删除/重跑拿不到锚点，只能退化成按 DOM 行数猜条数。 */
+                    if (m.runId) {
+                        var userRows = $(tempDiv).find('.msg-row.user');
+                        var lastUserRow = userRows.length ? userRows[userRows.length - 1] : null;
+                        if (lastUserRow && !lastUserRow.getAttribute('data-run-id')) {
+                            lastUserRow.setAttribute('data-run-id', m.runId);
+                        }
+                    }
                 } else if (m.role === 'ASSISTANT') {
                     var isConsecutive = (i > 0 && msgs[i - 1].role === 'ASSISTANT');
                     if (!isConsecutive) resetStreamState(sess);

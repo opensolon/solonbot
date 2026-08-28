@@ -17,6 +17,7 @@ package org.noear.solon.codecli.command.builtin;
 
 import org.noear.solon.ai.agent.Agent;
 import org.noear.solon.ai.agent.AgentSession;
+import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.chat.message.AssistantMessage;
@@ -93,18 +94,42 @@ public class ContinueCommand implements Command {
             trace.setRoute(ReActAgent.ID_REASON);
             trace.setFinalAnswer(null, false);
 
+            /* 只能删「本轮自己产出的最终回答」：判据除了类型，还要带当前 runId 且不带 toolCalls。
+             * 只判类型会误删历史：本轮无结果时（ReActAgent 在 result 为空且无 media 时不写最终回答），
+             * WorkingMemory / Session 末条可能是上一轮载入的历史 AssistantMessage，删它等于删真实对话历史。 */
+            String runId = trace.getRunId();
+
             ChatMessage workMessage = trace.getWorkingMemory().getLastMessage();
-            if (workMessage instanceof AssistantMessage) {
+            if (isOwnFinalAnswer(workMessage, runId)) {
                 trace.getWorkingMemory().removeLastMessage();
             }
 
             // 回退一条 ai 消息（要重新生成）
             List<ChatMessage> messageList = session.getMessages();
-            if (Assert.isNotEmpty(messageList) && messageList.get(messageList.size() - 1) instanceof AssistantMessage) {
+            if (Assert.isNotEmpty(messageList)
+                    && isOwnFinalAnswer(messageList.get(messageList.size() - 1), runId)) {
                 session.removeLatestMessage(1);
             }
         }
 
         ctx.runAgentTask(null, null);
+    }
+
+    /**
+     * 是否是「本轮产出的最终回答」：带当前 runId 的普通 AssistantMessage。
+     *
+     * <p>带 toolCalls 的不算（它是推理中间步，删它会断开工具调用链）；
+     * 无 runId 的不算（老数据或外部写入，宁可不删）。</p>
+     */
+    private boolean isOwnFinalAnswer(ChatMessage message, String runId) {
+        if (!(message instanceof AssistantMessage) || Assert.isEmpty(runId)) {
+            return false;
+        }
+        AssistantMessage am = (AssistantMessage) message;
+        if (am.isToolCalls()) {
+            return false;
+        }
+        Object msgRunId = (am.getMetadata() == null) ? null : am.getMetadata().get(AgentTrace.META_RUN_ID);
+        return msgRunId != null && runId.equals(String.valueOf(msgRunId));
     }
 }
