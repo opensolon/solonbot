@@ -23,6 +23,7 @@ import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.ai.chat.ChatConfig;
 import org.noear.solon.ai.chat.ChatRole;
 import org.noear.solon.ai.chat.message.ChatMessage;
+import org.noear.solon.ai.chat.message.UserMessage;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.ai.harness.command.Command;
@@ -301,12 +302,6 @@ public class WebController {
         ctx.forward("/web.html");
     }
 
-    /**
-     * 页面元信息接口：供前端启动时一次性获取应用标题、版本号、工作区路径等基础信息。
-     *
-     * @return 包含 appTitle、appVersion、workspace、workname 的结果对象
-     * @throws Exception 读取配置异常
-     */
     /**
      * 前端脚本清单：返回所有已加载扩展登记的前端脚本 URL，前端据此动态注入。
      * 各扩展在自己的 Plugin.start() 中向系统属性 "soloncode.frontend.scripts" 追加自身脚本地址，
@@ -845,18 +840,8 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        AgentSession session = sessionManager().getSessionIfPresent(sessionId);
-        if (session != null) {
-            return Result.succeed(readMessagesFromSession(session));
-        }
-
-        Path sessionsRoot = currentContext().getSessionsRoot();
-        Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
-        if (!sessionsPath.startsWith(sessionsRoot)) {
-            return Result.failure(400, "Invalid session path");
-        }
-
-        return Result.succeed(readMessagesFromFile(new File(sessionsPath.toFile(), sessionId + ".messages.ndjson")));
+        AgentSession session = sessionManager().getSession(sessionId);
+        return Result.succeed(readMessagesFromSession(session));
     }
 
     /**
@@ -884,38 +869,6 @@ public class WebController {
 
             data.add(buildMessageItem(msg.getRole().name(), content,
                     String.valueOf(msg.getCreatedAt()), msg.getMetadata()));
-        }
-
-        return data;
-    }
-
-    /**
-     * 从 ndjson 消息文件逐行读取历史消息（会话未打开时的回落路径）。
-     *
-     * @param msgFile 消息文件
-     * @return 消息列表
-     */
-    private List<Map> readMessagesFromFile(File msgFile) throws Exception {
-        List<Map> data = new ArrayList<>();
-
-        if (msgFile.exists()) {
-            try (BufferedReader br = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(msgFile), "UTF-8"))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    line = line.trim();
-                    if (line.isEmpty()) continue;
-                    ONode node = ONode.ofJson(line);
-                    String role = node.get("role").getString();
-                    // 助手消息自 solon-ai 4.1 起不再落 content 字段（拆成 text/thinking），须按兼容顺序读
-                    String content = MessageLineUtil.readContent(node);
-
-                    if (role != null && content != null) {
-                        data.add(buildMessageItem(role, content, node.get("createdAt").getString(),
-                                toMetadataMap(node.get("metadata"))));
-                    }
-                }
-            }
         }
 
         return data;
@@ -1042,22 +995,8 @@ public class WebController {
         }
 
         try {
-            Path sessionsRoot = currentContext().getSessionsRoot();
-            Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
-            if (!sessionsPath.startsWith(sessionsRoot)) {
-                return Result.failure(400, "Invalid session path");
-            }
-
-            // 快照不存在说明该会话从未运行过（或为 fork 出来的纯消息副本）：
-            // 不走 getSession，避免为其凭空创建内存会话
-            File snapshotFile = new File(sessionsPath.toFile(), sessionId + ".snapshot.json");
-            if (!snapshotFile.exists()) {
-                return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, false, null));
-            }
-
-            String lastUserMsg = readLastUserMessage(new File(sessionsPath.toFile(), sessionId + ".messages.ndjson"));
-
-            AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
+            AgentSession session = sessionManager().getSession(sessionId);
+            String lastUserMsg = readLastUserMessage(session);
             boolean running = webGate().isSessionBusy(engine(), sessionId);
 
             Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, running, lastUserMsg);
@@ -1070,32 +1009,21 @@ public class WebController {
     }
 
     /**
-     * 读取 ndjson 中最后一条用户消息的内容，用于 trace 对齐校验。
+     * 读取 ndjson 中最后一条用户消息的内容，用于 trace 对齐校验（内存会话路径）。
      *
      * @return 最后一条 USER 消息内容；无则返回 null
      */
-    private String readLastUserMessage(File msgFile) {
-        if (msgFile == null || !msgFile.exists()) {
-            return null;
-        }
+    private String readLastUserMessage(AgentSession session) {
+        List<ChatMessage> messages = new ArrayList<>(session.getMessages());
 
-        String lastUser = null;
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(msgFile), "UTF-8"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty()) continue;
-                ONode node = ONode.ofJson(line);
-                if ("USER".equals(node.get("role").getString())) {
-                    lastUser = MessageLineUtil.readContent(node);
-                }
+        for (int i = messages.size() - 1; i > -1; i--) {
+            ChatMessage m1 = messages.get(i);
+            if (m1 instanceof UserMessage) {
+                return m1.getContent();
             }
-        } catch (Exception e) {
-            return null;
         }
 
-        return lastUser;
+        return null;
     }
 
     /**

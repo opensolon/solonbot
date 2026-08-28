@@ -100,8 +100,9 @@ public class ContinueCommand implements Command {
             }
 
             // 回退一条 ai 消息（要重新生成）
+            // 注意：这里直接用内部列表引用，使 size 在 removeLatestMessage 后实时更新
             List<ChatMessage> messageList = session.getMessages();
-            if (Assert.isNotEmpty(messageList) && messageList.get(messageList.size() - 1) instanceof AssistantMessage) {
+            while (!messageList.isEmpty() && messageList.get(messageList.size() - 1) instanceof AssistantMessage) {
                 session.removeLatestMessage(1);
             }
         }
