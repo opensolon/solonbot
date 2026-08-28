@@ -52,7 +52,7 @@ public class ResilienceManager {
 		this.defaultTimeout = defaultTimeout;
 
 		// Create default circuit breakers
-		circuitBreakers.put("claude-cli", CircuitBreaker.defaultSolonCodeBreaker());
+		circuitBreakers.put("soloncode-cli", CircuitBreaker.defaultSolonCodeBreaker());
 		circuitBreakers.put("streaming", CircuitBreaker.tolerant("streaming"));
 		circuitBreakers.put("query", CircuitBreaker.sensitive("query"));
 	}

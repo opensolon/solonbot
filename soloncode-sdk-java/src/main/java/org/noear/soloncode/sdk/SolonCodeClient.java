@@ -44,7 +44,7 @@ import java.util.Map;
  * <pre>{@code
  * try (SolonCodeSyncClient client = SolonCodeClient.sync()
  *         .workingDirectory(Path.of("."))
- *         .model("claude-sonnet-4-20250514")
+ *         .model("sonnet")
  *         .systemPrompt("Be concise")
  *         .timeout(Duration.ofMinutes(5))
  *         .build()) {
@@ -62,7 +62,7 @@ import java.util.Map;
  * </p>
  * <pre>{@code
  * CLIOptions options = CLIOptions.builder()
- *     .model("claude-sonnet-4-20250514")
+ *     .model("sonnet")
  *     .systemPrompt("Be concise")
  *     .build();
  *
@@ -152,7 +152,7 @@ public interface SolonCodeClient {
 	 * <h3>Model Configuration</h3>
 	 * <ul>
 	 * <li>{@link #model(String)} - SolonCode model to use (e.g.,
-	 * "claude-sonnet-4-20250514")</li>
+	 * "sonnet")</li>
 	 * <li>{@link #systemPrompt(String)} - System prompt for the conversation</li>
 	 * <li>{@link #appendSystemPrompt(String)} - Text to append to the system prompt</li>
 	 * <li>{@link #maxTokens(Integer)} - Maximum response tokens</li>
@@ -185,7 +185,7 @@ public interface SolonCodeClient {
 	 * <h2>Example</h2> <pre>{@code
 	 * SolonCodeSyncClient client = SolonCodeClient.sync()
 	 *     .workingDirectory(Path.of("."))
-	 *     .model("claude-sonnet-4-20250514")
+	 *     .model("sonnet")
 	 *     .systemPrompt("You are a helpful assistant")
 	 *     .maxTokens(4096)
 	 *     .timeout(Duration.ofMinutes(5))
@@ -287,7 +287,7 @@ public interface SolonCodeClient {
 
 		/**
 		 * Sets the SolonCode model to use.
-		 * @param model the model ID (e.g., "claude-sonnet-4-20250514")
+		 * @param model the model ID (e.g., "sonnet")
 		 * @return this builder instance for method chaining
 		 */
 		public SyncSpec model(String model) {
@@ -520,7 +520,7 @@ public interface SolonCodeClient {
 	 * <h2>Example</h2> <pre>{@code
 	 * // Create CLI options (can be loaded from config, shared, etc.)
 	 * CLIOptions options = CLIOptions.builder()
-	 *     .model("claude-sonnet-4-20250514")
+	 *     .model("sonnet")
 	 *     .systemPrompt("You are a helpful assistant")
 	 *     .maxTokens(4096)
 	 *     .build();
@@ -665,7 +665,7 @@ public interface SolonCodeClient {
 	 * <h2>Example</h2> <pre>{@code
 	 * SolonCodeAsyncClient client = SolonCodeClient.async()
 	 *     .workingDirectory(Path.of("."))
-	 *     .model("claude-sonnet-4-20250514")
+	 *     .model("sonnet")
 	 *     .systemPrompt("You are a helpful assistant")
 	 *     .timeout(Duration.ofMinutes(5))
 	 *     .build();
@@ -874,7 +874,7 @@ public interface SolonCodeClient {
 	 *
 	 * <h2>Example</h2> <pre>{@code
 	 * CLIOptions options = CLIOptions.builder()
-	 *     .model("claude-sonnet-4-20250514")
+	 *     .model("sonnet")
 	 *     .build();
 	 *
 	 * SolonCodeAsyncClient client = SolonCodeClient.async(options)

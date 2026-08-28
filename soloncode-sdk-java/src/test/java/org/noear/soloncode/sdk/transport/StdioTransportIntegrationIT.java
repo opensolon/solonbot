@@ -62,8 +62,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Timeout(value = 60, unit = TimeUnit.SECONDS)
 class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
 	/**
 	 * Helper pattern from MCP SDK AbstractMcpSyncClientTests.withClient().
 	 */
@@ -92,7 +90,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		assertThat(transport.isRunning()).as("Should start disconnected").isFalse();
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -128,7 +125,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -165,7 +161,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -205,7 +200,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		AtomicBoolean errorHandled = new AtomicBoolean(false);
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -234,7 +228,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -260,7 +253,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 	void transportShouldSupportMessageIterator() throws Exception {
 		// Given
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -296,7 +288,7 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		AtomicInteger controlRequestCount = new AtomicInteger(0);
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
-		CLIOptions options = CLIOptions.builder().model(HAIKU_MODEL).permissionMode(PermissionMode.DEFAULT).build();
+		CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DEFAULT).build();
 
 		withTransport(transport -> {
 			try {
@@ -353,7 +345,6 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 

@@ -63,7 +63,7 @@ class CLIFlagParityTest {
 	 * Creates a transport for testing command building.
 	 */
 	private StreamingTransport createTransport() {
-		return new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/claude");
+		return new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 	}
 
 	// ============================================================
@@ -117,9 +117,9 @@ class CLIFlagParityTest {
 		@DisplayName("--model flag with model ID")
 		void modelFlag() {
 			try (StreamingTransport transport = createTransport()) {
-				CLIOptions options = CLIOptions.builder().model("claude-sonnet-4-5-20250929").build();
+				CLIOptions options = CLIOptions.builder().model("sonnet").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
-				assertThat(cmd).containsSubsequence("--model", "claude-sonnet-4-5-20250929");
+				assertThat(cmd).containsSubsequence("--model", "sonnet");
 			}
 		}
 
@@ -147,9 +147,9 @@ class CLIFlagParityTest {
 		@DisplayName("--fallback-model flag")
 		void fallbackModelFlag() {
 			try (StreamingTransport transport = createTransport()) {
-				CLIOptions options = CLIOptions.builder().fallbackModel("claude-haiku-4-5-20251001").build();
+				CLIOptions options = CLIOptions.builder().fallbackModel("haiku").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
-				assertThat(cmd).containsSubsequence("--fallback-model", "claude-haiku-4-5-20251001");
+				assertThat(cmd).containsSubsequence("--fallback-model", "haiku");
 			}
 		}
 
@@ -467,7 +467,7 @@ class CLIFlagParityTest {
 		@DisplayName("--settings is ignored by soloncode run")
 		void settingsFlag() {
 			try (StreamingTransport transport = createTransport()) {
-				CLIOptions options = CLIOptions.builder().settings("/etc/claude/settings.json").build();
+				CLIOptions options = CLIOptions.builder().settings("/etc/soloncode/settings.json").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--settings");
 			}
@@ -627,7 +627,7 @@ class CLIFlagParityTest {
 						SdkCollections.map("result", SdkCollections.map("type", "string")));
 
 				CLIOptions options = CLIOptions.builder()
-					.model("claude-sonnet-4-5-20250929")
+					.model("sonnet")
 					.systemPrompt("You are a test assistant")
 					.allowedTools(SdkCollections.list("Bash", "Read"))
 					.disallowedTools(SdkCollections.list("WebFetch"))
@@ -638,7 +638,7 @@ class CLIFlagParityTest {
 					.jsonSchema(schema)
 					.continueConversation(false)
 					.resume("test-session-id")
-					.fallbackModel("claude-haiku-4-5-20251001")
+					.fallbackModel("haiku")
 					.build();
 
 				List<String> cmd = transport.buildStreamingCommand(options);

@@ -55,13 +55,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Timeout(value = 120, unit = TimeUnit.SECONDS)
 class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
 	@Test
 	@DisplayName("Should handle invalid CLI path gracefully - MCP SDK error pattern")
 	void shouldHandleInvalidCliPath() {
 		// Given - invalid CLI path
-		Path invalidPath = Paths.get("/nonexistent/claude");
+		Path invalidPath = Paths.get("/nonexistent/soloncode");
 
 		// When/Then - should throw meaningful exception
 		assertThatThrownBy(() -> {
@@ -69,7 +67,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 					invalidPath.toString())) {
 
 				CLIOptions options = CLIOptions.builder()
-					.model(HAIKU_MODEL)
 					.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 					.build();
 
@@ -87,7 +84,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 	void shouldHandleTransportCloseDuringOperation() throws Exception {
 		// Given
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -130,7 +126,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Should handle malformed control response gracefully")
 	void shouldHandleMalformedControlResponse() throws Exception {
 		// Given
-		CLIOptions options = CLIOptions.builder().model(HAIKU_MODEL).permissionMode(PermissionMode.DEFAULT).build();
+		CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DEFAULT).build();
 
 		CountDownLatch resultLatch = new CountDownLatch(1);
 		AtomicBoolean errorOccurred = new AtomicBoolean(false);
@@ -158,7 +154,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 	void shouldRecoverAfterControlHandlerException() throws Exception {
 		// Given
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -193,7 +188,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 		Duration shortTimeout = Duration.ofMillis(100);
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -226,7 +220,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -257,7 +250,6 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 

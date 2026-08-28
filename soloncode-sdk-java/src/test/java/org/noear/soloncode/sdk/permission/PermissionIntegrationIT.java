@@ -65,11 +65,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Disabled("soloncode run 不支持 stdin 权限审批回调（--permission-prompt-tool）：请改用 --permission-mode dontAsk/bypassPermissions")
 class PermissionIntegrationIT extends SolonCodeCliTestBase {
 
-	// Use Haiku for most tests (fast), Sonnet for tests requiring reliable tool use
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
-	private static final String SONNET_MODEL = CLIOptions.MODEL_SONNET;
-
 	/**
 	 * Helper for running tests with transport.
 	 */
@@ -102,7 +97,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 		// This tells the CLI to send permission requests via stdin/stdout control
 		// protocol
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.DEFAULT)
 			.permissionPromptToolName("stdio")
 			.build();
@@ -170,7 +164,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 		// Use Sonnet for more reliable tool use behavior
 		// NOTE: permissionPromptToolName("stdio") enables can_use_tool control protocol
 		CLIOptions options = CLIOptions.builder()
-			.model(SONNET_MODEL)
 			.permissionMode(PermissionMode.DEFAULT)
 			.permissionPromptToolName("stdio")
 			.build();
@@ -235,7 +228,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 
 		// NOTE: permissionPromptToolName("stdio") enables can_use_tool control protocol
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.DEFAULT)
 			.permissionPromptToolName("stdio")
 			.build();
@@ -287,7 +279,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 
 		// Use BYPASS_PERMISSIONS mode
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -329,7 +320,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 		// triggered
 		// NOTE: permissionPromptToolName("stdio") enables can_use_tool control protocol
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.DEFAULT)
 			.permissionPromptToolName("stdio")
 			.build();
@@ -385,7 +375,6 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 
 		// NOTE: Do NOT set permissionPromptToolName - auto-detection should enable it
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.DEFAULT)
 			.toolPermissionCallback((toolName, input, context) -> {
 				System.out.println("ToolPermissionCallback invoked for: " + toolName);

@@ -209,11 +209,22 @@ public class SolonCodeCliDiscovery {
 	}
 
 	/**
-	 * Gets the discovered SolonCode CLI path without performing discovery. Used for cases
-	 * where discovery has already been performed.
+	 * Gets the SolonCode CLI path, performing discovery on first use.
+	 *
+	 * <p>claude SDK 的同名方法是纯字段 getter：在没有其他代码先调用过
+	 * {@link #discoverSolonCodePath()} 时永远返回 null，方法名却读起来像“取到路径”，
+	 * 是一个容易误用的陷阱（在测试里就表现为 forceRediscovery() 后拿到 null）。
+	 * 这里改为懒触发发现，失败时返回 null 而不抛异常。</p>
+	 * @return the resolved absolute path, or null if the CLI cannot be discovered
 	 */
 	public static String getDiscoveredPath() {
-		return discoveredPath;
+		try {
+			return discoverSolonCodePath();
+		}
+		catch (SolonCodeCliNotFoundException e) {
+			logger.debug("SolonCode CLI not discovered: {}", e.getMessage());
+			return null;
+		}
 	}
 
 	/**

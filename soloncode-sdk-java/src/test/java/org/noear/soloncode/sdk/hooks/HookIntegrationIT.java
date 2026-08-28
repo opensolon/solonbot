@@ -64,8 +64,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Disabled("soloncode run 不支持 --input-format stream-json 的双向控制协议：hooks 由 CLI 侧工作区配置驱动，SDK 无 stdin 回调通道")
 class HookIntegrationIT extends SolonCodeCliTestBase {
 
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
@@ -79,7 +77,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
 		// Use DEFAULT mode to receive hook callbacks (not BYPASS)
-		CLIOptions options = CLIOptions.builder().model(HAIKU_MODEL).permissionMode(PermissionMode.DEFAULT).build();
+		CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DEFAULT).build();
 
 		// Create hook registry with PreToolUse hook
 		HookRegistry registry = new HookRegistry();
@@ -141,7 +139,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 		List<String> hookInvocations = new CopyOnWriteArrayList<>();
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
-		CLIOptions options = CLIOptions.builder().model(HAIKU_MODEL).permissionMode(PermissionMode.DEFAULT).build();
+		CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DEFAULT).build();
 
 		// Create hook registry with both PreToolUse (to allow) and PostToolUse
 		HookRegistry registry = new HookRegistry();
@@ -200,7 +198,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 		List<String> hookInvocations = new CopyOnWriteArrayList<>();
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
-		CLIOptions options = CLIOptions.builder().model(HAIKU_MODEL).permissionMode(PermissionMode.DEFAULT).build();
+		CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DEFAULT).build();
 
 		// Create hook registry that blocks Bash
 		HookRegistry registry = new HookRegistry();
@@ -284,7 +282,6 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 		StringBuilder resultText = new StringBuilder();
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 

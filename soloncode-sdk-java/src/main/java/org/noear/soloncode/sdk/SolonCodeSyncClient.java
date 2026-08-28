@@ -264,7 +264,7 @@ public interface SolonCodeSyncClient extends AutoCloseable {
 
 	/**
 	 * Changes the model mid-session.
-	 * @param model the new model name (e.g., "claude-sonnet-4-20250514")
+	 * @param model the new model name (e.g., "sonnet")
 	 * @throws SolonCodeSDKException if setting model fails
 	 */
 	void setModel(String model) throws SolonCodeSDKException;

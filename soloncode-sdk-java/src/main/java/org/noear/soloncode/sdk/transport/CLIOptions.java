@@ -115,18 +115,8 @@ public final class CLIOptions {
 	/** Default maximum buffer size for JSON parsing (1MB). */
 	public static final int DEFAULT_MAX_BUFFER_SIZE = 1024 * 1024;
 
-	// ============================================================
-	// Model ID Constants
-	// ============================================================
-
-	/** SolonCode Haiku 4.5 - Fast and cost-effective model. */
-	public static final String MODEL_HAIKU = "claude-haiku-4-5-20251001";
-
-	/** SolonCode Sonnet 4.5 - Balanced performance model. */
-	public static final String MODEL_SONNET = "claude-sonnet-4-5-20250929";
-
-	/** SolonCode Opus 4.5 - Most capable model. */
-	public static final String MODEL_OPUS = "claude-opus-4-5-20251101";
+	// 不提供模型 ID 常量：soloncode 的 --model 取工作区配置里已注册的模型名或别名
+	// （如 sonnet / haiku / opus），由部署方决定，SDK 无从预知。不传则用引擎默认模型。
 
 	public CLIOptions(String model, String systemPrompt, Integer maxTokens, Integer maxThinkingTokens,
 			Duration timeout, List<String> tools, List<String> allowedTools, List<String> disallowedTools,

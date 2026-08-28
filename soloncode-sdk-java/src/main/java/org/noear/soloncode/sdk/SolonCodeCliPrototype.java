@@ -18,6 +18,8 @@
 
 package org.noear.soloncode.sdk;
 
+import org.noear.soloncode.sdk.config.SolonCodeCliDiscovery;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeroturnaround.exec.ProcessExecutor;
@@ -139,31 +141,21 @@ public class SolonCodeCliPrototype {
 	}
 
 	/**
-	 * Discover SolonCode CLI command path
+	 * Discover SolonCode CLI command path.
+	 *
+	 * <p>统一走 {@link org.noear.soloncode.sdk.config.SolonCodeCliDiscovery}，避免这里维护
+	 * 第二套候选路径与探测超时（原实现沿用的是 claude 的候选名，在 soloncode 上必然探不到）。</p>
 	 */
 	private String findSolonCodeCommand() {
-		// Check common locations for SolonCode CLI
-		String[] candidates = { "claude", "claude-code", "~/.local/bin/claude" };
-
-		for (String candidate : candidates) {
-			try {
-				ProcessResult result = new ProcessExecutor().command(candidate, "--version")
-					.timeout(5, TimeUnit.SECONDS)
-					.readOutput(true)
-					.execute();
-
-				if (result.getExitValue() == 0) {
-					logger.info("Found SolonCode CLI at: {}", candidate);
-					return candidate;
-				}
-			}
-			catch (Exception e) {
-				logger.debug("SolonCode CLI not found at: {}", candidate);
-			}
+		try {
+			String path = SolonCodeCliDiscovery.discoverSolonCodePath();
+			logger.info("Found SolonCode CLI at: {}", path);
+			return path;
 		}
-
-		logger.warn("SolonCode CLI not found, using default 'claude'");
-		return "claude";
+		catch (Exception e) {
+			logger.warn("SolonCode CLI not found, using default 'soloncode'", e);
+			return "soloncode";
+		}
 	}
 
 	/**

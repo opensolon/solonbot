@@ -48,20 +48,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SubagentIT extends SolonCodeCliTestBase {
 
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
 	/**
 	 * JSON definition for a simple test agent. The agent is restricted to no tools and
 	 * just responds to queries.
 	 */
-	private static final String TEST_AGENTS_JSON = "{ \"test-helper\": { \"description\": \"A simple helper agent for testing\", \"tools\": [], \"prompt\": \"You are a test helper. When asked, respond with exactly: TEST_RESPONSE_OK\", \"model\": \"claude-haiku-4-5-20251001\" } }";
+	private static final String TEST_AGENTS_JSON = "{ \"test-helper\": { \"description\": \"A simple helper agent for testing\", \"tools\": [], \"prompt\": \"You are a test helper. When asked, respond with exactly: TEST_RESPONSE_OK\", \"model\": \"haiku\" } }";
 
 	@Test
 	@DisplayName("Should pass --agents flag to CLI and spawn subagent via Task tool")
 	void shouldSpawnSubagentViaTaskTool() {
 		// Given - configure with agents and Task tool
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.agents(TEST_AGENTS_JSON)
 			.allowedTools(SdkCollections.list("Task")) // Only allow Task tool
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
@@ -111,7 +108,6 @@ class SubagentIT extends SolonCodeCliTestBase {
 	void shouldIncludeAgentsInCommand() {
 		// This is a simpler test - just verify the session starts with agents configured
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.agents(TEST_AGENTS_JSON)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();

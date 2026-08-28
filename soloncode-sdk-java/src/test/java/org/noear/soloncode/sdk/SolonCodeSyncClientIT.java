@@ -53,8 +53,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 不能假设某一条 AssistantMessage 含完整答案。</li>
  * <li>断言只覆盖 <b>协议契约</b>（init 事件、result 事件、会话 ID 贯通、聚合文本非空、结构化输出形状），
  * 不断言模型的具体答案文字 —— 那依赖外部模型，不具备可复现性。</li>
- * <li>不传 {@code --model}：{@code CLIOptions.MODEL_HAIKU} 是 claude 的模型 ID，soloncode 侧
- * 对未注册模型会回落到默认模型，传入只会引入无意义的不确定性。模型由 CLI 侧配置决定。</li>
+ * <li>不传 {@code --model}：soloncode 的模型名/别名由工作区配置注册，SDK 无从预知；传入未注册的
+ * 名字只会回落到默认模型，引入无意义的不确定性。模型由 CLI 侧配置决定。</li>
  * <li>统一 {@code bare(true)}：跳过技能/MCP/记忆自动发现，冷启动更快、更可复现（同
  * {@link SolonCodeRealCliIT}）。</li>
  * </ul>

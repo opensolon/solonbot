@@ -105,7 +105,7 @@ public class StreamingTransport implements AutoCloseable {
 	// Configuration
 	// ============================================================
 
-	private final String claudeCommand;
+	private final String soloncodeCommand;
 
 	private final Path workingDirectory;
 
@@ -230,17 +230,17 @@ public class StreamingTransport implements AutoCloseable {
 		}
 		this.workingDirectory = workingDirectory;
 		this.defaultTimeout = defaultTimeout;
-		this.claudeCommand = cliPath != null ? cliPath : discoverSolonCodePath();
+		this.soloncodeCommand = cliPath != null ? cliPath : discoverSolonCodePath();
 		this.parser = new ControlMessageParser();
 		this.objectMapper = new ObjectMapper();
 
 		// Initialize schedulers with named threads for debugging
 		this.inboundScheduler = Schedulers
-			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "claude-inbound")), "inbound");
+			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "soloncode-inbound")), "inbound");
 		this.outboundScheduler = Schedulers
-			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "claude-outbound")), "outbound");
+			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "soloncode-outbound")), "outbound");
 		this.errorScheduler = Schedulers
-			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "claude-error")), "error");
+			.fromExecutorService(Executors.newSingleThreadExecutor(r -> new Thread(r, "soloncode-error")), "error");
 
 		// Initialize sinks with backpressure
 		// Use replay() to buffer messages for late subscribers in multi-turn
@@ -257,9 +257,23 @@ public class StreamingTransport implements AutoCloseable {
 			return SolonCodeCliDiscovery.discoverSolonCodePath();
 		}
 		catch (Exception e) {
-			logger.warn("Could not discover SolonCode CLI path, using 'claude'", e);
-			return "claude";
+			logger.warn("Could not discover SolonCode CLI path, using 'soloncode'", e);
+			return "soloncode";
 		}
+	}
+
+	/**
+	 * 判定环境变量是否为需要透传的凭证类变量。
+	 * @param key 环境变量名
+	 * @return true 表示应透传给子进程
+	 */
+	private static boolean isCredentialEnvVar(String key) {
+		for (String suffix : CREDENTIAL_ENV_VAR_SUFFIXES) {
+			if (key.endsWith(suffix)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// ============================================================
@@ -494,7 +508,7 @@ public class StreamingTransport implements AutoCloseable {
 	 */
 	List<String> buildStreamingCommand(CLIOptions options, String prompt) {
 		List<String> command = new ArrayList<>();
-		command.add(claudeCommand);
+		command.add(soloncodeCommand);
 		// SolonCode CLI: use the `run` subcommand for headless agent execution
 		command.add("run");
 
@@ -729,13 +743,28 @@ public class StreamingTransport implements AutoCloseable {
 	/**
 	 * Safe inherited environment variables (MCP SDK pattern). These are the only system
 	 * env vars that are inherited by default for security.
+	 *
+	 * <p>soloncode 是 JVM 程序：启动脚本用 PATH 里的 {@code java}，而 CLI 内部的
+	 * {@code JdkHomeUtil} 会读 {@code JAVA_HOME}，因此 {@code JAVA_HOME} 必须在白名单内，
+	 * 否则子进程可能找不到 JDK。</p>
 	 */
 	private static final List<String> SAFE_INHERITED_ENV_VARS_UNIX = SdkCollections.list("HOME", "LOGNAME", "PATH",
-			"SHELL", "TERM", "USER", "LANG", "LC_ALL", "LC_CTYPE");
+			"SHELL", "TERM", "USER", "LANG", "LC_ALL", "LC_CTYPE", "JAVA_HOME");
 
 	private static final List<String> SAFE_INHERITED_ENV_VARS_WINDOWS = SdkCollections.list("APPDATA", "HOMEDRIVE",
 			"HOMEPATH", "LOCALAPPDATA", "PATH", "PROCESSOR_ARCHITECTURE", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP",
-			"USERNAME", "USERPROFILE");
+			"USERNAME", "USERPROFILE", "JAVA_HOME");
+
+	/**
+	 * 需要透传给 soloncode 子进程的凭证类变量名后缀。
+	 *
+	 * <p>claude SDK 只透传 {@code ANTHROPIC_API_KEY} 一个变量；soloncode 的模型凭证由
+	 * 工作区配置声明，可以引用任意供应商的环境变量（{@code ${OPENAI_API_KEY}} 等）。
+	 * 白名单机制会把这些变量全部过滤掉，导致配置里的占位符解析不到值，所以这里按后缀
+	 * 放行凭证类变量，而不是硬编码某一家供应商。</p>
+	 */
+	private static final List<String> CREDENTIAL_ENV_VAR_SUFFIXES = SdkCollections.list("_API_KEY", "_API_TOKEN",
+			"_API_BASE", "_API_URL", "_ACCESS_KEY", "_SECRET_KEY");
 
 	/**
 	 * Builds the process environment with MCP-style safe filtering. Follows the MCP SDK
@@ -759,15 +788,21 @@ public class StreamingTransport implements AutoCloseable {
 			}
 		}
 
-		// 2. Always pass API key if available
-		String apiKey = System.getenv("ANTHROPIC_API_KEY");
-		if (apiKey != null) {
-			env.put("ANTHROPIC_API_KEY", apiKey);
+		// 2. Pass through provider-agnostic credential vars and SOLONCODE_* settings
+		for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+			String key = entry.getKey();
+			String value = entry.getValue();
+			if (value == null || value.startsWith("()")) {
+				continue;
+			}
+			if (key.startsWith("SOLONCODE_") || isCredentialEnvVar(key)) {
+				env.put(key, value);
+			}
 		}
 
 		// 3. SDK identification
-		env.put("CLAUDE_CODE_ENTRYPOINT", "sdk-java");
-		env.put("CLAUDE_AGENT_SDK_JAVA_VERSION", getClass().getPackage().getImplementationVersion() != null
+		env.put("SOLONCODE_ENTRYPOINT", "sdk-java");
+		env.put("SOLONCODE_SDK_JAVA_VERSION", getClass().getPackage().getImplementationVersion() != null
 				? getClass().getPackage().getImplementationVersion() : "dev");
 
 		// 4. User-provided env vars override (last wins)

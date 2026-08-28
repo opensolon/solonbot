@@ -90,7 +90,7 @@ public class CircuitBreaker {
 	 * @return a new CircuitBreaker with default settings
 	 */
 	public static CircuitBreaker defaultSolonCodeBreaker() {
-		return new CircuitBreaker("claude-cli", 5, // 5 failures trigger open
+		return new CircuitBreaker("soloncode-cli", 5, // 5 failures trigger open
 				Duration.ofSeconds(30), // 30 second recovery timeout
 				Duration.ofMinutes(2) // 2 minute sliding window
 		);

@@ -86,8 +86,8 @@ class SolonCodeAsyncClientIT extends SolonCodeCliTestBase {
 	}
 
 	private SolonCodeClient.AsyncSpec newClientSpec() {
-		// 不传 --model：CLIOptions.MODEL_HAIKU 是 claude 的模型 ID，soloncode 对未注册模型会回落到
-		// 默认模型，传入只会引入无意义的不确定性。bare(true)/maxTurns(1) 让冷启动更快、更可复现。
+		// 不传 --model：模型名/别名由工作区配置注册，传未注册的名字只会回落到默认模型，引入无意义的
+		// 不确定性。bare(true)/maxTurns(1) 让冷启动更快、更可复现。
 		return SolonCodeClient.async()
 			.workingDirectory(workingDirectory())
 			.cliPath(getSolonCodeCliPath())

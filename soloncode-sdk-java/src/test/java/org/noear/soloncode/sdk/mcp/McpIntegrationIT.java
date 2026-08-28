@@ -50,8 +50,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Disabled("soloncode run 不支持 --mcp-config：MCP 服务由 CLI 侧工作区配置声明，SDK 侧 mcpServers 仅告警忽略")
 class McpIntegrationIT extends SolonCodeCliTestBase {
 
-	private static final String HAIKU_MODEL = CLIOptions.MODEL_HAIKU;
-
 	@Test
 	@DisplayName("Should accept CLI options with stdio MCP server configuration")
 	void shouldAcceptStdioMcpServerConfiguration() throws Exception {
@@ -62,7 +60,6 @@ class McpIntegrationIT extends SolonCodeCliTestBase {
 				SdkCollections.list("-y", "@modelcontextprotocol/server-filesystem", "/tmp"), SdkCollections.map());
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.mcpServer("fs", filesystemServer)
 			.build();
@@ -115,7 +112,6 @@ class McpIntegrationIT extends SolonCodeCliTestBase {
 				"http://localhost:3001/mcp");
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.mcpServer("stdio-server", stdioServer)
 			.mcpServer("sse-server", sseServer)
@@ -180,7 +176,6 @@ class McpIntegrationIT extends SolonCodeCliTestBase {
 		List<String> allowedTools = SdkCollections.list("mcp__fs__read_file", "mcp__fs__write_file", "mcp__fs__list_directory");
 
 		CLIOptions options = CLIOptions.builder()
-			.model(HAIKU_MODEL)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.mcpServer("fs", filesystemServer)
 			.allowedTools(allowedTools)

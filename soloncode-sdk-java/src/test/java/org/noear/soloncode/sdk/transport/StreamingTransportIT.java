@@ -52,9 +52,8 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("Should start session and receive messages")
 	void shouldStartSessionAndReceiveMessages() throws Exception {
-		// Given - Use haiku for faster tests
+		// Given - 不传 --model，用工作区默认模型
 		CLIOptions options = CLIOptions.builder()
-			.model(CLIOptions.MODEL_HAIKU)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -105,9 +104,8 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("Should handle control requests")
 	void shouldHandleControlRequests() throws Exception {
-		// Given - Use haiku for faster tests
+		// Given - 不传 --model，用工作区默认模型
 		CLIOptions options = CLIOptions.builder()
-			.model(CLIOptions.MODEL_HAIKU)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -141,9 +139,8 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("Should report running state correctly")
 	void shouldReportRunningState() throws Exception {
-		// Given - Use haiku for faster tests
+		// Given - 不传 --model，用工作区默认模型
 		CLIOptions options = CLIOptions.builder()
-			.model(CLIOptions.MODEL_HAIKU)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -182,9 +179,8 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("Should handle interrupt")
 	void shouldHandleInterrupt() throws Exception {
-		// Given - Use haiku for faster tests
+		// Given - 不传 --model，用工作区默认模型
 		CLIOptions options = CLIOptions.builder()
-			.model(CLIOptions.MODEL_HAIKU)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
@@ -213,9 +209,8 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("Should close cleanly")
 	void shouldCloseCleanly() throws Exception {
-		// Given - Use haiku for faster tests
+		// Given - 不传 --model，用工作区默认模型
 		CLIOptions options = CLIOptions.builder()
-			.model(CLIOptions.MODEL_HAIKU)
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 

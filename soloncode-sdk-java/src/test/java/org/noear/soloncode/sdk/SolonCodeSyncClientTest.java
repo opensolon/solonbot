@@ -75,9 +75,9 @@ class SolonCodeSyncClientTest {
 			SolonCodeSyncClient client = SolonCodeClient.sync()
 				.workingDirectory(workingDirectory)
 				.timeout(Duration.ofMinutes(5))
-				.cliPath("/usr/bin/claude")
+				.cliPath("/usr/bin/soloncode")
 				.hookRegistry(registry)
-				.model("claude-sonnet-4-20250514")
+				.model("sonnet")
 				.systemPrompt("You are a helpful assistant")
 				.maxTokens(1000)
 				.maxThinkingTokens(500)
@@ -109,7 +109,7 @@ class SolonCodeSyncClientTest {
 		@Test
 		@DisplayName("should create SyncSpecWithOptions from factory")
 		void shouldCreateSyncSpecWithOptions() {
-			CLIOptions options = CLIOptions.builder().model("claude-haiku-4-5-20251001").build();
+			CLIOptions options = CLIOptions.builder().model("haiku").build();
 
 			SolonCodeClient.SyncSpecWithOptions spec = SolonCodeClient.sync(options);
 			assertThat(spec).isNotNull();
@@ -119,7 +119,7 @@ class SolonCodeSyncClientTest {
 		@DisplayName("should build client with CLIOptions and required parameters")
 		void shouldBuildWithCLIOptionsAndRequiredParams() {
 			CLIOptions options = CLIOptions.builder()
-				.model("claude-haiku-4-5-20251001")
+				.model("haiku")
 				.systemPrompt("Be concise")
 				.build();
 
@@ -134,7 +134,7 @@ class SolonCodeSyncClientTest {
 		@DisplayName("should build client with CLIOptions and all session parameters")
 		void shouldBuildWithCLIOptionsAndAllSessionParams() {
 			CLIOptions options = CLIOptions.builder()
-				.model("claude-haiku-4-5-20251001")
+				.model("haiku")
 				.systemPrompt("Be concise")
 				.maxTokens(1000)
 				.build();
@@ -143,7 +143,7 @@ class SolonCodeSyncClientTest {
 			SolonCodeSyncClient client = SolonCodeClient.sync(options)
 				.workingDirectory(workingDirectory)
 				.timeout(Duration.ofMinutes(5))
-				.cliPath("/usr/bin/claude")
+				.cliPath("/usr/bin/soloncode")
 				.hookRegistry(registry)
 				.build();
 
@@ -154,7 +154,7 @@ class SolonCodeSyncClientTest {
 		@Test
 		@DisplayName("should throw when working directory is null with CLIOptions")
 		void shouldThrowWhenWorkingDirNullWithCLIOptions() {
-			CLIOptions options = CLIOptions.builder().model("claude-haiku-4-5-20251001").build();
+			CLIOptions options = CLIOptions.builder().model("haiku").build();
 
 			assertThatThrownBy(() -> SolonCodeClient.sync(options).build()).isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("workingDirectory");
@@ -166,14 +166,14 @@ class SolonCodeSyncClientTest {
 			// Verify that SyncSpecWithOptions only has session-level methods
 			// by checking it doesn't have model(), systemPrompt(), etc.
 			// This is a compile-time guarantee, but we can verify the available methods
-			CLIOptions options = CLIOptions.builder().model("claude-haiku-4-5-20251001").build();
+			CLIOptions options = CLIOptions.builder().model("haiku").build();
 
 			SolonCodeClient.SyncSpecWithOptions spec = SolonCodeClient.sync(options);
 
 			// These methods should exist (session-level)
 			assertThat(spec.workingDirectory(workingDirectory)).isSameAs(spec);
 			assertThat(spec.timeout(Duration.ofMinutes(5))).isSameAs(spec);
-			assertThat(spec.cliPath("/usr/bin/claude")).isSameAs(spec);
+			assertThat(spec.cliPath("/usr/bin/soloncode")).isSameAs(spec);
 			assertThat(spec.hookRegistry(new HookRegistry())).isSameAs(spec);
 
 			// Note: model(), systemPrompt(), etc. don't exist on SyncSpecWithOptions
@@ -230,7 +230,7 @@ class SolonCodeSyncClientTest {
 		void shouldThrowWhenSettingModelWithoutConnection() {
 			SolonCodeSyncClient client = SolonCodeClient.sync().workingDirectory(workingDirectory).build();
 
-			assertThatThrownBy(() -> client.setModel("claude-opus-4-20250514"))
+			assertThatThrownBy(() -> client.setModel("opus"))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("not connected");
 			client.close();

@@ -48,7 +48,7 @@ import java.util.Objects;
  * // With options
  * QueryResult result = Query.execute("Explain recursion",
  *     QueryOptions.builder()
- *         .model("claude-sonnet-4-5-20250929")
+ *         .model("sonnet")
  *         .systemPrompt("Be concise")
  *         .timeout(Duration.ofMinutes(5))
  *         .build());
@@ -331,8 +331,11 @@ public final class QueryOptions {
 		private boolean bare = false;
 
 		/**
-		 * Sets the model to use. Common options: "claude-sonnet-4-5-20250929",
-		 * "claude-opus-4-5-20251101", "claude-haiku-4-5-20251001"
+		 * Sets the model to use. Accepts a model name or alias registered in the
+		 * soloncode workspace configuration (commonly "sonnet", "opus", "haiku").
+		 * <p>
+		 * Leave unset to use the engine default model. An unregistered name falls back
+		 * to the default model rather than failing.
 		 */
 		public Builder model(String model) {
 			this.model = model;

@@ -18,6 +18,8 @@
 
 package org.noear.soloncode.sdk;
 
+import org.noear.soloncode.sdk.config.SolonCodeCliDiscovery;
+
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.transport.CLIOptions;
@@ -65,7 +67,7 @@ import java.util.stream.Stream;
  * <pre>{@code
  * String response = Query.text("Explain quantum computing",
  *     QueryOptions.builder()
- *         .model("claude-sonnet-4-5-20250929")
+ *         .model("sonnet")
  *         .systemPrompt("Be concise")
  *         .timeout(Duration.ofMinutes(5))
  *         .build());
@@ -336,21 +338,18 @@ public class Query {
 	 *
 	 * <pre>{@code
 	 * if (!Query.isCliInstalled()) {
-	 *     System.err.println("SolonCode CLI not found. Install with: npm install -g @anthropic-ai/claude-code");
+	 *     System.err.println("SolonCode CLI not found. 请先安装 soloncode 并确保在 PATH 中，"
+	 *             + "或者设置系统属性 -Dsoloncode.cli.path=/path/to/soloncode");
 	 *     return;
 	 * }
 	 * }</pre>
-	 * @return true if 'claude' command is found in PATH
+	 *
+	 * <p>实现委派给 {@link SolonCodeCliDiscovery}：原实现是 {@code which claude}，在 soloncode 上
+	 * 永远返回 false，且 {@code which} 在 Windows 上不存在。</p>
+	 * @return true if the soloncode CLI can be discovered
 	 */
 	public static boolean isCliInstalled() {
-		try {
-			ProcessBuilder pb = new ProcessBuilder("which", "claude");
-			Process p = pb.start();
-			return p.waitFor() == 0;
-		}
-		catch (Exception e) {
-			return false;
-		}
+		return SolonCodeCliDiscovery.isSolonCodeCliAvailable();
 	}
 
 }

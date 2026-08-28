@@ -19,7 +19,6 @@
 package org.noear.soloncode.sdk.config;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,46 +26,42 @@ import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Tests for SolonCodeCliDiscovery utility class.
+ *
+ * <p>原版本继承了 claude SDK 的 {@code @EnabledIfEnvironmentVariable("ANTHROPIC_API_KEY")}
+ * 门控：soloncode 的 CLI 发现与 Anthropic 凭证毫无关系，那个门控只会让两个用例在
+ * 所有正常环境里永久 skip。现改为按“CLI 是否可发现”做 {@code Assumptions}，并在
+ * 可发现时做真断言。</p>
  *
  * @author Mark Pollack
  */
 class SolonCodeCliDiscoveryTest {
 
 	@Test
-	@EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 	void testGetDiscoveredPath() {
+		SolonCodeCliDiscovery.forceRediscovery();
 		String discoveredPath = SolonCodeCliDiscovery.getDiscoveredPath();
-		System.out.println("SolonCode CLI discovered path: " + discoveredPath);
+		assumeTrue(discoveredPath != null, "soloncode CLI 不在当前环境中，跳过路径断言");
 
-		if (discoveredPath != null) {
-			// getDiscoveredPath() should always return a full, absolute path
-			Path cliPath = Paths.get(discoveredPath);
-			assertThat(Files.exists(cliPath)).isTrue();
-			assertThat(Files.isExecutable(cliPath)).isTrue();
-			// Ensure it's an absolute path
-			assertThat(cliPath.isAbsolute()).isTrue();
-		}
-		else {
-			System.out.println("SolonCode CLI not found - this may be expected in some environments");
-		}
+		// getDiscoveredPath() should always return a full, absolute path
+		Path cliPath = Paths.get(discoveredPath);
+		assertThat(cliPath.isAbsolute()).as("discovered path must be absolute").isTrue();
+		assertThat(Files.exists(cliPath)).isTrue();
+		assertThat(Files.isExecutable(cliPath)).isTrue();
+		assertThat(cliPath.getFileName().toString()).contains("soloncode");
 	}
 
 	@Test
-	@EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 	void testIsSolonCodeCliAvailable() {
-		// Test if SolonCode CLI is available
+		SolonCodeCliDiscovery.forceRediscovery();
 		boolean isAvailable = SolonCodeCliDiscovery.isSolonCodeCliAvailable();
-		System.out.println("SolonCode CLI is available: " + isAvailable);
+		assumeTrue(isAvailable, "soloncode CLI 不在当前环境中，跳过可用性断言");
 
-		if (isAvailable) {
-			// If available, getDiscoveredPath should not return null
-			String path = SolonCodeCliDiscovery.getDiscoveredPath();
-			assertThat(path).isNotNull();
-			System.out.println("SolonCode CLI path: " + path);
-		}
+		// available 与 getDiscoveredPath() 必须一致，否则调用方会拿到 null 命令
+		assertThat(SolonCodeCliDiscovery.getDiscoveredPath()).isNotNull();
 	}
 
 	@Test

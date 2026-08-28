@@ -49,7 +49,7 @@ import java.util.Optional;
  * <h2>Basic Usage - Stream Text</h2> <pre>{@code
  * SolonCodeAsyncClient client = SolonCodeClient.async()
  *     .workingDirectory(Path.of("."))
- *     .model("claude-sonnet-4-20250514")
+ *     .model("sonnet")
  *     .build();
  *
  * client.connect("Explain recursion").textStream()

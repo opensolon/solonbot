@@ -67,7 +67,7 @@ public abstract class SolonCodeCliTestBase {
 	 */
 	protected static final int CLI_TIMEOUT_SECONDS = 120;
 
-	private static String claudeCliPath;
+	private static String cliPath;
 
 	/**
 	 * Discovers SolonCode CLI before any tests run. If discovery fails, all tests in
@@ -76,8 +76,8 @@ public abstract class SolonCodeCliTestBase {
 	@BeforeAll
 	static void discoverSolonCodeCli() {
 		try {
-			claudeCliPath = org.noear.soloncode.sdk.config.SolonCodeCliDiscovery.discoverSolonCodePath();
-			logger.info("SolonCode CLI tests will use executable at: {}", claudeCliPath);
+			cliPath = org.noear.soloncode.sdk.config.SolonCodeCliDiscovery.discoverSolonCodePath();
+			logger.info("SolonCode CLI tests will use executable at: {}", cliPath);
 		}
 		catch (org.noear.soloncode.sdk.config.SolonCodeCliDiscovery.SolonCodeCliNotFoundException e) {
 			String errorMsg = "SolonCode CLI Integration Tests Failed: " + e.getMessage();
@@ -95,10 +95,10 @@ public abstract class SolonCodeCliTestBase {
 	 * @throws IllegalStateException if SolonCode CLI discovery hasn't been performed yet
 	 */
 	protected static String getSolonCodeCliPath() {
-		if (claudeCliPath == null) {
+		if (cliPath == null) {
 			throw new IllegalStateException("SolonCode CLI path not discovered. Ensure @BeforeAll method has run.");
 		}
-		return claudeCliPath;
+		return cliPath;
 	}
 
 	/**
@@ -106,7 +106,7 @@ public abstract class SolonCodeCliTestBase {
 	 * @return true if SolonCode CLI is available, false otherwise
 	 */
 	protected static boolean isSolonCodeCliAvailable() {
-		return claudeCliPath != null;
+		return cliPath != null;
 	}
 
 	/**
