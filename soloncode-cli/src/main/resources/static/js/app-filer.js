@@ -20,6 +20,158 @@
         return $wsRoot.length ? ($wsRoot.attr('data-workspace-id') || 'workspace') : 'workspace';
     }
 
+    /**
+     * 工作区路径缓存（用于右键菜单：复制真实路径 / 作为工作区打开）
+     * launchPath：当前工作区根的真实绝对路径；mountRealPaths：别名 -> 真实路径
+     */
+    var wsPathCache = { loaded: false, launchPath: '', mountRealPaths: {} };
+
+    function loadWsPathCache(callback) {
+        if (wsPathCache.loaded) { if (callback) callback(); return; }
+        $.get('/web/workspace/list', function(res) {
+            if (res && res.data) {
+                if (res.data.launch && res.data.launch.path) wsPathCache.launchPath = res.data.launch.path;
+                (res.data.mounts || []).forEach(function(m) {
+                    if (m.alias && m.path) wsPathCache.mountRealPaths[m.alias] = m.path;
+                });
+            }
+            wsPathCache.loaded = true;
+            if (callback) callback();
+        }).fail(function() { wsPathCache.loaded = true; if (callback) callback(); });
+    }
+
+    /** 计算节点的真实绝对路径（无法解析时返回 null） */
+    function resolveRealPath(wsId, relPath) {
+        if (wsId === 'workspace') {
+            if (!wsPathCache.launchPath) return null;
+            return relPath ? (wsPathCache.launchPath.replace(/[\\/]+$/, '') + '/' + relPath) : wsPathCache.launchPath;
+        }
+        var base = wsPathCache.mountRealPaths[wsId];
+        if (!base) return null;
+        return relPath ? (base.replace(/[\\/]+$/, '') + '/' + relPath) : base;
+    }
+
+    /** 用于 /web/workspace/open 的路径（当前工作区用绝对路径，挂载用 @alias/rel） */
+    function resolveOpenPath(wsId, relPath) {
+        if (wsId === 'workspace') return resolveRealPath(wsId, relPath);
+        return relPath ? (wsId + '/' + relPath) : wsId;
+    }
+
+    /** 把文本插入当前聊天输入框（与树节点双击行为一致） */
+    function insertToChat(text) {
+        var targetInput = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
+        if (!targetInput) return;
+        var currentVal = targetInput.value || '';
+        var cursorPos = targetInput.selectionStart || currentVal.length;
+        var before = currentVal.substring(0, cursorPos);
+        var after = currentVal.substring(cursorPos);
+        var prefix = (before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n')) ? ' ' : '';
+        targetInput.value = before + prefix + text + after;
+        targetInput.focus();
+        var newPos = (before + prefix + text).length;
+        try { targetInput.setSelectionRange(newPos, newPos); } catch (e) {}
+    }
+
+    /** 关闭文件树右键菜单 */
+    function closeFilerContextMenu() {
+        $('.filer-context-menu').remove();
+        $(document).off('mousedown.filerCtx keydown.filerCtx');
+    }
+
+    /** 在事件坐标处弹出文件树右键菜单 */
+    function showFilerContextMenu(e, info) {
+        closeFilerContextMenu();
+        var $menu = $('<div>').addClass('filer-context-menu');
+
+        function addItem(labelKey, fallback, handler) {
+            var $item = $('<div>').addClass('filer-context-menu-item')
+                .text(I18n.t(labelKey, fallback))
+            $item.on('click', function() { closeFilerContextMenu(); handler(); });
+            $menu.append($item);
+        }
+
+        // 1. 复制路径
+        addItem('filer.ctxCopyPath', '复制路径', function() {
+            var text = info.realPath || info.displayPath;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(function() { fallbackCopy(text); });
+            } else { fallbackCopy(text); }
+            function fallbackCopy(t) {
+                var $tmp = $('<textarea>').css({position:'fixed', opacity:0}).val(t).appendTo('body');
+                $tmp[0].select(); try { document.execCommand('copy'); } catch (err) {}
+                $tmp.remove();
+            }
+        });
+
+        // 2. 在对话中引用（与双击行为一致，不替代双击）
+        addItem('filer.ctxQuote', '在对话中引用', function() {
+            insertToChat(info.quoteText);
+        });
+
+        // 3. 作为工作区打开（仅目录且路径可解析时显示）
+        if (info.isDirectory && info.openPath) {
+            addItem('filer.ctxOpenAsWorkspace', '作为工作区打开', function() {
+                fetch('/web/workspace/open', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'path=' + encodeURIComponent(info.openPath) })
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        if (res.code === 200 && res.data && res.data.id) {
+                            window.open('/?workspaceId=' + encodeURIComponent(res.data.id), '_blank');
+                        } else {
+                            alert(res.description || res.message || I18n.t('filer.ctxOpenFailed', '打开失败'));
+                        }
+                    })
+                    .catch(function() { alert(I18n.t('filer.ctxOpenFailed', '打开失败')); });
+            });
+        }
+
+        $(document.body).append($menu);
+        var menuW = $menu.outerWidth(), menuH = $menu.outerHeight();
+        var x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+        var y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+        $menu.css({ left: Math.max(8, x) + 'px', top: Math.max(8, y) + 'px', display: 'block' });
+
+        // 点击其他区域 / ESC 关闭
+        setTimeout(function() {
+            $(document).on('mousedown.filerCtx', function(ev) {
+                if (!$(ev.target).closest('.filer-context-menu').length) closeFilerContextMenu();
+            });
+            $(document).on('keydown.filerCtx', function(ev) {
+                if (ev.key === 'Escape') closeFilerContextMenu();
+            });
+        }, 0);
+    }
+
+    /** 文件树右键菜单入口（事件委托） */
+    function initFilerContextMenu() {
+        $treeEl.on('contextmenu', function(e) {
+            var $row = $(e.target).closest('.file-node-row');
+            if (!$row.length) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            var $nodeEl = $row.closest('.file-node');
+            if (!$nodeEl.length) return;
+            var isWsRoot = $nodeEl.attr('data-workspace-id') !== undefined;
+            var wsId = getNodeWorkspaceId($nodeEl);
+            var relPath = isWsRoot ? '' : ($nodeEl.attr('data-path') || '');
+            var nodeType = $nodeEl.attr('data-type') || (isWsRoot ? 'directory' : '');
+            var isDirectory = nodeType === 'directory';
+
+            loadWsPathCache(function() {
+                var info = {
+                    isDirectory: isDirectory,
+                    realPath: resolveRealPath(wsId, relPath),
+                    displayPath: isWsRoot ? (wsId === 'workspace' ? (wsPathCache.launchPath || wsId) : wsId) : (wsId !== 'workspace' ? wsId + '/' + relPath : relPath),
+                    openPath: isDirectory ? resolveOpenPath(wsId, relPath) : null,
+                    quoteText: isWsRoot
+                        ? (wsId !== 'workspace' ? '[' + wsId + ']' : '[./]')
+                        : (wsId !== 'workspace' ? '[' + wsId + '/' + relPath + ']' : '[./' + relPath + ']')
+                };
+                showFilerContextMenu(e, info);
+            });
+        });
+    }
+
     /** 构建带 workspace 参数的 URL */
     function filerUrl(basePath, params) {
         var query = params || '';
@@ -170,6 +322,7 @@
     }
     syncToggleBtnPosition();
     initResize();
+    initFilerContextMenu();
 
     // ---- 展开状态：收集 / 排序 / 串行恢复 ----
 

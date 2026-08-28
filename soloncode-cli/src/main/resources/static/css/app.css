@@ -1578,6 +1578,11 @@ body {
 }
 
 .file-node { user-select: none; }
+/* 文件树右键菜单（挂在 body 下，fixed 定位） */
+.filer-context-menu { position: fixed; z-index: 9999; display: none; min-width: 180px; padding: 4px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); animation: drop-up 0.12s ease-out; }
+.filer-context-menu-item { padding: 7px 12px; border-radius: 6px; font-size: var(--fs-base); color: var(--text-primary); cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+.filer-context-menu-item:hover { background: var(--bg-hover); }
+
 .file-node-row {
     display: flex;
     align-items: center;
@@ -1595,24 +1600,6 @@ body {
     position: relative;
 }
 .file-node-row:hover { background: var(--bg-hover); }
-.file-node-row:hover::after {
-    content: '双击加入对话';
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    max-width: 88px;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    font-size: var(--fs-xs);
-    line-height: 1.4;
-    pointer-events: none;
-    white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
 /* 缩进由 app-filer.js 按 data-indent 计算为行内 padding-left（16px + 层级 * 16px），
    不再用固定层级选择器枚举，避免超过枚举层数后退化为平层显示 */
 
@@ -1881,24 +1868,6 @@ body {
     position: relative;
 }
 .git-file-item:hover { background: var(--bg-hover); }
-.git-file-item:hover::after {
-    content: '双击加入对话';
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    max-width: 88px;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    font-size: var(--fs-xs);
-    line-height: 1.4;
-    pointer-events: none;
-    white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
 
 .git-status-letter {
     width: 18px;
