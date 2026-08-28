@@ -1,10 +1,8 @@
 package org.noear.solon.codecli.config;
 
 import org.noear.snack4.ONode;
-import org.noear.solon.core.Plugin;
 import org.noear.solon.core.util.DateUtil;
 import org.noear.solon.core.util.IoUtil;
-import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.net.http.HttpUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +39,8 @@ public class AgentFlags {
     public final static String SCOPE_USER = "user"; //作用域：用户（用局）
     public final static String SCOPE_LOCAL = "workspace"; //作用域：本地
     public final static String SCOPE_BUILTIN = "builtin"; //作用域：内置（不落配置文件，不可删除）
+
+    public final static String TRACE_KEY_MAIN = "__main";
 
     public static String getVersion() {
         return "v2026.8.27";
@@ -231,6 +231,8 @@ public class AgentFlags {
     public static final String getHarnessSkins() {
         return getHarnessHome() + "skins/";
     }
+
+
 
 
 }

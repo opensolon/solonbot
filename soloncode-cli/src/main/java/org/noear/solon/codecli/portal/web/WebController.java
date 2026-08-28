@@ -105,10 +105,6 @@ public class WebController {
      */
     private static final LastTraceService LAST_TRACE_SERVICE = new LastTraceService();
     private static final SessionRewindService REWIND_SERVICE = new SessionRewindService();
-    /**
-     * 主代理 trace 在会话上下文中的固定键（与 WebGate / ContinueCommand 一致）
-     */
-    private static final String TRACE_KEY_MAIN = "__main";
 
     private final WorkspaceManager workspaceManager;
 
@@ -948,8 +944,7 @@ public class WebController {
             AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
             boolean running = webGate().isSessionBusy(engine(), sessionId);
 
-            // "__main" 为主代理 trace 在会话上下文中的固定键（与 WebGate/ContinueCommand 一致）
-            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, TRACE_KEY_MAIN, running, lastUserMsg);
+            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, AgentFlags.TRACE_KEY_MAIN, running, lastUserMsg);
             return Result.succeed(data);
         } catch (Throwable e) {
             // 回放属于增强能力，失败即静默降级，不能让它影响会话切换
@@ -1128,7 +1123,7 @@ public class WebController {
         try {
             AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
             SessionRewindService.RewindResult rr = REWIND_SERVICE.rewind(
-                    session, TRACE_KEY_MAIN, anchorRunId, anchorRole, count);
+                    session, AgentFlags.TRACE_KEY_MAIN, anchorRunId, anchorRole, count);
 
             if (rr.isAnchorMissing()) {
                 // 宁可不删，也不能删错条数：前端应改为重载历史

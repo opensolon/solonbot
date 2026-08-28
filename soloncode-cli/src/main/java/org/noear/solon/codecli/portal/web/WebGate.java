@@ -33,6 +33,7 @@ import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.util.CmdUtil;
 import org.noear.solon.codecli.command.WebCommandContext;
+import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
@@ -1018,7 +1019,7 @@ public class WebGate extends SimpleWebSocketListener {
                 /* 被回退的那一轮，其执行过程还留在上下文快照里（__main 的 ReActTrace）。
                  * 不清掉的话，刷新页面时 /messages/last-trace 会把已删掉的思考与工具卡
                  * 原样回放回来 —— 与 /web/chat/rewind 同理。 */
-                session.getContext().remove("__main");
+                session.getContext().remove(AgentFlags.TRACE_KEY_MAIN);
                 session.updateSnapshot();
 
                 emitToClient(wsContext, session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
@@ -1271,7 +1272,7 @@ public class WebGate extends SimpleWebSocketListener {
      *
      * @param sessionId 待中断的会话标识
      */
-    public void interruptSession(WorkspaceContext wsContext,String sessionId) {
+    public void interruptSession(WorkspaceContext wsContext, String sessionId) {
         try {
             AgentSession session = wsContext.getSessionManager().getSession(sessionId);
             Object slot = session.attrs().remove("disposable");
@@ -1298,7 +1299,7 @@ public class WebGate extends SimpleWebSocketListener {
             session.addMessage(ChatMessage.ofAssistant("用户已取消任务."));
         emitToClient(wsContext, sessionId, WebEvent.ofError("用户已取消任务."));
 
-            ReActTrace trace = session.getContext().getAs("__main");
+            ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
             if (trace != null) {
                 Long totalTokens = (trace.getMetrics() != null) ? trace.getMetrics().getTotalTokens() : 0L;
             long elapsedSeconds = 0L;

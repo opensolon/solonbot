@@ -399,9 +399,9 @@ public class LastTraceService {
             addSegment(out, true, thinking);
         }
 
-        String answer = msg.getText();
-        if (Assert.isNotEmpty(answer)) {
-            addSegment(out, false, answer);
+        String text = msg.getText();
+        if (Assert.isNotEmpty(text)) {
+            addSegment(out, false, text);
         }
 
         return out;
