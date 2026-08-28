@@ -1204,5 +1204,12 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
-  "streaming.steerAttachDemote": "Message with attachments was queued instead"
+  "streaming.steerAttachDemote": "Message with attachments was queued instead",
+  "update.bannerText": "New version {version} available (current {current})",
+  "update.viewHow": "How to upgrade",
+  "update.newVersion": "New version {version} available",
+  "update.dialogTitle": "Upgrade to {version}",
+  "update.dialogDesc": "Current version {current}, latest is {version}. Run this command in your terminal to upgrade:",
+  "update.copy": "Copy",
+  "update.copied": "Copied"
 }

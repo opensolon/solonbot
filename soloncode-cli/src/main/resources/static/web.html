@@ -21,6 +21,16 @@
 </head>
 <body data-theme="light" class="app-boot">
 
+<!-- Update banner：有新版本时显示（默认隐藏，由 meta 接口驱动） -->
+<div id="updateBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#f59e0b,#f97316);color:#fff;padding:8px 16px;font-size:13px;display:none;align-items:center;justify-content:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.15);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2L2 22h20L12 2z"/><line x1="12" y1="10" x2="12" y2="15"/><line x1="12" y1="18.5" x2="12.01" y2="18.5"/></svg>
+    <span id="updateBannerText"></span>
+    <a href="javascript:void(0)" id="updateBannerLink" style="color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:2px;"></a>
+    <a href="javascript:void(0)" id="updateBannerClose" title="Close" style="color:#fff;opacity:.85;margin-left:6px;line-height:1;padding:2px 4px;" aria-label="close">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </a>
+</div>
+
 <!-- Sidebar -->
 <div class="sidebar">
     <div class="sidebar-nav">
@@ -2150,6 +2160,27 @@
         }
         var verEl = document.getElementById('appVersionLabel');
         if (verEl && meta.appVersion) verEl.textContent = meta.appVersion;
+        // 更新提示：顶部横幅 + 设置面板版本号红点（关闭仅本次会话记忆）
+        if (meta.updateAvailable && meta.latestVersion) {
+            window._latestVersion = meta.latestVersion;
+            var t_ = function (k, d) { return (window.I18n && typeof window.I18n.t === 'function') ? window.I18n.t(k, d) : null; };
+            // 版本号红点
+            if (verEl) {
+                verEl.style.cursor = 'pointer';
+                verEl.title = t_('update.newVersion', { version: meta.latestVersion }) || ('新版本 ' + meta.latestVersion);
+                if (!document.getElementById('appVersionDot')) {
+                    var dot = document.createElement('span');
+                    dot.id = 'appVersionDot';
+                    dot.textContent = '●';
+                    dot.style.cssText = 'color:#f59e0b;font-size:8px;margin-left:4px;vertical-align:middle;';
+                    verEl.appendChild(dot);
+                }
+                verEl.onclick = function () { showUpdateDialog(meta.latestVersion, meta.appVersion); };
+            }
+            // 顶部横幅
+            var dismissedKey = 'updateBannerDismissed:' + meta.latestVersion;
+            try { if (sessionStorage.getItem(dismissedKey) !== '1') showUpdateBanner(meta.latestVersion, meta.appVersion, dismissedKey); } catch (e) { showUpdateBanner(meta.latestVersion, meta.appVersion, dismissedKey); }
+        }
         if (meta.appTitle) {
             window._cachedAppTitle = meta.appTitle;
             window._renderGreeting = function () {
@@ -2170,7 +2201,68 @@
         }
     }).catch(function () { /* ignore */ });
 
-    // 启动时拉取通用设置，回填控制台打印简化开关（决定流式工具卡默认收起/展开）
+    // ============ 更新提示（横幅 + 升级命令弹层） ============
+    function showUpdateBanner(latest, current, dismissedKey) {
+        var banner = document.getElementById('updateBanner');
+        var textEl = document.getElementById('updateBannerText');
+        var linkEl = document.getElementById('updateBannerLink');
+        var closeEl = document.getElementById('updateBannerClose');
+        if (!banner) return;
+        var t_ = function (k, d) { return (window.I18n && typeof window.I18n.t === 'function') ? window.I18n.t(k, d) : null; };
+        textEl.textContent = t_('update.bannerText', { version: latest, current: current }) || ('发现新版本 ' + latest + '（当前 ' + current + '）');
+        linkEl.textContent = t_('update.viewHow') || '查看升级方式';
+        linkEl.onclick = function () { showUpdateDialog(latest, current); };
+        closeEl.onclick = function () {
+            banner.style.display = 'none';
+            try { sessionStorage.setItem(dismissedKey, '1'); } catch (e) { /* ignore */ }
+        };
+        banner.style.display = 'flex';
+        // 语言切换时刷新文案
+        function refresh() {
+            if (banner.style.display === 'none') return;
+            textEl.textContent = t_('update.bannerText', { version: latest, current: current }) || ('发现新版本 ' + latest + '（当前 ' + current + '）');
+            linkEl.textContent = t_('update.viewHow') || '查看升级方式';
+        }
+        document.addEventListener('i18n:loaded', refresh);
+        document.addEventListener('i18n:switched', refresh);
+    }
+
+    function showUpdateDialog(latest, current) {
+        var t_ = function (k, d) { return (window.I18n && typeof window.I18n.t === 'function') ? window.I18n.t(k, d) : null; };
+        var isWin = navigator.platform && navigator.platform.indexOf('Win') >= 0;
+        var cmd = isWin
+            ? 'irm https://solon.noear.org/soloncode/setup.ps1 | iex'
+            : 'curl -fsSL https://solon.noear.org/soloncode/setup.sh | bash';
+        var html = '<div style="padding:16px;font-size:13px;line-height:1.8;">'
+            + '<div style="margin-bottom:10px;">' + (t_('update.dialogDesc', { version: latest, current: current }) || ('当前版本 ' + current + '，最新版本 ' + latest + '。在终端执行以下命令即可升级：')) + '</div>'
+            + '<div style="display:flex;align-items:center;gap:8px;">'
+            + '<code style="flex:1;background:rgba(127,127,127,.12);padding:8px 10px;border-radius:6px;font-family:monospace;word-break:break-all;">' + cmd + '</code>'
+            + '<button type="button" id="updateCmdCopyBtn" class="layui-btn layui-btn-sm layui-btn-primary" style="white-space:nowrap;">' + (t_('update.copy') || '复制') + '</button>'
+            + '</div></div>';
+        if (window.layer && layer.open) {
+            layer.open({
+                type: 1,
+                title: t_('update.dialogTitle', { version: latest }) || ('升级到 ' + latest),
+                area: ['520px', 'auto'],
+                content: html,
+                success: function () {
+                    var btn = document.getElementById('updateCmdCopyBtn');
+                    if (btn) btn.onclick = function () {
+                        try {
+                            if (navigator.clipboard) { navigator.clipboard.writeText(cmd); }
+                            else {
+                                var ta = document.createElement('textarea');
+                                ta.value = cmd; document.body.appendChild(ta); ta.select();
+                                                               document.execCommand('copy'); document.body.removeChild(ta);
+                            }
+                            layer.msg(t_('update.copied') || '已复制', { icon: 1, time: 1500 });
+                        } catch (e) { /* ignore */ }
+                    };
+                }
+            });
+        }
+    }
+    window._showUpdateDialog = showUpdateDialog;
     fetch('/web/settings/general').then(function (r) { return r.json(); }).then(function (resp) {
         if (resp && resp.code === 200 && resp.data) {
             window.cliPrintSimplified = resp.data.cliPrintSimplified !== false;

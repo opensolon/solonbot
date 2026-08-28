@@ -335,6 +335,11 @@ public class WebController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("appTitle", Solon.cfg().appTitle());
         data.put("appVersion", AgentFlags.getVersion());
+        //更新检查（启动时已异步预热，此处仅读缓存比较）
+        if (AgentFlags.checkUpdate()) {
+            data.put("updateAvailable", true);
+            data.put("latestVersion", AgentFlags.getLastVersion());
+        }
         data.put("workspace", currentEngine.getWorkspace());
         data.put("workname", getLastSegment(currentEngine.getWorkspace()));
         // 是否已配置至少一个可用模型，供前端首帧渲染引导面板，避免界面闪现
