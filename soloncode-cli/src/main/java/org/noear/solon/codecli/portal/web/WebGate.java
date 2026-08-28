@@ -1305,6 +1305,10 @@ public class WebGate extends SimpleWebSocketListener {
                 cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
             }
             session.addMessage(cancelMessage);
+            // 中断时 agent 的 call() 收尾被跳过，这里必须补快照：把当前 trace（含已完成的思考/工具调用）
+            // 与取消消息一起持久化，否则进程重启/会话重载后本轮 trace 会丢失。
+            // 参照 rewind 路径（见上方 /rewind 处理）的做法。
+            session.updateSnapshot();
             emitToClient(wsContext, sessionId, WebEvent.ofError("用户已取消任务."));
 
             if (trace != null) {

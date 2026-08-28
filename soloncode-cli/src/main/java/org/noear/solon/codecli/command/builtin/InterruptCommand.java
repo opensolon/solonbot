@@ -82,6 +82,8 @@ public class InterruptCommand implements Command {
             }
 
             session.addMessage(assistantMessage);
+            // 补快照：中断时 agent 收尾被跳过，需将当前 trace 与取消消息一并持久化，避免重载后 trace 丢失
+            session.updateSnapshot();
             ctx.println("用户已取消任务（或中断）");
         } else {
             ctx.println("当前没有正在执行的任务");
