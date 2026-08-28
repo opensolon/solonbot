@@ -333,7 +333,7 @@
     }
 
     // ---- 目录展开/折叠：列出目录下文件列表 ----
-    function toggleDirExpand(item, dirPath) {
+    function toggleDirExpand(item, dirPath, expandDepth) {
         var subList = item.nextElementSibling;
         if (subList && subList.classList.contains('git-dir-sublist')) {
             // 已展开，折叠
@@ -370,6 +370,7 @@
                 children.forEach(function(child) {
                     var childItem = document.createElement('div');
                     childItem.className = 'git-file-item git-file-item-child' + (child.type === 'directory' ? ' git-file-item-dir' : '');
+                    childItem.setAttribute('data-path', child.path);
 
                     // 子项图标
                     var childIconSpan = document.createElement('span');
@@ -408,10 +409,36 @@
 
                     subListEl.appendChild(childItem);
                 });
+
+                // 借鉴文件树风格：若该层只有一个子节点且为目录，自动穿透展开
+                autoExpandSingleGitDir(subListEl, children, (expandDepth || 0) + 1);
             })
             .catch(function(e) {
                 subListEl.innerHTML = '<div class="git-dir-error" style="padding:6px 12px 6px 40px;color:var(--color-danger);font-size:11px;">' + I18n.t('gitdiff.loadFailed') + ': ' + escapeHtml(e.message) + '</div>';
             });
+    }
+
+    // ---- 自动穿透展开：目录下只有一个子节点且为目录时，继续展开 ----
+    var GIT_AUTO_EXPAND_MAX_DEPTH = 20;
+
+    function autoExpandSingleGitDir(subListEl, children, depth) {
+        if (!subListEl) return;
+        if ((depth || 0) >= GIT_AUTO_EXPAND_MAX_DEPTH) return;
+        if (!children || children.length !== 1) return;
+
+        var only = children[0];
+        if (!only || only.type !== 'directory') return;
+
+        var onlyEl = null;
+        subListEl.querySelectorAll('.git-file-item-dir').forEach(function(el) {
+            if (!onlyEl && el.getAttribute('data-path') === only.path) onlyEl = el;
+        });
+        if (!onlyEl) return;
+        // 已展开则跳过
+        var next = onlyEl.nextElementSibling;
+        if (next && next.classList.contains('git-dir-sublist')) return;
+
+        toggleDirExpand(onlyEl, only.path + '/', depth);
     }
 
     // ---- 同步全选 checkbox 状态 ----
