@@ -30,7 +30,8 @@ import org.noear.soloncode.sdk.streaming.BlockingMessageReceiver;
 import org.noear.soloncode.sdk.streaming.MessageReceiver;
 import org.noear.soloncode.sdk.streaming.MessageStreamIterator;
 import org.noear.soloncode.sdk.streaming.ResponseBoundedReceiver;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.Transport;
+import org.noear.soloncode.sdk.transport.TransportSpec;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.util.SdkCollections;
 import org.noear.soloncode.sdk.types.AssistantMessage;
@@ -73,7 +74,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @see SolonCodeSyncClient
  * @see SolonCodeClient
- * @see StreamingTransport
+ * @see Transport
  */
 public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 
@@ -87,7 +88,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 
 	private final Duration timeout;
 
-	private final String cliPath;
+	private final TransportSpec transportSpec;
 
 	private final HookRegistry hookRegistry;
 
@@ -120,7 +121,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	private volatile ToolPermissionCallback toolPermissionCallback;
 
 	// Transport and streaming
-	private volatile StreamingTransport transport;
+	private volatile Transport transport;
 
 	private volatile MessageStreamIterator messageIterator;
 
@@ -138,15 +139,15 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	 * @param workingDirectory the working directory for SolonCode CLI
 	 * @param options CLI options
 	 * @param timeout default operation timeout
-	 * @param cliPath optional path to SolonCode CLI
+	 * @param transportSpec 通讯通道声明（null 表示默认的本机 stdio 通道）
 	 * @param hookRegistry optional hook registry
 	 */
-	public DefaultSolonCodeSyncClient(Path workingDirectory, CLIOptions options, Duration timeout, String cliPath,
-			HookRegistry hookRegistry) {
+	public DefaultSolonCodeSyncClient(Path workingDirectory, CLIOptions options, Duration timeout,
+			TransportSpec transportSpec, HookRegistry hookRegistry) {
 		this.workingDirectory = workingDirectory;
 		this.options = options != null ? options : CLIOptions.builder().build();
 		this.timeout = timeout != null ? timeout : Duration.ofMinutes(10);
-		this.cliPath = cliPath;
+		this.transportSpec = transportSpec != null ? transportSpec : TransportSpec.stdio();
 		this.hookRegistry = hookRegistry != null ? hookRegistry : new HookRegistry();
 		this.objectMapper = new ObjectMapper();
 		this.mcpMessageHandler = new McpMessageHandler(this.objectMapper);
@@ -286,7 +287,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
 
-		StreamingTransport previous = transport;
+		Transport previous = transport;
 		if (previous != null) {
 			previous.close();
 		}
@@ -294,7 +295,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 		prepareReceivers();
 
 		boolean firstTurn = !turnStarted.getAndSet(true);
-		transport = new StreamingTransport(workingDirectory, timeout, cliPath);
+		transport = transportSpec.create(workingDirectory, timeout);
 		transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
 		transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
 				this::handleControlResponse);

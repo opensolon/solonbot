@@ -212,11 +212,11 @@ class NoPromptConnectRegressionTest {
 	// ---------------------------------------------------------------- helpers
 
 	private SolonCodeSyncClient newSyncClient() {
-		return SolonCodeClient.sync().workingDirectory(tempDir).cliPath(stubCli).timeout(ARRIVAL_TIMEOUT).build();
+		return SolonCodeClient.sync().workingDirectory(tempDir).stdio(stubCli).timeout(ARRIVAL_TIMEOUT).build();
 	}
 
 	private SolonCodeAsyncClient newAsyncClient() {
-		return SolonCodeClient.async().workingDirectory(tempDir).cliPath(stubCli).timeout(ARRIVAL_TIMEOUT).build();
+		return SolonCodeClient.async().workingDirectory(tempDir).stdio(stubCli).timeout(ARRIVAL_TIMEOUT).build();
 	}
 
 	/**

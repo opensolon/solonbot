@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.test.SolonCodeCliTestBase;
 import org.noear.soloncode.sdk.transport.CLIOptions;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.StdioTransport;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.ResultMessage;
 import org.noear.soloncode.sdk.types.SystemMessage;
@@ -74,7 +74,7 @@ class SolonCodeRealCliIT extends SolonCodeCliTestBase {
 		List<Message> received = new CopyOnWriteArrayList<>();
 		CountDownLatch done = new CountDownLatch(1);
 
-		StreamingTransport transport = new StreamingTransport(itWorkDir(), CLI_TIMEOUT, getSolonCodeCliPath());
+		StdioTransport transport = new StdioTransport(itWorkDir(), CLI_TIMEOUT, getSolonCodeCliPath());
 		transport.setTurnSession(sessionId, null);
 		try {
 			transport.startSession("回复两个字：收到", options, parsed -> {
@@ -120,7 +120,7 @@ class SolonCodeRealCliIT extends SolonCodeCliTestBase {
 
 		try (SolonCodeSyncClient client = SolonCodeClient.sync()
 			.workingDirectory(itWorkDir())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.timeout(CLI_TIMEOUT)
 			.bare(true)
 			.maxTurns(1)
@@ -154,7 +154,7 @@ class SolonCodeRealCliIT extends SolonCodeCliTestBase {
 		List<Message> received = new CopyOnWriteArrayList<>();
 		CountDownLatch done = new CountDownLatch(1);
 
-		StreamingTransport transport = new StreamingTransport(itWorkDir(), CLI_TIMEOUT, getSolonCodeCliPath());
+		StdioTransport transport = new StdioTransport(itWorkDir(), CLI_TIMEOUT, getSolonCodeCliPath());
 		try {
 			transport.startSession("--这是提示词而不是选项，请回复 OK", options, parsed -> {
 				if (parsed instanceof ParsedMessage.EndOfStream) {

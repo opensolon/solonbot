@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Integration tests for StreamingTransport following MCP SDK StdioClientTransport
+ * Integration tests for StdioTransport following MCP SDK StdioClientTransport
  * patterns. These tests verify the transport layer behavior independently from
  * higher-level session management.
  *
@@ -65,8 +65,8 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 	/**
 	 * Helper pattern from MCP SDK AbstractMcpSyncClientTests.withClient().
 	 */
-	void withTransport(Consumer<StreamingTransport> consumer) throws Exception {
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+	void withTransport(Consumer<StdioTransport> consumer) throws Exception {
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath());
 		try {
 			consumer.accept(transport);
@@ -83,7 +83,7 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Transport should transition through state machine - MCP SDK pattern")
 	void transportShouldTransitionThroughStateMachine() throws Exception {
 		// Given - track state transitions
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 				getSolonCodeCliPath());
 
 		// Initially disconnected
@@ -224,7 +224,7 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Graceful shutdown should complete sinks and dispose schedulers - MCP SDK pattern")
 	void gracefulShutdownShouldCompleteAndDispose() throws Exception {
 		// Given
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()
@@ -320,17 +320,17 @@ class StdioTransportIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Transport construction should validate arguments - MCP SDK Assert pattern")
 	void transportConstructionShouldValidateArguments() {
 		// MCP SDK pattern: Assert.notNull() in constructor for required arguments
-		assertThatCode(() -> new StreamingTransport(null, Duration.ofMinutes(1), getSolonCodeCliPath()))
+		assertThatCode(() -> new StdioTransport(null, Duration.ofMinutes(1), getSolonCodeCliPath()))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("workingDirectory");
 
-		assertThatCode(() -> new StreamingTransport(workingDirectory(), null, getSolonCodeCliPath()))
+		assertThatCode(() -> new StdioTransport(workingDirectory(), null, getSolonCodeCliPath()))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("defaultTimeout");
 
 		// null cliPath is allowed - auto-discovers via SolonCodeCliDiscovery
 		assertThatCode(() -> {
-			try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+			try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 					null)) {
 				assertThat(transport).isNotNull();
 			}

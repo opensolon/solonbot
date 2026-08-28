@@ -90,7 +90,7 @@ class CLIFlagParityIT extends SolonCodeCliTestBase {
 
 	/**
 	 * Options the SDK accepts for claude compatibility but drops with a warning, because
-	 * soloncode has no such flag. Kept in sync with CLIOptions/StreamingTransport.
+	 * soloncode has no such flag. Kept in sync with CLIOptions/StdioTransport.
 	 */
 	private static final Set<String> SDK_IGNORED_OPTIONS = SdkCollections.set("system-prompt", "append-system-prompt",
 			"agents", "mcp-config", "settings", "setting-sources", "fork-session", "include-partial-messages",
@@ -217,7 +217,7 @@ class CLIFlagParityIT extends SolonCodeCliTestBase {
 
 		assertThat(nowSupported)
 			.as("The CLI now supports options the SDK still drops with a warning; "
-					+ "wire them through in CLIOptions/StreamingTransport: " + nowSupported)
+					+ "wire them through in CLIOptions/StdioTransport: " + nowSupported)
 			.isEmpty();
 	}
 

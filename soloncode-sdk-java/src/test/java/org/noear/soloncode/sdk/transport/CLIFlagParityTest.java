@@ -62,8 +62,8 @@ class CLIFlagParityTest {
 	/**
 	 * Creates a transport for testing command building.
 	 */
-	private StreamingTransport createTransport() {
-		return new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+	private StdioTransport createTransport() {
+		return new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 	}
 
 	// ============================================================
@@ -77,7 +77,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--output-format stream-json is always present")
 		void outputFormatStreamJson() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> cmd = transport.buildStreamingCommand(CLIOptions.builder().build());
 				assertThat(cmd).containsSubsequence("--output-format", "stream-json");
 			}
@@ -86,7 +86,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--input-format is NOT used by soloncode run")
 		void inputFormatStreamJson() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> cmd = transport.buildStreamingCommand(CLIOptions.builder().build());
 				// soloncode run reads plain-text prompt from stdin; no --input-format flag
 				assertThat(cmd).contains("run");
@@ -97,7 +97,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--verbose is always present")
 		void verboseAlwaysPresent() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> cmd = transport.buildStreamingCommand(CLIOptions.builder().build());
 				assertThat(cmd).contains("--verbose");
 			}
@@ -116,7 +116,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--model flag with model ID")
 		void modelFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().model("sonnet").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--model", "sonnet");
@@ -126,7 +126,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--system-prompt is ignored by soloncode run")
 		void systemPromptFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().systemPrompt("You are a helpful assistant").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--system-prompt");
@@ -136,7 +136,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--append-system-prompt is ignored by soloncode run")
 		void appendSystemPromptFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().appendSystemPrompt("Always be concise.").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--append-system-prompt");
@@ -146,7 +146,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--fallback-model flag")
 		void fallbackModelFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().fallbackModel("haiku").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--fallback-model", "haiku");
@@ -166,7 +166,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--allowedTools flag with comma-separated list")
 		void allowedToolsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().allowedTools(SdkCollections.list("Bash", "Read", "Write")).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--allowedTools", "Bash,Read,Write");
@@ -176,7 +176,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--disallowedTools flag with comma-separated list")
 		void disallowedToolsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().disallowedTools(SdkCollections.list("WebFetch", "WebSearch")).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--disallowedTools", "WebFetch,WebSearch");
@@ -186,7 +186,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--tools is ignored by soloncode run; use allowedTools instead")
 		void toolsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().tools(SdkCollections.list("Read", "Edit")).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--tools");
@@ -196,7 +196,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--tools with empty list is also ignored")
 		void toolsFlagEmpty() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().tools(SdkCollections.list()).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--tools");
@@ -216,7 +216,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--permission-mode bypassPermissions")
 		void permissionModeBypass() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.BYPASS_PERMISSIONS).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--permission-mode", "bypassPermissions");
@@ -226,7 +226,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--dangerously-skip-permissions maps to --permission-mode bypassPermissions")
 		void dangerouslySkipPermissions() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder()
 					.permissionMode(PermissionMode.DANGEROUSLY_SKIP_PERMISSIONS)
 					.build();
@@ -240,7 +240,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--permission-mode dontAsk (DONT_ASK)")
 		void permissionModeDontAsk() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.DONT_ASK).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--permission-mode", "dontAsk");
@@ -250,7 +250,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--permission-mode plan (PLAN)")
 		void permissionModePlan() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.PLAN).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--permission-mode", "plan");
@@ -260,7 +260,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--permission-prompt-tool is ignored by soloncode run")
 		void permissionPromptToolFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().permissionPromptToolName("stdio").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--permission-prompt-tool");
@@ -280,7 +280,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--continue flag for continuing most recent session")
 		void continueFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().continueConversation(true).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).contains("--continue");
@@ -290,7 +290,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--resume flag with session ID")
 		void resumeFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().resume("session-abc123").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--resume", "session-abc123");
@@ -300,7 +300,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--resume flag not present when null")
 		void resumeFlagNotPresentWhenNull() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--resume");
@@ -310,7 +310,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--continue flag not present when false")
 		void continueFlagNotPresentWhenFalse() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().continueConversation(false).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--continue");
@@ -330,7 +330,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--max-turns flag")
 		void maxTurnsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().maxTurns(10).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--max-turns", "10");
@@ -340,7 +340,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--max-budget-usd flag")
 		void maxBudgetUsdFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().maxBudgetUsd(0.50).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--max-budget-usd", "0.5");
@@ -360,7 +360,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--max-thinking-tokens is ignored by soloncode run")
 		void maxThinkingTokensFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().maxThinkingTokens(10000).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--max-thinking-tokens");
@@ -380,7 +380,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--json-schema flag with schema JSON")
 		void jsonSchemaFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				Map<String, Object> schema = new HashMap<>();
 				schema.put("type", "object");
 				schema.put("properties",
@@ -412,7 +412,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--agents is ignored by soloncode run")
 		void agentsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				String agentsJson = "{ \"researcher\": { \"description\": \"Research agent\", \"tools\": [\"WebSearch\"], \"prompt\": \"You are a researcher\" } } ";
 				CLIOptions options = CLIOptions.builder().agents(agentsJson).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
@@ -423,7 +423,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--agents flag not present when empty")
 		void agentsFlagNotPresentWhenEmpty() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().agents("").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--agents");
@@ -443,7 +443,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--mcp-config is ignored by soloncode run")
 		void mcpConfigStdioServer() throws Exception {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				McpServerConfig.McpStdioServerConfig stdioServer = new McpServerConfig.McpStdioServerConfig("npx",
 						SdkCollections.list("-y", "@modelcontextprotocol/server-filesystem"), null);
 				CLIOptions options = CLIOptions.builder().mcpServers(SdkCollections.map("filesystem", stdioServer)).build();
@@ -466,7 +466,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--settings is ignored by soloncode run")
 		void settingsFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().settings("/etc/soloncode/settings.json").build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--settings");
@@ -476,7 +476,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--setting-sources is ignored by soloncode run")
 		void settingSourcesFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().settingSources(SdkCollections.list("project", "user")).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--setting-sources");
@@ -486,7 +486,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--add-dir flag (repeated for each directory)")
 		void addDirFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder()
 					.addDirs(SdkCollections.list(Paths.get("/workspace/libs"), Paths.get("/workspace/docs")))
 					.build();
@@ -518,7 +518,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--plugin-dir is ignored by soloncode run")
 		void pluginDirFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder()
 					.plugins(SdkCollections.list(PluginConfig.local("/opt/plugins/custom")))
 					.build();
@@ -540,7 +540,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("Extra args with value")
 		void extraArgsWithValue() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().extraArgs(SdkCollections.map("custom-flag", "custom-value")).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).containsSubsequence("--custom-flag", "custom-value");
@@ -550,7 +550,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("Extra args as boolean flag (null value)")
 		void extraArgsBooleanFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				Map<String, String> extraArgs = new HashMap<>();
 				extraArgs.put("debug-to-stderr", null);
 				CLIOptions options = CLIOptions.builder().extraArgs(extraArgs).build();
@@ -572,7 +572,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--include-partial-messages is ignored by soloncode run")
 		void includePartialMessagesFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().includePartialMessages(true).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--include-partial-messages");
@@ -582,7 +582,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--include-partial-messages flag not present when disabled")
 		void includePartialMessagesFlagNotPresent() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().includePartialMessages(false).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--include-partial-messages");
@@ -592,7 +592,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--fork-session is ignored by soloncode run")
 		void forkSessionFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().forkSession(true).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--fork-session");
@@ -602,7 +602,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--fork-session flag not present when disabled")
 		void forkSessionFlagNotPresent() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				CLIOptions options = CLIOptions.builder().forkSession(false).build();
 				List<String> cmd = transport.buildStreamingCommand(options);
 				assertThat(cmd).doesNotContain("--fork-session");
@@ -622,7 +622,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("All major flags work together")
 		void allMajorFlagsTogether() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				Map<String, Object> schema = SdkCollections.map("type", "object", "properties",
 						SdkCollections.map("result", SdkCollections.map("type", "string")));
 
@@ -675,7 +675,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--bare flag is absent by default and present when enabled")
 		void bareFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> defaultCmd = transport.buildStreamingCommand(CLIOptions.builder().build());
 				assertThat(defaultCmd).doesNotContain("--bare");
 
@@ -687,7 +687,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--session-id flag is passed with value when set")
 		void sessionIdFlag() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> defaultCmd = transport.buildStreamingCommand(CLIOptions.builder().build());
 				assertThat(defaultCmd).doesNotContain("--session-id");
 
@@ -700,7 +700,7 @@ class CLIFlagParityTest {
 		@Test
 		@DisplayName("--session-id is not added for blank values")
 		void sessionIdBlankIgnored() {
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> cmd = transport.buildStreamingCommand(CLIOptions.builder().sessionId("   ").build());
 				assertThat(cmd).doesNotContain("--session-id");
 			}
@@ -718,7 +718,7 @@ class CLIFlagParityTest {
 			assertThat(cliOptions.isBare()).isTrue();
 			assertThat(cliOptions.getSessionId()).isEqualTo("q-session-1");
 
-			try (StreamingTransport transport = createTransport()) {
+			try (StdioTransport transport = createTransport()) {
 				List<String> cmd = transport.buildStreamingCommand(cliOptions);
 				assertThat(cmd).contains("--bare");
 				assertThat(cmd).containsSubsequence("--session-id", "q-session-1");

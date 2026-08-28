@@ -26,7 +26,8 @@ import org.noear.soloncode.sdk.hooks.HookRegistry;
 import org.noear.soloncode.sdk.mcp.McpMessageHandler;
 import org.noear.soloncode.sdk.mcp.McpServerConfig;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.Transport;
+import org.noear.soloncode.sdk.transport.TransportSpec;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.util.SdkCollections;
 import org.noear.soloncode.sdk.types.AssistantMessage;
@@ -75,7 +76,7 @@ import java.util.function.Consumer;
  *
  * @see SolonCodeAsyncClient
  * @see SolonCodeClient
- * @see StreamingTransport
+ * @see Transport
  */
 public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
@@ -89,7 +90,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 	private final Duration timeout;
 
-	private final String cliPath;
+	private final TransportSpec transportSpec;
 
 	private final HookRegistry hookRegistry;
 
@@ -122,7 +123,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	private volatile ToolPermissionCallback toolPermissionCallback;
 
 	// Transport (set once during connect, read afterward)
-	private final AtomicReference<StreamingTransport> transportRef = new AtomicReference<>();
+	private final AtomicReference<Transport> transportRef = new AtomicReference<>();
 
 	/**
 	 * Per-turn unicast sink for streaming messages to the current receiveResponse()
@@ -176,15 +177,15 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	 * @param workingDirectory the working directory for SolonCode CLI
 	 * @param options CLI options
 	 * @param timeout default operation timeout
-	 * @param cliPath optional path to SolonCode CLI
+	 * @param transportSpec 通讯通道声明（null 表示默认的本机 stdio 通道）
 	 * @param hookRegistry optional hook registry
 	 */
-	public DefaultSolonCodeAsyncClient(Path workingDirectory, CLIOptions options, Duration timeout, String cliPath,
-			HookRegistry hookRegistry) {
+	public DefaultSolonCodeAsyncClient(Path workingDirectory, CLIOptions options, Duration timeout,
+			TransportSpec transportSpec, HookRegistry hookRegistry) {
 		this.workingDirectory = workingDirectory;
 		this.options = options != null ? options : CLIOptions.builder().build();
 		this.timeout = timeout != null ? timeout : Duration.ofMinutes(10);
-		this.cliPath = cliPath;
+		this.transportSpec = transportSpec != null ? transportSpec : TransportSpec.stdio();
 		this.hookRegistry = hookRegistry != null ? hookRegistry : new HookRegistry();
 		this.objectMapper = new ObjectMapper();
 		this.mcpMessageHandler = new McpMessageHandler(this.objectMapper);
@@ -334,13 +335,13 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
 
-		StreamingTransport previous = transportRef.getAndSet(null);
+		Transport previous = transportRef.getAndSet(null);
 		if (previous != null) {
 			previous.close();
 		}
 
 		boolean firstTurn = !turnStarted.getAndSet(true);
-		StreamingTransport transport = new StreamingTransport(workingDirectory, timeout, cliPath);
+		Transport transport = transportSpec.create(workingDirectory, timeout);
 		transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
 		transportRef.set(transport);
 		transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
@@ -495,7 +496,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 	@Override
 	public boolean isConnected() {
-		StreamingTransport transport = transportRef.get();
+		Transport transport = transportRef.get();
 		return connected.get() && !closed.get() && transport != null && transport.isRunning();
 	}
 
@@ -834,7 +835,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	}
 
 	private void cleanup() {
-		StreamingTransport transport = transportRef.getAndSet(null);
+		Transport transport = transportRef.getAndSet(null);
 		if (transport != null) {
 			try {
 				transport.close();

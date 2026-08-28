@@ -22,6 +22,7 @@ import org.noear.solon.codecli.portal.desktop.WsGate;
 import org.noear.solon.codecli.portal.web.WebChannel;
 import org.noear.solon.codecli.portal.web.WebController;
 import org.noear.solon.codecli.portal.web.MemoryController;
+import org.noear.solon.codecli.portal.web.run.RunController;
 import org.noear.solon.codecli.portal.web.WebSettingsController;
 import org.noear.solon.codecli.portal.web.WebGate;
 import org.noear.solon.codecli.auth.*;
@@ -241,6 +242,9 @@ public class Configurator {
         addWebBean(new LspSettingsController(workspaceManager));
 
         addWebBean(new MemoryController(agentRuntime));
+        
+        // /web/run：soloncode run 的 HTTP/SSE 远程执行入口（Bearer token 鉴权，子进程隔离执行）
+        addWebBean(new RunController(workspaceManager));
         
         addWebBean(new UserLoginController(userStore, userSessionManager, userAuthConfig));
         addWebBean(new UserAuthController(userStore, userSessionManager, userAuthConfig, agentSettings));

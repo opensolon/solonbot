@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.test.SolonCodeCliTestBase;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.StdioTransport;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.ResultMessage;
 import org.noear.soloncode.sdk.types.control.ControlRequest;
@@ -70,7 +70,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 	 * Tests that PreToolUse hooks are called when registered.
 	 */
 	@Test
-	@DisplayName("PreToolUse hook is invoked via StreamingTransport")
+	@DisplayName("PreToolUse hook is invoked via StdioTransport")
 	void preToolUseHookInvoked() throws Exception {
 		// Given - track hook invocations
 		List<String> hookInvocations = new CopyOnWriteArrayList<>();
@@ -87,7 +87,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			return HookOutput.allow();
 		});
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			// Start session with hook handling via control request handler
@@ -153,7 +153,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			return HookOutput.allow();
 		});
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession(null, options, message -> {
@@ -208,7 +208,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			return HookOutput.block("Bash commands are blocked by policy");
 		});
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession(null, options, message -> {
@@ -285,7 +285,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession("Say hello in exactly 3 words", options, message -> {

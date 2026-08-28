@@ -4,6 +4,7 @@
 
 * 新增 soloncode-sdk-java
 * 添加 soloncode help 命令与 `--help`/`-h` 选项（支持 `soloncode help run` 与 `soloncode run --help` 查看无头模式选项）
+* 添加 soloncode-sdk-java 传输层抽象：`Transport` 接口 + `StdioTransport` 实现（原 StreamingTransport），builder 的 `cliPath()` 改为 `stdio()`/`stdio(path)`（SDK 未发布，直接替换不留过渡）；预留 `http()` 通道，配套 `/web/run` 方案见 `soloncode-cli/docs/run-headless-mode-http.md`
 
 ### v2026.8.28
 

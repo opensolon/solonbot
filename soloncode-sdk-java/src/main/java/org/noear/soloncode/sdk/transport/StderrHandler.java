@@ -47,7 +47,7 @@ import org.slf4j.Logger;
  * </pre>
  *
  * @see CLIOptions
- * @see StreamingTransport
+ * @see StdioTransport
  */
 @FunctionalInterface
 public interface StderrHandler {

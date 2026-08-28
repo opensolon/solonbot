@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Timeout;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.exceptions.TransportException;
 import org.noear.soloncode.sdk.test.SolonCodeCliTestBase;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.StdioTransport;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.ResultMessage;
 import org.noear.soloncode.sdk.types.control.ControlResponse;
@@ -63,7 +63,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 
 		// When/Then - should throw meaningful exception
 		assertThatThrownBy(() -> {
-			try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+			try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 					invalidPath.toString())) {
 
 				CLIOptions options = CLIOptions.builder()
@@ -90,7 +90,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 		AtomicBoolean sessionStarted = new AtomicBoolean(false);
 		AtomicReference<Throwable> capturedError = new AtomicReference<>();
 
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 				getSolonCodeCliPath());
 
 		try {
@@ -131,7 +131,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 		AtomicBoolean errorOccurred = new AtomicBoolean(false);
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession("What is 1 + 1?", options, message -> {
@@ -160,7 +160,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 		AtomicBoolean firstCall = new AtomicBoolean(true);
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession("Say hello", options, message -> {
@@ -192,7 +192,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 			.build();
 
 		// Transport with short timeout
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), shortTimeout,
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), shortTimeout,
 				getSolonCodeCliPath())) {
 
 			CountDownLatch latch = new CountDownLatch(1);
@@ -216,7 +216,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Should clean up resources on exception - MCP SDK cleanup pattern")
 	void shouldCleanUpResourcesOnException() throws Exception {
 		// Given
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()
@@ -246,7 +246,7 @@ class ErrorScenarioIntegrationIT extends SolonCodeCliTestBase {
 	@DisplayName("Should handle multiple close calls gracefully - MCP SDK idempotent close")
 	void shouldHandleMultipleCloseCallsGracefully() throws Exception {
 		// Given
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(1),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(1),
 				getSolonCodeCliPath());
 
 		CLIOptions options = CLIOptions.builder()

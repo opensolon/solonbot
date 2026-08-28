@@ -20,6 +20,7 @@ import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.hooks.HookRegistry;
 import org.noear.soloncode.sdk.mcp.McpServerConfig;
 import org.noear.soloncode.sdk.transport.CLIOptions;
+import org.noear.soloncode.sdk.transport.TransportSpec;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -144,7 +145,7 @@ public interface SolonCodeClient {
 	 * <li>{@link #workingDirectory(Path)} - Directory where SolonCode CLI operates
 	 * (required)</li>
 	 * <li>{@link #timeout(Duration)} - Operation timeout (default: 10 minutes)</li>
-	 * <li>{@link #cliPath(String)} - Custom path to SolonCode CLI executable</li>
+	 * <li>{@link #stdio(String)} - 通讯通道：本机子进程（默认），可指定 CLI 可执行文件路径</li>
 	 * <li>{@link #hookRegistry(HookRegistry)} - Hook registry for intercepting tool
 	 * calls</li>
 	 * </ul>
@@ -201,7 +202,7 @@ public interface SolonCodeClient {
 
 		private Duration timeout = Duration.ofMinutes(10);
 
-		private String cliPath;
+		private TransportSpec transportSpec = TransportSpec.stdio();
 
 		private HookRegistry hookRegistry;
 
@@ -266,12 +267,23 @@ public interface SolonCodeClient {
 		}
 
 		/**
-		 * Sets a custom path to the SolonCode CLI executable.
-		 * @param cliPath path to the SolonCode CLI, or null to use system PATH
+		 * 使用本机 stdio 通道：拉起 {@code soloncode run} 子进程，CLI 可执行文件自动发现。
+		 *
+		 * <p>这是默认通道，显式调用仅用于表达意图。</p>
 		 * @return this builder instance for method chaining
 		 */
-		public SyncSpec cliPath(String cliPath) {
-			this.cliPath = cliPath;
+		public SyncSpec stdio() {
+			this.transportSpec = TransportSpec.stdio();
+			return this;
+		}
+
+		/**
+		 * 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。
+		 * @param cliPath soloncode 可执行文件路径；传 null 表示自动发现
+		 * @return this builder instance for method chaining
+		 */
+		public SyncSpec stdio(String cliPath) {
+			this.transportSpec = TransportSpec.stdio(cliPath);
 			return this;
 		}
 
@@ -479,7 +491,7 @@ public interface SolonCodeClient {
 				.fallbackModel(fallbackModel)
 				.build();
 
-			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, cliPath, hookRegistry);
+			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
 	}
@@ -506,7 +518,7 @@ public interface SolonCodeClient {
 	 * <li>{@link #workingDirectory(Path)} - Directory where SolonCode CLI operates
 	 * (required)</li>
 	 * <li>{@link #timeout(Duration)} - Operation timeout (default: 10 minutes)</li>
-	 * <li>{@link #cliPath(String)} - Custom path to SolonCode CLI executable</li>
+	 * <li>{@link #stdio(String)} - 通讯通道：本机子进程（默认），可指定 CLI 可执行文件路径</li>
 	 * <li>{@link #hookRegistry(HookRegistry)} - Hook registry for intercepting tool
 	 * calls</li>
 	 * </ul>
@@ -544,7 +556,7 @@ public interface SolonCodeClient {
 
 		private Duration timeout = Duration.ofMinutes(10);
 
-		private String cliPath;
+		private TransportSpec transportSpec = TransportSpec.stdio();
 
 		private HookRegistry hookRegistry;
 
@@ -573,12 +585,21 @@ public interface SolonCodeClient {
 		}
 
 		/**
-		 * Sets a custom path to the SolonCode CLI executable.
-		 * @param cliPath path to the SolonCode CLI, or null to use system PATH
+		 * 使用本机 stdio 通道：拉起 {@code soloncode run} 子进程，CLI 可执行文件自动发现。
 		 * @return this builder instance for method chaining
 		 */
-		public SyncSpecWithOptions cliPath(String cliPath) {
-			this.cliPath = cliPath;
+		public SyncSpecWithOptions stdio() {
+			this.transportSpec = TransportSpec.stdio();
+			return this;
+		}
+
+		/**
+		 * 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。
+		 * @param cliPath soloncode 可执行文件路径；传 null 表示自动发现
+		 * @return this builder instance for method chaining
+		 */
+		public SyncSpecWithOptions stdio(String cliPath) {
+			this.transportSpec = TransportSpec.stdio(cliPath);
 			return this;
 		}
 
@@ -601,7 +622,7 @@ public interface SolonCodeClient {
 			if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
-			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, cliPath, hookRegistry);
+			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
 	}
@@ -685,7 +706,7 @@ public interface SolonCodeClient {
 
 		private Duration timeout = Duration.ofMinutes(10);
 
-		private String cliPath;
+		private TransportSpec transportSpec = TransportSpec.stdio();
 
 		private HookRegistry hookRegistry;
 
@@ -738,8 +759,15 @@ public interface SolonCodeClient {
 			return this;
 		}
 
-		public AsyncSpec cliPath(String cliPath) {
-			this.cliPath = cliPath;
+		/** 使用本机 stdio 通道（默认）：拉起 {@code soloncode run} 子进程。 */
+		public AsyncSpec stdio() {
+			this.transportSpec = TransportSpec.stdio();
+			return this;
+		}
+
+		/** 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。 */
+		public AsyncSpec stdio(String cliPath) {
+			this.transportSpec = TransportSpec.stdio(cliPath);
 			return this;
 		}
 
@@ -859,7 +887,7 @@ public interface SolonCodeClient {
 				.fallbackModel(fallbackModel)
 				.build();
 
-			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, cliPath, hookRegistry);
+			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
 	}
@@ -895,7 +923,7 @@ public interface SolonCodeClient {
 
 		private Duration timeout = Duration.ofMinutes(10);
 
-		private String cliPath;
+		private TransportSpec transportSpec = TransportSpec.stdio();
 
 		private HookRegistry hookRegistry;
 
@@ -913,8 +941,15 @@ public interface SolonCodeClient {
 			return this;
 		}
 
-		public AsyncSpecWithOptions cliPath(String cliPath) {
-			this.cliPath = cliPath;
+		/** 使用本机 stdio 通道（默认）：拉起 {@code soloncode run} 子进程。 */
+		public AsyncSpecWithOptions stdio() {
+			this.transportSpec = TransportSpec.stdio();
+			return this;
+		}
+
+		/** 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。 */
+		public AsyncSpecWithOptions stdio(String cliPath) {
+			this.transportSpec = TransportSpec.stdio(cliPath);
 			return this;
 		}
 
@@ -932,7 +967,7 @@ public interface SolonCodeClient {
 			if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
-			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, cliPath, hookRegistry);
+			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
 	}

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.test.SolonCodeCliTestBase;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.StdioTransport;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.ResultMessage;
@@ -74,7 +74,7 @@ class McpIntegrationIT extends SolonCodeCliTestBase {
 		AtomicReference<String> resultText = new AtomicReference<>();
 
 		// When - Start a session with MCP config (simple query, no MCP tool usage)
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			transport.startSession("What is 2+2? Answer with just the number.", options, message -> {

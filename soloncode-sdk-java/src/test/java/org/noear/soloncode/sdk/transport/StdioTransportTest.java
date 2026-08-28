@@ -34,7 +34,7 @@ import org.noear.soloncode.sdk.util.SdkCollections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for StreamingTransport command building and configuration. Note: Full integration
+ * Tests for StdioTransport command building and configuration. Note: Full integration
  * tests with actual CLI are in the integration test suite.
  *
  * <p>
@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * matches the CLI behavior where --input-format stream-json mode expects input via stdin.
  * </p>
  */
-class StreamingTransportTest {
+class StdioTransportTest {
 
 	@TempDir
 	Path tempDir;
@@ -56,7 +56,7 @@ class StreamingTransportTest {
 		@DisplayName("Should build command with required bidirectional flags")
 		void buildCommandWithBidirectionalFlags() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.model("sonnet")
 				.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
@@ -80,7 +80,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include model when specified")
 		void buildCommandWithModel() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().model("opus").build();
 
 			// When
@@ -96,7 +96,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include system prompt when specified")
 		void buildCommandWithSystemPrompt() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().systemPrompt("You are a helpful assistant").build();
 
 			// When
@@ -111,7 +111,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include allowed tools when specified")
 		void buildCommandWithAllowedTools() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().allowedTools(SdkCollections.list("Bash", "Read", "Write")).build();
 
 			// When
@@ -127,7 +127,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include disallowed tools when specified")
 		void buildCommandWithDisallowedTools() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().disallowedTools(SdkCollections.list("WebFetch")).build();
 
 			// When
@@ -143,7 +143,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include permission mode")
 		void buildCommandWithPermissionMode() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().permissionMode(PermissionMode.BYPASS_PERMISSIONS).build();
 
 			// When
@@ -159,7 +159,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include prompt as command-line argument in bidirectional mode")
 		void shouldNotIncludePromptAsArgument() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().build();
 
 			// When
@@ -177,7 +177,7 @@ class StreamingTransportTest {
 		@DisplayName("Should handle empty options gracefully")
 		void buildCommandWithEmptyOptions() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().build();
 
 			// When
@@ -196,7 +196,7 @@ class StreamingTransportTest {
 		@DisplayName("Should build complete command with all options")
 		void buildCompleteCommand() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.model("sonnet")
 				.systemPrompt("Be helpful")
@@ -231,7 +231,7 @@ class StreamingTransportTest {
 		@Test
 		@DisplayName("Should report not running initially")
 		void notRunningInitially() {
-			StreamingTransport transport = new StreamingTransport(tempDir);
+			StdioTransport transport = new StdioTransport(tempDir);
 
 			assertThat(transport.isRunning()).isFalse();
 
@@ -241,7 +241,7 @@ class StreamingTransportTest {
 		@Test
 		@DisplayName("Should close cleanly when not started")
 		void closeWhenNotStarted() {
-			StreamingTransport transport = new StreamingTransport(tempDir);
+			StdioTransport transport = new StdioTransport(tempDir);
 
 			// Should not throw
 			transport.close();
@@ -253,7 +253,7 @@ class StreamingTransportTest {
 		@DisplayName("Should support custom timeout")
 		void customTimeout() {
 			Duration customTimeout = Duration.ofMinutes(30);
-			StreamingTransport transport = new StreamingTransport(tempDir, customTimeout);
+			StdioTransport transport = new StdioTransport(tempDir, customTimeout);
 
 			// Just verify construction succeeded
 			assertThat(transport).isNotNull();
@@ -264,7 +264,7 @@ class StreamingTransportTest {
 		@Test
 		@DisplayName("Should support custom CLI path")
 		void customSolonCodePath() {
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5),
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5),
 					"/custom/path/soloncode");
 
 			List<String> command = transport.buildStreamingCommand(CLIOptions.builder().build());
@@ -284,7 +284,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include max-turns when specified")
 		void buildCommandWithMaxTurns() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().maxTurns(10).build();
 
 			// When
@@ -300,7 +300,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include max-budget-usd when specified")
 		void buildCommandWithMaxBudgetUsd() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().maxBudgetUsd(0.50).build();
 
 			// When
@@ -316,7 +316,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include fallback-model when specified")
 		void buildCommandWithFallbackModel() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().fallbackModel("haiku").build();
 
 			// When
@@ -332,7 +332,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include append-system-prompt when specified via builder")
 		void buildCommandWithAppendSystemPrompt() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().appendSystemPrompt("Be concise and focused.").build();
 
 			// When
@@ -349,7 +349,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include all budget control options together")
 		void buildCommandWithAllBudgetOptions() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.model("sonnet")
 				.maxTurns(5)
@@ -379,7 +379,7 @@ class StreamingTransportTest {
 		@DisplayName("Command should enable full bidirectional communication")
 		void commandEnablesBidirectionalMode() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.defaultOptions();
 
 			// When
@@ -403,7 +403,7 @@ class StreamingTransportTest {
 			// In bidirectional mode (--input-format stream-json), the CLI waits for
 			// input via stdin. Using --print with a command-line prompt would conflict
 			// with this mode. Instead, the prompt is sent as a JSON user message.
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 
 			List<String> command = transport.buildStreamingCommand(CLIOptions.builder().build());
 
@@ -416,7 +416,7 @@ class StreamingTransportTest {
 		@Test
 		@DisplayName("Should always include --verbose for control protocol")
 		void alwaysIncludesVerbose() {
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 
 			List<String> command = transport.buildStreamingCommand(CLIOptions.builder().build());
 
@@ -436,7 +436,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include --continue flag when continueConversation is true")
 		void buildCommandWithContinueConversation() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().continueConversation(true).build();
 
 			// When
@@ -452,7 +452,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include --continue flag when continueConversation is false")
 		void buildCommandWithoutContinueWhenFalse() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().continueConversation(false).build();
 
 			// When
@@ -468,7 +468,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include --resume flag with session ID")
 		void buildCommandWithResume() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().resume("session-abc123").build();
 
 			// When
@@ -486,7 +486,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include --resume flag when resume is null")
 		void buildCommandWithoutResumeWhenNull() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().resume(null).build();
 
 			// When
@@ -502,7 +502,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include --resume flag when resume is empty string")
 		void buildCommandWithoutResumeWhenEmpty() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().resume("").build();
 
 			// When
@@ -518,7 +518,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include --resume flag when resume is blank")
 		void buildCommandWithoutResumeWhenBlank() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().resume("   ").build();
 
 			// When
@@ -551,7 +551,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include agents JSON for multi-agent coordination")
 		void buildCommandWithAgents() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			String agentsJson = "{\"researcher\":{\"description\":\"Research agent\",\"tools\":[\"WebSearch\"],\"prompt\":\"You are a researcher\",\"model\":\"haiku\"}}";
 			CLIOptions options = CLIOptions.builder().agents(agentsJson).build();
 
@@ -568,7 +568,7 @@ class StreamingTransportTest {
 		@DisplayName("Should NOT include agents flag when agents is null or empty")
 		void buildCommandWithoutAgentsWhenEmpty() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().agents("").build();
 
 			// When
@@ -584,7 +584,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include add-dir flags for each directory")
 		void buildCommandWithAddDirs() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.addDirs(SdkCollections.list(Paths.get("/workspace/libs"), Paths.get("/workspace/docs")))
 				.build();
@@ -610,7 +610,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include settings flag when specified")
 		void buildCommandWithSettings() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().settings("/etc/soloncode/settings.json").build();
 
 			// When
@@ -626,7 +626,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include permission-prompt-tool-name when specified")
 		void buildCommandWithPermissionPromptToolName() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().permissionPromptToolName("custom-tool").build();
 
 			// When
@@ -642,7 +642,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include plugin-dir flags for each plugin")
 		void buildCommandWithPlugins() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.plugins(SdkCollections.list(PluginConfig.local("/opt/plugins/custom"), PluginConfig.local("/home/user/plugins")))
 				.build();
@@ -660,7 +660,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include extra args with values")
 		void buildCommandWithExtraArgsWithValue() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder().extraArgs(SdkCollections.map("custom-flag", "custom-value")).build();
 
 			// When
@@ -678,7 +678,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include extra args as boolean flags when value is null")
 		void buildCommandWithExtraArgsBooleanFlag() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			// Use HashMap to allow null values
 			Map<String, String> extraArgs = new java.util.HashMap<>();
 			extraArgs.put("debug-to-stderr", null);
@@ -718,7 +718,7 @@ class StreamingTransportTest {
 		@DisplayName("Should include all advanced options together")
 		void buildCommandWithAllAdvancedOptions() {
 			// Given
-			StreamingTransport transport = new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
+			StdioTransport transport = new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/bin/soloncode");
 			CLIOptions options = CLIOptions.builder()
 				.model("sonnet")
 				.addDirs(SdkCollections.list(Paths.get("/workspace")))

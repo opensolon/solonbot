@@ -49,8 +49,8 @@ class SolonCodeCliSemanticsTest {
 	@TempDir
 	Path tempDir;
 
-	private StreamingTransport transport() {
-		return new StreamingTransport(tempDir, Duration.ofMinutes(5), "/usr/local/bin/soloncode");
+	private StdioTransport transport() {
+		return new StdioTransport(tempDir, Duration.ofMinutes(5), "/usr/local/bin/soloncode");
 	}
 
 	@Nested
@@ -91,14 +91,14 @@ class SolonCodeCliSemanticsTest {
 		void argvHostilePromptsGoThroughStdin() {
 			// Solon argx 会把含 '=' 的词解析成 key=value、把 '-' 开头的词解析成选项，
 			// 两种情况下 CLI 都取不到提示词并以退出码 3 结束。
-			assertThat(StreamingTransport.needsStdinPrompt("x=1 是什么")).isTrue();
-			assertThat(StreamingTransport.needsStdinPrompt("--help 是什么")).isTrue();
-			assertThat(StreamingTransport.needsStdinPrompt("-verbose")).isTrue();
+			assertThat(StdioTransport.needsStdinPrompt("x=1 是什么")).isTrue();
+			assertThat(StdioTransport.needsStdinPrompt("--help 是什么")).isTrue();
+			assertThat(StdioTransport.needsStdinPrompt("-verbose")).isTrue();
 
 			// 普通提示词（含空格/中文/多行）作为单个 argv 参数是安全的
-			assertThat(StreamingTransport.needsStdinPrompt("请总结构建失败原因")).isFalse();
-			assertThat(StreamingTransport.needsStdinPrompt("line1\nline2")).isFalse();
-			assertThat(StreamingTransport.needsStdinPrompt(null)).isFalse();
+			assertThat(StdioTransport.needsStdinPrompt("请总结构建失败原因")).isFalse();
+			assertThat(StdioTransport.needsStdinPrompt("line1\nline2")).isFalse();
+			assertThat(StdioTransport.needsStdinPrompt(null)).isFalse();
 		}
 
 		@Test
@@ -106,12 +106,12 @@ class SolonCodeCliSemanticsTest {
 		void resumeReplacesSessionIdOnLaterTurns() {
 			CLIOptions options = CLIOptions.builder().build();
 
-			StreamingTransport first = transport();
+			StdioTransport first = transport();
 			first.setTurnSession("sdk-abc123", null);
 			List<String> firstTurn = first.buildStreamingCommand(options, "第一轮");
 			assertThat(firstTurn).contains("--session-id", "sdk-abc123").doesNotContain("--resume");
 
-			StreamingTransport second = transport();
+			StdioTransport second = transport();
 			second.setTurnSession("sdk-abc123", "sdk-abc123");
 			List<String> secondTurn = second.buildStreamingCommand(options, "第二轮");
 			assertThat(secondTurn).contains("--resume", "sdk-abc123").doesNotContain("--session-id");

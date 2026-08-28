@@ -78,7 +78,7 @@ class SolonCodeSyncClientIT extends SolonCodeCliTestBase {
 	private SolonCodeClient.SyncSpec baseClient() {
 		return SolonCodeClient.sync()
 			.workingDirectory(workingDirectory())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.bare(true)
 			.maxTurns(1)
@@ -172,7 +172,7 @@ class SolonCodeSyncClientIT extends SolonCodeCliTestBase {
 	@DisplayName("systemPrompt 被 soloncode 忽略：仅告警，本轮仍正常完成")
 	void shouldIgnoreSystemPromptAndStillComplete() {
 		// soloncode run 没有 --system-prompt / --append-system-prompt：
-		// StreamingTransport 只打印告警并丢弃该配置（见 buildStreamingCommand）。
+		// StdioTransport 只打印告警并丢弃该配置（见 buildStreamingCommand）。
 		// 因此这里断言的是「配置被忽略但会话仍正常完成」，而不是人格化后的措辞。
 		// 将来 CLI 若支持 --system-prompt，可恢复对系统提示词生效的断言。
 		try (SolonCodeSyncClient client = baseClient().systemPrompt("You are a pirate. Always respond like a pirate.")
@@ -226,7 +226,7 @@ class SolonCodeSyncClientIT extends SolonCodeCliTestBase {
 
 		try (SolonCodeSyncClient client = SolonCodeClient.sync(options)
 			.workingDirectory(workingDirectory())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.timeout(CLI_TIMEOUT)
 			.build()) {
 

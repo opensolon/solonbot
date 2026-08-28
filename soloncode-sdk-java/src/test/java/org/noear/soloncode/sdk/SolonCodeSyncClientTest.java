@@ -75,7 +75,7 @@ class SolonCodeSyncClientTest {
 			SolonCodeSyncClient client = SolonCodeClient.sync()
 				.workingDirectory(workingDirectory)
 				.timeout(Duration.ofMinutes(5))
-				.cliPath("/usr/bin/soloncode")
+				.stdio("/usr/bin/soloncode")
 				.hookRegistry(registry)
 				.model("sonnet")
 				.systemPrompt("You are a helpful assistant")
@@ -143,7 +143,7 @@ class SolonCodeSyncClientTest {
 			SolonCodeSyncClient client = SolonCodeClient.sync(options)
 				.workingDirectory(workingDirectory)
 				.timeout(Duration.ofMinutes(5))
-				.cliPath("/usr/bin/soloncode")
+				.stdio("/usr/bin/soloncode")
 				.hookRegistry(registry)
 				.build();
 
@@ -173,7 +173,7 @@ class SolonCodeSyncClientTest {
 			// These methods should exist (session-level)
 			assertThat(spec.workingDirectory(workingDirectory)).isSameAs(spec);
 			assertThat(spec.timeout(Duration.ofMinutes(5))).isSameAs(spec);
-			assertThat(spec.cliPath("/usr/bin/soloncode")).isSameAs(spec);
+			assertThat(spec.stdio("/usr/bin/soloncode")).isSameAs(spec);
 			assertThat(spec.hookRegistry(new HookRegistry())).isSameAs(spec);
 
 			// Note: model(), systemPrompt(), etc. don't exist on SyncSpecWithOptions

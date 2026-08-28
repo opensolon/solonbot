@@ -40,14 +40,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for StreamingTransport with real SolonCode CLI.
+ * Integration tests for StdioTransport with real SolonCode CLI.
  *
  * <p>
  * These tests verify the bidirectional communication protocol works correctly with the
  * actual SolonCode CLI executable.
  * </p>
  */
-class StreamingTransportIT extends SolonCodeCliTestBase {
+class StdioTransportIT extends SolonCodeCliTestBase {
 
 	@Test
 	@DisplayName("Should start session and receive messages")
@@ -61,7 +61,7 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 		CountDownLatch resultLatch = new CountDownLatch(1);
 		AtomicReference<Throwable> error = new AtomicReference<>();
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			// When
@@ -112,7 +112,7 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 		List<ControlRequest> controlRequests = new ArrayList<>();
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			// When
@@ -147,7 +147,7 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 		CountDownLatch startedLatch = new CountDownLatch(1);
 		CountDownLatch resultLatch = new CountDownLatch(1);
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			// Initially not running
@@ -186,7 +186,7 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 
 		AtomicBoolean messageReceived = new AtomicBoolean(false);
 
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath())) {
 
 			// When - start a long-running task
@@ -214,7 +214,7 @@ class StreamingTransportIT extends SolonCodeCliTestBase {
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.build();
 
-		StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(2),
+		StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(2),
 				getSolonCodeCliPath());
 
 		// When - start and immediately close

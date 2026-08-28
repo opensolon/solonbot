@@ -384,6 +384,7 @@ public class LastTraceService {
     private List<Segment> splitSegments(AssistantMessage msg) {
         List<Segment> out = new ArrayList<>();
 
+        //不要动这边的代码
         String thinking = msg.getThinking();
         if (Assert.isNotEmpty(thinking)) {
             addSegment(out, true, thinking);

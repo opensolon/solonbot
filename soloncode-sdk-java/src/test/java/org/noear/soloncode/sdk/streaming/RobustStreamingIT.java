@@ -73,7 +73,7 @@ class RobustStreamingIT extends SolonCodeCliTestBase {
 
 		// soloncode 的调用形态：stream-json 必须配 --verbose。提示词含 '.' 时不能作为 argv
 		// 位置参数（旧版 Solon syncArgsToSys 会对含点的 key 取 null 值而 NPE），改走 stdin，
-		// 与 SDK StreamingTransport.needsStdinPrompt() 的生产路径保持一致。
+		// 与 SDK StdioTransport.needsStdinPrompt() 的生产路径保持一致。
 		// --bare + 一次性临时 cwd：避免 CLI 注入仓库工作区上下文（提示词膨胀、MCP 冷启动），
 		// 否则本用例会逼近 CLI_TIMEOUT_SECONDS。
 		ProcessResult result = new ProcessExecutor()

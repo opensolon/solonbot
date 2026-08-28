@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.test.SolonCodeCliTestBase;
-import org.noear.soloncode.sdk.transport.StreamingTransport;
+import org.noear.soloncode.sdk.transport.StdioTransport;
 import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.transport.ToolPermissionCallback;
 import org.noear.soloncode.sdk.types.Message;
@@ -69,7 +69,7 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 	 * Helper for running tests with transport.
 	 */
 	private void withTransport(CLIOptions options, TransportConsumer consumer) throws Exception {
-		try (StreamingTransport transport = new StreamingTransport(workingDirectory(), Duration.ofMinutes(3),
+		try (StdioTransport transport = new StdioTransport(workingDirectory(), Duration.ofMinutes(3),
 				getSolonCodeCliPath())) {
 			consumer.accept(transport, options);
 		}
@@ -78,7 +78,7 @@ class PermissionIntegrationIT extends SolonCodeCliTestBase {
 	@FunctionalInterface
 	interface TransportConsumer {
 
-		void accept(StreamingTransport transport, CLIOptions options) throws Exception;
+		void accept(StdioTransport transport, CLIOptions options) throws Exception;
 
 	}
 

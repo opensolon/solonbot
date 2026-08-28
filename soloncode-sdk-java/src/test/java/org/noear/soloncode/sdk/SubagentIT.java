@@ -68,7 +68,7 @@ class SubagentIT extends SolonCodeCliTestBase {
 
 		try (SolonCodeSyncClient client = SolonCodeClient.sync(options)
 			.workingDirectory(workingDirectory())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.timeout(Duration.ofMinutes(3))
 			.build()) {
 
@@ -114,7 +114,7 @@ class SubagentIT extends SolonCodeCliTestBase {
 
 		try (SolonCodeSyncClient client = SolonCodeClient.sync(options)
 			.workingDirectory(workingDirectory())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.timeout(Duration.ofMinutes(2))
 			.build()) {
 

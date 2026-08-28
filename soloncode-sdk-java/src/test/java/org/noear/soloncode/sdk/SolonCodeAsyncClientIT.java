@@ -90,7 +90,7 @@ class SolonCodeAsyncClientIT extends SolonCodeCliTestBase {
 		// 不确定性。bare(true)/maxTurns(1) 让冷启动更快、更可复现。
 		return SolonCodeClient.async()
 			.workingDirectory(workingDirectory())
-			.cliPath(getSolonCodeCliPath())
+			.stdio(getSolonCodeCliPath())
 			.permissionMode(PermissionMode.BYPASS_PERMISSIONS)
 			.bare(true)
 			.maxTurns(1)
@@ -201,7 +201,7 @@ class SolonCodeAsyncClientIT extends SolonCodeCliTestBase {
 	@Test
 	@DisplayName("systemPrompt 被 soloncode 忽略：仅告警，本轮仍正常完成")
 	void shouldIgnoreSystemPromptAndStillComplete() {
-		// soloncode run 没有 --system-prompt：StreamingTransport 只打印告警并丢弃该配置。
+		// soloncode run 没有 --system-prompt：StdioTransport 只打印告警并丢弃该配置。
 		// 因此断言「配置被忽略但会话仍正常完成」，而不是人格化后的措辞。
 		// 将来 CLI 若支持 --system-prompt，可恢复对系统提示词生效的断言。
 		SolonCodeAsyncClient client = newClientSpec().systemPrompt("You are a pirate. Always respond like a pirate.")

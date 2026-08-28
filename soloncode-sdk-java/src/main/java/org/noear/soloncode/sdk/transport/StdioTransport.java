@@ -57,8 +57,13 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * Streaming transport for SolonCode CLI communication. Manages the subprocess lifecycle and
- * handles JSON message streaming via stdin/stdout.
+ * Streaming transport for SolonCode CLI communication over stdio. Manages the subprocess
+ * lifecycle and handles JSON message streaming via stdin/stdout.
+ *
+ * <p>
+ * {@link Transport} 的默认实现：在本机拉起 {@code soloncode run} 子进程，提示词经 argv
+ * 或 stdin 管道投递，stream-json 事件流从 stdout 逐行读回。
+ * </p>
  *
  * <p>
  * Key features:
@@ -74,32 +79,15 @@ import java.util.stream.Collectors;
  * <li>Iterator-based API for non-reactive consumers</li>
  * </ul>
  *
+ * @see Transport
+ * @see TransportSpec
  * @see ControlMessageParser
  * @see ControlRequest
  * @see ControlResponse
  */
-public class StreamingTransport implements AutoCloseable {
+public class StdioTransport implements Transport {
 
-	private static final Logger logger = LoggerFactory.getLogger(StreamingTransport.class);
-
-	// ============================================================
-	// State Machine Constants
-	// ============================================================
-
-	/** Transport is created but not connected */
-	public static final int STATE_DISCONNECTED = 0;
-
-	/** Connection in progress */
-	public static final int STATE_CONNECTING = 1;
-
-	/** Connected and ready for communication */
-	public static final int STATE_CONNECTED = 2;
-
-	/** Graceful shutdown in progress */
-	public static final int STATE_CLOSING = 3;
-
-	/** Fully closed */
-	public static final int STATE_CLOSED = 4;
+	private static final Logger logger = LoggerFactory.getLogger(StdioTransport.class);
 
 	// ============================================================
 	// Configuration
@@ -205,22 +193,22 @@ public class StreamingTransport implements AutoCloseable {
 	// Constructors
 	// ============================================================
 
-	public StreamingTransport(Path workingDirectory) {
+	public StdioTransport(Path workingDirectory) {
 		this(workingDirectory, Duration.ofMinutes(10), null);
 	}
 
-	public StreamingTransport(Path workingDirectory, Duration defaultTimeout) {
+	public StdioTransport(Path workingDirectory, Duration defaultTimeout) {
 		this(workingDirectory, defaultTimeout, null);
 	}
 
 	/**
-	 * Creates a StreamingTransport for SolonCode CLI communication.
+	 * Creates a StdioTransport for SolonCode CLI communication.
 	 * @param workingDirectory the working directory for the CLI
 	 * @param defaultTimeout default timeout for operations
 	 * @param cliPath optional path to SolonCode CLI executable (auto-discovers if null)
 	 * @throws IllegalArgumentException if workingDirectory or defaultTimeout is null
 	 */
-	public StreamingTransport(Path workingDirectory, Duration defaultTimeout, String cliPath) {
+	public StdioTransport(Path workingDirectory, Duration defaultTimeout, String cliPath) {
 		// MCP SDK pattern: strict validation for required arguments
 		if (workingDirectory == null) {
 			throw new IllegalArgumentException("workingDirectory must not be null");
@@ -1144,7 +1132,7 @@ public class StreamingTransport implements AutoCloseable {
 	 * </p>
 	 *
 	 * <pre>{@code
-	 * try (StreamingTransport transport = new StreamingTransport(...)) {
+	 * try (StdioTransport transport = new StdioTransport(...)) {
 	 *     transport.startSession(...);
 	 *     for (ParsedMessage message : transport.messageIterable()) {
 	 *         handleMessage(message);
@@ -1302,7 +1290,7 @@ public class StreamingTransport implements AutoCloseable {
 			errorScheduler.dispose();
 
 			state.set(STATE_CLOSED);
-			logger.debug("StreamingTransport closed gracefully");
+			logger.debug("StdioTransport closed gracefully");
 		})).subscribeOn(Schedulers.boundedElastic());
 	}
 
@@ -1352,7 +1340,7 @@ public class StreamingTransport implements AutoCloseable {
 		errorScheduler.dispose();
 
 		state.set(STATE_CLOSED);
-		logger.debug("StreamingTransport closed");
+		logger.debug("StdioTransport closed");
 	}
 
 	/**
@@ -1423,25 +1411,6 @@ public class StreamingTransport implements AutoCloseable {
 				logger.debug("Error closing stream", e);
 			}
 		}
-	}
-
-	// ============================================================
-	// Functional Interface
-	// ============================================================
-
-	/**
-	 * Functional interface for handling control requests.
-	 */
-	@FunctionalInterface
-	public interface ControlRequestHandler {
-
-		/**
-		 * Handles a control request and returns a response.
-		 * @param request the control request from CLI
-		 * @return the response to send back
-		 */
-		ControlResponse handle(ControlRequest request);
-
 	}
 
 	// ============================================================
