@@ -3106,7 +3106,8 @@ pre:hover .code-copy-btn { opacity: 1; }
 .todo-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-height: 0; /* 允许收缩，避免长列表把底部“任务排队”顶出视口 */
 }
 
 .todo-header {
