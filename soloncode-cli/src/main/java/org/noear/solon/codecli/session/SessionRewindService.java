@@ -148,7 +148,9 @@ public class SessionRewindService {
 
         // 3. 被删范围覆盖到的轨迹一并清掉，否则刷新后「最后一轮执行过程」会把已删的思考与工具卡长回来
         if (Assert.isNotEmpty(traceKey)) {
-            clearTraceIfCovered(session, traceKey, collectRunIds(origin, 0, result.effectiveAnchor));
+            clearTraceIfCovered(session, traceKey,
+                    collectRunIds(origin, 0, result.effectiveAnchor),
+                    collectRunIds(origin, result.effectiveAnchor, size));
         }
 
         session.updateSnapshot();
@@ -243,13 +245,15 @@ public class SessionRewindService {
     /**
      * 轨迹只在「仍属于保留下来的某一轮」时才留着，否则清除。
      *
-     * <p>判据取<b>保留侧</b>而非删除侧，是为了兜住 runId 认不出的情形：{@code getRunId()} 在字段为
-     * {@code null} 时会懒生成一个新 uuid（老快照反序列化后就是这样），拿它去比对删除侧必然不命中，
-     * 于是残留一份指向已删消息的可回放过程。改判「保留侧是否还有这个 runId」，未知 runId 一律清掉。</p>
+     * <p>判据必须同时看<b>保留侧与删除侧</b>：同一轮的用户消息与最终回答共享 runId，只删 AI 回复
+     * （anchorRole=assistant）时，保留侧仍会出现该 runId，若只查保留侧会把指向已删回复的 trace 留下，
+     * 刷新后回放便以 tool 消息结尾（最终回答已删）。故 runId 命中删除侧即清，两边都不命中（未知 runId，
+     * 如老快照懒生成的 uuid）也一律清掉，避免残留无法回放的过程。</p>
      *
      * <p>只动 traceKey 一项，不碰上下文里其它数据（HITL 决策、循环任务状态）。</p>
      */
-    private void clearTraceIfCovered(AgentSession session, String traceKey, Set<String> keptRunIds) {
+    private void clearTraceIfCovered(AgentSession session, String traceKey,
+                                     Set<String> keptRunIds, Set<String> removedRunIds) {
         try {
             if (session.getContext() == null) {
                 return;
@@ -261,7 +265,9 @@ public class SessionRewindService {
             // 快照反序列化后类型可能退化：认不出就清掉（它已无法回放，留着只会残留）
             if (obj instanceof ReActTrace) {
                 String traceRunId = ((ReActTrace) obj).getRunId();
-                if (traceRunId != null && keptRunIds.contains(traceRunId)) {
+                if (traceRunId != null
+                        && keptRunIds.contains(traceRunId)
+                        && !removedRunIds.contains(traceRunId)) {
                     // 属于未被删除的那一轮：留着它，回放仍然有效
                     return;
                 }
