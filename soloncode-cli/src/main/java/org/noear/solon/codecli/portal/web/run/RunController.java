@@ -263,9 +263,19 @@ public class RunController {
                                             RunSessionRegistry.RunHandle handle) throws Exception {
         List<String> command = new ArrayList<>();
         command.add(javaBin());
-        command.add("-cp");
-        command.add(System.getProperty("java.class.path"));
-        command.add("org.noear.solon.codecli.App");
+        // fat jar 部署（BOOT-INF/classes）下 -cp 找不到主类，须走 -jar；
+        // classpath 为单 jar 即 fat jar 形态（IDE/脚本展开运行时是目录列表，-cp 正常）
+        String classpath = System.getProperty("java.class.path");
+        boolean fatJar = !classpath.contains(java.io.File.pathSeparator)
+                && classpath.endsWith(".jar");
+        if (fatJar) {
+            command.add("-jar");
+            command.add(classpath);
+        } else {
+            command.add("-cp");
+            command.add(classpath);
+            command.add("org.noear.solon.codecli.App");
+        }
         command.add("run");
         command.add(req.prompt);
         command.addAll(req.argv);

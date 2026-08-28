@@ -29,19 +29,23 @@ import java.time.Duration;
  * <pre>{@code
  * TransportSpec.stdio()                              // 默认：本机子进程，自动发现 CLI
  * TransportSpec.stdio("/usr/local/bin/soloncode")    // 本机子进程，指定可执行文件
+ * TransportSpec.http("http://127.0.0.1:18080/web/run", token, "my-project")
  * }</pre>
  *
  * <p>客户端每轮执行都会调用 {@link #create(Path, Duration)} 新建一个传输实例——
  * {@code soloncode run} 是一次性语义，传输实例不可复用。</p>
  *
- * <h2>HTTP 通道（规划中）</h2>
- * <p>服务端 {@code /web/run} 端点落地后，这里会增加 {@code http(String url)} 工厂，
- * 返回携带 URL 与凭证的 spec。届时 {@link #create(Path, Duration)} 的
- * {@code workingDirectory} 语义会变化（工作目录在服务端，客户端传的是工作区标识），
- * 详见 {@code soloncode-cli/docs/run-headless-mode-http.md}。</p>
+ * <h2>HTTP 通道</h2>
+ * <p>把同一组选项投递到服务端的 {@code /web/run} 端点（{@code soloncode web} 启动），
+ * 以 SSE 接收与 CLI stream-json 同构的事件流，解析层复用。详见
+ * {@code soloncode-cli/docs/run-headless-mode-http.md}。</p>
+ *
+ * <p>HTTP 通道下 {@code workingDirectory} 无意义（工作目录在服务端，由 workspace 标识
+ * 决定），客户端 builder 层用 {@code workspace()} 替代并做互斥校验。</p>
  *
  * @see Transport
  * @see StdioTransport
+ * @see HttpTransport
  */
 public abstract class TransportSpec {
 
@@ -67,6 +71,31 @@ public abstract class TransportSpec {
 	}
 
 	/**
+	 * HTTP 通道：投递到服务端 {@code /web/run} 端点（SSE 接收同构事件流）。
+	 *
+	 * <p>工作目录在服务端：{@code workingDirectory} 参数被忽略，实际执行环境由
+	 * {@code workspace} 标识（{@code /web/workspace/list} 返回的 name/id）决定。</p>
+	 *
+	 * @param url {@code /web/run} 完整 URL，如 {@code http://127.0.0.1:18080/web/run}
+	 * @param token Bearer token（服务端 {@code ~/.soloncode/run.token}）；null 表示不带鉴权头
+	 * @param workspace 服务端工作区标识；null 表示服务端默认工作区
+	 * @return http 通道声明
+	 */
+	public static TransportSpec http(String url, String token, String workspace) {
+		return new HttpSpec(url, token, workspace);
+	}
+
+	/**
+	 * HTTP 通道（无 token、服务端默认工作区）。
+	 * @param url {@code /web/run} 完整 URL
+	 * @return http 通道声明
+	 * @see #http(String, String, String)
+	 */
+	public static TransportSpec http(String url) {
+		return new HttpSpec(url, null, null);
+	}
+
+	/**
 	 * 创建一个传输实例，承载一轮执行。
 	 * @param workingDirectory 工作目录
 	 * @param timeout 默认超时
@@ -80,9 +109,80 @@ public abstract class TransportSpec {
 	 */
 	public abstract String describe();
 
+	/**
+	 * 是否为 HTTP 通道（builder 层据此做 workspace/workingDirectory 互斥校验）。
+	 */
+	public boolean isHttp() {
+		return false;
+	}
+
+	/**
+	 * 补全 HTTP 通道的 token 与 workspace（未传 null 的项沿用现值）；非 http 通道抛
+	 * {@link IllegalStateException}。builder 层链式调用 {@code http(url)} 后再
+	 * {@code authToken(...)} / {@code workspace(...)} 的落地入口。
+	 */
+	public TransportSpec withHttpCredentials(String token, String workspace) {
+		throw new IllegalStateException("not an http transport spec: " + describe());
+	}
+
 	@Override
 	public String toString() {
 		return describe();
+	}
+
+	/**
+	 * HTTP 通道：POST /web/run，SSE 接收事件流。
+	 */
+	static final class HttpSpec extends TransportSpec {
+
+		private final String url;
+
+		private final String token;
+
+		private final String workspace;
+
+		HttpSpec(String url, String token, String workspace) {
+			if (url == null || url.trim().isEmpty()) {
+				throw new IllegalArgumentException("url must not be null or empty");
+			}
+			this.url = url.trim();
+			this.token = (token != null && !token.trim().isEmpty()) ? token.trim() : null;
+			this.workspace = (workspace != null && !workspace.trim().isEmpty()) ? workspace.trim() : null;
+		}
+
+		String url() {
+			return url;
+		}
+
+		String token() {
+			return token;
+		}
+
+		String workspace() {
+			return workspace;
+		}
+
+		@Override
+		public boolean isHttp() {
+			return true;
+		}
+
+		@Override
+		public TransportSpec withHttpCredentials(String token, String workspace) {
+			return new HttpSpec(url, token != null ? token : this.token, workspace != null ? workspace : this.workspace);
+		}
+
+		@Override
+		public Transport create(Path workingDirectory, Duration timeout) {
+			// workingDirectory 在 HTTP 通道下无意义（服务端由 workspace 标识决定），忽略
+			return new HttpTransport(url, token, workspace, timeout);
+		}
+
+		@Override
+		public String describe() {
+			return "http(" + url + ")";
+		}
+
 	}
 
 	/**

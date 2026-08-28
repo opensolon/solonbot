@@ -375,7 +375,14 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	@Override
 	public void interrupt() throws SolonCodeSDKException {
 		ensureConnected();
-		sendControlRequest(SdkCollections.map("subtype", "interrupt"));
+		// 通道委派：stdio → kill 进程；http → POST /web/run/interrupt。
+		// 不再写 control_request：one-shot 执行模型的 stdin 已关闭，写了也没人读。
+		if (transport != null) {
+			transport.interrupt();
+		}
+		else {
+			sendControlRequest(SdkCollections.map("subtype", "interrupt"));
+		}
 	}
 
 	@Override

@@ -204,6 +204,12 @@ public interface SolonCodeClient {
 
 		private TransportSpec transportSpec = TransportSpec.stdio();
 
+		/** http 通道的 Bearer token（仅 http 通道使用） */
+		private String authToken;
+
+		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
+		private String httpWorkspace;
+
 		private HookRegistry hookRegistry;
 
 		// CLIOptions fields
@@ -284,6 +290,41 @@ public interface SolonCodeClient {
 		 */
 		public SyncSpec stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/**
+		 * 使用 HTTP 通道：投递到服务端 {@code /web/run} 端点（SSE 接收同构事件流）。
+		 *
+		 * <p>HTTP 通道下工作目录在服务端：改用 {@link #workspace(String)} 指定工作区标识，
+		 * {@link #workingDirectory(Path)} 会被拒绝；token 用 {@link #authToken(String)}。</p>
+		 *
+		 * @param url {@code /web/run} 完整 URL，如 {@code http://127.0.0.1:18080/web/run}
+		 * @return this builder instance for method chaining
+		 */
+		public SyncSpec http(String url) {
+			this.transportSpec = TransportSpec.http(url);
+			return this;
+		}
+
+		/**
+		 * HTTP 通道的 Bearer token（服务端 {@code ~/.soloncode/run.token}）。
+		 * @param token Bearer token
+		 * @return this builder instance for method chaining
+		 */
+		public SyncSpec authToken(String token) {
+			this.authToken = token;
+			return this;
+		}
+
+		/**
+		 * HTTP 通道的服务端工作区标识（{@code /web/workspace/list} 返回的 name/id），
+		 * 替代 stdio 通道的 workingDirectory。
+		 * @param workspace 工作区标识
+		 * @return this builder instance for method chaining
+		 */
+		public SyncSpec workspace(String workspace) {
+			this.httpWorkspace = workspace;
 			return this;
 		}
 
@@ -468,7 +509,17 @@ public interface SolonCodeClient {
 		 * @throws IllegalArgumentException if workingDirectory is not set
 		 */
 		public SolonCodeSyncClient build() {
-			if (workingDirectory == null) {
+			if (transportSpec.isHttp()) {
+				// http 通道：workspace 标识替代 workingDirectory，互斥校验在 builder 层
+				if (workingDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+				}
+			}
+			else if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
 
@@ -558,6 +609,12 @@ public interface SolonCodeClient {
 
 		private TransportSpec transportSpec = TransportSpec.stdio();
 
+		/** http 通道的 Bearer token（仅 http 通道使用） */
+		private String authToken;
+
+		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
+		private String httpWorkspace;
+
 		private HookRegistry hookRegistry;
 
 		SyncSpecWithOptions(CLIOptions options) {
@@ -603,6 +660,24 @@ public interface SolonCodeClient {
 			return this;
 		}
 
+		/** 使用 HTTP 通道：投递到服务端 {@code /web/run} 端点（详见 {@link SyncSpec#http(String)}）。 */
+		public SyncSpecWithOptions http(String url) {
+			this.transportSpec = TransportSpec.http(url);
+			return this;
+		}
+
+		/** HTTP 通道的 Bearer token。 */
+		public SyncSpecWithOptions authToken(String token) {
+			this.authToken = token;
+			return this;
+		}
+
+		/** HTTP 通道的服务端工作区标识，替代 workingDirectory。 */
+		public SyncSpecWithOptions workspace(String workspace) {
+			this.httpWorkspace = workspace;
+			return this;
+		}
+
 		/**
 		 * Sets the hook registry for intercepting tool execution.
 		 * @param hookRegistry the hook registry
@@ -619,7 +694,16 @@ public interface SolonCodeClient {
 		 * @throws IllegalArgumentException if workingDirectory is not set
 		 */
 		public SolonCodeSyncClient build() {
-			if (workingDirectory == null) {
+			if (transportSpec.isHttp()) {
+				if (workingDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+				}
+			}
+			else if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
 			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
@@ -708,6 +792,12 @@ public interface SolonCodeClient {
 
 		private TransportSpec transportSpec = TransportSpec.stdio();
 
+		/** http 通道的 Bearer token（仅 http 通道使用） */
+		private String authToken;
+
+		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
+		private String httpWorkspace;
+
 		private HookRegistry hookRegistry;
 
 		// CLIOptions fields
@@ -768,6 +858,24 @@ public interface SolonCodeClient {
 		/** 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。 */
 		public AsyncSpec stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/** 使用 HTTP 通道：投递到服务端 {@code /web/run} 端点（详见 {@link SyncSpec#http(String)}）。 */
+		public AsyncSpec http(String url) {
+			this.transportSpec = TransportSpec.http(url);
+			return this;
+		}
+
+		/** HTTP 通道的 Bearer token。 */
+		public AsyncSpec authToken(String token) {
+			this.authToken = token;
+			return this;
+		}
+
+		/** HTTP 通道的服务端工作区标识，替代 workingDirectory。 */
+		public AsyncSpec workspace(String workspace) {
+			this.httpWorkspace = workspace;
 			return this;
 		}
 
@@ -865,7 +973,16 @@ public interface SolonCodeClient {
 		 * @throws IllegalArgumentException if workingDirectory is not set
 		 */
 		public SolonCodeAsyncClient build() {
-			if (workingDirectory == null) {
+			if (transportSpec.isHttp()) {
+				if (workingDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+				}
+			}
+			else if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
 
@@ -925,6 +1042,12 @@ public interface SolonCodeClient {
 
 		private TransportSpec transportSpec = TransportSpec.stdio();
 
+		/** http 通道的 Bearer token（仅 http 通道使用） */
+		private String authToken;
+
+		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
+		private String httpWorkspace;
+
 		private HookRegistry hookRegistry;
 
 		AsyncSpecWithOptions(CLIOptions options) {
@@ -953,6 +1076,24 @@ public interface SolonCodeClient {
 			return this;
 		}
 
+		/** 使用 HTTP 通道：投递到服务端 {@code /web/run} 端点（详见 {@link SyncSpec#http(String)}）。 */
+		public AsyncSpecWithOptions http(String url) {
+			this.transportSpec = TransportSpec.http(url);
+			return this;
+		}
+
+		/** HTTP 通道的 Bearer token。 */
+		public AsyncSpecWithOptions authToken(String token) {
+			this.authToken = token;
+			return this;
+		}
+
+		/** HTTP 通道的服务端工作区标识，替代 workingDirectory。 */
+		public AsyncSpecWithOptions workspace(String workspace) {
+			this.httpWorkspace = workspace;
+			return this;
+		}
+
 		public AsyncSpecWithOptions hookRegistry(HookRegistry hookRegistry) {
 			this.hookRegistry = hookRegistry;
 			return this;
@@ -964,7 +1105,16 @@ public interface SolonCodeClient {
 		 * @throws IllegalArgumentException if workingDirectory is not set
 		 */
 		public SolonCodeAsyncClient build() {
-			if (workingDirectory == null) {
+			if (transportSpec.isHttp()) {
+				if (workingDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+				}
+			}
+			else if (workingDirectory == null) {
 				throw new IllegalArgumentException("workingDirectory is required");
 			}
 			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);

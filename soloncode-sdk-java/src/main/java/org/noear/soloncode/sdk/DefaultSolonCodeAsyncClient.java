@@ -430,7 +430,15 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 				return;
 			}
 			try {
-				sendControlRequest(SdkCollections.map("subtype", "interrupt"));
+				// 通道委派：stdio → kill 进程；http → POST /web/run/interrupt。
+				// 不再写 control_request：one-shot 执行模型的 stdin 已关闭，写了也没人读。
+				Transport transport = transportRef.get();
+				if (transport != null) {
+					transport.interrupt();
+				}
+				else {
+					sendControlRequest(SdkCollections.map("subtype", "interrupt"));
+				}
 				sink.success();
 			}
 			catch (Exception e) {

@@ -80,6 +80,12 @@ public class MessageParser {
 		else if ("result".equals(type)) {
 			return parseResultMessage(node);
 		}
+		else if ("error".equals(type)) {
+			// run-headless-mode-http.md：/web/run 在异常退出且流中无 result 事件时补发
+			// error 事件（HTTP 通道下它是服务端故障的唯一通知）；CLI stream-json 同样可能
+			// 出现顶层 error 事件。按 SystemMessage(subtype="error") 投递，向前兼容。
+			return parseErrorMessage(node);
+		}
 		else {
 			logger.error(
 					"Unrecognized message type '{}' — skipping. "
@@ -140,6 +146,16 @@ public class MessageParser {
 		data.remove("subtype");
 
 		return SystemMessage.of(subtype, data);
+	}
+
+	/**
+	 * 顶层 error 事件：{"type":"error","message":...[,"code":...]}，无 subtype 字段。
+	 * 以 SystemMessage(subtype="error") 投递，message/code 进 data。
+	 */
+	private SystemMessage parseErrorMessage(JsonNode node) {
+		Map<String, Object> data = parseDataMap(node);
+		data.remove("type");
+		return SystemMessage.of("error", data);
 	}
 
 	private ResultMessage parseResultMessage(JsonNode node) throws MessageParseException {
