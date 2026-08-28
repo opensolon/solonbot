@@ -1,6 +1,13 @@
 
+
+### v2026.8.29
+
+* 新增 soloncode-sdk-java
+* 添加 soloncode help 命令与 `--help`/`-h` 选项（支持 `soloncode help run` 与 `soloncode run --help` 查看无头模式选项）
+
 ### v2026.8.28
 
+* 修复 soloncode run 与 --version 成功时退出码为 1 的问题（改为 0，对齐无头模式退出码约定）
 * 添加 soloncode web 更新提示（启动时）
 * 优化 soloncode web 最后一条历史消息改用 trace 里获取（显示过程记录）
 * 优化 soloncode llm 协议兼容处理
