@@ -14,6 +14,7 @@ import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.portal.*;
 import org.noear.solon.codecli.portal.acp.AcpLink;
 import org.noear.solon.codecli.portal.cli.CliShell;
+import org.noear.solon.codecli.portal.help.HelpMode;
 import org.noear.solon.codecli.portal.desktop.WsController;
 import org.noear.solon.codecli.portal.printmode.PrintMode;
 import org.noear.solon.codecli.portal.printmode.PrintModeOptions;
@@ -93,6 +94,13 @@ public class Configurator {
 
         CliShell cliShell = new CliShell(agentRuntime, agentSettings, loopScheduler);
         String flag = Solon.cfg().argx().flagAt(0);
+
+        // help 优先于其它一切分支：不做更新检查，保证帮助输出可被工具链解析
+        if (HelpMode.isHelpRequest(Solon.cfg().argx())) {
+            HelpMode helpMode = new HelpMode(HelpMode.resolveTopic(Solon.cfg().argx()), AgentFlags.getVersion());
+            haltWith(helpMode.execute());
+            return;
+        }
 
         if (AgentFlags.FLAG_VERSION.equals(flag)) {
             System.out.println(Solon.cfg().appTitle() + " " + AgentFlags.getVersion());

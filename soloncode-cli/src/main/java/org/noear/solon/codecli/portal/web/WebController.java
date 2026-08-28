@@ -342,6 +342,15 @@ public class WebController {
         }
         data.put("workspace", currentEngine.getWorkspace());
         data.put("workname", getLastSegment(currentEngine.getWorkspace()));
+        // 是否「在用户主目录下启动」的默认工作区：把整个 ~ 当工作区代价过高（沙盒范围、
+        // 文件监听、检索都会铺满主目录），前端据此默认弹出工作区面板引导选项目目录。
+        // 判定放后端（前端拿不到真实的 user.home，也不应自行猜路径）
+        WorkspaceContext currentCtx = currentContext();
+        boolean homeWorkspace = currentCtx != null
+                && currentCtx.getMeta() != null
+                && currentCtx.getMeta().isDefault()
+                && WorkspaceManager.isUserHomePath(currentCtx.getMeta().getPath());
+        data.put("isHomeWorkspace", homeWorkspace);
         // 是否已配置至少一个可用模型，供前端首帧渲染引导面板，避免界面闪现
         boolean modelConfigured = false;
         for (ChatConfig config : currentEngine.getModels()) {

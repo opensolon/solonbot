@@ -533,7 +533,8 @@
 
 </div>
 
-<!-- 工作区全屏 Home（放在 body 最外层，铺满视口，盖在当前工作区之上，ESC/关闭退回） -->
+<!-- 工作区全屏 Home（放在 body 最外层，铺满视口，盖在当前工作区之上，ESC/关闭退回；
+     主目录裸启动时进入锁定模式：隐藏关闭按钮、ESC 失效，必须先选定工作区） -->
 <div class="ws-home-overlay" id="wsHomeOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="工作区" data-i18n-aria-label="sidebar.workspace">
     <div class="ws-home">
         <header class="ws-home-header">
@@ -2076,7 +2077,10 @@
 <script>
     (function() {
         var urlParams = new URLSearchParams(window.location.search);
-        var workspace = urlParams.get('workspaceId'); // 统一：只认 workspaceId（多工作区ID，如 ws-xxx）；旧参数 workspace 已废弃
+        // 统一：只认 workspaceId（多工作区ID，如 ws-xxx；特殊值 launch = 启动目录/默认工作区）；旧参数 workspace 已废弃
+        var workspace = urlParams.get('workspaceId');
+        // 是否由用户显式指定了工作区：用于区分「~ 下裸启动」与「明知故犯地选择启动目录」
+        window.__wsExplicitId = workspace || '';
         if (workspace) {
             // 同时劫持 XMLHttpRequest，覆盖 jQuery $.get/$.ajax 等所有请求通道，
             // 避免依赖 $ 就绪时机的 ajaxSetup 方案失效；并统一处理失效工作区 404 引导回 home
@@ -2146,6 +2150,20 @@
             if (window.updateModelOnboarding) {
                 // 借助既有函数展示（模型列表为空时会保持显示）
                 window.updateModelOnboarding();
+            }
+        }
+        // 在用户主目录下裸启动（无 ?workspaceId= 参数）：锁定为「只有工作区面板」，
+        // 不放行到对话界面——必须先选一个工作区（或显式点“启动目录”新窗口打开）。
+        // 带了参数（含 workspaceId=launch）即视为用户已知情选择，正常进入对话。
+        // 注意：必须在 revealApp() 之前置锁，避免主界面先闪一帧再被盖住。
+        if (meta.isHomeWorkspace === true && !window.__wsExplicitId) {
+            window.__wsHomeLocked = true;
+            document.body.classList.add('ws-home-locked');
+            if (typeof window.openWorkspaceHome === 'function') {
+                window.openWorkspaceHome();
+            } else {
+                // 面板初始化脚本尚未执行：置标记，由其自行补开
+                window.__wsHomeAutoOpen = true;
             }
         }
         revealApp();
@@ -2626,16 +2644,17 @@
             });
             recentGrid.innerHTML = html || '<div class="ws-home-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
 
-            // 2. 启动目录（点击回默认工作区）
+            // 2. 启动目录（新窗口带显式参数打开：以启动目录为工作区是一次主动选择，
+            //    带上 workspaceId=launch 后不再触发主目录引导面板）
             var lp = (cache.launch && cache.launch.path) ? cache.launch.path : '';
             if (lp && (matches(kw, segOf(lp)) || matches(kw, lp))) {
-                launchGrid.innerHTML = '<a class="ws-home-card" href="/">' +
+                launchGrid.innerHTML = '<a class="ws-home-card" href="/?workspaceId=launch" target="_blank" rel="noopener">' +
                     '<div class="ws-home-card-name">' + esc(segOf(lp)) + '</div>' +
                     '<div class="ws-home-card-path" title="' + esc(lp) + '">' + esc(lp) + '</div></a>';
                 launchSection.style.display = '';
             } else {
                 launchGrid.innerHTML = '';
-                launchSection.style.display = lp ? 'none' : 'none';
+                launchSection.style.display = 'none';
             }
 
             // 3. 文件挂载（点击传 alias 走 open 接口）
@@ -2669,12 +2688,16 @@
         }
 
         function openHome() {
+            // 主目录裸启动：锁定为「只有工作区面板」，隐藏关闭入口（ESC 也不生效）
+            if (closeBtn) closeBtn.style.display = window.__wsHomeLocked ? 'none' : '';
             overlay.style.display = 'flex';
             load();
             setTimeout(function () { searchInput.focus(); }, 50);
         }
 
         function closeHome() {
+            // 锁定模式下不允许退回对话界面：必须先选定一个工作区
+            if (window.__wsHomeLocked) return;
             overlay.style.display = 'none';
             if (openBtn && typeof openBtn.focus === 'function') openBtn.focus();
         }
@@ -2741,6 +2764,14 @@
             e.stopPropagation();
             closeHome();
         });
+
+        // 对外暴露：供 /web/chat/meta 回调在「~ 下裸启动」时主动弹面板
+        window.openWorkspaceHome = openHome;
+        if (window.__wsHomeAutoOpen) {
+            // meta 回调先于本脚本执行完成时的补偿路径
+            window.__wsHomeAutoOpen = false;
+            openHome();
+        }
     })();
 </script>
 

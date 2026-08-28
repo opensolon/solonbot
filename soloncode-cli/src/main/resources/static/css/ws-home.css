@@ -82,6 +82,8 @@
 .ws-home-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .ws-home-body { flex: 1; overflow-y: auto; padding: 24px 32px; }
+/* 锁定模式（主目录裸启动）：只保留工作区面板，不显露背后的对话界面 */
+body.ws-home-locked > *:not(#wsHomeOverlay) { visibility: hidden; }
 .ws-home-section { margin-bottom: 28px; }
 .ws-home-section-title {
     font-size: var(--fs-sm);

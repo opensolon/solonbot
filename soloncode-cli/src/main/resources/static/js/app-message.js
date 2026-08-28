@@ -1206,24 +1206,82 @@ function renderFileListing(bodyEl, text, args) {
 window._toolRenderers.glob = renderFileListing;
 window._toolRenderers.ls = renderFileListing;
 
-/* bash：紧凑终端风格输出块，保留换行但不增加命令/输出分隔线 */
-window._toolRenderers.bash = function(bodyEl, text, args) {
-    bodyEl.classList.add('tool-body-terminal');
-    var cmd = (args && args.command) ? args.command : '';
+/* ===== bash 系列工具（bash / bash_start / bash_wait / bash_stdin / bash_stop）=====
+   全部按同一套终端风格展示入参：头部摘要、tool.start 执行中占位、tool.end 结果体三处共用
+   formatBashInvoke 的解析结果，保证同一次调用在各阶段呈现一致。 */
+function isBashTool(toolName) {
+    var name = String(toolName || '').toLowerCase();
+    return name === 'bash' || name.indexOf('bash_') === 0;
+}
+
+function formatBashMillis(v) {
+    if (v == null || v === '' || !(Number(v) > 0)) return '';
+    var n = Number(v);
+    return n >= 60000 ? (n / 60000) + 'm' : (n / 1000) + 's';
+}
+
+/* 解析 bash 系列入参为 { text, notes[] }：text 为主命令行内容（保留换行），
+   notes 为附注（超时 / 会话 / 工作目录等）。无可展示入参时返回 null，交调用方兜底。 */
+function formatBashInvoke(toolName, args) {
+    if (!args || typeof args !== 'object') return null;
+    var name = String(toolName || '').toLowerCase();
+    var notes = [];
+    function pushNote(label, v) { if (v != null && v !== '') notes.push(label + ' ' + v); }
+    var text = '';
+    if (name === 'bash' || name === 'bash_start') {
+        if (!args.command) return null;
+        text = String(args.command);
+        pushNote('cwd', args.workdir);
+        pushNote('timeout', formatBashMillis(args.timeout));
+        pushNote('yield', formatBashMillis(args.yield_time_ms));
+        pushNote('hard timeout', formatBashMillis(args.hard_timeout_ms));
+    } else if (name === 'bash_stdin') {
+        text = 'stdin' + (args.chars != null && args.chars !== '' ? ' ' + String(args.chars) : '');
+        pushNote('session', args.session_id);
+        pushNote('yield', formatBashMillis(args.yield_time_ms));
+    } else if (name === 'bash_wait') {
+        text = 'wait' + (args.session_id ? ' ' + args.session_id : '');
+        pushNote('yield', formatBashMillis(args.yield_time_ms));
+    } else if (name === 'bash_stop') {
+        text = 'stop' + (args.session_id ? ' ' + args.session_id : '');
+        pushNote('reason', args.reason);
+    } else if (name.indexOf('bash_') === 0) {
+        // 未知的 bash_ 系列工具：优先 command，否则退化为通用参数串
+        text = args.command ? String(args.command) : formatToolArgsStr(args);
+        pushNote('session', args.session_id);
+    } else {
+        return null;
+    }
+    if (!text) return null;
+    return { text: text, notes: notes };
+}
+
+/* 紧凑终端风格输出块：命令行 + 附注 + 输出，保留换行但不增加命令/输出分隔线 */
+function buildBashOutputHtml(toolName, args, outputText) {
+    var invoke = formatBashInvoke(toolName, args);
     var html = '<div class="bash-output">';
-    if (cmd) {
-        html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(cmd);
-        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
-            var t = Number(args.timeout);
-            html += ' <span class="bash-timeout"># timeout ' + (t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's') + '</span>';
+    if (invoke) {
+        html += '<div class="bash-cmd"><span class="bash-prompt">$</span> ' + escapeHtml(invoke.text);
+        if (invoke.notes.length) {
+            html += ' <span class="bash-timeout"># ' + escapeHtml(invoke.notes.join(' · ')) + '</span>';
         }
         html += '</div>';
     }
-    html += '<pre class="bash-stdout">' + escapeHtml(text || '(' + I18n.t('msg.noOutput') + ')') + '</pre>';
+    html += '<pre class="bash-stdout">' + escapeHtml(outputText) + '</pre>';
     html += '</div>';
-    bodyEl.innerHTML = html;
-    return true;
-};
+    return html;
+}
+
+function makeBashToolRenderer(toolName) {
+    return function(bodyEl, text, args) {
+        bodyEl.classList.add('tool-body-terminal');
+        bodyEl.innerHTML = buildBashOutputHtml(toolName, args, text || '(' + I18n.t('msg.noOutput') + ')');
+        return true;
+    };
+}
+['bash', 'bash_start', 'bash_wait', 'bash_stdin', 'bash_stop'].forEach(function(bashToolName) {
+    window._toolRenderers[bashToolName] = makeBashToolRenderer(bashToolName);
+});
 
 /* todowrite / todoread：内容为 markdown 任务清单，按 markdown 语法高亮展示原文（不做 HTML 渲染，保留 #、-、[ ] 等原始符号）。
    todowrite 优先取入参 todos（提交的清单原文），todoread 取返回值 text。 */
@@ -1245,6 +1303,8 @@ window._toolRenderers.todoread = renderTodoMarkdown;
 /* 分发：命中专用 renderer 且渲染成功返回 true，否则交由调用方做纯文本兜底 */
 function renderToolBody(bodyEl, toolName, text, args) {
     var renderer = window._toolRenderers[toolName];
+    // 未登记的 bash_ 系列工具（后续新增的）同样按终端风格渲染
+    if (typeof renderer !== 'function' && isBashTool(toolName)) renderer = makeBashToolRenderer(toolName);
     if (typeof renderer === 'function') {
         try {
             if (renderer(bodyEl, text, args)) return true;
@@ -1385,14 +1445,13 @@ function formatToolArgsStr(args) {
 function formatToolSummary(toolName, args) {
     if (!args || typeof args !== 'object') return '';
     var name = String(toolName || '').toLowerCase();
-    if (name === 'bash' && args.command) {
-        var bashSummary = String(args.command).replace(/\n/g, ' ');
-        if (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0) {
-            var t = Number(args.timeout);
-            var ts = t >= 60000 ? (t / 60000) + 'm' : (t / 1000) + 's';
-            bashSummary += ' · timeout ' + ts;
+    if (isBashTool(name)) {
+        var bashInvoke = formatBashInvoke(name, args);
+        if (bashInvoke) {
+            var bashSummary = bashInvoke.text.replace(/\n/g, ' ');
+            if (bashInvoke.notes.length) bashSummary += ' · ' + bashInvoke.notes.join(' · ');
+            return bashSummary;
         }
-        return bashSummary;
     }
     if ((name === 'read' || name === 'write' || name === 'edit') && args.file_path) {
         var fileSummary = String(args.file_path);
@@ -1419,7 +1478,7 @@ function formatToolSummary(toolName, args) {
 
 function getToolKind(toolName) {
     var name = String(toolName || '').toLowerCase();
-    if (name === 'bash') return 'terminal';
+    if (isBashTool(name)) return 'terminal';
     if (name === 'edit') return 'diff';
     if (name === 'read' || name === 'write') return 'code';
     if (name === 'grep') return 'search';
@@ -1528,22 +1587,18 @@ function fillToolCardBody(card, toolName, text, args, lsp) {
     }
 }
 
-/* bash 在 tool.start 时即把命令渲染进 body（终端样式 + 执行中占位），不必等 tool.end 才看到。
+/* bash 系列工具（bash / bash_start / bash_wait / bash_stdin / bash_stop）在 tool.start 时
+   即把入参渲染进 body（终端样式 + 执行中占位），不必等 tool.end 才看到。
    不改动展开态：卡片展开与否仍由「工具调用显示简化」配置在 createToolCard 中决定，
    简化模式下折叠 body 不可见（命令仍在头部 tool-args 摘要中），展开后立即可见。
    tool.end 时 fillToolCardBody 会把 body 重渲染为命令 + 实际输出。 */
 function renderBashRunningBody(card, toolName, args) {
-    if (toolName !== 'bash' || !args || !args.command) return;
+    if (!isBashTool(toolName)) return;
+    if (!formatBashInvoke(toolName, args)) return;
     var body = $(card).find('.tool-card-body')[0];
     if (!body) return;
     body.className = 'tool-card-body tool-body-terminal';
-    body.innerHTML = '<div class="bash-output"><div class="bash-cmd"><span class="bash-prompt">$</span> '
-        + escapeHtml(args.command)
-        + (args.timeout != null && args.timeout !== '' && Number(args.timeout) > 0
-            ? ' <span class="bash-timeout"># timeout '
-              + (Number(args.timeout) >= 60000 ? (Number(args.timeout) / 60000) + 'm' : (Number(args.timeout) / 1000) + 's')
-              + '</span>' : '')
-        + '</div><pre class="bash-stdout">(' + I18n.t('msg.executing') + ')</pre></div>';
+    body.innerHTML = buildBashOutputHtml(toolName, args, '(' + I18n.t('msg.executing') + ')');
 }
 
 function appendActionStartChunk(sess, segment, toolName, args, toolTitle, reasonId, agentName, callId) {

@@ -58,6 +58,16 @@ public class WorkspaceManager {
     private static final int JDTLS_MIN_JDK = 21;
     private static final String WORKSPACES_FILE_PATH = Paths.get(AgentFlags.getUserHome(), ".soloncode", "workspaces.json").toString();
 
+    /**
+     * 默认（启动目录）工作区的内部 ID
+     */
+    public static final String ID_DEFAULT = "default";
+    /**
+     * 默认工作区的对外别名：前端把启动目录显式称作 launch（见 /web/workspace/list 的 launch 段、
+     * URL 参数 ?workspaceId=launch），此处等价映射到 default。
+     */
+    public static final String ID_LAUNCH = "launch";
+
     private final Map<String, WorkspaceContext> contexts = new ConcurrentHashMap<>();
 
     private final AgentSettings defaultSettings;
@@ -155,7 +165,8 @@ public class WorkspaceManager {
      * @param workspaceIdOrPath 工作区ID或物理绝对路径
      */
     public synchronized WorkspaceContext getOrCreate(String workspaceIdOrPath) {
-        if (workspaceIdOrPath == null || workspaceIdOrPath.trim().isEmpty() || "default".equals(workspaceIdOrPath)) {
+        workspaceIdOrPath = normalizeWorkspaceKey(workspaceIdOrPath);
+        if (workspaceIdOrPath == null || workspaceIdOrPath.isEmpty() || ID_DEFAULT.equals(workspaceIdOrPath)) {
             if (defaultContext == null) {
                 initDefaultWorkspace();
             }
@@ -289,7 +300,8 @@ public class WorkspaceManager {
      * 仅查内存缓存，不创建（供 WS onClose 等回调用，防止复活已释放工作区）
      */
     public WorkspaceContext getContextsCached(String workspaceIdOrPath) {
-        if (Assert.isEmpty(workspaceIdOrPath) || "default".equals(workspaceIdOrPath)) {
+        workspaceIdOrPath = normalizeWorkspaceKey(workspaceIdOrPath);
+        if (Assert.isEmpty(workspaceIdOrPath) || ID_DEFAULT.equals(workspaceIdOrPath)) {
             return defaultContext;
         }
         return contexts.get(workspaceIdOrPath);
@@ -300,7 +312,8 @@ public class WorkspaceManager {
      * 仅对 ws- 前缀的多工作区 ID 有意义。
      */
     public boolean isValidWorkspaceId(String wsId) {
-        if (wsId == null || wsId.trim().isEmpty() || "default".equals(wsId)) {
+        wsId = normalizeWorkspaceKey(wsId);
+        if (wsId == null || wsId.isEmpty() || ID_DEFAULT.equals(wsId)) {
             return true;
         }
         if (contexts.containsKey(wsId)) {
@@ -356,14 +369,51 @@ public class WorkspaceManager {
     }
 
     /**
+     * 工作区标识归一化：把对外别名 launch 收敛为内部 ID default。
+     *
+     * <p>必须在所有以「ID 或物理路径」为入参的入口统一调用：否则 launch 会掉进
+     * 物理路径分支被当作相对目录 ./launch 解析——启动目录下恰好存在同名目录时，
+     * 会静默创建出一个错误的 ws- 工作区。</p>
+     */
+    private static String normalizeWorkspaceKey(String workspaceIdOrPath) {
+        if (workspaceIdOrPath == null) {
+            return null;
+        }
+        String key = workspaceIdOrPath.trim();
+        return ID_LAUNCH.equals(key) ? ID_DEFAULT : key;
+    }
+
+    /**
+     * 判断给定路径是否就是当前用户主目录（归一化后比较；Windows 下忽略大小写）。
+     *
+     * <p>用于识别「在 ~ 下启动」这一特殊场景：此时把整个主目录当工作区代价过高
+     * （沙盒范围、文件监听、全文检索都会铺满主目录），前端据此引导用户先选项目目录。</p>
+     */
+    public static boolean isUserHomePath(String pathStr) {
+        if (pathStr == null || pathStr.trim().isEmpty()) {
+            return false;
+        }
+        try {
+            String target = normalizePathStr(pathStr);
+            String home = normalizePathStr(AgentFlags.getUserHome());
+            return File.separatorChar == '\\'
+                    ? target.equalsIgnoreCase(home)
+                    : target.equals(home);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * 关闭并销毁工作区上下文
      */
     public synchronized void closeWorkspace(String workspaceIdOrPath) {
-        if (workspaceIdOrPath == null || workspaceIdOrPath.trim().isEmpty()) {
+        workspaceIdOrPath = normalizeWorkspaceKey(workspaceIdOrPath);
+        if (workspaceIdOrPath == null || workspaceIdOrPath.isEmpty()) {
             return;
         }
         // default 是虚拟工作区（随启动目录变化），不允许被关闭销毁
-        if ("default".equals(workspaceIdOrPath)) {
+        if (ID_DEFAULT.equals(workspaceIdOrPath)) {
             return;
         }
         WorkspaceContext context = contexts.remove(workspaceIdOrPath);
@@ -412,7 +462,8 @@ public class WorkspaceManager {
      * 从 workspaces.json 历史中彻底移除工作区条目（用于 /web/workspace/remove）
      */
     public synchronized void removeFromHistory(String workspaceId) {
-        if (workspaceId == null || "default".equals(workspaceId)) {
+        workspaceId = normalizeWorkspaceKey(workspaceId);
+        if (workspaceId == null || ID_DEFAULT.equals(workspaceId)) {
             return;
         }
         try {
@@ -817,6 +868,8 @@ public class WorkspaceManager {
         } catch (Exception e) {
             defaultPathStr = null;
         }
+        // 默认工作区即用户主目录（在 ~ 下启动）：循环外算一次即可，与逐条条目无关
+        boolean defaultIsUserHome = isUserHomePath(defaultPathStr);
 
         List<WorkspaceMeta> result = new ArrayList<>();
         for (WorkspaceMeta w : raw) {
@@ -837,13 +890,6 @@ public class WorkspaceManager {
             // b) path 指向默认工作区目录内部（非默认本身）的误建目录条目。
             //    例外：默认工作区即用户主目录（在 ~ 下启动）时跳过该过滤——
             //    ~ 下的子项目目录是正常工作区，不能被当作脏条目清洗，否则最近列表整体消失。
-            boolean defaultIsUserHome = false;
-            try {
-                defaultIsUserHome = defaultPathStr != null
-                        && normalizePathStr(AgentFlags.getUserHome()).equals(defaultPathStr);
-            } catch (Exception ignore) {
-            }
-
             if (!defaultIsUserHome
                     && defaultPathStr != null && !w.isDefault()
                     && normalized.startsWith(defaultPathStr + File.separator)) {

@@ -367,7 +367,7 @@ public class FileWatchServiceTest {
     }
 
     /**
-     * 测试：buildFrontendJson 生成正确的 JSON 结构
+     * 测试：buildFrontendJson 生成正确的 SAEP 2.0 信封结构
      */
     @Test
     public void testBuildFrontendJson() {
@@ -379,7 +379,10 @@ public class FileWatchServiceTest {
         String json = FileWatchService.buildFrontendJson(changes);
 
         assertNotNull(json);
-        assertTrue(json.contains("\"type\":\"filer_change\""), "JSON should contain type field");
+        // 信封必须带 event：前端 AgentEventDispatcher.toWebEvent 据此识别，缺失会被判为 null 丢弃
+        assertTrue(json.contains("\"event\":\"system.filer_change\""), "JSON should carry the SAEP event name");
+        assertTrue(json.contains("\"payload\""), "changes must be wrapped in payload");
+        assertTrue(json.contains("\"timestamp\""), "JSON should contain envelope timestamp");
         assertTrue(json.contains("\"wsId\":\"workspace\""), "JSON should contain first wsId");
         assertTrue(json.contains("\"path\":\"src/Foo.java\""), "JSON should contain first path");
         assertTrue(json.contains("\"kind\":\"create\""), "JSON should contain create kind");
