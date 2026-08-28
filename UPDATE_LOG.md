@@ -2,7 +2,7 @@
 ### v2026.8.28
 
 * 添加 soloncode web 更新提示（启动时）
-* 优化 soloncode web 最后一条历史消息改用 trace 里获取（可以显示过程记录）
+* 优化 soloncode web 最后一条历史消息改用 trace 里获取（显示过程记录）
 * 优化 soloncode llm 协议兼容处理
 * 优化 soloncode llm 缓存率
 * 细节优化
