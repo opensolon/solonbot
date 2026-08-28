@@ -59,6 +59,20 @@ public class SessionManager implements AgentSessionProvider {
     }
 
     /**
+     * 获取「已在内存中」的会话实例，不存在时返回 null（不创建）。
+     *
+     * <p>{@link #getSession(String)} 是 computeIfAbsent 语义：一调用就会为该 sessionId 建出
+     * {@link FileAgentSession} 并常驻 sessionMap（含快照反序列化 + 全量历史消息装载）。
+     * 只读场景（如拉取历史消息）若走它，用户随手点开的每个会话都会被永久钉在内存里。</p>
+     *
+     * <p>因此只读方只用本方法探测：命中则以内存为准（与写侧同源，不会读到过期数据），
+     * 未命中则由调用方回落到磁盘文件，既不引入常驻开销，也不改变可见结果。</p>
+     */
+    public @Nullable AgentSession getSessionIfPresent(String sessionId) {
+        return sessionMap.get(sessionId);
+    }
+
+    /**
      * 解析会话存储路径
      */
     private Path resolveSessionPath(String sessionId) {

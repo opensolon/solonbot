@@ -21,6 +21,8 @@ import org.noear.solon.Solon;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.ai.chat.ChatConfig;
+import org.noear.solon.ai.chat.ChatRole;
+import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.ai.harness.agent.AgentDefinition;
 import org.noear.solon.ai.harness.command.Command;
@@ -28,6 +30,7 @@ import org.noear.solon.ai.talents.mount.MountDir;
 import org.noear.solon.ai.talents.mount.MountType;
 import org.noear.solon.ai.talents.mount.SkillDir;
 import org.noear.solon.annotation.*;
+import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
@@ -811,7 +814,11 @@ public class WebController {
 
     /**
      * 获取指定会话的消息历史记录。
-     * <p>从 ndjson 消息文件中逐行读取，解析每条消息的 role、content、createdAt 字段。</p>
+     *
+     * <p>取数优先走内存会话实例：消息文件是 {@code FileAgentSession} 的实现细节，其内存缓存与磁盘同源
+     * （缓存层 maxMessages=0，不做窗口裁剪），而回退/清空等写动作都先落内存再同步磁盘，
+     * 读内存才不会与写侧脱节。仅当该会话尚未被打开（内存中无实例）时才读文件，
+     * 以免为「只是点开看一下」的会话凭空创建常驻内存会话。</p>
      *
      * @param sessionId 会话 ID
      * @return 消息列表，每项包含 role、content、createdAt
@@ -824,15 +831,58 @@ public class WebController {
             return Result.failure(400, "Invalid sessionId");
         }
 
-        List<Map> data = new ArrayList<>();
+        AgentSession session = sessionManager().getSessionIfPresent(sessionId);
+        if (session != null) {
+            return Result.succeed(readMessagesFromSession(session));
+        }
 
-        String userId = getCurrentUserId();
         Path sessionsRoot = currentContext().getSessionsRoot();
         Path sessionsPath = sessionsRoot.resolve(sessionId).normalize();
         if (!sessionsPath.startsWith(sessionsRoot)) {
             return Result.failure(400, "Invalid session path");
         }
-        File msgFile = new File(sessionsPath.toFile(), sessionId + ".messages.ndjson");
+
+        return Result.succeed(readMessagesFromFile(new File(sessionsPath.toFile(), sessionId + ".messages.ndjson")));
+    }
+
+    /**
+     * 从内存会话实例读取历史消息。
+     *
+     * @param session 会话实例
+     * @return 消息列表
+     */
+    private List<Map> readMessagesFromSession(AgentSession session) {
+        /* getMessages() 返回的是会话内部的活列表（非副本、无同步）：Agent 线程可能正在 addMessage 追加，
+         * 必须先快照再遍历，否则并发下会抛 ConcurrentModificationException。 */
+        List<ChatMessage> messages = new ArrayList<>(session.getMessages());
+        List<Map> data = new ArrayList<>(messages.size());
+
+        for (ChatMessage msg : messages) {
+            if (msg == null || msg.getRole() == null || msg.getRole() == ChatRole.SYSTEM) {
+                // System 消息不落历史（与写 ndjson 的过滤规则一致）
+                continue;
+            }
+
+            String content = MessageLineUtil.readContent(msg);
+            if (content == null) {
+                continue;
+            }
+
+            data.add(buildMessageItem(msg.getRole().name(), content,
+                    String.valueOf(msg.getCreatedAt()), msg.getMetadata()));
+        }
+
+        return data;
+    }
+
+    /**
+     * 从 ndjson 消息文件逐行读取历史消息（会话未打开时的回落路径）。
+     *
+     * @param msgFile 消息文件
+     * @return 消息列表
+     */
+    private List<Map> readMessagesFromFile(File msgFile) throws Exception {
+        List<Map> data = new ArrayList<>();
 
         if (msgFile.exists()) {
             try (BufferedReader br = new BufferedReader(
@@ -847,62 +897,114 @@ public class WebController {
                     String content = MessageLineUtil.readContent(node);
 
                     if (role != null && content != null) {
-                        ONode metadata = node.get("metadata");
-                        String source = metadata.get("source").getString();
-
-                        Map<String, Object> item = new LinkedHashMap<>();
-                        item.put("role", role);
-                        item.put("content", content);
-                        item.put("createdAt", node.get("createdAt").getString());
-
-                        if (source != null) {
-                            item.put("source", source); //可能有 {source:xxx}
-                            item.put("sourceLabel", org.noear.solon.codecli.portal.web.event.WebEvent.toSourceLabel(source));
-                        }
-
-                        // 子代理标记：该条用户消息实际交由哪个子代理执行（主 Agent 时无此字段）
-                        String agentMeta = metadata.get("agent").getString();
-                        if (agentMeta != null && !agentMeta.isEmpty()) {
-                            item.put("agentName", agentMeta);
-                        }
-
-                        /* 运行 ID：同一轮任务产出的所有消息共享它（落 ndjson 时打上）。
-                         * 前端历史行据此打 data-run-id，删除/重跑才能把该轮的气泡、思考块、
-                         * 工具卡成批清掉；缺了它只能退化成「只删当前行」。 */
-                        String runIdMeta = metadata.get(AgentTrace.META_RUN_ID).getString();
-                        if (runIdMeta != null && !runIdMeta.isEmpty()) {
-                            item.put("runId", runIdMeta);
-                        }
-
-                        // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
-                        ONode attachMeta = metadata.get("attachments");
-                        if (attachMeta != null) {
-                            String attachStr = attachMeta.getString();
-                            if (attachStr != null && !attachStr.isEmpty()) {
-                                try {
-                                    ONode attachArr = ONode.ofJson(attachStr);
-                                    if (attachArr.isArray()) {
-                                        List<Map<String, String>> attachList = new ArrayList<>();
-                                        for (ONode a : attachArr.getArray()) {
-                                            Map<String, String> am = new LinkedHashMap<>();
-                                            am.put("name", a.get("name").getString());
-                                            am.put("type", a.get("type").getString());
-                                            attachList.add(am);
-                                        }
-                                        item.put("attachments", attachList);
-                                    }
-                                } catch (Exception ignored) {
-                                }
-                            }
-                        }
-
-                        data.add(item);
+                        data.add(buildMessageItem(role, content, node.get("createdAt").getString(),
+                                toMetadataMap(node.get("metadata"))));
                     }
                 }
             }
         }
 
-        return Result.succeed(data);
+        return data;
+    }
+
+    /**
+     * 组装单条历史消息的前端视图（两条取数路径共用，确保内存读与文件读输出同构）。
+     *
+     * @param role      角色（USER / ASSISTANT）
+     * @param content   正文
+     * @param createdAt 创建时间戳（字符串形式，前端两种都能解析，保持既有接口契约）
+     * @param metadata  消息元数据
+     * @return 前端视图
+     */
+    private Map<String, Object> buildMessageItem(String role, String content, String createdAt,
+                                                 Map<String, Object> metadata) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("role", role);
+        item.put("content", content);
+        item.put("createdAt", createdAt);
+
+        String source = metaString(metadata, "source");
+        if (source != null) {
+            item.put("source", source); //可能有 {source:xxx}
+            item.put("sourceLabel", WebEvent.toSourceLabel(source));
+        }
+
+        // 子代理标记：该条用户消息实际交由哪个子代理执行（主 Agent 时无此字段）
+        String agentMeta = metaString(metadata, "agent");
+        if (Assert.isNotEmpty(agentMeta)) {
+            item.put("agentName", agentMeta);
+        }
+
+        /* 运行 ID：同一轮任务产出的所有消息共享它。前端历史行据此打 data-run-id，
+         * 删除/重跑才能把该轮的气泡、思考块、工具卡成批清掉；缺了它只能退化成「只删当前行」。 */
+        String runIdMeta = metaString(metadata, AgentTrace.META_RUN_ID);
+        if (Assert.isNotEmpty(runIdMeta)) {
+            item.put("runId", runIdMeta);
+        }
+
+        // 解析附件元数据（图片文件名等），供历史消息恢复时渲染
+        List<Map<String, String>> attachments = parseAttachments(metaString(metadata, "attachments"));
+        if (attachments != null) {
+            item.put("attachments", attachments);
+        }
+
+        return item;
+    }
+
+    /**
+     * 解析附件元数据（本身是一段 JSON 字符串，内存与 ndjson 两侧同值）。
+     *
+     * @param attachStr 附件元数据 JSON
+     * @return 附件列表；无附件或格式异常时返回 {@code null}
+     */
+    private List<Map<String, String>> parseAttachments(String attachStr) {
+        if (Assert.isEmpty(attachStr)) {
+            return null;
+        }
+
+        try {
+            ONode attachArr = ONode.ofJson(attachStr);
+            if (attachArr.isArray()) {
+                List<Map<String, String>> attachList = new ArrayList<>();
+                for (ONode a : attachArr.getArray()) {
+                    Map<String, String> am = new LinkedHashMap<>();
+                    am.put("name", a.get("name").getString());
+                    am.put("type", a.get("type").getString());
+                    attachList.add(am);
+                }
+                return attachList;
+            }
+        } catch (Exception ignored) {
+        }
+
+        return null;
+    }
+
+    /**
+     * 把 ndjson 行里的 metadata 节点摊平成 Map（元数据均为标量，与内存侧 getMetadata() 对齐）。
+     */
+    private Map<String, Object> toMetadataMap(ONode metadata) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        if (metadata != null && metadata.isObject()) {
+            for (Map.Entry<String, ONode> entry : metadata.getObject().entrySet()) {
+                ONode val = entry.getValue();
+                if (val != null && val.isValue()) {
+                    map.put(entry.getKey(), val.getString());
+                }
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 取元数据中的字符串值；缺失返回 {@code null}。
+     */
+    private String metaString(Map<String, Object> metadata, String key) {
+        Object val = (metadata == null ? null : metadata.get(key));
+        if (val == null) {
+            return null;
+        }
+        return (val instanceof String ? (String) val : String.valueOf(val));
     }
 
     /**

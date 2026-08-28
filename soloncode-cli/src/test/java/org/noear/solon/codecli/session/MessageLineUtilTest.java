@@ -82,4 +82,57 @@ public class MessageLineUtilTest {
         assertEquals(null, MessageLineUtil.readContent(node));
         assertNotNull(node);
     }
+
+    // ===== 内存消息对象路径（会话已打开时历史接口改从 session 取数）=====
+
+    @Test
+    @DisplayName("内存助手消息：正常取 text")
+    public void memory_assistantText() {
+        assertEquals("最终回答", MessageLineUtil.readContent(new AssistantMessage("最终回答", "想一下", false)));
+    }
+
+    @Test
+    @DisplayName("内存助手消息：末帧停在推理通道且非 thinking 帧，getContent() 不回退，须补回想法")
+    public void memory_assistantThinkingFallback() {
+        AssistantMessage msg = new AssistantMessage("", "只有想法", false);
+
+        // 定点确认本用例的前提：直接取 getContent() 拿不到正文
+        assertEquals("", msg.getContent());
+        assertEquals("只有想法", MessageLineUtil.readContent(msg));
+    }
+
+    @Test
+    @DisplayName("内存用户消息：取 content")
+    public void memory_userContent() {
+        assertEquals("你好", MessageLineUtil.readContent(ChatMessage.ofUser("你好")));
+    }
+
+    @Test
+    @DisplayName("内存消息为空对象：null 入参不抛异常")
+    public void memory_nullMessage() {
+        assertEquals(null, MessageLineUtil.readContent((ChatMessage) null));
+    }
+
+    @Test
+    @DisplayName("两条读取路径同构：同一条消息走内存与走 ndjson 得到相同正文")
+    public void memory_fileParity() {
+        ChatMessage[] samples = new ChatMessage[]{
+                new AssistantMessage("最终回答", "想一下", false),
+                new AssistantMessage("", "只有想法", false),
+                new AssistantMessage("", "只有想法", true),
+                ChatMessage.ofUser("你好")
+        };
+
+        for (ChatMessage msg : samples) {
+            assertEquals(MessageLineUtil.readContent(toNode(msg)), MessageLineUtil.readContent(msg),
+                    "读法不一致：" + ChatMessage.toJson(msg));
+        }
+    }
+
+    @Test
+    @DisplayName("UserMessage 仍以 content 为正式字段（内存侧）")
+    public void memory_userMessageType() {
+        UserMessage msg = (UserMessage) ChatMessage.ofUser("带附件的提问");
+        assertEquals("带附件的提问", MessageLineUtil.readContent(msg));
+    }
 }

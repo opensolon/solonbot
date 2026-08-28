@@ -16,10 +16,12 @@
 package org.noear.solon.codecli.session;
 
 import org.noear.snack4.ONode;
+import org.noear.solon.ai.chat.message.AssistantMessage;
+import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.core.util.Assert;
 
 /**
- * {@code *.messages.ndjson} 单行消息的字段读取工具。
+ * 历史消息的正文读取工具（覆盖两种形态：{@code *.messages.ndjson} 单行 JSON、内存中的 {@link ChatMessage}）。
  *
  * <p>历史消息是按<b>字段</b>序列化的（{@code ONode.ofBean}），所以读侧要跟着消息类的字段布局走。
  * {@code AssistantMessage} 自 solon-ai 4.1 起把正文与想法拆成了 {@code text} / {@code thinking}
@@ -60,5 +62,33 @@ public class MessageLineUtil {
         }
 
         return node.get("thinking").getString();
+    }
+
+    /**
+     * 读取内存消息对象的正文。
+     *
+     * <p>与 {@link #readContent(ONode)} 语义对齐：{@code AssistantMessage.getContent()} 在非 thinking 帧
+     * 只回 {@code text}，<b>不会</b>回退到 {@code thinking}。末帧停在推理通道（模型把答案写进 reasoning）时
+     * 正文为空，此处补回想法，避免该条消息在历史里整条消失 —— 与读 ndjson 时的 content → text → thinking
+     * 取值顺序保持一致。</p>
+     *
+     * @param msg 消息对象
+     * @return 正文；无正文时返回 {@code null}
+     */
+    public static String readContent(ChatMessage msg) {
+        if (msg == null) {
+            return null;
+        }
+
+        String content = msg.getContent();
+        if (Assert.isNotEmpty(content)) {
+            return content;
+        }
+
+        if (msg instanceof AssistantMessage) {
+            return ((AssistantMessage) msg).getThinkingRaw();
+        }
+
+        return content;
     }
 }
