@@ -1,4 +1,11 @@
 
+### v2026.8.28
+
+* 优化 soloncode web 最后一条历史消息改用 trace 里获取（可以显示过程记录）
+* 优化 soloncode llm 协议兼容处理
+* 优化 soloncode llm 缓存率
+* 细节优化
+
 ### v2026.8.27
 
 * 添加 soloncode web 对话即时 "插话" 功能（起到，“调整方式”或“补充想法”）

@@ -157,6 +157,7 @@ body {
     color: var(--text-secondary);
 }
 .sidebar-item-menu .sidebar-item-del { color: var(--color-danger); }
+.sidebar-item-menu .sidebar-item-del svg { color: var(--color-danger); }
 .sidebar-rename-input {
     flex: 1;
     background: var(--color-bg-primary);
