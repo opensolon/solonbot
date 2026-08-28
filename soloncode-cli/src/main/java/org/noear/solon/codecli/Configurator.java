@@ -96,7 +96,7 @@ public class Configurator {
 
         if (AgentFlags.FLAG_VERSION.equals(flag)) {
             System.out.println(Solon.cfg().appTitle() + " " + AgentFlags.getVersion());
-            Solon.stop();  // 退出进程
+            haltWith(0);  // 退出进程（退出码 0）
             return;
         }
 
@@ -109,11 +109,7 @@ public class Configurator {
                 PrintModeOptions printOpts = PrintModeOptions.parse(Solon.cfg().argx());
                 PrintMode printMode = new PrintMode(agentRuntime, agentSettings, printOpts);
                 int exitCode = printMode.execute();
-                Solon.stop();
-                if (exitCode != 0) {
-                    // 非零退出码通过 Runtime.halt 强制退出（Solon.stop 可能被拦截）
-                    Runtime.getRuntime().halt(exitCode);
-                }
+                haltWith(exitCode);
                 return;
             }
 
@@ -139,6 +135,24 @@ public class Configurator {
 
         //cli - default
         new Thread(cliShell, "CLI-Interactive-Thread").start();
+    }
+
+    /**
+     * 以指定退出码结束进程（先优雅停止容器，再强制退出）。
+     *
+     * <p>注意：不能用 {@code Solon.stop()}，它内部固定 {@code System.exit(1)}，
+     * 会让 {@code soloncode run} / {@code --version} 即便成功也返回退出码 1，
+     * 破坏 CI 与 SDK 对退出码语义的依赖。</p>
+     *
+     * @param exitCode 业务退出码（0=成功）
+     */
+    private void haltWith(int exitCode) {
+        try {
+            Solon.stopBlock(false, 0);  // 优雅停止，但不由 Solon 决定退出码
+        } catch (Throwable e) {
+            // 停止过程异常不应改变业务退出码
+        }
+        Runtime.getRuntime().halt(exitCode);
     }
 
     private void checkUpdate() {

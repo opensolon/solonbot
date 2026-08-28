@@ -178,9 +178,12 @@ public class PrintMode {
         if (Assert.isNotEmpty(options.getPrompt())) {
             prompt = options.getPrompt();
         } else {
-            // 从 stdin 读取
+            // 从 stdin 读取。
+            // 注意：不能只依赖 available() > 0——上游（如 SDK/脚本）刚 fork 完还没来得及写入时
+            // available() 为 0，会被误判成“无提示词”而退出码 3。
+            // 因此：stdin 被重定向（无控制台，即管道/文件）时直接阻塞读到 EOF。
             try {
-                if (System.in.available() > 0) {
+                if (System.in.available() > 0 || isStdinRedirected()) {
                     byte[] bytes = readAllStdin();
                     if (bytes != null && bytes.length > 0) {
                         String stdinPrompt = new String(bytes, StandardCharsets.UTF_8).trim();
@@ -211,6 +214,16 @@ public class PrintMode {
 
     /** stdin 输入上限：10MB（对齐官方 v2.1.128+ 规范） */
     private static final int STDIN_MAX_BYTES = 10 * 1024 * 1024;
+
+    /**
+     * stdin 是否被重定向（管道 / 文件 / 父进程 stdio）。
+     *
+     * <p>交互式终端下 {@code System.console()} 非空；被重定向时为空，
+     * 此时可安全阻塞读取——写端关闭即 EOF。</p>
+     */
+    private boolean isStdinRedirected() {
+        return System.console() == null;
+    }
 
     private byte[] readAllStdin() {
         try {

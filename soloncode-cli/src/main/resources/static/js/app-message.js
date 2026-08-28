@@ -168,7 +168,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
                 sendMessage();
             }
         }).fail(function() {
-            showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
+            layer.msg(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), { icon: 2, time: 3000, offset: '120px' });
         });
     });
 
@@ -205,7 +205,7 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
                     handleRewindFailure(sess, resp);
                 }
             }).fail(function() {
-                showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
+                layer.msg(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), { icon: 2, time: 3000, offset: '120px' });
             });
         });
     });
@@ -364,7 +364,7 @@ function ensureAssistantBubble(sess) {
                         handleRewindFailure(sess, resp);
                     }
                 }).fail(function() {
-                    showToast(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), 'error');
+                    layer.msg(I18n.t('msg.deleteFailed') + I18n.t('toast.networkError'), { icon: 2, time: 3000, offset: '120px' });
                 });
             });
         });
@@ -1938,7 +1938,7 @@ function buildRewindPayload(sess, row) {
 /* 回退失败的统一处理：锚点对不上时不猜条数，改为重载历史让界面回到与服务端一致的状态。 */
 function handleRewindFailure(sess, resp) {
     var desc = (resp && (resp.description || resp.message)) || I18n.t('msg.backendNotSucceeded');
-    showToast(I18n.t('msg.deleteFailed') + desc, 'error');
+    layer.msg(I18n.t('msg.deleteFailed') + desc, { icon: 2, time: 3000, offset: '120px' });
     if (resp && resp.code === 409 && String(desc).indexOf('ANCHOR_NOT_FOUND') >= 0) {
         // 服务端没找到锚点（一条未删）：界面可能已与服务端不同步，重载以对齐
         if (typeof loadMessages === 'function') loadMessages(sess.sessionId);
