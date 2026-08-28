@@ -327,8 +327,21 @@ function ensureAssistantBubble(sess) {
                     // 删除同一 runId 的所有元素（消息行、工具卡片、思考块等）
                     var runId = row.getAttribute('data-run-id');
                     if (runId) {
-                        // 删除所有具有相同 runId 的元素
-                        $(sess.container).find('[data-run-id="' + runId + '"]').remove();
+                        /* ★ 只回收本轮「AI 侧」的可视元素，user 行必须留在屏上：
+                         * 历史加载与 trace 回放会把同一轮的 runId 也补到 user 行上
+                         * （app-history.js 补锚点 / mergeReplayRowInto），此时按 runId 无差别删除
+                         * 会把用户的提问一起删掉；而后端 /rerun 恰恰是取这条提问重跑（消息仍在会话里），
+                         * 且 sendCommandSilent 不渲染用户气泡，界面上就再也没有它了 —— 前端凭空少一条。 */
+                        $(sess.container).find('[data-run-id="' + runId + '"]').each(function() {
+                            if ($(this).hasClass('msg-row') && $(this).hasClass('user')) {
+                                /* 旧 runId 已随本轮消息被后端删除，留着会让后续 rewind 撞上
+                                 * ANCHOR_NOT_FOUND；先摘掉，等新一轮 runId 到达时补回（见 app-streaming.js）。 */
+                                this.removeAttribute('data-run-id');
+                                sess.pendingRunIdRow = this;
+                                return;
+                            }
+                            $(this).remove();
+                        });
                     } else {
                         // 兼容旧数据：如果没有 runId，只删除当前行
                         $(row).remove();
@@ -337,6 +350,8 @@ function ensureAssistantBubble(sess) {
                     sess.currentBubbleEl = null;
                     sess.thinkingBlockEl = null;
                     sess.pendingToolCard = null;
+                    // 末条 AI 行被删后，末条 user 消息重新变成列表末尾，按钮可见性需重算
+                    updateUserRerunButtons(sess.container);
                 }
             });
         }

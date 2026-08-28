@@ -1161,6 +1161,14 @@ function processWebEventNow(sess, webEvt) {
         // 存储当前 runId
         if (webEvt.runId) {
             sess.currentRunId = webEvt.runId;
+            /* 「重新运行」清屏时摘掉了 user 行上的陈旧 runId（旧轮消息已被后端 /rerun 删除）。
+             * 新一轮 runId 一到就补回锚点，否则该行的删除/重跑会退化成按 DOM 行数猜条数。 */
+            if (sess.pendingRunIdRow) {
+                if (sess.pendingRunIdRow.parentNode && !sess.pendingRunIdRow.getAttribute('data-run-id')) {
+                    sess.pendingRunIdRow.setAttribute('data-run-id', webEvt.runId);
+                }
+                sess.pendingRunIdRow = null;
+            }
         }
 
         // 捕获消息来源标识
