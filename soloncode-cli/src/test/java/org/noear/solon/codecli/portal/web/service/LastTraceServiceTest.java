@@ -33,7 +33,7 @@ public class LastTraceServiceTest {
 
     @Test
     public void session_null_should_not_align() {
-        Map<String, Object> data = service.buildLastTrace(null, AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(null, false, null);
         assertEquals(false, data.get("aligned"));
         assertTrue(((List<?>) data.get("events")).isEmpty());
     }
@@ -41,7 +41,7 @@ public class LastTraceServiceTest {
     @Test
     public void no_trace_in_context_should_not_align() {
         InMemoryAgentSession session = new InMemoryAgentSession("s1");
-        Map<String, Object> data = service.buildLastTrace(session, AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(session, false, null);
         assertEquals(false, data.get("aligned"));
     }
 
@@ -54,7 +54,7 @@ public class LastTraceServiceTest {
         addHistory(trace, ChatMessage.ofUser("你好"));
         addFinalAnswer(trace, "你好呀");
 
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), false, null);
         assertEquals(false, data.get("aligned"), "无过程时应退回纯文本路径");
     }
 
@@ -72,7 +72,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage("本轮说明", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("note", "tool"), kinds(events), "往轮的思考与回答都不该出现");
         assertEquals("本轮说明", events.get(0).get("text"));
     }
@@ -89,7 +89,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("<project>...</project>", "read", "call_1"));
         addFinalAnswer(trace, "这是一个 Maven 项目");
 
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, true, null);
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), true, null);
         assertEquals(true, data.get("aligned"));
         assertEquals(true, data.get("running"));
 
@@ -113,7 +113,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("done", "memory_extract", "call_1"));
 
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), false, null);
         assertEquals(false, data.get("aligned"), "系统侧工具被过滤后无过程可回放");
     }
 
@@ -127,7 +127,7 @@ public class LastTraceServiceTest {
                 newToolCallMessage("<think>先记一笔</think>我记录一下", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("done", "memory_extract", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note"), kinds(events));
     }
 
@@ -141,7 +141,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("子代理的最终产出", "task", "call_1"));
 
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), false, null);
         assertEquals(true, data.get("aligned"));
 
         List<Map<?, ?>> events = events(data);
@@ -168,7 +168,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("修改成功", "edit", "call_1"));
 
-        Map<?, ?> turn = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null)).get(0);
+        Map<?, ?> turn = events(service.buildLastTrace(newSession(trace), false, null)).get(0);
 
         String diff = (String) turn.get("diff");
         assertNotNull(diff, "edit 必须算出 diff");
@@ -194,7 +194,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("文件成功写入: a.txt", "write", "call_1"));
 
-        Map<?, ?> turn = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null)).get(0);
+        Map<?, ?> turn = events(service.buildLastTrace(newSession(trace), false, null)).get(0);
         assertEquals("hello world", turn.get("result"), "write 卡片展示的是写入内容");
         assertNull(((Map<?, ?>) turn.get("endArgs")).get("content"));
     }
@@ -207,7 +207,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
         // originalPrompt 为空（fork 出来的会话 / 未跑过的快照）：给定 lastUserMsg 时必须判为不对齐
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, "另一条消息");
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), false, "另一条消息");
         assertEquals(false, data.get("aligned"));
     }
 
@@ -221,7 +221,7 @@ public class LastTraceServiceTest {
                 newToolCallMessage("<think>先看看工程结构</think>我来读一下", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
         assertEquals("先看看工程结构", events.get(0).get("text"));
         assertEquals("我来读一下", events.get(1).get("text"), "正文必须是剥除 think 标签后的纯内容");
@@ -239,7 +239,7 @@ public class LastTraceServiceTest {
                 newToolCallMessage("<think>T1</think>A1<think>T2</think>A2", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note", "thinking", "note", "tool"), kinds(events));
         assertEquals(Arrays.asList("T1", "A1", "T2", "A2"), texts(events.subList(0, 4)));
         // 同一条消息的所有段共享 group，前端据此聚成一个 reason 分组
@@ -260,7 +260,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(
                 new AssistantMessage("", "思考连着答案都在这里", true));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("tool", "thinking"), kinds(events));
         assertEquals("思考连着答案都在这里", events.get(1).get("text"));
         assertEquals(2, events.get(1).get("group"), "它是另一条消息，必须换 group 否则会挤进已收尾的思考块");
@@ -282,7 +282,7 @@ public class LastTraceServiceTest {
                 null, null, Collections.singletonList(call), null));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
         assertEquals(Arrays.asList("T1T2", "A1"), texts(events.subList(0, 2)));
     }
@@ -299,7 +299,7 @@ public class LastTraceServiceTest {
                 null, null, Collections.singletonList(call), null));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
         assertEquals("我来读一下", events.get(1).get("text"));
     }
@@ -313,7 +313,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
         trace.getWorkingMemory().addMessage(new AssistantMessage("","没标签的思考", true));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("note", "tool", "thinking"), kinds(events));
     }
 
@@ -326,7 +326,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage("<think>刚想到一半就被打断", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "tool"), kinds(events));
         assertEquals("刚想到一半就被打断", events.get(0).get("text"));
     }
@@ -339,7 +339,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage("孤立的思考</think>随后的正文", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "note", "tool"), kinds(events));
         assertEquals(Arrays.asList("孤立的思考", "随后的正文"), texts(events.subList(0, 2)));
     }
@@ -360,7 +360,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, c3));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("c", "grep", "call_3"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(3, events.size());
         assertEquals(1, events.get(0).get("group"));
         assertEquals(1, events.get(1).get("group"), "同一批并行调用属于同一组");
@@ -386,7 +386,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, c2));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("b", "grep", "call_2"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("tool", "steer", "tool"), kinds(events));
         assertEquals("改用 grep 找", events.get(1).get("text"), "必须剥掉注入前缀，还原用户原话");
     }
@@ -402,7 +402,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser(SteerInterceptor.STEER_PREFIX + "别改测试"));
         trace.getWorkingMemory().addMessage(new AssistantMessage("","好的", true));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("tool", "steer", "thinking"), kinds(events));
         assertEquals("别改测试", events.get(1).get("text"));
     }
@@ -419,7 +419,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser(SteerInterceptor.STEER_PREFIX + "直接给结论"));
         addFinalAnswer(trace, "结论是……");
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("tool", "steer"), kinds(events));
         assertEquals("直接给结论", events.get(1).get("text"));
     }
@@ -435,7 +435,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage(null, c1));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("a", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Collections.singletonList("tool"), kinds(events));
     }
 
@@ -449,7 +449,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("a", "read", "call_1"));
         addFinalAnswer(trace, "<think>最后梳理一遍</think>这是答案");
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("tool", "thinking"), kinds(events));
         assertEquals("最后梳理一遍", events.get(1).get("text"));
     }
@@ -461,7 +461,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(new AssistantMessage("","", false));
         trace.getWorkingMemory().addMessage(ChatMessage.ofUser(SteerInterceptor.STEER_PREFIX + "换个思路"));
 
-        Map<String, Object> data = service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null);
+        Map<String, Object> data = service.buildLastTrace(newSession(trace), false, null);
         assertEquals(false, data.get("aligned"));
     }
 
@@ -473,7 +473,7 @@ public class LastTraceServiceTest {
         trace.getWorkingMemory().addMessage(newToolCallMessage("\n<think>想一下</think>\n\n", call));
         trace.getWorkingMemory().addMessage(ChatMessage.ofTool("ok", "read", "call_1"));
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "tool"), kinds(events));
     }
 
@@ -516,7 +516,7 @@ public class LastTraceServiceTest {
         // #9 最终回答（已落 ndjson）
         addFinalAnswer(trace, "杭州明天…");
 
-        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), AgentFlags.TRACE_KEY_MAIN, false, null));
+        List<Map<?, ?>> events = events(service.buildLastTrace(newSession(trace), false, null));
         assertEquals(Arrays.asList("thinking", "tool", "steer", "thinking", "steer", "thinking"),
                 kinds(events), "两条插话不得相邻，两大段纯思考内容不得丢失");
         assertEquals("去哪儿玩好？", events.get(2).get("text"));

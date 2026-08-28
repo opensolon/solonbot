@@ -1043,7 +1043,7 @@ public class WebController {
             // 不走 getSession，避免为其凭空创建内存会话
             File snapshotFile = new File(sessionsPath.toFile(), sessionId + ".snapshot.json");
             if (!snapshotFile.exists()) {
-                return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, null, false, null));
+                return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, false, null));
             }
 
             String lastUserMsg = readLastUserMessage(new File(sessionsPath.toFile(), sessionId + ".messages.ndjson"));
@@ -1051,12 +1051,12 @@ public class WebController {
             AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
             boolean running = webGate().isSessionBusy(engine(), sessionId);
 
-            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, AgentFlags.TRACE_KEY_MAIN, running, lastUserMsg);
+            Map<String, Object> data = LAST_TRACE_SERVICE.buildLastTrace(session, running, lastUserMsg);
             return Result.succeed(data);
         } catch (Throwable e) {
             // 回放属于增强能力，失败即静默降级，不能让它影响会话切换
             LOG.debug("[WebController] last-trace failed for session {}: {}", sessionId, e.getMessage());
-            return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, null, false, null));
+            return Result.succeed(LAST_TRACE_SERVICE.buildLastTrace(null, false, null));
         }
     }
 
@@ -1230,7 +1230,7 @@ public class WebController {
         try {
             AgentSession session = sessionManager().getSession(sessionId, getCurrentUserId());
             SessionRewindService.RewindResult rr = REWIND_SERVICE.rewind(
-                    session, AgentFlags.TRACE_KEY_MAIN, anchorRunId, anchorRole, count);
+                    session, anchorRunId, anchorRole, count);
 
             if (rr.isAnchorMissing()) {
                 // 宁可不删，也不能删错条数：前端应改为重载历史

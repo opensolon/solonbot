@@ -47,6 +47,7 @@ import org.noear.solon.codecli.command.builtin.GoalTalent;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.command.builtin.LoopScheduler;
 import org.noear.solon.codecli.config.AgentSettings;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.core.util.DateUtil;
 import org.noear.solon.lang.Preview;
@@ -388,7 +389,7 @@ public class CliShell implements Runnable {
                 terminal.writer().println(DIM + "[Task interrupted]" + RESET);
                 terminal.flush();
                 AssistantMessage cancelMessage = ChatMessage.ofAssistant("用户已取消任务.");
-                ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+                ReActTrace trace = TraceUtil.getCurrentTrace(session);
                 if (trace != null) {
                     cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
                 }

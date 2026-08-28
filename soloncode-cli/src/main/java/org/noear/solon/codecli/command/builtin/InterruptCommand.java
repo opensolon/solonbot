@@ -22,7 +22,7 @@ import org.noear.solon.ai.chat.message.AssistantMessage;
 import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.harness.command.CommandContext;
-import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.core.util.Assert;
 import reactor.core.Disposable;
 
@@ -74,7 +74,7 @@ public class InterruptCommand implements Command {
         Disposable disposable = (Disposable) session.attrs().remove("disposable");
         if (disposable != null) {
             disposable.dispose();
-            ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+            ReActTrace trace = TraceUtil.getCurrentTrace(session);
             AssistantMessage assistantMessage = ChatMessage.ofAssistant("用户已取消任务.");
 
             if (trace != null) {

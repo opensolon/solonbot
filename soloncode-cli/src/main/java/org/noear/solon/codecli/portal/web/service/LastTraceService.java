@@ -30,6 +30,7 @@ import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
 import org.noear.solon.codecli.portal.web.pipeline.ToolViewUtil;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.core.util.Assert;
 
 import java.util.ArrayList;
@@ -111,12 +112,11 @@ public class LastTraceService {
      * 还原指定会话最后一轮的执行过程。
      *
      * @param session     会话（可为 null）
-     * @param traceKey    trace 在会话上下文中的键（主代理为 {@code __main}）
      * @param running     该会话当前是否仍在运行
      * @param lastUserMsg ndjson 中最后一条用户消息内容，用于对齐校验（可为 null 表示跳过校验）
      * @return 供前端回放的结构化数据，永不返回 null
      */
-    public Map<String, Object> buildLastTrace(AgentSession session, String traceKey, boolean running, String lastUserMsg) {
+    public Map<String, Object> buildLastTrace(AgentSession session, boolean running, String lastUserMsg) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("aligned", false);
         data.put("running", running);
@@ -124,7 +124,7 @@ public class LastTraceService {
         data.put("events", new ArrayList<>());
         data.put("truncated", false);
 
-        ReActTrace trace = resolveTrace(session, traceKey);
+        ReActTrace trace = TraceUtil.getCurrentTrace(session);
         if (trace == null) {
             return data;
         }
@@ -156,16 +156,6 @@ public class LastTraceService {
         data.put("events", events);
         data.put("truncated", truncated);
         return data;
-    }
-
-    private ReActTrace resolveTrace(AgentSession session, String traceKey) {
-        if (session == null || session.getContext() == null) {
-            return null;
-        }
-
-        // 快照反序列化后类型可能退化，非 ReActTrace 一律视为不可用（宁缺勿错）
-        Object obj = session.getContext().get(traceKey);
-        return (obj instanceof ReActTrace) ? (ReActTrace) obj : null;
     }
 
     /**

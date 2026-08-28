@@ -41,6 +41,7 @@ import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemTracePayload;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.util.LogDirUtil;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.core.handle.UploadedFile;
@@ -1021,7 +1022,7 @@ public class WebGate extends SimpleWebSocketListener {
                 /* 被回退的那一轮，其执行过程还留在上下文快照里（__main 的 ReActTrace）。
                  * 不清掉的话，刷新页面时 /messages/last-trace 会把已删掉的思考与工具卡
                  * 原样回放回来 —— 与 /web/chat/rewind 同理。 */
-                session.getContext().remove(AgentFlags.TRACE_KEY_MAIN);
+                TraceUtil.removeCurrentTrace(session);
                 session.updateSnapshot();
 
                 emitToClient(wsContext, session.getSessionId(), WebEvent.ofRewind(rewindCount + 1));
@@ -1299,7 +1300,7 @@ public class WebGate extends SimpleWebSocketListener {
 
             // 1) 取消语义：error + 可选 final/trace（落库消息带上 runId，便于按 runId 锚点删除）
             AssistantMessage cancelMessage = ChatMessage.ofAssistant("用户已取消任务.");
-            ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+            ReActTrace trace = TraceUtil.getCurrentTrace(session);
             if (trace != null) {
                 cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
             }

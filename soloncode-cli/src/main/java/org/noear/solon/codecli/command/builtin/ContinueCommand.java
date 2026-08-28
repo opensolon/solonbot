@@ -17,7 +17,6 @@ package org.noear.solon.codecli.command.builtin;
 
 import org.noear.solon.ai.agent.Agent;
 import org.noear.solon.ai.agent.AgentSession;
-import org.noear.solon.ai.agent.AgentTrace;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.chat.message.AssistantMessage;
@@ -25,7 +24,7 @@ import org.noear.solon.ai.chat.message.ChatMessage;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.command.Command;
 import org.noear.solon.ai.harness.command.CommandContext;
-import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.core.util.Assert;
 
 import java.util.List;
@@ -78,7 +77,7 @@ public class ContinueCommand implements Command {
             return;
         }
 
-        ReActTrace trace = session.getContext().getAs("__main");
+        ReActTrace trace = TraceUtil.getCurrentTrace(session);
 
         // 前置拦截：无可继续的任务时，以命令回执形式提示并直接返回（不调用 runAgentTask）。
         // trace 为 null：rewind 后 __main 被移除、会话重启/刷新后轨迹未还原；

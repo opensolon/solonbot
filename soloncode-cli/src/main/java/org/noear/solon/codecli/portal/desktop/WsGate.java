@@ -52,6 +52,7 @@ import org.noear.solon.codecli.command.builtin.LoopTask;
 import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.config.AgentSettings;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
+import org.noear.solon.codecli.util.TraceUtil;
 import org.noear.solon.core.util.Assert;
 import org.noear.solon.net.websocket.WebSocket;
 import org.noear.solon.net.websocket.listener.SimpleWebSocketListener;
@@ -531,7 +532,7 @@ public class WsGate extends SimpleWebSocketListener {
                     return;
                 }
                 AssistantMessage cancelMessage = ChatMessage.ofAssistant("用户已取消任务.");
-                ReActTrace trace = session.getContext().getAs(AgentFlags.TRACE_KEY_MAIN);
+                ReActTrace trace = TraceUtil.getCurrentTrace(session);
                 if (trace != null) {
                     cancelMessage.addMetadata(AgentTrace.META_RUN_ID, trace.getRunId());
                 }
