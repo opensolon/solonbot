@@ -42,12 +42,9 @@ public class RunTokenService {
      * @return true 表示令牌匹配
      */
     public boolean verify(String bearerToken) {
-        if (bearerToken == null || bearerToken.isEmpty()) {
-            return false;
-        }
+        // 先 load 再判空：确保首次 verify 即触发生成，避免「无人带 token 访问过则 run.token 永不落盘」
         String token = loadToken();
-        if (token == null) {
-            // 尚未初始化（理论上 loadToken 会生成，防御分支）
+        if (token == null || bearerToken == null || bearerToken.isEmpty()) {
             return false;
         }
         return MessageDigest.isEqual(

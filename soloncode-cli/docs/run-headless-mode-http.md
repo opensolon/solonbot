@@ -202,6 +202,17 @@ SolonCodeClient.sync()
     .build();
 ```
 
+> **已落地（2026-08-29）**：`HttpTransport`、`HttpSpec`、四个 builder 的 `http(url)`/
+> `authToken()`/`workspace()` 均已实现。补充两条实现时的关键决策：
+>
+> 1. **permission_mode 前置回落**：`CLIOptions.builder()` 默认值是
+>    `bypassPermissions`（stdio 场景合理），但 /web/run 服务端收口 403。SDK 侧不区分
+>    「显式指定」与「默认值」，bypass 系一律在请求体中回落为 `default` 并告警，
+>    避免调用方吃 403。显式指定的 `default`/`acceptEdits`/`plan`/`dontAsk` 照常透传。
+> 2. **顶层 error 事件解析**：服务端「异常退出且无 result」时补发
+>    `{"type":"error","message":...,"code":...}`，`MessageParser` 将其投递为
+>    `SystemMessage(subtype="error")`，不再静默丢弃（HTTP 通道下它是故障的唯一通知）。
+
 HttpTransport 的职责边界：
 
 - 把 `CLIOptions` 序列化为请求体 `options`（字段名按上表映射）
@@ -294,3 +305,12 @@ CLI 文档（`run-headless-mode.md`）中的退出码表、选项语义、stream
 `RunSessionRegistry` 两阶段登记：受理即占位（409 判定先行），子进程启动后回填句柄；
 `interrupt` 落在两阶段之间时置 killPending，回填时立即 `destroy()`（SIGTERM 等价），
 与 CLI kill 进程的行为一致。
+
+### 部署修复记录（2026-08-29）
+
+- **fat jar 主类加载**：`execSubprocess` 原用 `java -cp <classpath> App`，fat jar 部署
+  （`BOOT-INF/classes`）下 `-cp` 找不到主类，请求 0.5s 内返回 `ERR_SUBPROCESS`。改为：
+  classpath 无路径分隔符且以 `.jar` 结尾时走 `java -jar`，否则维持 `-cp`（IDE/腿本场景）。
+- **token 惰性生成触发**：`RunTokenService.verify()` 对空 token 直接返回 false，不触发
+  `loadToken()` —— 首次部署无人带 token 访问过则 `run.token` 永不生成。改为首次 verify
+  即触发生成。

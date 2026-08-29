@@ -149,9 +149,13 @@ class HttpRunIT {
 			transport.close();
 		}
 
-		// 1) system(init)：证明子进程起来了、请求体被 /web/run 接受
+		// 1) system(init)：证明子进程起来了、请求体被 /web/run 接受。
+		// 只认 subtype=init，避免服务端补发的 error 事件（也是 SystemMessage）造成空泛通过
 		List<SystemMessage> systems = filter(received, SystemMessage.class);
-		assertThat(systems).describedAs("必须收到 system(init) 事件").isNotEmpty();
+		assertThat(systems).describedAs("必须收到 system 事件").isNotEmpty();
+		SystemMessage init = systems.get(0);
+		assertThat(init.subtype()).describedAs("首个 system 事件应为 init").isEqualTo("init");
+		assertThat(init.data()).containsKey("session_id");
 
 		// 2) result：HTTP 通道的执行结论事件
 		List<ResultMessage> results = filter(received, ResultMessage.class);
