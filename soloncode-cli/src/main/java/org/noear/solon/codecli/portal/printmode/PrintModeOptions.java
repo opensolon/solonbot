@@ -50,6 +50,16 @@ public class PrintModeOptions {
         STREAM_JSON
     }
 
+    /**
+     * 输入格式（对齐 Claude Code {@code --input-format}）
+     */
+    public enum InputFormat {
+        /** 默认：stdin 为纯文本提示词，读到 EOF 后执行一次并退出 */
+        TEXT,
+        /** stdin 为 JSONL 消息流，每行一个用户消息 = 一轮对话；进程常驻直到 EOF */
+        STREAM_JSON
+    }
+
     public enum PermissionMode {
         /** 默认：未授权操作会被自动拒绝 */
         DEFAULT,
@@ -98,6 +108,12 @@ public class PrintModeOptions {
 
     /** 输出格式 */
     private OutputFormat outputFormat = OutputFormat.TEXT;
+
+    /** 输入格式 */
+    private InputFormat inputFormat = InputFormat.TEXT;
+
+    /** 是否把 stdin 收到的用户消息回显到 stdout（供上游确认已收，需 stream-json 输入+输出） */
+    private boolean replayUserMessages;
 
     /** 选择的模型名称或别名 */
     private String model;
@@ -157,6 +173,21 @@ public class PrintModeOptions {
 
     public OutputFormat getOutputFormat() {
         return outputFormat;
+    }
+
+    public InputFormat getInputFormat() {
+        return inputFormat;
+    }
+
+    public boolean isReplayUserMessages() {
+        return replayUserMessages;
+    }
+
+    /**
+     * 是否为流式输入（常驻）模式
+     */
+    public boolean isStreamJsonInput() {
+        return inputFormat == InputFormat.STREAM_JSON;
     }
 
     public String getModel() {
@@ -273,6 +304,14 @@ public class PrintModeOptions {
             }
         });
 
+        parseValueArg(argx, "input-format", val -> {
+            if ("stream-json".equalsIgnoreCase(val)) {
+                opts.inputFormat = InputFormat.STREAM_JSON;
+            } else {
+                opts.inputFormat = InputFormat.TEXT;
+            }
+        });
+
         parseValueArg(argx, "model", val -> opts.model = val);
         parseValueArg(argx, "max-turns", val -> opts.maxTurns = parseInt(val));
         parseValueArg(argx, "session-id", val -> opts.sessionId = val);
@@ -316,6 +355,9 @@ public class PrintModeOptions {
         }
         if (argx.flags().contains("continue")) {
             opts.continueSession = true;
+        }
+        if (argx.flags().contains("replay-user-messages")) {
+            opts.replayUserMessages = true;
         }
 
         return opts;
@@ -434,10 +476,10 @@ public class PrintModeOptions {
      * 已知的选项名称集合（flags 中不带 - 前缀）
      */
     private static final Set<String> KNOWN_OPTIONS = new HashSet<>(Arrays.asList(
-            "output-format", "model", "max-turns", "session-id", "resume",
+            "output-format", "input-format", "model", "max-turns", "session-id", "resume",
             "allowedTools", "disallowedTools", "permission-mode",
             "verbose", "bare", "continue", "add-dir", "fallback-model",
-            "json-schema", "max-budget-usd"
+            "json-schema", "max-budget-usd", "replay-user-messages"
     ));
 
     /**

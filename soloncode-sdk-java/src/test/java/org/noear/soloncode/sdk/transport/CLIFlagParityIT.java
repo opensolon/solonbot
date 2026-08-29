@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </p>
  *
  * <p>
- * Requires soloncode CLI v2026.8.28 or newer, which is the first version with
+ * Requires soloncode CLI v2026.8.29 or newer, which is the first version with
  * {@code help} / {@code --help} / {@code run --help}.
  * </p>
  */
@@ -103,7 +103,7 @@ class CLIFlagParityIT extends SolonCodeCliTestBase {
 
 		assertThat(cliFlags)
 			.as("`soloncode run --help` produced no parseable options. "
-					+ "Help support landed in CLI v2026.8.28 - upgrade the CLI. Raw output: " + cliHelpOutput)
+					+ "Help support landed in CLI v2026.8.29 - upgrade the CLI. Raw output: " + cliHelpOutput)
 			.isNotEmpty();
 	}
 

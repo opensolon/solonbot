@@ -38,7 +38,7 @@ class HelpModeTest {
 
     private static String render(String... args) {
         MultiMap<String> a = argx(args);
-        return new HelpMode(HelpMode.resolveTopic(a), "v2026.8.28").render();
+        return new HelpMode(HelpMode.resolveTopic(a), "v2026.8.29").render();
     }
 
     // ========== 帮助请求识别 ==========
@@ -104,7 +104,7 @@ class HelpModeTest {
     void rootHelp_listsAllCommandsAndVersion() {
         String text = render("help");
 
-        assertTrue(text.contains("v2026.8.28"), "帮助头部应含版本号");
+        assertTrue(text.contains("v2026.8.29"), "帮助头部应含版本号");
         assertTrue(text.contains("Usage: soloncode"), text);
         assertTrue(text.contains("run <prompt>"), text);
         assertTrue(text.contains("serve"), text);
@@ -173,7 +173,7 @@ class HelpModeTest {
 
     @Test
     void execute_returnsZero() {
-        assertEquals(0, new HelpMode(null, "v2026.8.28").execute());
-        assertEquals(0, new HelpMode("run", "v2026.8.28").execute());
+        assertEquals(0, new HelpMode(null, "v2026.8.29").execute());
+        assertEquals(0, new HelpMode("run", "v2026.8.29").execute());
     }
 }
