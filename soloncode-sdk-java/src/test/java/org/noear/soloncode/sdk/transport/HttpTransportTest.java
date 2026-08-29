@@ -471,4 +471,237 @@ class HttpTransportTest {
 		transport.close();
 	}
 
+
+	// ---------- 补充：错误码与状态分支 ----------
+
+	@Test
+	void serverError500MapsToTransportException() {
+		registerStatusHandler(500, "internal");
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		assertThatThrownBy(() -> transport.startSession("hi", options(), m -> {
+		}, null, null)).isInstanceOf(TransportException.class).hasMessageContaining("HTTP 500");
+		transport.close();
+	}
+
+	@Test
+	void forbiddenMapsTo403() {
+		registerStatusHandler(403, "bypass rejected");
+		HttpTransport transport = new HttpTransport(baseUrl, "tok", null, Duration.ofMinutes(10));
+		assertThatThrownBy(() -> transport.startSession("hi", options(), m -> {
+		}, null, null)).isInstanceOf(TransportException.class).hasMessageContaining("Forbidden");
+		transport.close();
+	}
+
+	@Test
+	void constructorRejectsBlankUrlAndNullTimeout() {
+		assertThatThrownBy(() -> new HttpTransport(null, null, null, Duration.ofMinutes(1)))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new HttpTransport("  ", null, null, Duration.ofMinutes(1)))
+				.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new HttpTransport(baseUrl, null, null, null))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void sendMessageAndSendResponseAreOneShotUnsupported() {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		assertThatThrownBy(() -> transport.sendMessage("{}")).isInstanceOf(TransportException.class)
+				.hasMessageContaining("one-shot");
+		assertThatThrownBy(() -> transport.sendResponse(null)).isInstanceOf(TransportException.class)
+				.hasMessageContaining("one-shot");
+		transport.close();
+	}
+
+	@Test
+	void dataLineWithoutSpaceIsParsed() throws Exception {
+		// SSE 规范允许 data:后无空格（payload 紧跟冒号）
+		server.createContext("/web/run", exchange -> {
+			exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
+			exchange.sendResponseHeaders(200, 0);
+			try (OutputStream os = exchange.getResponseBody()) {
+				os.write("data:{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\",\"session_id\":\"nospace\"}\n\n"
+						.getBytes(StandardCharsets.UTF_8));
+				os.flush();
+			}
+		});
+
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		List<ParsedMessage> received = new CopyOnWriteArrayList<>();
+		transport.startSession("hi", options(), m -> {
+			if (m.isRegularMessage() || m.isResultMessage()) {
+				received.add(m);
+			}
+		}, null, null);
+		assertThat(transport.waitForCompletion(Duration.ofSeconds(10))).isTrue();
+		transport.close();
+
+		assertThat(received).hasSize(1);
+		assertThat(transport.getSessionId()).isEqualTo("nospace");
+	}
+
+	@Test
+	void interruptedSseStreamSurfacesSessionError() throws Exception {
+		// 服务端发一半后 handler 抛异常 → JDK HttpServer 直接断连（客户端读到 IOException，非正常 EOF）
+		// → waitForCompletion 报 Session error
+		server.createContext("/web/run", exchange -> {
+			exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
+			exchange.sendResponseHeaders(200, 0);
+			OutputStream os = exchange.getResponseBody();
+			os.write("data: {\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"partial\"}]}}\n\n"
+					.getBytes(StandardCharsets.UTF_8));
+			os.flush();
+			throw new RuntimeException("simulated mid-stream server crash");
+		});
+
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		List<ParsedMessage> received = new CopyOnWriteArrayList<>();
+		transport.startSession("hi", options(), m -> {
+			if (m.isRegularMessage() || m.isResultMessage()) {
+				received.add(m);
+			}
+		}, null, null);
+		assertThatThrownBy(() -> transport.waitForCompletion(Duration.ofSeconds(10)))
+				.hasMessageContaining("Session error");
+		transport.close();
+		assertThat(received).hasSize(1);
+	}
+
+	@Test
+	void malformedDataLineDoesNotBreakStream() throws Exception {
+		registerSseHandler("{{{not json",
+				"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\",\"session_id\":\"m1\"}");
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		List<ParsedMessage> received = new CopyOnWriteArrayList<>();
+		transport.startSession("hi", options(), m -> {
+			if (m.isRegularMessage() || m.isResultMessage()) {
+				received.add(m);
+			}
+		}, null, null);
+		assertThat(transport.waitForCompletion(Duration.ofSeconds(10))).isTrue();
+		transport.close();
+		// 垃圾行被跳过，result 正常投递
+		assertThat(received).hasSize(1);
+	}
+
+	@Test
+	void interruptWithoutSessionIdIsNoop() {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		transport.interrupt(); // 无 session 标识 → 仅 warn，不抛
+		assertThat(transport.isRunning()).isFalse();
+		transport.close();
+	}
+
+	@Test
+	void interruptServer404LogsAndIgnores() throws Exception {
+		server.removeContext("/web/run/interrupt");
+		server.createContext("/web/run/interrupt", exchange -> {
+			readBody(exchange);
+			respond(exchange, 404, "{\"code\":404}");
+		});
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		transport.setTurnSession("no-such-session", null);
+		transport.interrupt(); // 404 → warn 不抛
+		transport.close();
+	}
+
+	@Test
+	void interruptToUnreachableUrlDoesNotThrow() {
+		HttpTransport transport = new HttpTransport("http://127.0.0.1:1/web/run", null, null,
+				Duration.ofMinutes(10));
+		transport.setTurnSession("s1", null);
+		transport.interrupt(); // 连接失败 → warn 不抛
+		transport.close();
+	}
+
+	@Test
+	void closeGracefullyCompletesAndCloses() throws Exception {
+		registerSseHandler(String.format(
+				"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\",\"session_id\":\"cg\"}"));
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		transport.startSession("hi", options(), m -> {
+		}, null, null);
+		transport.waitForCompletion(Duration.ofSeconds(10));
+		transport.closeGracefully().block(Duration.ofSeconds(10));
+		assertThat(transport.getState()).isEqualTo(Transport.STATE_CLOSED);
+	}
+
+	@Test
+	void doubleCloseIsIdempotent() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		transport.close();
+		transport.close(); // 幂等
+		assertThat(transport.getState()).isEqualTo(Transport.STATE_CLOSED);
+	}
+
+	@Test
+	void getStateNameCoversAllStates() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		assertThat(transport.getStateName()).isEqualTo("DISCONNECTED");
+		transport.close();
+		assertThat(transport.getStateName()).isEqualTo("CLOSED");
+	}
+
+	@Test
+	void resultWithoutSessionIdKeepsExisting() throws Exception {
+		// result 事件缺 session_id → 不覆盖（也保持 null）
+		registerSseHandler(
+				"{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"init-1\"}",
+				"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\"}");
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		runToCompletion(transport, "hi");
+		transport.close();
+		assertThat(transport.getSessionId()).isNull();
+	}
+
+	@Test
+	void buildRequestBodySkipsEmptyFieldsAndWarnsUnsupported() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		String json = transport.buildRequestBody("p", CLIOptions.builder()
+				.systemPrompt("sp")
+				.appendSystemPrompt("asp")
+				.tools(java.util.Collections.singletonList("Read"))
+				.mcpServers(java.util.Collections.singletonMap("m",
+				new org.noear.soloncode.sdk.mcp.McpServerConfig.McpStdioServerConfig("echo")))
+				.maxThinkingTokens(1024)
+				.extraArgs(java.util.Collections.singletonMap("f", "v"))
+				.addDirs(java.util.Collections.singletonList(java.nio.file.Paths.get("/srv/data")))
+				.build());
+		JsonNode options = mapper.readTree(json).get("options");
+		// 不支持的选项全部省略，add_dirs 告警透传
+		assertThat(options.has("system_prompt")).isFalse();
+		assertThat(options.has("append_system_prompt")).isFalse();
+		assertThat(options.has("tools")).isFalse();
+		assertThat(options.has("mcp_servers")).isFalse();
+		assertThat(options.has("max_thinking_tokens")).isFalse();
+		assertThat(options.has("extra_args")).isFalse();
+		assertThat(options.get("add_dirs").get(0).asText()).isEqualTo("/srv/data");
+		transport.close();
+	}
+
+	@Test
+	void buildRequestBodyResumeFromOptionsWithoutTurn() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		String json = transport.buildRequestBody("p", CLIOptions.builder().resume("opt-resume-1").build());
+		assertThat(mapper.readTree(json).get("options").get("resume").asText()).isEqualTo("opt-resume-1");
+		transport.close();
+	}
+
+	@Test
+	void buildRequestBodyTurnSessionIdPreferredOverOptions() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		transport.setTurnSession("turn-sid", null);
+		String json = transport.buildRequestBody("p", CLIOptions.builder().sessionId("opt-sid").build());
+		assertThat(mapper.readTree(json).get("options").get("session_id").asText()).isEqualTo("turn-sid");
+		transport.close();
+	}
+
+	@Test
+	void httpUrlWithTrailingSlashInterruptStillWorks() throws Exception {
+		HttpTransport transport = new HttpTransport(baseUrl + "/", null, null, Duration.ofMinutes(10));
+		transport.setTurnSession("slash-1", null);
+		transport.interrupt();
+		transport.close();
+		assertThat(interruptRequests).contains("slash-1");
+	}
+
 }

@@ -706,29 +706,6 @@ public class StdioTransport implements Transport {
 	}
 
 	/**
-	 * Builds the MCP config map for CLI serialization. SDK servers have their instances
-	 * stripped (not serializable); only type and name are passed.
-	 * @param mcpServers the MCP server configuration map
-	 * @return map suitable for JSON serialization to CLI
-	 */
-	private Map<String, Object> buildMcpConfigForCli(Map<String, McpServerConfig> mcpServers) {
-		Map<String, Object> serversForCli = new LinkedHashMap<>();
-		for (Map.Entry<String, McpServerConfig> entry : mcpServers.entrySet()) {
-			McpServerConfig config = entry.getValue();
-				if (config instanceof McpServerConfig.McpSdkServerConfig) {
-					// SDK servers: pass type and name only, NOT the instance
-					McpServerConfig.McpSdkServerConfig sdk = (McpServerConfig.McpSdkServerConfig) config;
-					serversForCli.put(entry.getKey(), SdkCollections.map("type", "sdk", "name", sdk.name()));
-			}
-			else {
-				// External servers (stdio, sse, http): pass as-is
-				serversForCli.put(entry.getKey(), config);
-			}
-		}
-		return serversForCli;
-	}
-
-	/**
 	 * Safe inherited environment variables (MCP SDK pattern). These are the only system
 	 * env vars that are inherited by default for security.
 	 *
