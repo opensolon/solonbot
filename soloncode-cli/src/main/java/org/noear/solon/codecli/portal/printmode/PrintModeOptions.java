@@ -364,6 +364,26 @@ public class PrintModeOptions {
     }
 
     /**
+     * 为 {@code soloncode stream} 解析选项。
+     *
+     * <p>常驻会话只有 JSONL 一种输入/输出形态，因此这两项在这里被强制置定：
+     * text 输出无法表达“哪一轮结束了”，上游无法切分多轮结果。</p>
+     *
+     * @param argx Solon 启动参数
+     * @return 解析后的选项
+     */
+    public static PrintModeOptions parseStream(MultiMap<String> argx) {
+        PrintModeOptions opts = parse(argx);
+        opts.inputFormat = InputFormat.STREAM_JSON;
+        opts.outputFormat = OutputFormat.STREAM_JSON;
+        if (opts.prompt != null && !opts.prompt.isEmpty()) {
+            System.err.println("Warning: 'stream' reads every turn from stdin; the positional prompt is ignored.");
+            opts.prompt = null;
+        }
+        return opts;
+    }
+
+    /**
      * 解析工具列表参数，将纯工具名和带 glob 模式的规则分离。
      *
      * @param argx       参数映射

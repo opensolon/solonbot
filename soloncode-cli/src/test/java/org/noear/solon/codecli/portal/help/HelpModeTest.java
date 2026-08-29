@@ -169,11 +169,73 @@ class HelpModeTest {
         assertTrue(render("help", "serve").contains("Usage: soloncode serve"));
         assertTrue(render("help", "web").contains("Usage: soloncode web"));
         assertTrue(render("help", "acp").contains("Usage: soloncode acp"));
+        assertTrue(render("help", "stream").contains("Usage: soloncode stream"));
+    }
+
+    // ========== stream 子命令 ==========
+
+    @Test
+    void rootHelp_listsStreamCommand() {
+        String text = render("help");
+
+        assertTrue(text.contains("stream"), text);
+        assertTrue(text.contains("persistent"), "顶层帮助要说清 stream 是常驻的：" + text);
+    }
+
+    @Test
+    void streamHelp_documentsPersistentSemanticsAndOwnFlags() {
+        String text = render("help", "stream");
+
+        assertTrue(text.contains("--replay-user-messages"), text);
+        assertTrue(text.contains("--verbose"), text);
+        assertTrue(text.contains("EOF"), "要说清何时退出：" + text);
+        assertTrue(text.contains("control_request"), "要列出可接受的控制帧：" + text);
+        assertTrue(text.contains("interrupt"), text);
+    }
+
+    @Test
+    void runHelp_pointsPersistentUseToStream() {
+        String text = render("run", "--help");
+
+        assertTrue(text.contains("one-shot"), text);
+        assertTrue(text.contains("soloncode stream"),
+                "run 帮助要给出常驻场景的去向：" + text);
+        assertFalse(text.contains("--input-format"),
+                "run 不接受 --input-format，帮助里不能列出来：" + text);
+    }
+
+    @Test
+    void streamHelp_isMachineParseable() {
+        Matcher matcher = Pattern.compile("--([a-zA-Z][a-zA-Z0-9-]*)").matcher(render("help", "stream"));
+
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        assertTrue(count >= 12, "可解析的选项数量偏少: " + count);
+    }
+
+    @Test
+    void streamHelp_documentsExitCodes() {
+        String text = render("help", "stream");
+
+        assertTrue(text.contains("Exit codes:"), text);
+        for (String code : new String[] { "0", "1", "2", "3", "4", "143" }) {
+            assertTrue(text.contains("  " + code + "  "), "缺少退出码说明: " + code);
+        }
+    }
+
+    @Test
+    void resolveTopic_recognizesStream() {
+        assertEquals("stream", HelpMode.resolveTopic(argx("help", "stream")));
+        assertEquals("stream", HelpMode.resolveTopic(argx("stream", "--help")));
+        assertEquals("stream", HelpMode.resolveTopic(argx("stream", "-h")));
     }
 
     @Test
     void execute_returnsZero() {
         assertEquals(0, new HelpMode(null, "v2026.8.29").execute());
         assertEquals(0, new HelpMode("run", "v2026.8.29").execute());
+        assertEquals(0, new HelpMode("stream", "v2026.8.29").execute());
     }
 }

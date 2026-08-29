@@ -33,6 +33,7 @@ public class AgentFlags {
     public final static String FLAG_HELP = "help";
 
     public final static String FLAG_RUN = "run";
+    public final static String FLAG_STREAM = "stream";
     public final static String FLAG_SERVE = "serve";
     public final static String FLAG_ACP = "acp";
     public final static String FLAG_WEB = "web";

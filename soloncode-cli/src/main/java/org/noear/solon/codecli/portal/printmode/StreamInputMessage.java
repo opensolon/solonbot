@@ -48,7 +48,9 @@ public class StreamInputMessage {
         /** 无法解析或缺少必要字段 */
         MALFORMED,
         /** 是控制帧，但 subtype 不受支持 */
-        UNSUPPORTED_CONTROL
+        UNSUPPORTED_CONTROL,
+        /** stdin 已到达 EOF（由输入泵线程产生，{@link #parse} 永不返回） */
+        EOF
     }
 
     private final Kind kind;
@@ -111,6 +113,11 @@ public class StreamInputMessage {
         return new StreamInputMessage(Kind.UNSUPPORTED_CONTROL, null, requestId, detail, null);
     }
 
+    /** stdin 结束哨兵：入队后作为主循环的终止标记（FIFO 保证先排的轮次不会被丢） */
+    static StreamInputMessage eof() {
+        return new StreamInputMessage(Kind.EOF, null, null, null, null);
+    }
+
     // ========== 解析 ==========
 
     /**
@@ -169,8 +176,14 @@ public class StreamInputMessage {
         }
 
         if (content.isValue()) {
-            String text = content.getString();
-            if (text == null || text.trim().isEmpty()) {
+            // 不能用 content.getString()：ONode 会把数字/布尔也转成字符串，
+            // {"content":123.5} 会被当成合法提示词“123.5”送进模型
+            Object value = content.getValue();
+            if (!(value instanceof String)) {
+                return malformed("'message.content' must be a string or an array of blocks");
+            }
+            String text = (String) value;
+            if (text.trim().isEmpty()) {
                 return malformed("user message has empty text content");
             }
             return user(text, node);

@@ -45,7 +45,7 @@ public class HelpMode {
     private static final Set<String> HELP_FLAGS = new HashSet<>(Arrays.asList("help", "h"));
 
     /** 可查询详细帮助的子命令 */
-    private static final Set<String> TOPICS = new HashSet<>(Arrays.asList("run", "serve", "web", "acp"));
+    private static final Set<String> TOPICS = new HashSet<>(Arrays.asList("run", "stream", "serve", "web", "acp"));
 
     private final String topic;
 
@@ -138,6 +138,9 @@ public class HelpMode {
         if ("run".equals(topic)) {
             return renderRun();
         }
+        if ("stream".equals(topic)) {
+            return renderStream();
+        }
         if ("serve".equals(topic)) {
             return renderServe();
         }
@@ -160,6 +163,7 @@ public class HelpMode {
         sb.append("\n");
         sb.append("Commands:\n");
         sb.append("  run <prompt>     Run a one-shot (headless) task, print the result and exit\n");
+        sb.append("  stream           Serve a persistent headless session over stdio (JSONL in, JSONL out)\n");
         sb.append("  serve            Start the desktop server (WebSocket gate + Web UI)\n");
         sb.append("  web              Start the Web UI server and open a browser\n");
         sb.append("  acp              Serve the Agent Client Protocol over stdio\n");
@@ -169,7 +173,8 @@ public class HelpMode {
         sb.append("  -h, --help       Show this help and exit\n");
         sb.append("  -v, --version    Show the version and exit\n");
         sb.append("\n");
-        sb.append("Run 'soloncode help run' for headless mode options.\n");
+        sb.append("Run 'soloncode help run' for one-shot headless options, or\n");
+        sb.append("'soloncode help stream' for the persistent stdio session.\n");
         sb.append(exitCodes());
         return sb.toString();
     }
@@ -214,6 +219,58 @@ public class HelpMode {
         sb.append("  soloncode run 'Review this PR' --output-format json --permission-mode dontAsk\n");
         sb.append("  soloncode run --output-format stream-json --verbose 'Explain this repo'\n");
         sb.append("  cat error.log | soloncode run --output-format json 'Analyse this error'\n");
+        sb.append("\n");
+        sb.append("Note: 'run' is always one-shot. For a persistent session that keeps the\n");
+        sb.append("process alive across turns, use 'soloncode stream'.\n");
+        sb.append(exitCodes());
+        return sb.toString();
+    }
+
+    private String renderStream() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(header());
+        sb.append("Usage: soloncode stream [options]\n");
+        sb.append("\n");
+        sb.append("Serves a persistent headless session over stdio. Each line on stdin is one\n");
+        sb.append("complete JSON object; a user message starts a new turn. The process stays\n");
+        sb.append("alive until stdin reaches EOF, so turns share one session and one engine\n");
+        sb.append("instead of restarting the binary per turn.\n");
+        sb.append("\n");
+        sb.append("Input and output are always JSONL here; --input-format and --output-format\n");
+        sb.append("are implied and cannot be changed.\n");
+        sb.append("\n");
+        sb.append("Accepted input lines:\n");
+        sb.append("  {\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"...\"}}\n");
+        sb.append("  {\"type\":\"control_request\",\"request_id\":\"r1\",\"request\":{\"subtype\":\"interrupt\"}}\n");
+        sb.append("\n");
+        sb.append("Stream options:\n");
+        sb.append("  --verbose                  Emit assistant/tool events, not just per-turn results\n");
+        sb.append("  --replay-user-messages     Echo each accepted user message back on stdout\n");
+        sb.append("\n");
+        sb.append("Model options:\n");
+        sb.append("  --model <name>             Model name or alias\n");
+        sb.append("  --fallback-model <name>    Model to fall back to when the primary one fails\n");
+        sb.append("  --max-turns <n>            Maximum agent turns per user message\n");
+        sb.append("  --max-budget-usd <amount>  Hard cost limit in USD for the whole session\n");
+        sb.append("\n");
+        sb.append("Session options:\n");
+        sb.append("  --session-id <id>          Run under the given session id\n");
+        sb.append("  --resume <id>              Resume the given session\n");
+        sb.append("  --continue                 Continue the most recent session\n");
+        sb.append("\n");
+        sb.append("Workspace and permission options:\n");
+        sb.append("  --add-dir <dir>            Add an extra working directory (repeatable)\n");
+        sb.append("  --allowedTools <list>      Comma separated allow list, e.g. 'Read,Bash(git log *)'\n");
+        sb.append("  --disallowedTools <list>   Comma separated deny list, e.g. 'Bash(rm *)'\n");
+        sb.append("  --permission-mode <mode>   default | acceptEdits | plan | dontAsk | bypassPermissions\n");
+        sb.append("  --bare                     Minimal mode: skip auto-discovered skills/hooks/MCP/LSP\n");
+        sb.append("\n");
+        sb.append("Options:\n");
+        sb.append("  -h, --help                 Show this help and exit\n");
+        sb.append("\n");
+        sb.append("Examples:\n");
+        sb.append("  soloncode stream --verbose\n");
+        sb.append("  soloncode stream --permission-mode dontAsk --max-budget-usd 5.0\n");
         sb.append(exitCodes());
         return sb.toString();
     }
@@ -265,11 +322,12 @@ public class HelpMode {
         StringBuilder sb = new StringBuilder();
         sb.append("\n");
         sb.append("Exit codes:\n");
-        sb.append("  0  success\n");
-        sb.append("  1  runtime error\n");
-        sb.append("  2  usage error\n");
-        sb.append("  3  no prompt provided\n");
-        sb.append("  4  cost limit exceeded\n");
+        sb.append("  0    success\n");
+        sb.append("  1    runtime or usage error\n");
+        sb.append("  2    max turns exceeded\n");
+        sb.append("  3    no prompt provided\n");
+        sb.append("  4    cost limit exceeded\n");
+        sb.append("  143  terminated by SIGTERM\n");
         return sb.toString();
     }
 }

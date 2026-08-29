@@ -18,6 +18,7 @@ import org.noear.solon.codecli.portal.help.HelpMode;
 import org.noear.solon.codecli.portal.desktop.WsController;
 import org.noear.solon.codecli.portal.printmode.PrintMode;
 import org.noear.solon.codecli.portal.printmode.PrintModeOptions;
+import org.noear.solon.codecli.portal.printmode.StreamMode;
 import org.noear.solon.codecli.portal.desktop.WsGate;
 import org.noear.solon.codecli.portal.web.WebChannel;
 import org.noear.solon.codecli.portal.web.WebController;
@@ -119,6 +120,15 @@ public class Configurator {
                 PrintMode printMode = new PrintMode(agentRuntime, agentSettings, printOpts);
                 int exitCode = printMode.execute();
                 haltWith(exitCode);
+                return;
+            }
+
+            if (AgentFlags.FLAG_STREAM.equals(flag)) { // soloncode stream --verbose  （stdin 为 JSONL 消息流，进程常驻）
+                // Stream / 常驻无头模式（对齐 claude -p --input-format stream-json）
+                // 与 run 分开暴露：run 永远单次，stream 永远常驻，同一子命令不存在两种生命周期
+                PrintModeOptions streamOpts = PrintModeOptions.parseStream(Solon.cfg().argx());
+                StreamMode streamMode = new StreamMode(agentRuntime, agentSettings, streamOpts);
+                haltWith(streamMode.execute());
                 return;
             }
 
