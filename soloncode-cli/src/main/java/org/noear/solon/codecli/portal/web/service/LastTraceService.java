@@ -384,18 +384,60 @@ public class LastTraceService {
     private List<Segment> splitSegments(AssistantMessage msg) {
         List<Segment> out = new ArrayList<>();
 
-        //不要动这边的代码
-        String thinking = msg.getThinking();
+        // 新版消息把 thinking 与 text 分开；使用 raw getter，避免旧字段兼容 getter
+        // 把 content 截成第一对标签，导致后续交替段丢失。
+        String thinking = msg.getThinkingRaw();
         if (Assert.isNotEmpty(thinking)) {
             addSegment(out, true, thinking);
         }
 
-        String text = msg.getText();
-        if (Assert.isNotEmpty(text)) {
-            addSegment(out, false, text);
+        String text = msg.getTextRaw();
+        if (text == null && thinking == null) {
+            // 旧快照只有 content 字段；不能调用 getText()，因为它会先剥掉
+            // 第一对标签，使后续交替段和未闭合思考无法恢复。
+            text = msg.getContent();
+        }
+        if (Assert.isEmpty(text)) {
+            return out;
+        }
+
+        boolean hasOpen = text.indexOf(THINK_OPEN) >= 0;
+        boolean hasClose = text.indexOf(THINK_CLOSE) >= 0;
+        if (hasOpen || hasClose) {
+            // 若 thinking 已由新版双通道明确提供，text 始终是正文；标签只作为旧数据
+            // 的兼容格式解析，不能再用 isThinking() 把独立正文误判为思考。
+            splitTaggedText(out, text, hasClose
+                    && (!hasOpen || text.indexOf(THINK_CLOSE) < text.indexOf(THINK_OPEN)));
+        } else {
+            // 没有标签时，新版双通道的 text 明确是正文；只有旧式消息没有独立
+            // thinking 时，才用末帧状态判断未分栏的 content。
+            addSegment(out, thinking == null && msg.isThinking(), text);
         }
 
         return out;
+    }
+
+    /**
+     * 解析兼容旧快照/部分模型产生的内嵌 think 标签。
+     * 标签本身不下发；未闭合的开标签把剩余内容视为 thinking。
+     * 若只剩孤立闭标签，则闭标签前的内容按 thinking 处理，保护被截断的旧快照。
+     */
+    private void splitTaggedText(List<Segment> out, String text, boolean startsThinking) {
+        int offset = 0;
+        boolean thinking = startsThinking;
+
+        while (offset < text.length()) {
+            String tag = thinking ? THINK_CLOSE : THINK_OPEN;
+            int tagIndex = text.indexOf(tag, offset);
+            if (tagIndex < 0) {
+                addSegment(out, thinking, text.substring(offset));
+                return;
+            }
+
+            addSegment(out, thinking, text.substring(offset, tagIndex));
+            offset = tagIndex + tag.length();
+            thinking = !thinking;
+        }
     }
 
     /**

@@ -15,7 +15,7 @@ import java.util.Map;
 
 /**
  * Google Models / Gemini 协议实现
- * 接口：GET {baseUrl}/v1beta/models?key={apiKey} 或 Authorization 头
+ * 接口：GET {baseUrl}/v1beta/models（密钥通过 x-goog-api-key 头传递，避免出现在 URL 与日志中）
  */
 @Slf4j
 public class GoogleModelsAdapter implements ModelsAdapter {
@@ -53,10 +53,8 @@ public class GoogleModelsAdapter implements ModelsAdapter {
 
     @Override
     public List<ModelInfo> fetchModels(String userAgent, String baseUrl, Map<String, String> headers, String apiKey) {
+        // 密钥只走请求头，不拼进 URL：URL 可能被日志、异常消息或代理记录下来
         String modelsUrl = buildModelsUrl(baseUrl);
-        if (apiKey != null && !apiKey.isEmpty()) {
-            modelsUrl = modelsUrl + (modelsUrl.contains("?") ? "&" : "?") + "key=" + apiKey;
-        }
 
         List<ModelInfo> result = new ArrayList<>();
 
@@ -103,7 +101,7 @@ public class GoogleModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[Google] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
+            log.warn("[Google] Failed to fetch model list");
             throw new ModelsFetchException("Google model list request failed", e);
         }
 

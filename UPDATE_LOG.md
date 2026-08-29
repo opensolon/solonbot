@@ -3,6 +3,8 @@
 ### v2026.8.29
 
 * 新增 soloncode-sdk-java 模块
+* 添加 soloncode web 输入超大提示（100K）
+* 优化 soloncode web 供应商拉取失败的提示
 * 修复 soloncode web 子代理任务显示描述丢失问题
 * 修复 soloncode web 如果是子代理执行，继续执行会失败的问题
 * 细节优化

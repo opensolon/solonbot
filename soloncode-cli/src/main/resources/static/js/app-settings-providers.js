@@ -371,7 +371,7 @@
         if (xhr.status === 401 || xhr.status === 403) return I18n.t('provider.fetchAuthFailed');
         if (xhr.status === 404) return I18n.t('provider.fetchEndpointNotFound');
         if (xhr.responseJSON && xhr.responseJSON.msg) return xhr.responseJSON.msg;
-        return I18n.t('provider.fetchListFailed') + '，' + I18n.t('provider.fetchKeepExisting');
+        return I18n.t('provider.fetchListFailedKeepExisting');
     }
 
 
@@ -406,15 +406,18 @@
                         var previousRemoteCount = previousModels.filter(function (m) { return m.manual !== true; }).length;
                         var manualModels = previousModels.filter(function (m) { return m.manual === true; });
                         // 旧模型索引：拉取时继承用户已设置的值（上下文长度手填值、勾选状态）
-                        var prevById = {};
+                        var prevById = Object.create(null);
                         fetchedModels.forEach(function (m) { prevById[m.id] = m; });
-                        var fetchedMapped = models.map(function (m) {
+                        var seenIds = Object.create(null);
+                        var fetchedMapped = [];
+                        models.forEach(function (m) {
                             var id = String((m && (m.id || m.name)) || (typeof m === 'string' ? m : '')).trim();
-                            if (!id) return null;
+                            if (!id || seenIds[id]) return;
+                            seenIds[id] = true;
                             var incomingMax = m.maxInputTokens || m.max_input_tokens || m.contextLength || m.context_length || 0;
                             var incomingMaxOut = m.maxTokens || m.max_tokens || 0;
                             var prev = prevById[id];
-                            return {
+                            fetchedMapped.push({
                                 id: id,
                                 displayName: m && (m.displayName || m.display_name) || '',
                                 ownedBy: m && (m.ownedBy || m.owned_by) || '',
@@ -424,19 +427,21 @@
                                 maxTokens: incomingMaxOut || (prev ? prev.maxTokens : 0) || 0,
                                 selected: prev ? prev.selected : undefined,
                                 manual: false
-                            };
-                        }).filter(function (m, index, list) {
-                            return m && list.findIndex(function (x) { return x.id === m.id; }) === index;
+                            });
                         });
+                        // 有效远程模型数：以过滤去重后的结果为准，响应条数不能代表可用模型数
+                        var fetchedRemoteCount = fetchedMapped.length;
+                        // 返回了数据但没有一条可识别（如 id 全为空），按格式不兼容提示
+                        var invalidResponse = fetchedRemoteCount === 0 && models.length > 0;
                         // 空响应不覆盖已有远程模型，避免临时异常导致模型配置消失。
-                        if (fetchedMapped.length === 0 && previousRemoteCount > 0) {
+                        if (fetchedRemoteCount === 0 && previousRemoteCount > 0) {
                             fetchedModels = previousModels;
                             renderModelsList();
-                            layui.layer.msg(I18n.t('provider.fetchEmptyKeepExisting'), { icon: 0, time: 4000, offset: '120px' });
+                            layui.layer.msg(I18n.t(invalidResponse ? 'provider.fetchInvalidModels' : 'provider.fetchEmptyKeepExisting'), { icon: 0, time: 4000, offset: '120px' });
                             return;
                         }
 
-                        var fetchedIds = {};
+                        var fetchedIds = Object.create(null);
                         fetchedMapped.forEach(function (m) { fetchedIds[m.id] = m; });
                         manualModels.forEach(function (mm) {
                             if (fetchedIds[mm.id]) {
@@ -459,11 +464,10 @@
                         });
                         fetchedModels = fetchedMapped;
                         renderModelsList();
-                        if (models.length === 0) {
-                            layui.layer.msg(I18n.t('provider.fetchEmpty'), { icon: 0, time: 3500, offset: '120px' });
+                        if (fetchedRemoteCount === 0) {
+                            layui.layer.msg(I18n.t(invalidResponse ? 'provider.fetchInvalidModels' : 'provider.fetchEmpty'), { icon: 0, time: 3500, offset: '120px' });
                         } else {
-                            var remoteCount = fetchedModels.filter(function (m) { return m.manual !== true; }).length;
-                            layui.layer.msg(I18n.t('provider.fetchOk', {n: remoteCount}), { icon: 1, time: 2200, offset: '120px' });
+                            layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedRemoteCount}), { icon: 1, time: 2200, offset: '120px' });
                         }
                     } catch (e) {
                         layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2, time: 3000, offset: '120px' });

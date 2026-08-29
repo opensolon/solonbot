@@ -967,9 +967,15 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
     }).fail(function(err) {
         console.error('Send error:', err);
         var status = err && err.status;
-        var errorText = status
-            ? I18n.t('im.requestFailed', {status: 'HTTP ' + status})
-            : I18n.t('toast.networkErrorRetry');
+        var errorText;
+        if (status === 413) {
+            // 后端 LimitedInputStream 超限，给出可行动的提示而非裸状态码
+            errorText = I18n.t('streaming.inputTooLarge', {max: Math.floor(MAX_CHAT_INPUT_BYTES / 1000)});
+        } else if (status) {
+            errorText = I18n.t('im.requestFailed', {status: 'HTTP ' + status});
+        } else {
+            errorText = I18n.t('toast.networkErrorRetry');
+        }
         // toast 负责即时反馈，系统通知保留在消息流中，避免用户错过短暂提示。
         if (typeof showToast === 'function') showToast(errorText, 'error', 3500);
         if (typeof appendSystemNotice === 'function') appendSystemNotice(sess, errorText);

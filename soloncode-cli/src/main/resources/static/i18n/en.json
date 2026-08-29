@@ -888,12 +888,13 @@
   "provider.fetchListFailed": "Failed to fetch model list",
   "provider.fetchOk": "Successfully fetched {n} models",
   "provider.fetchParseFailed": "Failed to parse model list",
- "provider.fetchEmpty": "Request succeeded, but no available models were returned",
- "provider.fetchEmptyKeepExisting": "No models found; the current list was not changed",
- "provider.fetchKeepExisting": "the current list was not changed",
- "provider.fetchTimeout": "The request timed out. Check your network and try again",
- "provider.fetchAuthFailed": "Authentication failed. Check the API key and permissions",
- "provider.fetchEndpointNotFound": "Model endpoint not found. Check the API URL and protocol",
+  "provider.fetchEmpty": "Request succeeded, but the provider returned no available models",
+  "provider.fetchEmptyKeepExisting": "No models found; the current list is unchanged",
+  "provider.fetchListFailedKeepExisting": "Failed to fetch the model list; the current list is unchanged",
+  "provider.fetchInvalidModels": "The returned model data could not be recognized; the current list is unchanged",
+  "provider.fetchTimeout": "Fetch timed out. Check your network and try again",
+  "provider.fetchAuthFailed": "Authentication failed. Check the API key and access permissions",
+  "provider.fetchEndpointNotFound": "Model endpoint not found. Check the API URL and protocol",
   "provider.formTitle": "Add Provider",
   "provider.invert": "Invert",
   "provider.loadDetailFailed": "Failed to load provider details",
@@ -1221,5 +1222,6 @@
   "update.dialogTitle": "Upgrade to {version}",
   "update.dialogDesc": "Current version {current}, latest is {version}. Run this command in your terminal to upgrade:",
   "update.copy": "Copy",
-  "update.copied": "Copied"
+  "update.copied": "Copied",
+  "streaming.inputTooLarge": "Input is too large, it cannot exceed {max} KB"
 }
