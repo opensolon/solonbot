@@ -35,8 +35,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -47,6 +53,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -97,9 +113,17 @@ public class HttpTransport implements Transport {
 
 	private final String workspace;
 
+	private final HttpOptions options;
+
 	private final Duration defaultTimeout;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
+
+	/** 网络层选项构建出的 SSL 工厂（trustStore/keyStore/trustAll）；null 用 JVM 默认 */
+	private final SSLSocketFactory sslSocketFactory;
+
+	/** 跳过主机名校验时的 verifier；null 用 JVM 默认 */
+	private final HostnameVerifier hostnameVerifier;
 
 	/** SSE 行读取线程（每轮执行一个，覆盖多轮 resume 串接） */
 	private final ExecutorService sseReader = Executors.newSingleThreadExecutor(r -> {
@@ -147,6 +171,18 @@ public class HttpTransport implements Transport {
 	 * @param defaultTimeout 本轮执行超时
 	 */
 	public HttpTransport(String url, String token, String workspace, Duration defaultTimeout) {
+		this(url, token, workspace, null, defaultTimeout);
+	}
+
+	/**
+	 * @param url /web/run 完整 URL
+	 * @param token Bearer token；null 表示不带鉴权头
+	 * @param workspace 服务端工作区标识；null 用服务端默认
+	 * @param options 网络层选项（代理/SSL）；null 表示默认直连
+	 * @param defaultTimeout 本轮执行超时
+	 */
+	public HttpTransport(String url, String token, String workspace, HttpOptions options,
+			Duration defaultTimeout) {
 		if (url == null || url.trim().isEmpty()) {
 			throw new IllegalArgumentException("url must not be null or empty");
 		}
@@ -156,7 +192,138 @@ public class HttpTransport implements Transport {
 		this.baseUrl = url.trim();
 		this.token = token;
 		this.workspace = workspace;
+		this.options = options;
 		this.defaultTimeout = defaultTimeout;
+		SSLSupport ssl = initSsl();
+		this.sslSocketFactory = ssl.socketFactory;
+		this.hostnameVerifier = ssl.verifier;
+	}
+
+	/** SSL 初始化结果（两个字段都可能为 null，表示用 JVM 默认）。 */
+	private static final class SSLSupport {
+
+		final SSLSocketFactory socketFactory;
+
+		final HostnameVerifier verifier;
+
+		SSLSupport(SSLSocketFactory socketFactory, HostnameVerifier verifier) {
+			this.socketFactory = socketFactory;
+			this.verifier = verifier;
+		}
+	}
+
+	// ============================================================
+	// Network layer: proxy + SSL（/web/run 与 /interrupt 共用）
+	// ============================================================
+
+	/**
+	 * 从网络层选项构建 SSL 上下文；无任何 TLS 配置时返回两个 null（JVM 默认）。
+	 * 初始化失败（信任库不存在/密码错/格式不对）直接抛 TransportException，
+	 * 不留到请求时才炸。
+	 */
+	private SSLSupport initSsl() {
+		if (options == null) {
+			return new SSLSupport(null, null);
+		}
+		boolean hasTlsConfig = options.trustStorePath() != null || options.keyStorePath() != null
+				|| options.trustAll() || options.skipHostnameVerify();
+		if (!hasTlsConfig) {
+			return new SSLSupport(null, null);
+		}
+		try {
+			KeyManager[] keyManagers = null;
+			if (options.keyStorePath() != null) {
+				KeyStore ks = loadKeyStore(options.keyStorePath(), options.keyStorePassword());
+				KeyManagerFactory kmf = KeyManagerFactory
+						.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				kmf.init(ks, options.keyStorePassword());
+				keyManagers = kmf.getKeyManagers();
+			}
+
+			TrustManager[] trustManagers = null;
+			if (options.trustAll()) {
+				trustManagers = new TrustManager[] { new X509TrustManager() {
+					@Override
+					public void checkClientTrusted(X509Certificate[] chain, String authType) {
+					}
+
+					@Override
+					public void checkServerTrusted(X509Certificate[] chain, String authType) {
+					}
+
+					@Override
+					public X509Certificate[] getAcceptedIssuers() {
+						return new X509Certificate[0];
+				}
+				} };
+				logger.warn("trustAll enabled: certificate chain validation is DISABLED (dev/testing only)");
+			}
+			else if (options.trustStorePath() != null) {
+				KeyStore ts = loadKeyStore(options.trustStorePath(), options.trustStorePassword());
+				TrustManagerFactory tmf = TrustManagerFactory
+						.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+				tmf.init(ts);
+				trustManagers = tmf.getTrustManagers();
+			}
+
+			SSLContext ctx = SSLContext.getInstance("TLS");
+			ctx.init(keyManagers, trustManagers, null);
+
+			HostnameVerifier verifier = null;
+			if (options.skipHostnameVerify()) {
+				verifier = (hostname, session) -> true;
+				logger.warn("skipHostnameVerify enabled: hostname verification is DISABLED (dev/testing only)");
+			}
+			return new SSLSupport(ctx.getSocketFactory(), verifier);
+		}
+		catch (Exception e) {
+			throw new TransportException("Failed to initialize SSL from HttpOptions", e);
+		}
+	}
+
+	private static KeyStore loadKeyStore(Path path, char[] password) throws Exception {
+		if (!Files.isReadable(path)) {
+				throw new TransportException("key/trust store not readable: " + path);
+		}
+		try (InputStream in = Files.newInputStream(path)) {
+				KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+				ks.load(in, password);
+				return ks;
+			}
+	}
+
+	/** 按网络层选项构建代理；未配置代理返回 null（系统默认路由）。 */
+	private Proxy buildProxy() {
+		if (options == null || options.proxyHost() == null) {
+			return null;
+		}
+		Proxy.Type type = options.proxyType() == HttpOptions.ProxyType.SOCKS ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
+		return new Proxy(type, new InetSocketAddress(options.proxyHost(), options.proxyPort()));
+	}
+
+	/**
+	 * 统一连接工厂：代理/SSL/公共头在这里一次性应用，/web/run 与 /interrupt 共用。
+	 */
+	private HttpURLConnection openConnection(String url) throws IOException {
+		Proxy proxy = buildProxy();
+		HttpURLConnection conn = (HttpURLConnection) (proxy != null ? new URL(url).openConnection(proxy)
+				: new URL(url).openConnection());
+		if (conn instanceof HttpsURLConnection) {
+			HttpsURLConnection https = (HttpsURLConnection) conn;
+			if (sslSocketFactory != null) {
+				https.setSSLSocketFactory(sslSocketFactory);
+			}
+			if (hostnameVerifier != null) {
+				https.setHostnameVerifier(hostnameVerifier);
+			}
+		}
+		if (token != null) {
+			conn.setRequestProperty("Authorization", "Bearer " + token);
+		}
+		if (options != null && options.proxyAuthHeader() != null) {
+			conn.setRequestProperty("Proxy-Authorization", options.proxyAuthHeader());
+		}
+		return conn;
 	}
 
 	// ============================================================
@@ -183,7 +350,7 @@ public class HttpTransport implements Transport {
 			logger.info("Starting HTTP run: {} ({} chars body)", baseUrl, body.length());
 			logger.debug("HTTP run request body: {}", body);
 
-			HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl).openConnection();
+			HttpURLConnection conn = openConnection(baseUrl);
 			conn.setRequestMethod("POST");
 			conn.setDoOutput(true);
 			conn.setConnectTimeout((int) Math.min(defaultTimeout.toMillis(), Integer.MAX_VALUE));
@@ -191,9 +358,6 @@ public class HttpTransport implements Transport {
 			conn.setReadTimeout(0);
 			conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 			conn.setRequestProperty("Accept", "text/event-stream");
-			if (token != null) {
-				conn.setRequestProperty("Authorization", "Bearer " + token);
-			}
 
 			try (OutputStream os = conn.getOutputStream()) {
 				os.write(body.getBytes(StandardCharsets.UTF_8));
@@ -437,15 +601,12 @@ public class HttpTransport implements Transport {
 		}
 		try {
 			String interruptUrl = baseUrl.endsWith("/") ? baseUrl + "interrupt" : baseUrl + "/interrupt";
-			HttpURLConnection conn = (HttpURLConnection) new URL(interruptUrl).openConnection();
+			HttpURLConnection conn = openConnection(interruptUrl);
 			conn.setRequestMethod("POST");
 			conn.setConnectTimeout(10_000);
 			conn.setReadTimeout(10_000);
 			conn.setDoOutput(true);
 			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-			if (token != null) {
-				conn.setRequestProperty("Authorization", "Bearer " + token);
-			}
 			String form = "session_id=" + java.net.URLEncoder.encode(sid, "UTF-8");
 			try (OutputStream os = conn.getOutputStream()) {
 				os.write(form.getBytes(StandardCharsets.UTF_8));

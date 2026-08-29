@@ -80,6 +80,37 @@ SolonCodeClient.sync().http("http://127.0.0.1:18080/web/run")  // 服务端通�
 HTTP 通道下 MCP 注册、权限审批回调等在服务端配置，客户端同名选项仅告警忽略。
 协议契约详见 `soloncode-cli/docs/run-headless-mode-http.md`。
 
+### 网络层：代理与 SSL/TLS（仅 http 通道）
+
+```java
+// HTTP 正向代理（含 HTTPS CONNECT 隧道），带 Basic 认证
+SolonCodeClient.sync()
+    .http("https://run.internal.example/web/run")
+    .authToken(token)
+    .httpOptions(HttpOptions.proxy("proxy.corp.example", 3128).proxyAuth("user", "pass"))
+    .build();
+
+// SOCKS5 代理
+HttpOptions.proxy("proxy.corp.example", 1080, HttpOptions.ProxyType.SOCKS)
+
+// 自签/私有 CA 证书：keytool -importcert 导入 JKS 后指定信任库
+HttpOptions.tls().trustStore("/path/ca-trust.jks", "changeit")
+
+// 客户端证书（mTLS）
+HttpOptions.tls().trustStore(caPath, caPass).keyStore("/path/client.p12", "changeit")
+
+// 跳过证书校验 / 主机名校验（危险，仅限内网联调；启用时打 WARN 日志）
+HttpOptions.tls().trustAll(true)
+HttpOptions.tls().skipHostnameVerify(true)
+```
+
+要点：
+
+- 所有选项经 `httpOptions(...)` 构建器传入（stdio 通道设置会在 build 时报错）；`HttpOptions` 不可变，wither 返回新实例。
+- 代理认证走 `Proxy-Authorization` 头，`/web/run` 与 `/web/run/interrupt` 每个连接都带；SOCKS 认证需调用方自行 `Authenticator.setDefault`（SDK 不改 JVM 全局状态）。
+- trustStore/keyStore 支持 JKS 与 PKCS12（按文件内容自动识别）；密码字段不参与 equals/toString，防泄漏。
+- trustAll 与 trustStore 互斥；SSL 初始化失败（文件不存在/密码错/格式不对）在传输实例创建时立即抛 `TransportException`，不留到首次请求。
+
 > SDK 本身不读任何 `soloncode.http.*` 环境配置——服务地址、token、workspace 一律构建器传入；
 > 需要从外部配置注入时，由调用方读出来再传给 builder。
 

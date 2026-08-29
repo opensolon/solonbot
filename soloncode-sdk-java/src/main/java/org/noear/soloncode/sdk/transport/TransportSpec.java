@@ -30,6 +30,7 @@ import java.time.Duration;
  * TransportSpec.stdio()                              // 默认：本机子进程，自动发现 CLI
  * TransportSpec.stdio("/usr/local/bin/soloncode")    // 本机子进程，指定可执行文件
  * TransportSpec.http("http://127.0.0.1:18080/web/run", token, "my-project")
+ * TransportSpec.http(url, token, workspace, HttpOptions.proxy("proxy.corp", 3128))  // 代理/SSL
  * }</pre>
  *
  * <p>客户端每轮执行都会调用 {@link #create(Path, Duration)} 新建一个传输实例——
@@ -82,7 +83,21 @@ public abstract class TransportSpec {
 	 * @return http 通道声明
 	 */
 	public static TransportSpec http(String url, String token, String workspace) {
-		return new HttpSpec(url, token, workspace);
+		return new HttpSpec(url, token, workspace, null);
+	}
+
+	/**
+	 * HTTP 通道（带网络层选项：代理与 SSL/TLS）。
+	 *
+	 * @param url {@code /web/run} 完整 URL
+	 * @param token Bearer token；null 表示不带鉴权头
+	 * @param workspace 服务端工作区标识；null 表示服务端默认工作区
+	 * @param options 网络层选项；null 等价于默认直连（无代理、JVM 默认 SSL）
+	 * @return http 通道声明
+	 * @see HttpOptions
+	 */
+	public static TransportSpec http(String url, String token, String workspace, HttpOptions options) {
+		return new HttpSpec(url, token, workspace, options);
 	}
 
 	/**
@@ -92,7 +107,7 @@ public abstract class TransportSpec {
 	 * @see #http(String, String, String)
 	 */
 	public static TransportSpec http(String url) {
-		return new HttpSpec(url, null, null);
+		return new HttpSpec(url, null, null, null);
 	}
 
 	/**
@@ -125,6 +140,14 @@ public abstract class TransportSpec {
 		throw new IllegalStateException("not an http transport spec: " + describe());
 	}
 
+	/**
+	 * 补全 HTTP 通道的网络层选项（代理/SSL）；非 http 通道抛 {@link IllegalStateException}。
+	 * builder 层 {@code httpOptions(...)} 的落地入口。传 null 清除网络层配置。
+	 */
+	public TransportSpec withHttpOptions(HttpOptions options) {
+		throw new IllegalStateException("not an http transport spec: " + describe());
+	}
+
 	@Override
 	public String toString() {
 		return describe();
@@ -141,13 +164,16 @@ public abstract class TransportSpec {
 
 		private final String workspace;
 
-		HttpSpec(String url, String token, String workspace) {
+		private final HttpOptions options;
+
+		HttpSpec(String url, String token, String workspace, HttpOptions options) {
 			if (url == null || url.trim().isEmpty()) {
 				throw new IllegalArgumentException("url must not be null or empty");
 			}
 			this.url = url.trim();
 			this.token = (token != null && !token.trim().isEmpty()) ? token.trim() : null;
 			this.workspace = (workspace != null && !workspace.trim().isEmpty()) ? workspace.trim() : null;
+			this.options = options;
 		}
 
 		String url() {
@@ -169,18 +195,25 @@ public abstract class TransportSpec {
 
 		@Override
 		public TransportSpec withHttpCredentials(String token, String workspace) {
-			return new HttpSpec(url, token != null ? token : this.token, workspace != null ? workspace : this.workspace);
+			return new HttpSpec(url, token != null ? token : this.token, workspace != null ? workspace : this.workspace,
+					options);
+		}
+
+		@Override
+		public TransportSpec withHttpOptions(HttpOptions options) {
+			return new HttpSpec(url, token, workspace, options);
 		}
 
 		@Override
 		public Transport create(Path workingDirectory, Duration timeout) {
 			// workingDirectory 在 HTTP 通道下无意义（服务端由 workspace 标识决定），忽略
-			return new HttpTransport(url, token, workspace, timeout);
+			return new HttpTransport(url, token, workspace, options, timeout);
 		}
 
 		@Override
 		public String describe() {
-			return "http(" + url + ")";
+			String extra = options != null && !options.isDefault() ? " " + options : "";
+			return "http(" + url + (extra.isEmpty() ? "" : " " + extra) + ")";
 		}
 
 	}

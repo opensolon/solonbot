@@ -20,6 +20,7 @@ import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.hooks.HookRegistry;
 import org.noear.soloncode.sdk.mcp.McpServerConfig;
 import org.noear.soloncode.sdk.transport.CLIOptions;
+import org.noear.soloncode.sdk.transport.HttpOptions;
 import org.noear.soloncode.sdk.transport.TransportSpec;
 
 import java.nio.file.Path;
@@ -210,6 +211,9 @@ public interface SolonCodeClient {
 		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
 		private String httpWorkspace;
 
+		/** http 通道的网络层选项：代理与 SSL/TLS（仅 http 通道使用） */
+		private HttpOptions httpOptions;
+
 		private HookRegistry hookRegistry;
 
 		// CLIOptions fields
@@ -325,6 +329,18 @@ public interface SolonCodeClient {
 		 */
 		public SyncSpec workspace(String workspace) {
 			this.httpWorkspace = workspace;
+			return this;
+		}
+
+		/**
+		 * HTTP 通道的网络层选项：代理与 SSL/TLS（{@code HttpOptions.proxy(...).tlsTrustStore(...)}）。
+		 * 仅 http 通道有效，stdio 通道设置会在 build 时报错。
+		 * @param options 网络层选项；null 表示默认直连（无代理、JVM 默认 SSL）
+		 * @return this builder instance for method chaining
+		 * @see HttpOptions
+		 */
+		public SyncSpec httpOptions(HttpOptions options) {
+			this.httpOptions = options;
 			return this;
 		}
 
@@ -615,6 +631,9 @@ public interface SolonCodeClient {
 		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
 		private String httpWorkspace;
 
+		/** http 通道的网络层选项：代理与 SSL/TLS（仅 http 通道使用） */
+		private HttpOptions httpOptions;
+
 		private HookRegistry hookRegistry;
 
 		SyncSpecWithOptions(CLIOptions options) {
@@ -678,6 +697,12 @@ public interface SolonCodeClient {
 			return this;
 		}
 
+		/** HTTP 通道的网络层选项：代理与 SSL/TLS（仅 http 通道有效，详见 {@link SyncSpec#httpOptions(HttpOptions)}）。 */
+		public SyncSpecWithOptions httpOptions(HttpOptions options) {
+			this.httpOptions = options;
+			return this;
+		}
+
 		/**
 		 * Sets the hook registry for intercepting tool execution.
 		 * @param hookRegistry the hook registry
@@ -702,9 +727,17 @@ public interface SolonCodeClient {
 				if (authToken != null || httpWorkspace != null) {
 					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
 				}
+				if (httpOptions != null) {
+					transportSpec = transportSpec.withHttpOptions(httpOptions);
+				}
 			}
-			else if (workingDirectory == null) {
-				throw new IllegalArgumentException("workingDirectory is required");
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				if (workingDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
 			}
 			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
@@ -798,6 +831,9 @@ public interface SolonCodeClient {
 		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
 		private String httpWorkspace;
 
+		/** http 通道的网络层选项：代理与 SSL/TLS（仅 http 通道使用） */
+		private HttpOptions httpOptions;
+
 		private HookRegistry hookRegistry;
 
 		// CLIOptions fields
@@ -876,6 +912,12 @@ public interface SolonCodeClient {
 		/** HTTP 通道的服务端工作区标识，替代 workingDirectory。 */
 		public AsyncSpec workspace(String workspace) {
 			this.httpWorkspace = workspace;
+			return this;
+		}
+
+		/** HTTP 通道的网络层选项：代理与 SSL/TLS（仅 http 通道有效，详见 {@link SyncSpec#httpOptions(HttpOptions)}）。 */
+		public AsyncSpec httpOptions(HttpOptions options) {
+			this.httpOptions = options;
 			return this;
 		}
 
@@ -981,9 +1023,17 @@ public interface SolonCodeClient {
 				if (authToken != null || httpWorkspace != null) {
 					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
 				}
+				if (httpOptions != null) {
+					transportSpec = transportSpec.withHttpOptions(httpOptions);
+				}
 			}
-			else if (workingDirectory == null) {
-				throw new IllegalArgumentException("workingDirectory is required");
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				if (workingDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
 			}
 
 			CLIOptions options = CLIOptions.builder()
@@ -1048,6 +1098,9 @@ public interface SolonCodeClient {
 		/** http 通道的服务端工作区标识（仅 http 通道使用，替代 workingDirectory） */
 		private String httpWorkspace;
 
+		/** http 通道的网络层选项：代理与 SSL/TLS（仅 http 通道使用） */
+		private HttpOptions httpOptions;
+
 		private HookRegistry hookRegistry;
 
 		AsyncSpecWithOptions(CLIOptions options) {
@@ -1094,6 +1147,12 @@ public interface SolonCodeClient {
 			return this;
 		}
 
+		/** HTTP 通道的网络层选项：代理与 SSL/TLS（仅 http 通道有效，详见 {@link SyncSpec#httpOptions(HttpOptions)}）。 */
+		public AsyncSpecWithOptions httpOptions(HttpOptions options) {
+			this.httpOptions = options;
+			return this;
+		}
+
 		public AsyncSpecWithOptions hookRegistry(HookRegistry hookRegistry) {
 			this.hookRegistry = hookRegistry;
 			return this;
@@ -1113,9 +1172,17 @@ public interface SolonCodeClient {
 				if (authToken != null || httpWorkspace != null) {
 					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
 				}
+				if (httpOptions != null) {
+					transportSpec = transportSpec.withHttpOptions(httpOptions);
+				}
 			}
-			else if (workingDirectory == null) {
-				throw new IllegalArgumentException("workingDirectory is required");
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				if (workingDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
 			}
 			return new DefaultSolonCodeAsyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
