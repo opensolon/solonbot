@@ -43,7 +43,7 @@ public class StreamInputMessage {
         USER,
         /** 中断当前轮次 */
         INTERRUPT,
-        /** 可安全忽略的行（空行、我们自己的回显、未知 type） */
+        /** 可安全忽略的行（空行或明确的出向回显类型） */
         IGNORED,
         /** 无法解析或缺少必要字段 */
         MALFORMED,
@@ -158,9 +158,14 @@ public class StreamInputMessage {
             case "control":
                 return parseControl(node);
             default:
-                // assistant / result / control_response / system 等都是「出向」类型，
-                // 出现在入向流里通常是回显，忽略即可
-                return ignored();
+                // 只忽略明确的出向类型，拼错 type 必须让上游看到 input_error，
+                // 否则调用方会永远等待一个根本不会开始的轮次。
+                if ("assistant".equals(type) || "result".equals(type)
+                        || "control_response".equals(type) || "system".equals(type)
+                        || "error".equals(type)) {
+                    return ignored();
+                }
+                return malformed("unsupported input type: " + type);
         }
     }
 
@@ -168,6 +173,11 @@ public class StreamInputMessage {
         ONode message = node.get("message");
         if (message == null || !message.isObject()) {
             return malformed("user message missing 'message' object");
+        }
+
+        String role = getStringOrNull(message, "role");
+        if (!"user".equals(role)) {
+            return malformed("user message requires 'message.role' to be 'user'");
         }
 
         ONode content = message.get("content");

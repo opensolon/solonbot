@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * <p>用法示例:
  * <pre>
  *   soloncode run "你的提示词" --output-format json --model sonnet --max-turns 10
- *   soloncode run --output-format stream-json --verbose "流式输出"
+     *   soloncode run "流式输出" --output-format stream-json --verbose
  *   cat error.txt | soloncode run --output-format json "分析这个错误"
  *   soloncode run "Review this PR" --allowedTools "Read,Grep,Glob,Bash(git log *)" --disallowedTools "Bash(rm *)"
  *   soloncode run "Extract functions" --output-format json --json-schema '{"type":"object","properties":{"functions":{"type":"array","items":{"type":"string"}}}}'

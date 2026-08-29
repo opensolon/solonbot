@@ -644,11 +644,64 @@ class StdioTransportFakeCliTest {
 			t2.close();
 		}
 
+
+	@Nested
+	@DisplayName("Persistent stream mode")
+	class PersistentStream {
+		@Test
+		void reusesOneProcessForTwoTurnsAndInterruptKeepsItAlive() throws Exception {
+			Path stdinLog = tempDir.resolve("stream-stdin.log");
+			String scriptText = "#!/bin/bash\n"
+					+ "printf '%s\\n' -- \"$@\" >> '" + tempDir.resolve("argv.log").toAbsolutePath() + "'\n"
+					+ "printf '%s\\n' '{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"stream-1\",\"model\":\"fake\"}'\n"
+					+ "while IFS= read -r line; do\n"
+					+ "  printf '%s\\n' \"$line\" >> '" + stdinLog.toAbsolutePath() + "'\n"
+					+ "  case \"$line\" in\n"
+					+ "    *control_request*) printf '%s\\n' '{\"type\":\"control_response\",\"response\":{\"subtype\":\"success\"}}';;\n"
+					+ "    *) printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}';"
+					+ " printf '%s\\n' '{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"done\",\"session_id\":\"stream-1\"}';;\n"
+					+ "  esac\n"
+					+ "done\n";
+			Path script = tempDir.resolve("fake-stream-soloncode");
+			Files.write(script, scriptText.getBytes(StandardCharsets.UTF_8));
+			script.toFile().setExecutable(true);
+
+			CountDownLatch results = new CountDownLatch(2);
+			CountDownLatch control = new CountDownLatch(1);
+			StdioTransport t = new StdioTransport(tempDir, Duration.ofSeconds(20),
+					script.toAbsolutePath().toString(), true);
+			t.startSession("first", CLIOptions.builder().build(), m -> {
+				if (m.isResultMessage()) {
+					results.countDown();
+				}
+			}, null, response -> control.countDown());
+			t.sendUserMessage("second", "stream-1");
+
+			assertThat(results.await(10, TimeUnit.SECONDS)).isTrue();
+			assertThat(t.isRunning()).isTrue();
+			t.interrupt();
+			assertThat(control.await(10, TimeUnit.SECONDS)).isTrue();
+			assertThat(t.isRunning()).isTrue();
+			t.close();
+
+			List<String> argv = argvOf();
+			assertThat(argv).contains("stream").doesNotContain("run", "--output-format");
+			List<String> sent = Files.readAllLines(stdinLog, StandardCharsets.UTF_8);
+			assertThat(sent).hasSize(3);
+			assertThat(sent.get(0)).contains("\"type\":\"user\"").contains("first");
+			assertThat(sent.get(1)).contains("\"type\":\"user\"").contains("second");
+			assertThat(sent.get(2)).contains("\"type\":\"control_request\"").contains("interrupt");
+		}
+	}
+
+	// ---------- API surface ----------
+
 		@Test
 		void transportSpecApiSurface() {
-			// TransportSpec.toString = describe；stdio/http 工厂与 create 往返
-			assertThat(TransportSpec.stdio().toString()).isEqualTo("stdio");
-			assertThat(TransportSpec.stdio("/x/soloncode").toString()).isEqualTo("stdio(/x/soloncode)");
+			assertThat(TransportSpec.stdio().toString()).isEqualTo("stdio-stream");
+			assertThat(TransportSpec.stdio().isPersistent()).isTrue();
+			assertThat(TransportSpec.stdio("/x/soloncode").toString()).isEqualTo("stdio-stream(/x/soloncode)");
+			assertThat(TransportSpec.stdioOneShot("/x/soloncode").toString()).isEqualTo("stdio-run(/x/soloncode)");
 			Transport t = TransportSpec.stdio("/x/soloncode").create(tempDir, Duration.ofSeconds(5));
 			assertThat(t).isInstanceOf(StdioTransport.class);
 			((StdioTransport) t).close();

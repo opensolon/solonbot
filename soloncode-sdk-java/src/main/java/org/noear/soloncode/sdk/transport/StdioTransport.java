@@ -98,6 +98,9 @@ public class StdioTransport implements Transport {
 
 	private final Duration defaultTimeout;
 
+	/** true 使用 soloncode stream 常驻协议；false 使用兼容的 soloncode run 单次协议。 */
+	private final boolean persistent;
+
 	/** Parser is re-created per session to respect maxBufferSize from options. */
 	private ControlMessageParser parser;
 
@@ -207,6 +210,13 @@ public class StdioTransport implements Transport {
 	 * @throws IllegalArgumentException if workingDirectory or defaultTimeout is null
 	 */
 	public StdioTransport(Path workingDirectory, Duration defaultTimeout, String cliPath) {
+		this(workingDirectory, defaultTimeout, cliPath, false);
+	}
+
+	/**
+	 * @param persistent true 使用 {@code soloncode stream} 并保持 stdin；false 使用单次 run
+	 */
+	public StdioTransport(Path workingDirectory, Duration defaultTimeout, String cliPath, boolean persistent) {
 		// MCP SDK pattern: strict validation for required arguments
 		if (workingDirectory == null) {
 			throw new IllegalArgumentException("workingDirectory must not be null");
@@ -216,6 +226,7 @@ public class StdioTransport implements Transport {
 		}
 		this.workingDirectory = workingDirectory;
 		this.defaultTimeout = defaultTimeout;
+		this.persistent = persistent;
 		this.soloncodeCommand = cliPath != null ? cliPath : discoverSolonCodePath();
 		this.parser = new ControlMessageParser();
 
@@ -374,8 +385,10 @@ public class StdioTransport implements Transport {
 			// 但 Solon argx 会把 argv 里含 '=' 的词解析成 key=value、把 '-' 开头的词解析成选项，
 			// 两种情况下提示词都会丢失（CLI 报 "No prompt provided" 并退出码 3），
 			// 因此这类提示词必须改走 stdin 管道。
-			boolean promptViaStdin = needsStdinPrompt(prompt);
-			List<String> command = buildStreamingCommand(options, promptViaStdin ? null : prompt);
+			boolean promptViaStdin = !persistent && needsStdinPrompt(prompt);
+			List<String> command = persistent
+					? buildPersistentCommand(options)
+					: buildStreamingCommand(options, promptViaStdin ? null : prompt);
 
 			// Wrap command with sudo if user is specified (Unix only)
 			command = wrapCommandForUser(command, options.getUser());
@@ -427,7 +440,10 @@ public class StdioTransport implements Transport {
 			// 提示词已作为位置参数传入时，立即关闭 stdin：
 			// soloncode run 的 resolvePrompt() 用 System.in.available() > 0 判断是否读管道，
 			// 保持 stdin 打开不会带来任何好处，反而让 CLI 侧的判断依赖写入时序。
-			if (promptViaStdin) {
+			if (persistent) {
+				sendPersistentUserMessage(prompt);
+			}
+			else if (promptViaStdin) {
 				sendPromptViaStdin(prompt);
 			}
 			else {
@@ -479,6 +495,18 @@ public class StdioTransport implements Transport {
 	 */
 	List<String> buildStreamingCommand(CLIOptions options) {
 		return buildStreamingCommand(options, null);
+	}
+
+	/** 构建常驻 {@code soloncode stream} 命令；输入输出协议由子命令固定为 JSONL。 */
+	List<String> buildPersistentCommand(CLIOptions options) {
+		List<String> command = buildStreamingCommand(options, null);
+		command.set(1, "stream");
+		int outputFlag = command.indexOf("--output-format");
+		if (outputFlag >= 0) {
+			command.remove(outputFlag);
+			command.remove(outputFlag);
+		}
+		return command;
 	}
 
 	/**
@@ -968,7 +996,42 @@ public class StdioTransport implements Transport {
 	 */
 	public void sendUserMessage(String content, String sid) throws SolonCodeSDKException {
 		assertConnected();
-		sendPromptViaStdin(content);
+		if (persistent) {
+			sendPersistentUserMessage(content);
+		}
+		else {
+			sendPromptViaStdin(content);
+		}
+	}
+
+	private void sendPersistentUserMessage(String content) {
+		if (content == null || content.isEmpty()) {
+			throw new TransportException("prompt must not be null or empty");
+		}
+		Map<String, Object> message = new LinkedHashMap<>();
+		message.put("role", "user");
+		message.put("content", content);
+		Map<String, Object> envelope = new LinkedHashMap<>();
+		envelope.put("type", "user");
+		envelope.put("message", message);
+		writeLineToStdin(SdkJson.toJson(envelope));
+	}
+
+	private void writeLineToStdin(String line) {
+		synchronized (stdinLock) {
+			try {
+				if (stdinWriter == null || isClosing) {
+					throw new SessionClosedException("stdin is closed");
+				}
+				stdinWriter.write(line);
+				stdinWriter.newLine();
+				stdinWriter.flush();
+			}
+			catch (IOException e) {
+				sessionError.set(e);
+				throw new TransportException("Failed to write to persistent stdin", e);
+			}
+		}
 	}
 
 	/**
@@ -1211,6 +1274,16 @@ public class StdioTransport implements Transport {
 	 * Interrupts the current session.
 	 */
 	public void interrupt() {
+		if (persistent && state.get() == STATE_CONNECTED) {
+			Map<String, Object> request = new LinkedHashMap<>();
+			request.put("subtype", "interrupt");
+			Map<String, Object> envelope = new LinkedHashMap<>();
+			envelope.put("type", "control_request");
+			envelope.put("request_id", java.util.UUID.randomUUID().toString());
+			envelope.put("request", request);
+			writeLineToStdin(SdkJson.toJson(envelope));
+			return;
+		}
 		if (state.get() == STATE_CONNECTED) {
 			transitionTo(STATE_CONNECTED, STATE_CLOSING);
 		}

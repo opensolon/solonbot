@@ -27,14 +27,14 @@ import java.time.Duration;
  *
  * <h2>用法</h2>
  * <pre>{@code
- * TransportSpec.stdio()                              // 默认：本机子进程，自动发现 CLI
- * TransportSpec.stdio("/usr/local/bin/soloncode")    // 本机子进程，指定可执行文件
+ * TransportSpec.stdio()                              // 默认：本机常驻 stream，自动发现 CLI
+ * TransportSpec.stdio("/usr/local/bin/soloncode")    // 常驻 stream，指定可执行文件
+ * TransportSpec.stdioOneShot("/usr/local/bin/soloncode") // 兼容：每轮 run
  * TransportSpec.http("http://127.0.0.1:18080/web/run", token, "my-project")
  * TransportSpec.http(url, token, workspace, HttpOptions.proxy("proxy.corp", 3128))  // 代理/SSL
  * }</pre>
  *
- * <p>客户端每轮执行都会调用 {@link #create(Path, Duration)} 新建一个传输实例——
- * {@code soloncode run} 是一次性语义，传输实例不可复用。</p>
+ * <p>默认 stdio spec 创建可复用的常驻传输实例；one-shot stdio 与 HTTP 则每轮新建。</p>
  *
  * <h2>HTTP 通道</h2>
  * <p>把同一组选项投递到服务端的 {@code /web/run} 端点（{@code soloncode web} 启动），
@@ -59,7 +59,7 @@ public abstract class TransportSpec {
 	 * @return stdio 通道声明
 	 */
 	public static TransportSpec stdio() {
-		return new StdioSpec(null);
+		return new StdioSpec(null, true);
 	}
 
 	/**
@@ -68,7 +68,20 @@ public abstract class TransportSpec {
 	 * @return stdio 通道声明
 	 */
 	public static TransportSpec stdio(String cliPath) {
-		return new StdioSpec(cliPath);
+		return new StdioSpec(cliPath, true);
+	}
+
+	/**
+	 * 本机一次性子进程通道。每轮启动 {@code soloncode run}，用于兼容旧 CLI 或需要
+	 * 进程级隔离的场景；默认 {@link #stdio()} 使用常驻 {@code soloncode stream}。
+	 */
+	public static TransportSpec stdioOneShot() {
+		return new StdioSpec(null, false);
+	}
+
+	/** 使用指定 CLI 的一次性 {@code soloncode run} 通道。 */
+	public static TransportSpec stdioOneShot(String cliPath) {
+		return new StdioSpec(cliPath, false);
 	}
 
 	/**
@@ -128,6 +141,11 @@ public abstract class TransportSpec {
 	 * 是否为 HTTP 通道（builder 层据此做 workspace/workingDirectory 互斥校验）。
 	 */
 	public boolean isHttp() {
+		return false;
+	}
+
+	/** 当前通道是否可在一个连接内承载多轮。 */
+	public boolean isPersistent() {
 		return false;
 	}
 
@@ -219,14 +237,17 @@ public abstract class TransportSpec {
 	}
 
 	/**
-	 * stdio 通道：在本机拉起 {@code soloncode run} 子进程。
+	 * stdio 常驻通道：在本机拉起 {@code soloncode stream} 子进程。
 	 */
 	static final class StdioSpec extends TransportSpec {
 
 		private final String cliPath;
 
-		StdioSpec(String cliPath) {
+		private final boolean persistent;
+
+		StdioSpec(String cliPath, boolean persistent) {
 			this.cliPath = (cliPath != null && !cliPath.trim().isEmpty()) ? cliPath : null;
+			this.persistent = persistent;
 		}
 
 		/**
@@ -238,13 +259,19 @@ public abstract class TransportSpec {
 		}
 
 		@Override
+		public boolean isPersistent() {
+			return persistent;
+		}
+
+		@Override
 		public Transport create(Path workingDirectory, Duration timeout) {
-			return new StdioTransport(workingDirectory, timeout, cliPath);
+			return new StdioTransport(workingDirectory, timeout, cliPath, persistent);
 		}
 
 		@Override
 		public String describe() {
-			return cliPath == null ? "stdio" : "stdio(" + cliPath + ")";
+			String mode = persistent ? "stdio-stream" : "stdio-run";
+			return cliPath == null ? mode : mode + "(" + cliPath + ")";
 		}
 
 	}

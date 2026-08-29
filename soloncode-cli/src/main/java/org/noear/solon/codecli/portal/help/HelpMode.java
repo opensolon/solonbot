@@ -217,7 +217,7 @@ public class HelpMode {
         sb.append("Examples:\n");
         sb.append("  soloncode run 'What is 2+2?'\n");
         sb.append("  soloncode run 'Review this PR' --output-format json --permission-mode dontAsk\n");
-        sb.append("  soloncode run --output-format stream-json --verbose 'Explain this repo'\n");
+        sb.append("  soloncode run 'Explain this repo' --output-format stream-json --verbose\n");
         sb.append("  cat error.log | soloncode run --output-format json 'Analyse this error'\n");
         sb.append("\n");
         sb.append("Note: 'run' is always one-shot. For a persistent session that keeps the\n");

@@ -121,6 +121,12 @@ public class PrintMode {
      */
     private final AtomicReference<Disposable> currentTurn = new AtomicReference<>();
 
+    /** 保护“轮次已开始但订阅句柄尚未就绪”的短暂窗口 */
+    private final Object turnStateLock = new Object();
+
+    /** 当前是否存在可中断的轮次；必须与 currentTurn 在 turnStateLock 下更新 */
+    private boolean turnRunning;
+
     /** 当前轮次是否被显式中断（每轮开始时重置） */
     private final AtomicBoolean turnInterrupted = new AtomicBoolean(false);
 
@@ -173,8 +179,13 @@ public class PrintMode {
         // 5. 执行 Agent 任务
         PrintResult result = runAgent(session, prompt);
 
-        // 6. 计算费用估算
-        applyCostAndBudget(result);
+        // 6. 计算费用并形成最终轮次结果。
+        // stream-json 的 result 必须等 reactive 流完全结束后再发，避免“先成功、后异常”。
+        if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON) {
+            finishTurn(result);
+        } else {
+            applyCostAndBudget(result);
+        }
 
         // 7. 输出结果
         outputResult(session, result);
@@ -465,11 +476,16 @@ public class PrintMode {
      */
     PrintResult runAgent(AgentSession session, String prompt) {
         PrintResult result = new PrintResult();
+        result.sessionId = session.getSessionId();
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
         AtomicReference<Disposable> disposableRef = new AtomicReference<>();
 
-        turnInterrupted.set(false);
+        synchronized (turnStateLock) {
+            turnInterrupted.set(false);
+            turnRunning = true;
+            currentTurn.set(null);
+        }
 
         String modelSelected = options.getModel();
         if (modelSelected == null) {
@@ -507,20 +523,26 @@ public class PrintMode {
                                 LOG.error("Print mode task failed: {}", e.getMessage(), e);
                             })
                             .doFinally(signal -> {
-                                currentTurn.set(null);
+                                synchronized (turnStateLock) {
+                                    currentTurn.set(null);
+                                    turnRunning = false;
+                                }
                                 latch.countDown();
                             })
                             .subscribe()
             );
 
-            // 订阅句柄就绪后才能被中断；若中断帧在此之前到达，
-            // interruptCurrentTurn() 会如实返回 false，不会误报“已中断”
-            currentTurn.set(disposableRef.get());
-            if (turnInterrupted.get()) {
-                // 罕见竞争：中断标志已置但当时拿不到句柄，补一次 dispose
-                Disposable pending = currentTurn.getAndSet(null);
-                if (pending != null) {
-                    pending.dispose();
+            // 在同一把锁下发布订阅句柄。若中断帧在句柄就绪前到达，
+            // interruptCurrentTurn() 已返回 success 并留下中断标志，这里补做 dispose。
+            synchronized (turnStateLock) {
+                if (turnRunning) {
+                    currentTurn.set(disposableRef.get());
+                    if (turnInterrupted.get()) {
+                        Disposable pending = currentTurn.getAndSet(null);
+                        if (pending != null) {
+                            pending.dispose();
+                        }
+                    }
                 }
             }
 
@@ -538,7 +560,10 @@ public class PrintMode {
             result.error = e;
             LOG.error("Print mode execution error: {}", e.getMessage(), e);
         } finally {
-            currentTurn.set(null);
+            synchronized (turnStateLock) {
+                currentTurn.set(null);
+                turnRunning = false;
+            }
         }
 
         return result;
@@ -554,13 +579,19 @@ public class PrintMode {
      * @return true 表示确实有一个在跑的轮次被取消；false 表示当前无进行中轮次
      */
     boolean interruptCurrentTurn() {
-        turnInterrupted.set(true);
-        Disposable disposable = currentTurn.getAndSet(null);
-        if (disposable != null && !disposable.isDisposed()) {
-            disposable.dispose();
+        synchronized (turnStateLock) {
+            if (!turnRunning) {
+                return false;
+            }
+
+            turnInterrupted.set(true);
+            Disposable disposable = currentTurn.getAndSet(null);
+            if (disposable != null && !disposable.isDisposed()) {
+                disposable.dispose();
+            }
+            // 句柄尚未发布也算成功：runAgent 会在发布后观察中断标志并补做 dispose。
             return true;
         }
-        return false;
     }
 
     /**
@@ -595,17 +626,8 @@ public class PrintMode {
             result.answer = clearThink(react.getContent());
             result.metrics = react.getMetrics();
             result.sessionId = session.getSessionId();
-
-            if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON) {
-                // result 事件在流中发出时需要费用数据，提前计算（execute() 步骤6 会再次赋值，幂等）
-                result.estimatedCostUsd = estimateCostUsd(result.metrics);
-                result.budgetLimitUsd = options.getMaxBudgetUsd();
-                result.budgetExceeded = result.budgetLimitUsd != null
-                        && result.estimatedCostUsd > result.budgetLimitUsd;
-                emitStreamEvent(buildResultEvent(result));
-                // 标记 result 事件已发出，outputResult 阶段将不再额外发 error 事件
-                result.resultEventEmitted = true;
-            }
+            // result 是轮次终止符，必须等 reactive 流完整结束、error/max-turns/interrupted
+            // 状态全部确定后，由 finishTurn() 统一发出。
         }
     }
 
@@ -618,11 +640,7 @@ public class PrintMode {
                 outputJson(result);
                 break;
             case STREAM_JSON:
-                // 仅当 result 事件尚未发出时才发 error 事件，
-                // 避免 result 作为终止符之后再出现额外事件（对齐 Claude Code 协议）
-                if (result.error != null && !result.resultEventEmitted) {
-                    emitStreamEvent(buildErrorEvent(result.error));
-                }
+                // finishTurn() 已发出唯一的终止 result；错误信息也包含在该 result 中。
                 break;
             case TEXT:
             default:
@@ -696,7 +714,7 @@ public class PrintMode {
 
     // ========== Stream-JSON 事件构建（对齐 Claude Code JSONL 格式） ==========
 
-    void emitStreamEvent(ONode event) {
+    synchronized void emitStreamEvent(ONode event) {
         out.println(event.toJson());
         out.flush();
     }

@@ -28,17 +28,15 @@ import java.util.Iterator;
 import java.util.function.Consumer;
 
 /**
- * 与 soloncode 无头执行端（{@code soloncode run}）通讯的传输层契约。
+ * 与 soloncode 无头执行端（{@code soloncode stream} / {@code soloncode run}）通讯的传输层契约。
  *
- * <p>SDK 只通过 {@code soloncode run} 这一条无头入口工作：一次执行对应一轮提问，
- * 进程/请求跑完即结束，多轮对话由客户端层用 {@code --session-id} / {@code --resume}
- * 串接。传输层负责把「一轮执行」映射到具体通道上，并把 stream-json 事件流还原成
- * {@link ParsedMessage} 序列。</p>
+ * <p>默认 stdio 使用常驻 {@code stream}：一个进程承载多轮，user/result 分别是轮次开始/结束边界。
+ * 显式 one-shot stdio 与 HTTP 仍是一轮一个进程/请求，并通过 session/resume 串接。</p>
  *
  * <h2>实现</h2>
  * <ul>
- * <li>{@link StdioTransport} — 在本机拉起 {@code soloncode run} 子进程，
- * 走 stdin/stdout 管道。默认实现。</li>
+ * <li>{@link StdioTransport} — 在本机拉起 {@code soloncode stream}（默认）或
+ * {@code soloncode run}（兼容模式）子进程。</li>
  * <li>HTTP 实现（规划中）— 把同一组选项投递到服务端的 {@code /web/run} 端点，
  * 用 SSE / NDJSON 逐行接收同构事件流。见 {@code docs/run-headless-mode-http.md}。</li>
  * </ul>
@@ -140,7 +138,7 @@ public interface Transport extends AutoCloseable {
 	/**
 	 * 向执行端投递用户消息。
 	 *
-	 * <p>一次性执行模型下，首轮之后调用会失败——多轮续接由客户端层负责。</p>
+	 * <p>常驻 stream 下可在首轮之后继续投递；one-shot 下调用会失败。</p>
 	 * @param content 消息内容
 	 * @param sid 会话 ID
 	 * @throws SolonCodeSDKException 投递失败，或通道已不接受新消息

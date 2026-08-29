@@ -277,7 +277,7 @@ public interface SolonCodeClient {
 		}
 
 		/**
-		 * 使用本机 stdio 通道：拉起 {@code soloncode run} 子进程，CLI 可执行文件自动发现。
+		 * 使用本机 stdio 通道：拉起常驻 {@code soloncode stream} 子进程，CLI 可执行文件自动发现。
 		 *
 		 * <p>这是默认通道，显式调用仅用于表达意图。</p>
 		 * @return this builder instance for method chaining
@@ -294,6 +294,12 @@ public interface SolonCodeClient {
 		 */
 		public SyncSpec stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/** 兼容模式：每轮启动一次 {@code soloncode run} 子进程。 */
+		public SyncSpec stdioOneShot(String cliPath) {
+			this.transportSpec = TransportSpec.stdioOneShot(cliPath);
 			return this;
 		}
 
@@ -688,7 +694,7 @@ public interface SolonCodeClient {
 		}
 
 		/**
-		 * 使用本机 stdio 通道：拉起 {@code soloncode run} 子进程，CLI 可执行文件自动发现。
+		 * 使用本机 stdio 通道：拉起常驻 {@code soloncode stream} 子进程，CLI 可执行文件自动发现。
 		 * @return this builder instance for method chaining
 		 */
 		public SyncSpecWithOptions stdio() {
@@ -703,6 +709,12 @@ public interface SolonCodeClient {
 		 */
 		public SyncSpecWithOptions stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/** 兼容模式：每轮启动一次 {@code soloncode run} 子进程。 */
+		public SyncSpecWithOptions stdioOneShot(String cliPath) {
+			this.transportSpec = TransportSpec.stdioOneShot(cliPath);
 			return this;
 		}
 
@@ -921,7 +933,7 @@ public interface SolonCodeClient {
 			return this;
 		}
 
-		/** 使用本机 stdio 通道（默认）：拉起 {@code soloncode run} 子进程。 */
+		/** 使用本机 stdio 通道（默认）：拉起常驻 {@code soloncode stream} 子进程。 */
 		public AsyncSpec stdio() {
 			this.transportSpec = TransportSpec.stdio();
 			return this;
@@ -930,6 +942,12 @@ public interface SolonCodeClient {
 		/** 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。 */
 		public AsyncSpec stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/** 兼容模式：每轮启动一次 {@code soloncode run} 子进程。 */
+		public AsyncSpec stdioOneShot(String cliPath) {
+			this.transportSpec = TransportSpec.stdioOneShot(cliPath);
 			return this;
 		}
 
@@ -1153,7 +1171,7 @@ public interface SolonCodeClient {
 			return this;
 		}
 
-		/** 使用本机 stdio 通道（默认）：拉起 {@code soloncode run} 子进程。 */
+		/** 使用本机 stdio 通道（默认）：拉起常驻 {@code soloncode stream} 子进程。 */
 		public AsyncSpecWithOptions stdio() {
 			this.transportSpec = TransportSpec.stdio();
 			return this;
@@ -1162,6 +1180,12 @@ public interface SolonCodeClient {
 		/** 使用本机 stdio 通道，并指定 soloncode 可执行文件路径。 */
 		public AsyncSpecWithOptions stdio(String cliPath) {
 			this.transportSpec = TransportSpec.stdio(cliPath);
+			return this;
+		}
+
+		/** 兼容模式：每轮启动一次 {@code soloncode run} 子进程。 */
+		public AsyncSpecWithOptions stdioOneShot(String cliPath) {
+			this.transportSpec = TransportSpec.stdioOneShot(cliPath);
 			return this;
 		}
 

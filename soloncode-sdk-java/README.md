@@ -1,12 +1,12 @@
 # soloncode-sdk-java
 
-Java SDK for the **soloncode CLI** headless mode (`soloncode run`). Forked and adapted
+Java SDK for the **soloncode CLI** headless modes (`soloncode stream` / `soloncode run`). Forked and adapted
 from [claude-agent-sdk-java](https://github.com/anthropics/claude-agent-sdk-java) (Apache License 2.0).
 
 - Requires **JDK 8+**（与仓库其余模块同基线：`maven.compiler.source/target=8`）
 - JSON 序列化用 **snack4**（`org.noear:snack4`）；不依赖 Jackson
-- 两条通讯通道：**stdio**（本机拉起 `soloncode run` 子进程，需 CLI 在 PATH，可用 `stdio(path)` 指定）
-  与 **http**（投递到服务端 `/web/run` 端点，需 `soloncode web` 启动）
+- 两条通讯通道：**stdio**（默认拉起常驻 `soloncode stream` 子进程；可用 `stdio(path)` 指定 CLI，
+  `stdioOneShot(path)` 回退为每轮 `soloncode run`）与 **http**（投递到服务端 `/web/run`）
 
 ## Quick Start
 
@@ -32,16 +32,16 @@ String answer = SolonCodeClient.sync()
 ```
 
 ```java
-// 多轮对话：每轮是一个新的 CLI 进程，SDK 自动用 --resume 续接上下文
+// 多轮对话：默认复用同一个 soloncode stream 进程和 AgentSession
 try (SolonCodeSyncClient client = SolonCodeClient.sync()
         .workingDirectory(Paths.get("."))
         .sessionId("my-task-001")          // 可选；不设则自动生成
         .build()) {
     client.connect();                      // 不启动进程，等首个 query
-    client.query("分析这个模块的结构");        // 第 1 轮：--session-id my-task-001
+    client.query("分析这个模块的结构");        // 第 1 轮：启动 stream 并写 JSONL user 帧
     for (Message m : client.messages()) { /* ... */ }
 
-    client.query("基于上面的分析写单元测试");    // 第 2 轮：--resume my-task-001
+    client.query("基于上面的分析写单元测试");    // 第 2 轮：复用进程，继续写 JSONL user 帧
     for (Message m : client.messages()) { /* ... */ }
 }
 ```
@@ -92,21 +92,22 @@ SolonCodeClient.sync()
 通道是必选项（有默认值），builder 层一级方法选择：
 
 ```java
-SolonCodeClient.sync().stdio()                                 // 默认：本机子进程，自动发现 CLI
-SolonCodeClient.sync().stdio("/usr/local/bin/soloncode")       // 指定可执行文件
+SolonCodeClient.sync().stdio()                                 // 默认：本机常驻 stream，自动发现 CLI
+SolonCodeClient.sync().stdio("/usr/local/bin/soloncode")       // 常驻 stream，指定可执行文件
+SolonCodeClient.sync().stdioOneShot("/usr/local/bin/soloncode") // 兼容：每轮 run + resume
 SolonCodeClient.sync().http("http://127.0.0.1:18080/web/run")  // 服务端通道
 ```
 
 | 维度 | stdio（默认） | http |
 |------|---------------|------|
-| 承载方式 | 本机拉起 `soloncode run` 子进程 | POST `/web/run`（`soloncode web` 启动），SSE 回流 |
+| 承载方式 | 本机拉起一个常驻 `soloncode stream` 子进程 | POST `/web/run`（`soloncode web` 启动），SSE 回流 |
 | 工作目录 | `workingDirectory(path)`（本机路径） | `workspace(id)`（服务端已注册工作区标识；两者 builder 层互斥） |
 | 鉴权 | 无（本地进程） | `authToken(token)` Bearer（服务端 `~/.soloncode/run.token`） |
 | 权限模式 | 全量支持（含 bypassPermissions） | 服务端收口：bypass 系一律回落 `default`（SDK 前置告警替换，避免吃 403） |
 | 事件解析 | stream-json 逐行 | SSE 每个 `data:` 行即 CLI 的一行 JSONL，解析层完全复用 |
-| 中断 | `destroy()` 进程树 | 独立端点 `POST /web/run/interrupt`（按 session 定位） |
-| 多轮串接 | 每轮新进程：首轮 `--session-id`，后续 `--resume` | 每轮新请求：同样 `session_id` / `resume`（可与本机 CLI 续接同一会话） |
-| 回写通道 | 不存在（one-shot） | 不存在（one-shot） |
+| 中断 | 写 `control_request/interrupt`，只取消当前轮、进程继续存活 | 独立端点 `POST /web/run/interrupt`（按 session 定位） |
+| 多轮串接 | 同一进程、同一 AgentSession；每个 `result` 切分一轮 | 每轮新请求：`session_id` / `resume` |
+| 回写通道 | stdin JSONL（user / control_request） | 不存在（one-shot） |
 
 HTTP 通道下 MCP 注册、权限审批回调等在服务端配置，客户端同名选项仅告警忽略。
 协议契约详见 `soloncode-cli/docs/run-headless-mode-http.md`。
@@ -156,23 +157,25 @@ HttpOptions.proxy("proxy.corp.example", 3128)
 > SDK 本身不读任何 `soloncode.http.*` 环境配置——服务地址、token、workspace 一律构建器传入；
 > 需要从外部配置注入时，由调用方读出来再传给 builder。
 
-## 执行模型：一次性进程 + resume 串接
+## 执行模型：默认常驻 stream，保留 one-shot run
 
-`soloncode run` 是**一次性**的：提示词作为 `run` 之后的第一个位置参数传入，Agent 跑完即退出。
-claude CLI 那套「长驻进程 + stdin 持续投喂 JSON 消息」的双向模型在这里不成立。SDK 因此做了如下适配：
+`soloncode stream` 在 stdin/stdout 上使用 JSONL：进程和 AgentSession 保持到 stdin EOF；每个 user
+信封启动一轮，每个 `result` 是轮次边界。SDK 默认 stdio 使用这条路径，因此多轮不再重复支付 JVM 与引擎
+冷启动成本，`interrupt()` 也只取消当前轮。`connect()` 仍保持惰性：首个 query 才启动进程。
 
-| 环节 | soloncode 行为 | SDK 做法 |
-|------|----------------|----------|
-| 提示词投递 | `run <prompt>` 位置参数；且必须紧跟 `run` | 拼在 `run` 之后、所有 `--flag` 之前（Solon argx 对选项做贪心 lookahead，提示词落到 flag 后会被吃成该选项的值） |
-| 提示词以 `-` 开头 | 会被当成选项 | 回退到 stdin 管道并立即关闭 stdin |
-| stdin | `System.in.available() > 0` 才读 | 走位置参数时立即关闭 stdin，避免读写时序竞态 |
-| 多轮对话 | 无长连接 | 每轮新起进程：首轮 `--session-id`，后续轮 `--resume` |
-| `connect()` 无提示词 | 无提示词直接退出码 3 | 不启动进程，延迟到首次 `query()` |
-| result 事件统计 | `metrics{total_tokens,prompt_tokens,completion_tokens,duration_ms}` | 归一化到 `ResultMessage.usage()`，并回填 `durationMs` |
+需要旧 CLI 兼容或进程级隔离时，使用 `stdioOneShot(path)`。该模式继续执行每轮
+`soloncode run`，首轮 `--session-id`、后续 `--resume`，并在中断时终止该轮进程。HTTP `/web/run`
+仍是 one-shot 请求模型。
+
+| 模式 | 进程生命周期 | 提示词投递 | 多轮上下文 | interrupt |
+|------|--------------|------------|----------|-----------|
+| `stdio()` / `stdio(path)` | 一个 `soloncode stream` 进程 | stdin JSONL user 信封 | 同一个 AgentSession | 控制帧，保留进程 |
+| `stdioOneShot(path)` | 每轮一个 `soloncode run` | argv；危险位置参数回退纯文本 stdin | `--session-id` / `--resume` | 终止进程 |
+| `http(url)` | 每轮一个 HTTP 请求 | POST JSON | session/resume | interrupt 端点 |
 
 ## 与 claude-agent-sdk-java 的差异
 
-soloncode CLI 不支持 stdin JSON 双向控制协议（无 `--input-format stream-json`），因此：
+soloncode CLI 的 `stream` 子命令支持 stdin JSON 双向协议；`run` 和 HTTP `/web/run` 仍保持 one-shot。
 
 | 能力 | 状态 |
 |------|------|
@@ -185,9 +188,9 @@ soloncode CLI 不支持 stdin JSON 双向控制协议（无 `--input-format stre
 | `toolPermissionCallback` / `permissionPromptToolName`（stdin 审批回调） | **不支持**，配置后仅告警忽略 |
 | `systemPrompt` / `appendSystemPrompt` / `agents` / `forkSession` / `mcpServers` / `settings` / `plugins` / `tools` / `maxThinkingTokens` | **不支持**，配置后仅告警忽略 |
 
-## 提示词投递通道
+## one-shot 提示词投递通道
 
-默认把提示词作为 `run` 之后的第一个位置参数。但 Solon 的 `argx` 解析会把 argv 里含 `=`
+仅 `stdioOneShot(path)` 默认把提示词作为 `run` 之后的第一个位置参数。但 Solon 的 `argx` 解析会把 argv 里含 `=`
 的词当成 `key=value`、把 `-` 开头的词当成选项名，这两类提示词作为位置参数会丢失（CLI 报
 `No prompt provided` 并退出码 3），因此 SDK 对它们自动改走 stdin 管道（纯文本，写完即关闭）。
 
@@ -213,7 +216,7 @@ mvn test          # JDK 8 基线，无需切换 JAVA_HOME；同时生成 target/
 ```
 
 单元测试完全离线可重复：`StdioTransportFakeCliTest` 用假 CLI 脚本（bash 模拟
-`soloncode run` 的 stdout JSONL / stderr / 退出码）覆盖进程生命周期分支，
+`soloncode stream` / `soloncode run` 的 stdout JSONL / stdin JSONL / stderr / 退出码）覆盖进程生命周期分支，
 `HttpTransportTest` 用 JDK 内嵌 HttpServer 模拟 `/web/run` 的 SSE 与错误码。
 
 集成测试（`*IT`）需要本机安装 soloncode CLI：

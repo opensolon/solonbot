@@ -260,7 +260,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 				prompt.substring(0, Math.min(50, prompt.length())));
 	}
 
-	/** 创建（或重建）消息接收器。一次性进程模型下每轮需要干净的接收器。 */
+	/** 创建（或重建）当前轮次的消息接收器。常驻进程仍按 ResultMessage 切分轮次。 */
 	private void prepareReceivers() {
 		if (messageIterator != null) {
 			messageIterator.complete();
@@ -275,28 +275,42 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	}
 
 	/**
-	 * 启动一轮 {@code soloncode run} 执行。
-	 *
-	 * <p>这是对 soloncode CLI 一次性语义的核心适配：claude 的双向长连接在这里不成立，
-	 * 每轮重开进程，上下文靠 --resume 传递。</p>
+	 * 启动一轮执行。常驻 stdio 首轮启动 {@code soloncode stream}，后续只写 JSONL 用户帧；
+	 * HTTP 与显式 stdioOneShot 继续每轮创建一次性 transport。
 	 */
-	private void startTurn(String prompt) throws SolonCodeSDKException {
+	private synchronized void startTurn(String prompt) throws SolonCodeSDKException {
 		if (prompt == null || prompt.isEmpty()) {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
 
-		Transport previous = transport;
-		if (previous != null) {
-			previous.close();
-		}
-
 		prepareReceivers();
 
-		boolean firstTurn = !turnStarted.getAndSet(true);
-		transport = transportSpec.create(workingDirectory, timeout);
-		transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
-		transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-				this::handleControlResponse);
+		if (transportSpec.isPersistent()) {
+			Transport current = transport;
+			if (current == null) {
+				turnStarted.set(true);
+				current = transportSpec.create(workingDirectory, timeout);
+				current.setTurnSession(sdkSessionId, null);
+				transport = current;
+				current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+						this::handleControlResponse);
+			}
+			else {
+				current.sendUserMessage(prompt, sdkSessionId);
+			}
+		}
+		else {
+			Transport previous = transport;
+			if (previous != null) {
+				previous.close();
+			}
+
+			boolean firstTurn = !turnStarted.getAndSet(true);
+			transport = transportSpec.create(workingDirectory, timeout);
+			transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
+			transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+					this::handleControlResponse);
+		}
 		currentSessionId.set(sdkSessionId);
 	}
 
@@ -373,8 +387,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	@Override
 	public void interrupt() throws SolonCodeSDKException {
 		ensureConnected();
-		// 通道委派：stdio → kill 进程；http → POST /web/run/interrupt。
-		// 不再写 control_request：one-shot 执行模型的 stdin 已关闭，写了也没人读。
+		// 常驻 stdio 发送 interrupt 控制帧并保留进程；one-shot/http 由各 transport 处理。
 		if (transport != null) {
 			transport.interrupt();
 		}

@@ -323,27 +323,39 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 		}).subscribeOn(Schedulers.boundedElastic());
 	}
 
-	/**
-	 * 启动一轮 {@code soloncode run} 执行（一次性进程模型）。
-	 *
-	 * <p>首轮使用 {@code --session-id}，后续轮使用 {@code --resume} 续接上下文。</p>
-	 */
-	private void startTurn(String prompt) throws SolonCodeSDKException {
+	/** 启动一轮：常驻 stdio 复用进程，其它通道保留一次性执行。 */
+	private synchronized void startTurn(String prompt) throws SolonCodeSDKException {
 		if (prompt == null || prompt.isEmpty()) {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
 
-		Transport previous = transportRef.getAndSet(null);
-		if (previous != null) {
-			previous.close();
+		if (transportSpec.isPersistent()) {
+			Transport current = transportRef.get();
+			if (current == null) {
+				turnStarted.set(true);
+				current = transportSpec.create(workingDirectory, timeout);
+				current.setTurnSession(sdkSessionId, null);
+				transportRef.set(current);
+				current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+						this::handleControlResponse);
+			}
+			else {
+				current.sendUserMessage(prompt, sdkSessionId);
+			}
 		}
+		else {
+			Transport previous = transportRef.getAndSet(null);
+			if (previous != null) {
+				previous.close();
+			}
 
-		boolean firstTurn = !turnStarted.getAndSet(true);
-		Transport transport = transportSpec.create(workingDirectory, timeout);
-		transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
-		transportRef.set(transport);
-		transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-				this::handleControlResponse);
+			boolean firstTurn = !turnStarted.getAndSet(true);
+			Transport transport = transportSpec.create(workingDirectory, timeout);
+			transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
+			transportRef.set(transport);
+			transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+					this::handleControlResponse);
+		}
 		currentSessionId.set(sdkSessionId);
 	}
 
@@ -392,31 +404,40 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	@Override
 	public Flux<Message> receiveResponse() {
 		return Flux.defer(() -> {
-			logger.debug("receiveResponse() subscribed: connected={}, closed={}", connected.get(), closed.get());
 			if (!connected.get() || closed.get()) {
 				return Flux.error(new IllegalStateException("Client is not connected"));
 			}
+			Sinks.Many<Message> turnSink = installTurnSink();
+			return turnFlux(turnSink);
+		});
+	}
 
-			// Create fresh unicast sink for this turn
-			Sinks.Many<Message> turnSink = Sinks.many().unicast().onBackpressureBuffer();
-			logger.debug("Created new turn sink");
+	private Sinks.Many<Message> installTurnSink() {
+		Sinks.Many<Message> turnSink = Sinks.many().unicast().onBackpressureBuffer();
+		Sinks.Many<Message> previous = currentTurnSink.getAndSet(turnSink);
+		if (previous != null) {
+			previous.tryEmitComplete();
+		}
+		return turnSink;
+	}
 
-			// Atomically swap in the new sink, completing any previous one
-			Sinks.Many<Message> previous = currentTurnSink.getAndSet(turnSink);
-			if (previous != null) {
-				logger.debug("Completing previous turn sink");
-				previous.tryEmitComplete();
-			}
+	private Flux<Message> turnFlux(Sinks.Many<Message> turnSink) {
+		return turnSink.asFlux()
+				.doFinally(signal -> currentTurnSink.compareAndSet(turnSink, null));
+	}
 
-			return turnSink.asFlux()
-				.doOnNext(msg -> logger.debug("receiveResponse emitting: {}", msg.getClass().getSimpleName()))
-				.doOnComplete(() -> logger.debug("receiveResponse completed"))
-				.doOnCancel(() -> logger.debug("receiveResponse cancelled"))
-				.doFinally(signal -> {
-					// Clear the sink reference when done (success, error, or cancel)
-					currentTurnSink.compareAndSet(turnSink, null);
-					logger.debug("Turn sink cleared (signal={})", signal);
-				});
+	/** 在发送前安装轮次 sink，消除常驻进程快速响应导致的消息丢失窗口。 */
+	private Flux<Message> sendAndReceive(java.util.function.Supplier<Mono<Void>> sendAction) {
+		return Flux.defer(() -> {
+			// connect(prompt) 的 sendAction 本身负责建立连接，因此这里不能预先要求 connected。
+			Sinks.Many<Message> turnSink = installTurnSink();
+			return sendAction.get()
+					.thenMany(turnFlux(turnSink))
+					.doOnError(e -> {
+						if (currentTurnSink.compareAndSet(turnSink, null)) {
+							turnSink.tryEmitError(e);
+						}
+					});
 		});
 	}
 
@@ -428,8 +449,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 				return;
 			}
 			try {
-				// 通道委派：stdio → kill 进程；http → POST /web/run/interrupt。
-				// 不再写 control_request：one-shot 执行模型的 stdin 已关闭，写了也没人读。
+				// 常驻 stdio 发送控制帧并保留进程；其它 transport 保持原有中断语义。
 				Transport transport = transportRef.get();
 				if (transport != null) {
 					transport.interrupt();
@@ -894,9 +914,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 		@Override
 		public Mono<String> text() {
-			// Lazy: send action triggers on subscribe, then collect all text
-			return sendAction.get()
-				.thenMany(receiveResponse())
+			return sendAndReceive(sendAction)
 				.ofType(AssistantMessage.class)
 				.map(AssistantMessage::text)
 				.filter(text -> !text.isEmpty())
@@ -906,9 +924,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 		@Override
 		public Flux<String> textStream() {
-			// Lazy: send action triggers on subscribe, then stream text chunks
-			return sendAction.get()
-				.thenMany(receiveResponse())
+			return sendAndReceive(sendAction)
 				.ofType(AssistantMessage.class)
 				.map(AssistantMessage::text)
 				.filter(text -> !text.isEmpty());
@@ -916,8 +932,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 		@Override
 		public Flux<Message> messages() {
-			// Lazy: send action triggers on subscribe, then stream all messages
-			return sendAction.get().thenMany(receiveResponse());
+			return sendAndReceive(sendAction);
 		}
 
 	}
