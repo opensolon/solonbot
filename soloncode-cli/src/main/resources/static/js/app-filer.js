@@ -26,18 +26,33 @@
      */
     var wsPathCache = { loaded: false, launchPath: '', mountRealPaths: {} };
 
+    var wsPathCache = { loaded: false, launchPath: '', mountRealPaths: {} };
+
     function loadWsPathCache(callback) {
-        if (wsPathCache.loaded) { if (callback) callback(); return; }
+        // 多工作区：URL 带 workspaceId 时缓存需按工作区失效（切换工作区后重取）
+        var curWsId = (window.wsId && window.wsId()) || '';
+        if (wsPathCache.loaded && wsPathCache.forWsId === curWsId) { if (callback) callback(); return; }
         $.get('/web/workspace/list', function(res) {
             if (res && res.data) {
-                if (res.data.launch && res.data.launch.path) wsPathCache.launchPath = res.data.launch.path;
+                // 当前工作区的根路径：优先按 URL 的 workspaceId 在历史工作区列表中匹配；
+                // 匹配不到（默认/启动工作区）才回落 launch.path（启动目录）
+                var wsPath = '';
+                if (curWsId && res.data.workspaces) {
+                    (res.data.workspaces || []).forEach(function(w) {
+                        if (w && w.id === curWsId && w.path) wsPath = w.path;
+                    });
+                }
+                if (!wsPath && res.data.launch && res.data.launch.path) wsPath = res.data.launch.path;
+                wsPathCache.launchPath = wsPath;
+                wsPathCache.mountRealPaths = {};
                 (res.data.mounts || []).forEach(function(m) {
                     if (m.alias && m.path) wsPathCache.mountRealPaths[m.alias] = m.path;
                 });
             }
             wsPathCache.loaded = true;
+            wsPathCache.forWsId = curWsId;
             if (callback) callback();
-        }).fail(function() { wsPathCache.loaded = true; if (callback) callback(); });
+        }).fail(function() { wsPathCache.loaded = true; wsPathCache.forWsId = curWsId; if (callback) callback(); });
     }
 
     /** 计算节点的真实绝对路径（无法解析时返回 null） */
