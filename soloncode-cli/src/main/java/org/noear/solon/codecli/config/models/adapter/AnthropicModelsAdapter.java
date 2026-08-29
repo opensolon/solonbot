@@ -6,6 +6,7 @@ import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
+import org.noear.solon.codecli.config.models.ModelsFetchException;
 import org.noear.solon.net.http.HttpUtils;
 
 import java.util.ArrayList;
@@ -78,7 +79,8 @@ public class AnthropicModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[Anthropic] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
+            log.warn("[Anthropic] Failed to fetch model list");
+            throw new ModelsFetchException("Anthropic model list request failed", e);
         }
 
         return result;

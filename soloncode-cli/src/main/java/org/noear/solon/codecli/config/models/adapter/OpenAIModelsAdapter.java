@@ -6,6 +6,7 @@ import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
+import org.noear.solon.codecli.config.models.ModelsFetchException;
 import org.noear.solon.net.http.HttpUtils;
 
 import java.util.ArrayList;
@@ -71,7 +72,8 @@ public class OpenAIModelsAdapter implements ModelsAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("[OpenAI] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
+            log.warn("[OpenAI] Failed to fetch model list");
+            throw new ModelsFetchException("OpenAI model list request failed", e);
         }
 
         return result;

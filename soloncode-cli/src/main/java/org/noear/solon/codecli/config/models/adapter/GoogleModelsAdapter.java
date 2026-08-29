@@ -6,6 +6,7 @@ import org.noear.solon.codecli.config.ProxyConfig;
 import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
+import org.noear.solon.codecli.config.models.ModelsFetchException;
 import org.noear.solon.net.http.HttpUtils;
 
 import java.util.ArrayList;
@@ -103,6 +104,7 @@ public class GoogleModelsAdapter implements ModelsAdapter {
             }
         } catch (Exception e) {
             log.warn("[Google] Error fetching models from {}: {}", modelsUrl, e.getMessage(), e);
+            throw new ModelsFetchException("Google model list request failed", e);
         }
 
         return result;

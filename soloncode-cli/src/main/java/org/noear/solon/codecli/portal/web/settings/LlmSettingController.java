@@ -478,14 +478,14 @@ public class LlmSettingController extends BaseSettingsController {
             ModelsAdapter provider = modelsAdapterManager.getAdapter(standard);
             String baseUrl = provider.deriveBaseUrl(apiUrl);
 
-            // 构建请求头
+            // 认证头由各协议适配器按规范负责构建，避免给 Google/Anthropic 等协议发送错误的 Bearer 头
             Map<String, String> headers = new HashMap<>();
-            if (apiKey != null && !apiKey.isEmpty()) {
-                headers.put("Authorization", "Bearer " + apiKey);
-            }
 
             // 调用提供商获取模型列表
             List<ModelInfo> models = provider.fetchModels(settings().getGeneral().getUserAgent(), baseUrl, headers, apiKey);
+            if (models == null) {
+                models = new ArrayList<>();
+            }
 
             // 按 id 排序，保证每次返回顺序一致
             models.sort(Comparator.comparing(ModelInfo::getId, Comparator.nullsLast(String::compareTo)));
@@ -520,8 +520,8 @@ public class LlmSettingController extends BaseSettingsController {
 
             return Result.succeed(modelList);
         } catch (Exception e) {
-            LOG.warn("[Settings] Failed to fetch models: {}", e.getMessage());
-            return Result.failure("拉取模型列表失败: " + e.getMessage());
+            LOG.warn("[Settings] Failed to fetch models");
+            return Result.failure("拉取模型列表失败，请检查 API 地址、密钥和网络连接");
         }
     }
 

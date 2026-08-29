@@ -357,8 +357,26 @@
         renderModelsList();
     }
 
+    function setFetchModelsLoading(loading) {
+        var $btn = $('#providerFetchModelsBtn');
+        if (loading) {
+            $btn.prop('disabled', true).attr('aria-busy', 'true').html('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>');
+        } else {
+            $btn.prop('disabled', false).attr('aria-busy', 'false').html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>');
+        }
+    }
+
+    function getFetchErrorMessage(xhr, textStatus) {
+        if (textStatus === 'timeout' || xhr.status === 408 || xhr.status === 504) return I18n.t('provider.fetchTimeout');
+        if (xhr.status === 401 || xhr.status === 403) return I18n.t('provider.fetchAuthFailed');
+        if (xhr.status === 404) return I18n.t('provider.fetchEndpointNotFound');
+        if (xhr.responseJSON && xhr.responseJSON.msg) return xhr.responseJSON.msg;
+        return I18n.t('provider.fetchListFailed') + '，' + I18n.t('provider.fetchKeepExisting');
+    }
+
+
     function fetchModels() {
-        var apiUrl = $('#providerApiUrl').val();
+        var apiUrl = String($('#providerApiUrl').val() || '').trim();
         var apiKey = $('#providerApiKey').val();
         var standard = $('#providerStandard').val();
 
@@ -367,48 +385,57 @@
             return;
         }
 
-        var $btn = $('#providerFetchModelsBtn');
-        $btn.prop('disabled', true).html('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>');
+        setFetchModelsLoading(true);
 
         $.ajax({
             url: '/web/settings/llm/providers/fetch',
             method: 'POST',
+            timeout: 20000,
             data: {
                 apiUrl: apiUrl,
                 apiKey: apiKey,
                 standard: standard
             },
             success: function (res) {
-                $btn.prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>');
                 if (res.code === 200) {
                     try {
                         var data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-                        var models = data.data || data.models || data || [];
-                        // 保留手动添加的模型，合并拉取的模型
-                        var manualModels = fetchedModels.filter(function (m) {
-                            return m.manual === true;
-                        });
+                        var models = Array.isArray(data) ? data : (data && (data.data || data.models));
+                        if (!Array.isArray(models)) throw new Error('model list is not an array');
+                        var previousModels = fetchedModels.slice();
+                        var previousRemoteCount = previousModels.filter(function (m) { return m.manual !== true; }).length;
+                        var manualModels = previousModels.filter(function (m) { return m.manual === true; });
                         // 旧模型索引：拉取时继承用户已设置的值（上下文长度手填值、勾选状态）
                         var prevById = {};
                         fetchedModels.forEach(function (m) { prevById[m.id] = m; });
                         var fetchedMapped = models.map(function (m) {
-                            var id = m.id || m.name || m;
+                            var id = String((m && (m.id || m.name)) || (typeof m === 'string' ? m : '')).trim();
+                            if (!id) return null;
                             var incomingMax = m.maxInputTokens || m.max_input_tokens || m.contextLength || m.context_length || 0;
                             var incomingMaxOut = m.maxTokens || m.max_tokens || 0;
                             var prev = prevById[id];
                             return {
                                 id: id,
-                                displayName: m.displayName || m.display_name || '',
-                                ownedBy: m.ownedBy || m.owned_by || '',
-                                type: m.type || '',
+                                displayName: m && (m.displayName || m.display_name) || '',
+                                ownedBy: m && (m.ownedBy || m.owned_by) || '',
+                                type: m && m.type || '',
                                 // 拉来的值为空则保留用户此前设置的值，避免手填的上下文长度被清空
                                 maxInputTokens: incomingMax || (prev ? prev.maxInputTokens : 0) || 0,
                                 maxTokens: incomingMaxOut || (prev ? prev.maxTokens : 0) || 0,
                                 selected: prev ? prev.selected : undefined,
                                 manual: false
                             };
+                        }).filter(function (m, index, list) {
+                            return m && list.findIndex(function (x) { return x.id === m.id; }) === index;
                         });
-                        // 手动模型去重：如果手动模型 id 已在拉取列表中，保留手动标记
+                        // 空响应不覆盖已有远程模型，避免临时异常导致模型配置消失。
+                        if (fetchedMapped.length === 0 && previousRemoteCount > 0) {
+                            fetchedModels = previousModels;
+                            renderModelsList();
+                            layui.layer.msg(I18n.t('provider.fetchEmptyKeepExisting'), { icon: 0, time: 4000, offset: '120px' });
+                            return;
+                        }
+
                         var fetchedIds = {};
                         fetchedMapped.forEach(function (m) { fetchedIds[m.id] = m; });
                         manualModels.forEach(function (mm) {
@@ -432,7 +459,12 @@
                         });
                         fetchedModels = fetchedMapped;
                         renderModelsList();
-                        layui.layer.msg(I18n.t('provider.fetchOk', {n: fetchedModels.length}), { icon: 1, time: 2200, offset: '120px' });
+                        if (models.length === 0) {
+                            layui.layer.msg(I18n.t('provider.fetchEmpty'), { icon: 0, time: 3500, offset: '120px' });
+                        } else {
+                            var remoteCount = fetchedModels.filter(function (m) { return m.manual !== true; }).length;
+                            layui.layer.msg(I18n.t('provider.fetchOk', {n: remoteCount}), { icon: 1, time: 2200, offset: '120px' });
+                        }
                     } catch (e) {
                         layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2, time: 3000, offset: '120px' });
                     }
@@ -440,10 +472,10 @@
                     layui.layer.msg(res.msg || I18n.t('provider.fetchFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
-            error: function (xhr) {
-                $btn.prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>');
-                layui.layer.msg(I18n.t('provider.fetchListFailed') + ': ' + (xhr.responseText || I18n.t('toast.networkError')), { icon: 2, time: 3000, offset: '120px' });
-            }
+            error: function (xhr, textStatus) {
+                layui.layer.msg(getFetchErrorMessage(xhr, textStatus), { icon: 2, time: 3500, offset: '120px' });
+            },
+            complete: function () { setFetchModelsLoading(false); }
         });
     }
 

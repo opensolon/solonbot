@@ -110,7 +110,11 @@ public class Configurator {
             return;
         }
 
-        checkUpdate();
+        // stream 的 stdout 是严格 JSONL 协议通道，不能夹入版本更新文本。
+        // 常驻 SDK 通道也不应在启动时做联网更新检查。
+        if (!AgentFlags.FLAG_STREAM.equals(flag)) {
+            checkUpdate();
+        }
 
         //flag
         if (Solon.cfg().argx().flags().size() > 0) {
