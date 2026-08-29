@@ -582,21 +582,60 @@ function applyTaskDoneChunk(sess, chunk) {
     }
 }
 
+/** L1 标题簇文案：有 description 时 badge 展示 agentName；仅 agentName 时直接作标题，避免重复。 */
+function buildTaskGroupTitleParts(segment) {
+    var titleText = segment.taskDescription || segment.agentName || I18n.t('msg.subTask');
+    var hasBoth = !!(segment.taskDescription && segment.agentName);
+    return {
+        titleText: titleText,
+        agentHtml: hasBoth ? '<span class="agent-badge">' + escapeHtml(segment.agentName) + '</span>' : '',
+        // hover：双字段时补全身份（badge 可能被窄屏裁进 max-width）
+        titleAttr: hasBoth
+            ? titleText + I18n.t('msg.parenLeft') + segment.agentName + I18n.t('msg.parenRight')
+            : titleText
+    };
+}
+
+/**
+ * 描述迟到时重绘 L1 标题：建组时可能只有 agentName（首个事件未带 taskDescription），
+ * 若不重绘，后续拿到的描述只能停在内存字段上，界面永远显示代理名。
+ */
+function updateTaskGroupTitle(segment) {
+    if (!segment || !segment.groupEl) return;
+    var parts = buildTaskGroupTitleParts(segment);
+    var $g = $(segment.groupEl);
+
+    var textEl = $g.find('.task-group-title-text')[0];
+    if (textEl) $(textEl).text(parts.titleText);
+
+    var titleEl = $g.find('.task-group-title')[0];
+    if (titleEl) {
+        titleEl.setAttribute('title', parts.titleAttr);
+        var badge = $(titleEl).children('.agent-badge')[0];
+        if (parts.agentHtml) {
+            if (badge) $(badge).text(segment.agentName);
+            else $(titleEl).append(parts.agentHtml);
+        } else if (badge) {
+            $(badge).remove();
+        }
+    }
+
+    var header = $g.find('.task-group-header')[0];
+    if (header) {
+        header.setAttribute('aria-label', buildTaskGroupAriaLabel(segment, $g.hasClass('expanded')));
+    }
+}
+
 function createTaskGroupElement(sess, segment) {
     var group = $('<div>').addClass('task-group is-running')[0];
     group.setAttribute('data-task-id', segment.taskId);
     group.setAttribute('data-stream-segment-id', segment.id);
     if (sess.currentRunId) group.setAttribute('data-run-id', sess.currentRunId);
     // L1：状态图标(22px) + title(文本+可选 agent-badge 贴字) + stats + toggle(右)；L2：最近 tool 动作。
-    // 有 description 时 badge 展示 agentName；仅 agentName 时直接作标题，避免重复。
-    var titleText = segment.taskDescription || segment.agentName || I18n.t('msg.subTask');
-    var agentHtml = (segment.taskDescription && segment.agentName)
-        ? '<span class="agent-badge">' + escapeHtml(segment.agentName) + '</span>'
-        : '';
-    // hover：双字段时补全身份（badge 可能被窄屏裁进 max-width）
-    var titleAttr = (segment.taskDescription && segment.agentName)
-        ? titleText + I18n.t('msg.parenLeft') + segment.agentName + I18n.t('msg.parenRight')
-        : titleText;
+    var titleParts = buildTaskGroupTitleParts(segment);
+    var titleText = titleParts.titleText;
+    var agentHtml = titleParts.agentHtml;
+    var titleAttr = titleParts.titleAttr;
     var header = $('<div>').addClass('task-group-header')[0];
     // task-group 本级一律默认收起（单/多任务相同），展开由用户手动触发
     var bodyId = 'task-body-' + segment.id;
@@ -678,9 +717,17 @@ function ensureStreamSegment(sess, taskId, taskDescription, agentName) {
     if (taskId) {
         var taskSegment = sess.taskSegments[taskId];
         if (taskSegment) {
-            // 标题首次确定后不再变更（后续 description 仅补内存字段，不刷新 DOM）
-            if (!taskSegment.taskDescription && taskDescription) taskSegment.taskDescription = taskDescription;
-            if (!taskSegment.agentName && agentName) taskSegment.agentName = agentName;
+            // 描述/代理名可能晚于建组到达（首个事件未带），补上后同步重绘 L1 标题
+            var titleChanged = false;
+            if (!taskSegment.taskDescription && taskDescription) {
+                taskSegment.taskDescription = taskDescription;
+                titleChanged = true;
+            }
+            if (!taskSegment.agentName && agentName) {
+                taskSegment.agentName = agentName;
+                titleChanged = true;
+            }
+            if (titleChanged) updateTaskGroupTitle(taskSegment);
             sess.currentStreamSegment = taskSegment;
             return taskSegment;
         }
@@ -719,6 +766,8 @@ function ensureStreamSegment(sess, taskId, taskDescription, agentName) {
             sess.taskSegments[taskId] = taskSegment;
             sess.streamSegments.push(taskSegment);
             sess.currentStreamSegment = taskSegment;
+            // 旧 DOM 的标题可能建于描述到达之前，重建索引后按最新字段刷一次
+            if (taskSegment.taskDescription || taskSegment.agentName) updateTaskGroupTitle(taskSegment);
             return taskSegment;
         }
         var now = Date.now();

@@ -45,6 +45,10 @@ public class WebEvent<T> implements Serializable {
     /** 触发该事件的代理名称 (可选) */
     private String agentName;
 
+    /** 子任务描述 (可选)：与 taskId 平级，随子代理的每个事件下发，
+     *  前端据此把 task 组标题显示为「任务描述」而不是只有代理名（原先仅 task.done 携带，流式期间看不到）。 */
+    private String taskDescription;
+
     /** 毫秒时间戳 */
     @Builder.Default
     private long timestamp = System.currentTimeMillis();

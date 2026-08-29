@@ -4,6 +4,7 @@ import org.noear.solon.ai.agent.AgentEvent;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActTrace;
 import org.noear.solon.ai.agent.react.RunEndEvent;
+import org.noear.solon.ai.agent.react.RunStartEvent;
 import org.noear.solon.ai.agent.react.intercept.ContextSizeEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLPendingEvent;
 import org.noear.solon.ai.agent.react.intercept.HITLTask;
@@ -21,6 +22,7 @@ import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.event.WebEventNames;
 import org.noear.solon.codecli.portal.web.event.payload.SystemContextPayload;
 import org.noear.solon.codecli.portal.web.event.payload.TaskDonePayload;
+import org.noear.solon.codecli.portal.web.event.payload.TaskStartPayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolEndPayload;
 import org.noear.solon.codecli.portal.web.event.payload.ToolStartPayload;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
@@ -54,6 +56,7 @@ public class WebEventMapper {
         String taskId = null;
         String taskDescription = null;
         boolean isMultitask = false;
+        int taskIndex = 0;
 
         if (event instanceof TaskWrapEvent) {
             TaskWrapEvent twc = (TaskWrapEvent) event;
@@ -62,12 +65,16 @@ public class WebEventMapper {
                     twc.getRealEvent() instanceof ToolCallEndEvent ||
                     twc.getRealEvent() instanceof ReasonDeltaEvent ||
                     twc.getRealEvent() instanceof ReasonEndEvent ||
+                    twc.getRealEvent() instanceof RunStartEvent ||
                     twc.getRealEvent() instanceof RunEndEvent) {
+                // RunStartEvent → task.start：子代理 ReAct 一启动就发（早于首个 thought.delta）
+
                 parentRunId = twc.getParentRunId();
                 taskId = twc.getTaskId();
                 taskAgentName = twc.getTaskAgentName();
                 taskDescription = twc.getTaskDescription();
                 isMultitask = twc.isMultitask();
+                taskIndex = twc.getTaskIndex();
                 event = twc.getRealEvent();
             }
         }
@@ -81,51 +88,59 @@ public class WebEventMapper {
         if (event instanceof UiRenderEvent) {
             UiRenderEvent uiEvent = (UiRenderEvent) event;
             WebEvent<?> evt = WebEvent.ofUiRender(uiEvent.getPayload());
-            fillMeta(evt, session, parentRunId, taskId, uiEvent.getReasonId(), taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, uiEvent.getReasonId(), taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof UiPatchEvent) {
             UiPatchEvent uiPatch = (UiPatchEvent) event;
             WebEvent<?> evt = WebEvent.ofUiPatch(uiPatch.getPayload());
-            fillMeta(evt, session, parentRunId, taskId, uiPatch.getReasonId(), taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, uiPatch.getReasonId(), taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof ContextSizeEvent) {
             WebEvent<?> evt = onContextSizeEvent(chatModel, (ContextSizeEvent) event);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof ReasonDeltaEvent) {
             WebEvent<?> evt = onReasonDeltaEvent((ReasonDeltaEvent) event, taskAgentName);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof HITLPendingEvent) {
             List<WebEvent<?>> hitlEvents = onHITLPendingEvent(session, (HITLPendingEvent) event);
             for (WebEvent<?> evt : hitlEvents) {
-                fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+                fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
                 result.add(evt);
             }
         } else if (event instanceof ToolCallStartEvent) {
             WebEvent<?> evt = onToolCallStartEvent((ToolCallStartEvent) event, taskAgentName);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof ToolCallEndEvent) {
             WebEvent<?> evt = onToolCallEndEvent((ToolCallEndEvent) event, taskAgentName);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof ReasonEndEvent) {
             WebEvent<?> evt = onReasonEndEvent(session, (ReasonEndEvent) event, taskAgentName, isMultitask);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
+        } else if (event instanceof RunStartEvent) {
+            if (taskId != null) {
+                // 子代理 ReAct 启动：发 task.start 让前端先建 task-group 占位。
+                // 主代理的 RunStartEvent 不外发（整轮开始由 HTTP 响应自身表达，无需事件）。
+                WebEvent<?> taskStart = onTaskStartEvent(parentRunId, taskId, taskIndex, taskAgentName, taskDescription, isMultitask);
+                fillMeta(taskStart, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
+                result.add(taskStart);
+            }
         } else if (event instanceof RunEndEvent) {
             if (taskId != null) {
                 // 子代理 ReAct 结束：仅发 task.done 让前端结算对应 task-group，
                 // 绝不输出 system.trace —— trace 是整轮主代理的收尾统计，子代理输出会导致
                 // 前端在 task-group 外多渲染一条 trace 徽标（“子代理任务完成后也输出 trace”）。
                 WebEvent<?> taskDone = onTaskDoneEvent((RunEndEvent) event, parentRunId, taskId, taskAgentName, taskDescription, isMultitask);
-                fillMeta(taskDone, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+                fillMeta(taskDone, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
                 result.add(taskDone);
             } else {
                 // 主代理整轮结束：输出 system.trace（模型/token/耗时/最终答案）
                 WebEvent<?> trace = onRunEndEvent(session, (RunEndEvent) event);
-                fillMeta(trace, session, parentRunId, taskId, reasonId, taskAgentName, event.getRunId());
+                fillMeta(trace, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
                 result.add(trace);
             }
         }
@@ -150,7 +165,7 @@ public class WebEventMapper {
     }
 
     private void fillMeta(WebEvent<?> evt, AgentSession session, String parentRunId, String taskId,
-                          String reasonId, String agentName, String fallbackRunId) {
+                          String reasonId, String agentName, String taskDescription, String fallbackRunId) {
         if (evt == null) {
             return;
         }
@@ -175,6 +190,12 @@ public class WebEventMapper {
 
         if (agentName != null && evt.getAgentName() == null) {
             evt.setAgentName(agentName);
+        }
+
+        // 任务描述随每个子代理事件下发：前端第一个 thought.delta 就能拿到标题；
+        // 若只靠 task.done，流式全程只能回退显示代理名。
+        if (taskDescription != null && evt.getTaskDescription() == null) {
+            evt.setTaskDescription(taskDescription);
         }
     }
 
@@ -310,6 +331,18 @@ public class WebEventMapper {
 //        }
 
         return WebEvent.EMPTY;
+    }
+
+    private WebEvent<?> onTaskStartEvent(String runId, String taskId, int taskIndex,
+                                         String taskAgentName, String taskDescription, boolean isMultitask) {
+        return WebEvent.of(WebEventNames.TASK_START, TaskStartPayload.builder()
+                .taskId(taskId)
+                .parentTaskId(runId)
+                .title(taskDescription)
+                .agentName(taskAgentName)
+                .taskIndex(taskIndex)
+                .isMultitask(isMultitask)
+                .build());
     }
 
     private WebEvent<?> onTaskDoneEvent(RunEndEvent event, String runId, String taskId,

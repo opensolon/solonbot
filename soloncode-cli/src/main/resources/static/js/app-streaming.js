@@ -960,6 +960,7 @@ var AgentEventDispatcher = {
             taskId: raw.taskId,
             reasonId: raw.reasonId,
             agentName: raw.agentName,
+            taskDescription: raw.taskDescription,
             timestamp: raw.timestamp || Date.now(),
             payload: raw.payload || {}
         };
@@ -1157,6 +1158,8 @@ function processWebEventNow(sess, webEvt) {
         var taskId = webEvt.taskId;
         var reasonId = webEvt.reasonId;
         var agentName = webEvt.agentName;
+        // 子任务描述来自信封层（每个子代理事件都带），流式首个事件即可确定 task 组标题
+        var taskDescription = webEvt.taskDescription;
 
         // 存储当前 runId
         if (webEvt.runId) {
@@ -1182,7 +1185,8 @@ function processWebEventNow(sess, webEvt) {
         var segment = null;
 
         if (isVisualEvent || isActionEndWithoutPending) {
-            segment = ensureStreamSegment(sess, taskId, p.taskDescription || p.title, agentName);
+            // 注意：不能用 p.title —— tool.start/tool.end 的 title 是工具标题，会污染 task 组标题
+            segment = ensureStreamSegment(sess, taskId, taskDescription, agentName);
         } else if (event === 'tool.end' && taskId && sess.taskSegments[taskId]) {
             segment = sess.taskSegments[taskId];
             sess.currentStreamSegment = segment;
@@ -1221,13 +1225,22 @@ function processWebEventNow(sess, webEvt) {
                 sourceEl = appendHitlCard(sess, p.toolName || p.name, p.command, p.callId, p.args, p.toolTitle || p.title || p.toolName, p.comment);
                 break;
 
+            case 'task.start':
+                // 子代理 ReAct 一启动就建组占位：早于首个 thought.delta，
+                // 补上「子代理构建 + 首次模型调用」这段界面空白；后续事件按 taskId 复用同一组。
+                if (taskId) {
+                    segment = ensureStreamSegment(sess, taskId, taskDescription || p.title, agentName || p.agentName);
+                    sourceEl = segment && segment.groupEl;
+                }
+                break;
+
             case 'task.done':
                 if (typeof applyTaskDoneChunk === 'function') {
                     applyTaskDoneChunk(sess, {
                         taskId: p.taskId || taskId,
                         parentTaskId: p.parentTaskId,
                         status: p.status,
-                        taskDescription: p.title || p.taskDescription
+                        taskDescription: taskDescription || p.title || p.taskDescription
                     });
                 }
                 sourceEl = segment && segment.groupEl;
@@ -1267,7 +1280,7 @@ function processWebEventNow(sess, webEvt) {
 
             case 'system.error':
                 finishThinkingBlock(sess);
-                sourceEl = appendErrorChunk(sess, p.message || '未知错误', taskId, p.title, agentName, p.code);
+                sourceEl = appendErrorChunk(sess, p.message || '未知错误', taskId, taskDescription || p.title, agentName, p.code);
                 break;
 
             case 'ui.render':
