@@ -1,0 +1,172 @@
+# soloncode-sdk-java
+
+Java SDK for the **soloncode CLI** headless mode (`soloncode run`). Forked and adapted
+from [claude-agent-sdk-java](https://github.com/anthropics/claude-agent-sdk-java) (Apache License 2.0).
+
+- Requires **JDK 8+**（与仓库其余模块同基线：`maven.compiler.source/target=8`）
+- 两条通讯通道：**stdio**（本机拉起 `soloncode run` 子进程，需 CLI 在 PATH，可用 `stdio(path)` 指定）
+  与 **http**（投递到服务端 `/web/run` 端点，需 `soloncode web` 启动）
+
+## Quick Start
+
+```java
+// Sync query（stdio 通道，默认）
+String answer = SolonCodeClient.sync()
+    .stdio()                              // 默认通道，可省略；等价于 .stdio("/usr/local/bin/soloncode")
+    .workingDirectory(Paths.get("."))
+    .model("sonnet")
+    .permissionMode(PermissionMode.DONT_ASK)
+    .bare(true)                            // CI 推荐：跳过技能/MCP/记忆自动发现
+    .maxTurns(10)
+    .query("总结最近一次提交的变更内容");
+```
+
+```java
+// HTTP 通道：同一组选项投递到服务端 /web/run（soloncode web 启动），SSE 接收同构事件流
+String answer = SolonCodeClient.sync()
+    .http("http://127.0.0.1:18080/web/run") // /web/run 完整 URL
+    .authToken(token)                       // 服务端 ~/.soloncode/run.token；缺省不带鉴权头
+    .workspace("my-project")               // 服务端工作区标识（替代 workingDirectory，两者互斥）
+    .query("总结最近一次提交的变更内容");
+```
+
+```java
+// 多轮对话：每轮是一个新的 CLI 进程，SDK 自动用 --resume 续接上下文
+try (SolonCodeSyncClient client = SolonCodeClient.sync()
+        .workingDirectory(Paths.get("."))
+        .sessionId("my-task-001")          // 可选；不设则自动生成
+        .build()) {
+    client.connect();                      // 不启动进程，等首个 query
+    client.query("分析这个模块的结构");        // 第 1 轮：--session-id my-task-001
+    for (Message m : client.messages()) { /* ... */ }
+
+    client.query("基于上面的分析写单元测试");    // 第 2 轮：--resume my-task-001
+    for (Message m : client.messages()) { /* ... */ }
+}
+```
+
+```java
+// Async streaming query
+SolonCodeAsyncClient client = SolonCodeClient.async()
+    .workingDirectory(Paths.get("."))
+    .bare(true)
+    .build();
+
+client.connect().block();
+client.query("重构日志模块").messages().subscribe(System.out::println);
+```
+
+## 两条通讯通道
+
+通道是必选项（有默认值），builder 层一级方法选择：
+
+```java
+SolonCodeClient.sync().stdio()                                 // 默认：本机子进程，自动发现 CLI
+SolonCodeClient.sync().stdio("/usr/local/bin/soloncode")       // 指定可执行文件
+SolonCodeClient.sync().http("http://127.0.0.1:18080/web/run")  // 服务端通道
+```
+
+| 维度 | stdio（默认） | http |
+|------|---------------|------|
+| 承载方式 | 本机拉起 `soloncode run` 子进程 | POST `/web/run`（`soloncode web` 启动），SSE 回流 |
+| 工作目录 | `workingDirectory(path)`（本机路径） | `workspace(id)`（服务端已注册工作区标识；两者 builder 层互斥） |
+| 鉴权 | 无（本地进程） | `authToken(token)` Bearer（服务端 `~/.soloncode/run.token`） |
+| 权限模式 | 全量支持（含 bypassPermissions） | 服务端收口：bypass 系一律回落 `default`（SDK 前置告警替换，避免吃 403） |
+| 事件解析 | stream-json 逐行 | SSE 每个 `data:` 行即 CLI 的一行 JSONL，解析层完全复用 |
+| 中断 | `destroy()` 进程树 | 独立端点 `POST /web/run/interrupt`（按 session 定位） |
+| 多轮串接 | 每轮新进程：首轮 `--session-id`，后续 `--resume` | 每轮新请求：同样 `session_id` / `resume`（可与本机 CLI 续接同一会话） |
+| 回写通道 | 不存在（one-shot） | 不存在（one-shot） |
+
+HTTP 通道下 MCP 注册、权限审批回调等在服务端配置，客户端同名选项仅告警忽略。
+协议契约详见 `soloncode-cli/docs/run-headless-mode-http.md`。
+
+> SDK 本身不读任何 `soloncode.http.*` 环境配置——服务地址、token、workspace 一律构建器传入；
+> 需要从外部配置注入时，由调用方读出来再传给 builder。
+
+## 执行模型：一次性进程 + resume 串接
+
+`soloncode run` 是**一次性**的：提示词作为 `run` 之后的第一个位置参数传入，Agent 跑完即退出。
+claude CLI 那套「长驻进程 + stdin 持续投喂 JSON 消息」的双向模型在这里不成立。SDK 因此做了如下适配：
+
+| 环节 | soloncode 行为 | SDK 做法 |
+|------|----------------|----------|
+| 提示词投递 | `run <prompt>` 位置参数；且必须紧跟 `run` | 拼在 `run` 之后、所有 `--flag` 之前（Solon argx 对选项做贪心 lookahead，提示词落到 flag 后会被吃成该选项的值） |
+| 提示词以 `-` 开头 | 会被当成选项 | 回退到 stdin 管道并立即关闭 stdin |
+| stdin | `System.in.available() > 0` 才读 | 走位置参数时立即关闭 stdin，避免读写时序竞态 |
+| 多轮对话 | 无长连接 | 每轮新起进程：首轮 `--session-id`，后续轮 `--resume` |
+| `connect()` 无提示词 | 无提示词直接退出码 3 | 不启动进程，延迟到首次 `query()` |
+| result 事件统计 | `metrics{total_tokens,prompt_tokens,completion_tokens,duration_ms}` | 归一化到 `ResultMessage.usage()`，并回填 `durationMs` |
+
+## 与 claude-agent-sdk-java 的差异
+
+soloncode CLI 不支持 stdin JSON 双向控制协议（无 `--input-format stream-json`），因此：
+
+| 能力 | 状态 |
+|------|------|
+| 同步/异步 Query、stream-json 事件流解析 | 支持 |
+| 会话管理（`--resume` / `--continue`） | 支持 |
+| 权限模式预设（default/dontAsk/plan/acceptEdits/bypassPermissions） | 支持 |
+| `--allowedTools` / `--disallowedTools`（含 `Tool(pattern)` 规则） | 支持 |
+| `--json-schema` 结构化输出、`--max-budget-usd`、`--max-turns`、`--fallback-model` | 支持 |
+| `--add-dir` 多目录、`--bare`、`--session-id`、`--fallback-model` | 支持（客户端 Spec 一级方法） |
+| `toolPermissionCallback` / `permissionPromptToolName`（stdin 审批回调） | **不支持**，配置后仅告警忽略 |
+| `systemPrompt` / `appendSystemPrompt` / `agents` / `forkSession` / `mcpServers` / `settings` / `plugins` / `tools` / `maxThinkingTokens` | **不支持**，配置后仅告警忽略 |
+
+## 提示词投递通道
+
+默认把提示词作为 `run` 之后的第一个位置参数。但 Solon 的 `argx` 解析会把 argv 里含 `=`
+的词当成 `key=value`、把 `-` 开头的词当成选项名，这两类提示词作为位置参数会丢失（CLI 报
+`No prompt provided` 并退出码 3），因此 SDK 对它们自动改走 stdin 管道（纯文本，写完即关闭）。
+
+## 退出码
+
+| 退出码 | 含义 |
+|--------|------|
+| 0 | 成功 |
+| 1 | 运行错误 |
+| 2 | 超过 `--max-turns` |
+| 3 | 未提供提示词 |
+| 4 | 超过 `--max-budget-usd` |
+
+> 需要 soloncode **v2026.8.28+**：更早版本的 `soloncode run` / `--version` 走 `Solon.stop()`，
+> 而它内部固定 `System.exit(1)`，即便成功也返回退出码 1。若必须对接旧版 CLI，请以 `result`
+> 事件的 `is_error` 判定成功与否，不要依赖退出码。v2026.8.28 同时引入 `soloncode help`
+> 与 `soloncode run --help`，`CLIFlagParityIT` 以后者为基准校验 SDK 与 CLI 的选项对齐。
+
+## 构建
+
+```bash
+mvn test          # JDK 8 基线，无需切换 JAVA_HOME；同时生成 target/site/jacoco 覆盖率报告
+```
+
+单元测试完全离线可重复：`StdioTransportFakeCliTest` 用假 CLI 脚本（bash 模拟
+`soloncode run` 的 stdout JSONL / stderr / 退出码）覆盖进程生命周期分支，
+`HttpTransportTest` 用 JDK 内嵌 HttpServer 模拟 `/web/run` 的 SSE 与错误码。
+
+集成测试（`*IT`）需要本机安装 soloncode CLI：
+
+```bash
+# 全部 IT
+mvn verify -DskipITs=false
+
+# HTTP 通道真实链路（对已部署的 soloncode web 实例；token 缺省读 ~/.soloncode/run.token，
+# 无 token 文件或服务不可达则自动跳过）
+mvn test-compile failsafe:integration-test -DskipITs=false -Dit.test=HttpRunIT \
+    -Dsoloncode.http.url=http://127.0.0.1:18080/web/run
+
+# 只跑真实 CLI 连通性验证（不依赖模型可用性：模型 503 时也应通过）
+mvn test-compile failsafe:integration-test -DskipITs=false -Dit.test=SolonCodeRealCliIT
+
+# 指定 CLI（例如本地构建的 soloncode-cli jar 包装脚本）
+mvn test-compile failsafe:integration-test -DskipITs=false -Dsoloncode.cli.path=/path/to/soloncode
+```
+
+CLI 探测（`soloncode --version`）默认给 20 秒超时——它是 JVM 程序，冷启动常需 4~8 秒；
+可用 `-Dsoloncode.cli.probe-timeout=<秒>` 调整。
+
+IT 一律在临时目录里跑 CLI，而不是仓库目录：CLI 会把工作区的 `AGENTS.md`/技能/历史会话注入
+系统提示（实测提示词从 5.5k tokens 涨到 9.3k+，单轮耗时从 5 秒涨到 190 秒甚至超时）。
+
+`SolonCodeRealCliIT` 只断言 SDK 与 CLI 之间的协议契约（进程启动、`system.init` / `result`
+事件解析、会话 ID 贯通、`--resume` 续接、stdin 回退路径），不断言模型答案 —— 因此后端模型限流或
+未配置 Key 时它依然是对 SDK 链路的有效验证。
