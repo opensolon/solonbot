@@ -553,9 +553,17 @@ public interface SolonCodeClient {
 				if (authToken != null || httpWorkspace != null) {
 					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
 				}
+				if (httpOptions != null) {
+					transportSpec = transportSpec.withHttpOptions(httpOptions);
+				}
 			}
-			else if (workingDirectory == null) {
-				throw new IllegalArgumentException("workingDirectory is required");
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				if (workingDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
 			}
 
 			// Build CLIOptions from individual settings

@@ -426,6 +426,11 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
 	}
 
 	@Override
+	public CLIOptions getOptions() {
+		return options;
+	}
+
+	@Override
 	public boolean isConnected() {
 		return connected.get() && !closed.get() && transport != null && transport.isRunning();
 	}

@@ -20,6 +20,7 @@ import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.permission.ToolPermissionCallback;
 import org.noear.soloncode.sdk.streaming.MessageReceiver;
+import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.Message;
 
 import java.util.Iterator;
@@ -274,6 +275,15 @@ public interface SolonCodeSyncClient extends AutoCloseable {
 	 * @return map of server information, or empty map if not available
 	 */
 	Map<String, Object> getServerInfo();
+
+	/**
+	 * 返回本客户端<b>实际生效</b>的 CLI 选项（即建流时真正传给 soloncode 的那一份）。
+
+	 * <p>用于让结果元信息（如 {@code QueryResult.metadata} 中的 model）与真实执行配置对齐，
+	 * 而不是回显调用方以为设置了、但并未落地的值。</p>
+	 * @return 生效的 CLI 选项，不为 null
+	 */
+	CLIOptions getOptions();
 
 	/**
 	 * Gets the current model being used by this client. This reflects any runtime changes

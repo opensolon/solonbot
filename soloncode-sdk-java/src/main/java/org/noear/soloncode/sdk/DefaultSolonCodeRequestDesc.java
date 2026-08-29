@@ -18,6 +18,7 @@ package org.noear.soloncode.sdk;
 
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
+import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.QueryResult;
 import reactor.core.publisher.Flux;
@@ -73,7 +74,11 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 					messages.add(parsed.asMessage());
 				}
 			}
-			return Query.buildQueryResult(messages, options.toCLIOptions());
+			// 元信息取「客户端实际生效的选项」而非 requestDesc 上的 QueryOptions：
+			// 后者可能与真正传给 CLI 的配置不一致，直接回显会让 metadata 谎报（如 model）。
+			// 客户端拿不到生效选项时（自定义实现）退回请求级选项。
+			CLIOptions effective = client.getOptions();
+			return Query.buildQueryResult(messages, effective != null ? effective : options.toCLIOptions());
 		}
 		catch (SolonCodeSDKException e) {
 			throw e;
