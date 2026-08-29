@@ -2,7 +2,13 @@
 
 ### v2026.8.29
 
-* 新增 soloncode-sdk-java
+* 新增 soloncode-sdk-java 模块
+* 修复 soloncode web 子代理任务显示描述丢失问题
+* 修复 soloncode web 如果是子代理执行，继续执行会失败的问题
+* 细节优化
+
+### v2026.8.28
+
 * 新增 soloncode `~` 启动时锁定工作区面板的设计
 * 添加 soloncode help 命令与 `--help`/`-h` 选项（支持 `soloncode help run` 与 `soloncode run --help` 查看无头模式选项）
 * 添加 soloncode-sdk-java 传输层抽象：`Transport` 接口 + `StdioTransport` 实现（原 StreamingTransport），builder 的 `cliPath()` 改为 `stdio()`/`stdio(path)`（SDK 未发布，直接替换不留过渡）；预留 `http()` 通道，配套 `/web/run` 方案见 `soloncode-cli/docs/run-headless-mode-http.md`
@@ -10,7 +16,7 @@
 * 优化 soloncode web 提示，统一样式
 * 细节优化
 
-### v2026.8.28
+### v2026.8.27
 
 * 修复 soloncode run 与 --version 成功时退出码为 1 的问题（改为 0，对齐无头模式退出码约定）
 * 添加 soloncode web 更新提示（启动时）
