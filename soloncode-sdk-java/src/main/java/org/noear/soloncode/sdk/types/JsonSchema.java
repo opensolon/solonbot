@@ -18,8 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.List;
 import java.util.Map;
@@ -50,28 +49,27 @@ import java.util.Objects;
  *     .build();
  * }</pre>
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class JsonSchema {
 
-	@JsonProperty("type")
+	@ONodeAttr(name = "type")
 	private final String type;
 
-	@JsonProperty("properties")
+	@ONodeAttr(name = "properties")
 	private final Map<String, Object> properties;
 
-	@JsonProperty("required")
+	@ONodeAttr(name = "required")
 	private final List<String> required;
 
-	@JsonProperty("additionalProperties")
+	@ONodeAttr(name = "additionalProperties")
 	private final Boolean additionalProperties;
 
-	@JsonProperty("$defs")
+	@ONodeAttr(name = "$defs")
 	private final Map<String, Object> defs;
 
-	public JsonSchema(@JsonProperty("type") String type, @JsonProperty("properties") Map<String, Object> properties,
-			@JsonProperty("required") List<String> required,
-			@JsonProperty("additionalProperties") Boolean additionalProperties,
-			@JsonProperty("$defs") Map<String, Object> defs) {
+	public JsonSchema(@ONodeAttr(name = "type") String type, @ONodeAttr(name = "properties") Map<String, Object> properties,
+			@ONodeAttr(name = "required") List<String> required,
+			@ONodeAttr(name = "additionalProperties") Boolean additionalProperties,
+			@ONodeAttr(name = "$defs") Map<String, Object> defs) {
 		this.type = type;
 		this.properties = properties;
 		this.required = required;

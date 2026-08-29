@@ -18,17 +18,10 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * Base interface for all message types. Corresponds to Message union type in Python SDK.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({ @JsonSubTypes.Type(value = UserMessage.class, name = "user"),
-		@JsonSubTypes.Type(value = AssistantMessage.class, name = "assistant"),
-		@JsonSubTypes.Type(value = SystemMessage.class, name = "system"),
-		@JsonSubTypes.Type(value = ResultMessage.class, name = "result") })
 public interface Message {
 
 	/**

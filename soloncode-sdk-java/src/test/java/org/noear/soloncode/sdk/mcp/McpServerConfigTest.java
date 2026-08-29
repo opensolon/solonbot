@@ -20,7 +20,7 @@ package org.noear.soloncode.sdk.mcp;
 
 import org.noear.soloncode.sdk.util.SdkCollections;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.ONode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,11 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class McpServerConfigTest {
 
-	private ObjectMapper objectMapper;
 
 	@BeforeEach
 	void setUp() {
-		objectMapper = new ObjectMapper();
 	}
 
 	@Test
@@ -46,7 +44,7 @@ class McpServerConfigTest {
 		McpServerConfig.McpStdioServerConfig config = new McpServerConfig.McpStdioServerConfig("npx",
 				SdkCollections.list("-y", "@modelcontextprotocol/server-filesystem", "/tmp"), SdkCollections.map("NODE_ENV", "production"));
 
-		String json = objectMapper.writeValueAsString(config);
+		String json = ONode.serialize(config);
 
 		assertThat(json).contains("\"type\":\"stdio\"");
 		assertThat(json).contains("\"command\":\"npx\"");
@@ -54,7 +52,7 @@ class McpServerConfigTest {
 		assertThat(json).contains("\"env\"");
 
 		// Deserialize and verify
-		McpServerConfig deserialized = objectMapper.readValue(json, McpServerConfig.class);
+		McpServerConfig deserialized = ONode.deserialize(json, McpServerConfig.class);
 		assertThat(deserialized).isInstanceOf(McpServerConfig.McpStdioServerConfig.class);
 		McpServerConfig.McpStdioServerConfig stdio = (McpServerConfig.McpStdioServerConfig) deserialized;
 		assertThat(stdio.command()).isEqualTo("npx");
@@ -77,14 +75,14 @@ class McpServerConfigTest {
 		McpServerConfig.McpSseServerConfig config = new McpServerConfig.McpSseServerConfig("http://localhost:8080/sse",
 				SdkCollections.map("Authorization", "Bearer token123"));
 
-		String json = objectMapper.writeValueAsString(config);
+		String json = ONode.serialize(config);
 
 		assertThat(json).contains("\"type\":\"sse\"");
 		assertThat(json).contains("\"url\":\"http://localhost:8080/sse\"");
 		assertThat(json).contains("\"headers\"");
 
 		// Deserialize and verify
-		McpServerConfig deserialized = objectMapper.readValue(json, McpServerConfig.class);
+		McpServerConfig deserialized = ONode.deserialize(json, McpServerConfig.class);
 		assertThat(deserialized).isInstanceOf(McpServerConfig.McpSseServerConfig.class);
 		McpServerConfig.McpSseServerConfig sse = (McpServerConfig.McpSseServerConfig) deserialized;
 		assertThat(sse.url()).isEqualTo("http://localhost:8080/sse");
@@ -96,13 +94,13 @@ class McpServerConfigTest {
 		McpServerConfig.McpHttpServerConfig config = new McpServerConfig.McpHttpServerConfig(
 				"http://localhost:8080/mcp");
 
-		String json = objectMapper.writeValueAsString(config);
+		String json = ONode.serialize(config);
 
 		assertThat(json).contains("\"type\":\"http\"");
 		assertThat(json).contains("\"url\":\"http://localhost:8080/mcp\"");
 
 		// Deserialize and verify
-		McpServerConfig deserialized = objectMapper.readValue(json, McpServerConfig.class);
+		McpServerConfig deserialized = ONode.deserialize(json, McpServerConfig.class);
 		assertThat(deserialized).isInstanceOf(McpServerConfig.McpHttpServerConfig.class);
 		McpServerConfig.McpHttpServerConfig http = (McpServerConfig.McpHttpServerConfig) deserialized;
 		assertThat(http.url()).isEqualTo("http://localhost:8080/mcp");
@@ -110,10 +108,10 @@ class McpServerConfigTest {
 
 	@Test
 	void sdkConfigDoesNotSerializeInstance() throws Exception {
-		// SDK config with null instance (instance is @JsonIgnore)
+		// SDK config with null instance (instance is @ONodeAttr(ignore = true))
 		McpServerConfig.McpSdkServerConfig config = new McpServerConfig.McpSdkServerConfig("calculator", null);
 
-		String json = objectMapper.writeValueAsString(config);
+		String json = ONode.serialize(config);
 
 		assertThat(json).contains("\"type\":\"sdk\"");
 		assertThat(json).contains("\"name\":\"calculator\"");

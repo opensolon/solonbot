@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Objects;
 
@@ -28,25 +28,25 @@ import java.util.Objects;
  */
 public final class Cost {
 
-	@JsonProperty("input_token_cost")
+	@ONodeAttr(name = "input_token_cost")
 	private final double inputTokenCost;
 
-	@JsonProperty("output_token_cost")
+	@ONodeAttr(name = "output_token_cost")
 	private final double outputTokenCost;
 
-	@JsonProperty("input_tokens")
+	@ONodeAttr(name = "input_tokens")
 	private final int inputTokens;
 
-	@JsonProperty("output_tokens")
+	@ONodeAttr(name = "output_tokens")
 	private final int outputTokens;
 
-	@JsonProperty("model")
+	@ONodeAttr(name = "model")
 	private final String model;
 
-	public Cost(@JsonProperty("input_token_cost") double inputTokenCost,
-			@JsonProperty("output_token_cost") double outputTokenCost,
-			@JsonProperty("input_tokens") int inputTokens, @JsonProperty("output_tokens") int outputTokens,
-			@JsonProperty("model") String model) {
+	public Cost(@ONodeAttr(name = "input_token_cost") double inputTokenCost,
+			@ONodeAttr(name = "output_token_cost") double outputTokenCost,
+			@ONodeAttr(name = "input_tokens") int inputTokens, @ONodeAttr(name = "output_tokens") int outputTokens,
+			@ONodeAttr(name = "model") String model) {
 		this.inputTokenCost = inputTokenCost;
 		this.outputTokenCost = outputTokenCost;
 		this.inputTokens = inputTokens;

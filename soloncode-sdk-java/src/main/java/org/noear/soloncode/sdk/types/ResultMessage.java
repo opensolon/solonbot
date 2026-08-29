@@ -18,8 +18,9 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.annotation.ONodeAttr;
+import org.noear.soloncode.sdk.util.PrimitiveSafeCreator;
+import org.noear.soloncode.sdk.util.SdkJson;
 
 import java.util.Map;
 import java.util.Objects;
@@ -28,51 +29,52 @@ import java.util.Objects;
  * Result message with cost and usage information. Corresponds to ResultMessage dataclass
  * in Python SDK.
  */
+@ONodeAttr(creator = PrimitiveSafeCreator.class)
 public final class ResultMessage implements Message {
 
-	@JsonProperty("subtype")
+	@ONodeAttr(name = "subtype")
 	private final String subtype;
 
-	@JsonProperty("duration_ms")
+	@ONodeAttr(name = "duration_ms")
 	private final int durationMs;
 
-	@JsonProperty("duration_api_ms")
+	@ONodeAttr(name = "duration_api_ms")
 	private final int durationApiMs;
 
-	@JsonProperty("is_error")
+	@ONodeAttr(name = "is_error")
 	private final boolean isError;
 
-	@JsonProperty("num_turns")
+	@ONodeAttr(name = "num_turns")
 	private final int numTurns;
 
-	@JsonProperty("session_id")
+	@ONodeAttr(name = "session_id")
 	private final String sessionId;
 
-	@JsonProperty("total_cost_usd")
+	@ONodeAttr(name = "total_cost_usd")
 	private final Double totalCostUsd;
 
-	@JsonProperty("usage")
+	@ONodeAttr(name = "usage")
 	private final Map<String, Object> usage;
 
-	@JsonProperty("result")
+	@ONodeAttr(name = "result")
 	private final String result;
 
-	@JsonProperty("structured_output")
+	@ONodeAttr(name = "structured_output")
 	private final Object structuredOutput;
 
-	@JsonProperty("budget_limit_usd")
+	@ONodeAttr(name = "budget_limit_usd")
 	private final Double budgetLimitUsd;
 
-	@JsonProperty("budget_exceeded")
+	@ONodeAttr(name = "budget_exceeded")
 	private final Boolean budgetExceeded;
 
-	public ResultMessage(@JsonProperty("subtype") String subtype, @JsonProperty("duration_ms") int durationMs,
-			@JsonProperty("duration_api_ms") int durationApiMs, @JsonProperty("is_error") boolean isError,
-			@JsonProperty("num_turns") int numTurns, @JsonProperty("session_id") String sessionId,
-			@JsonProperty("total_cost_usd") Double totalCostUsd, @JsonProperty("usage") Map<String, Object> usage,
-			@JsonProperty("result") String result, @JsonProperty("structured_output") Object structuredOutput,
-			@JsonProperty("budget_limit_usd") Double budgetLimitUsd,
-			@JsonProperty("budget_exceeded") Boolean budgetExceeded) {
+	public ResultMessage(@ONodeAttr(name = "subtype") String subtype, @ONodeAttr(name = "duration_ms") int durationMs,
+			@ONodeAttr(name = "duration_api_ms") int durationApiMs, @ONodeAttr(name = "is_error") boolean isError,
+			@ONodeAttr(name = "num_turns") int numTurns, @ONodeAttr(name = "session_id") String sessionId,
+			@ONodeAttr(name = "total_cost_usd") Double totalCostUsd, @ONodeAttr(name = "usage") Map<String, Object> usage,
+			@ONodeAttr(name = "result") String result, @ONodeAttr(name = "structured_output") Object structuredOutput,
+			@ONodeAttr(name = "budget_limit_usd") Double budgetLimitUsd,
+			@ONodeAttr(name = "budget_exceeded") Boolean budgetExceeded) {
 		this.subtype = subtype;
 		this.durationMs = durationMs;
 		this.durationApiMs = durationApiMs;
@@ -214,17 +216,16 @@ public final class ResultMessage implements Message {
 	}
 
 	/**
-	 * Gets the structured output as a typed object using the provided ObjectMapper.
+	 * Gets the structured output as a typed object.
 	 * @param <T> the target type
 	 * @param type the class of the target type
-	 * @param mapper the ObjectMapper to use for conversion
 	 * @return the structured output as the target type, or null if not present
 	 */
-	public <T> T getStructuredOutputAs(Class<T> type, ObjectMapper mapper) {
+	public <T> T getStructuredOutputAs(Class<T> type) {
 		if (structuredOutput == null) {
 			return null;
 		}
-		return mapper.convertValue(structuredOutput, type);
+		return SdkJson.convert(structuredOutput, type);
 	}
 
 	/**

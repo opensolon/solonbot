@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import org.noear.soloncode.sdk.util.SdkCollections;
 
@@ -32,31 +32,31 @@ import java.util.Objects;
  */
 public final class Metadata {
 
-	@JsonProperty("model")
+	@ONodeAttr(name = "model")
 	private final String model;
 
-	@JsonProperty("cost")
+	@ONodeAttr(name = "cost")
 	private final Cost cost;
 
-	@JsonProperty("usage")
+	@ONodeAttr(name = "usage")
 	private final Usage usage;
 
-	@JsonProperty("duration_ms")
+	@ONodeAttr(name = "duration_ms")
 	private final long durationMs;
 
-	@JsonProperty("api_duration_ms")
+	@ONodeAttr(name = "api_duration_ms")
 	private final long apiDurationMs;
 
-	@JsonProperty("session_id")
+	@ONodeAttr(name = "session_id")
 	private final String sessionId;
 
-	@JsonProperty("num_turns")
+	@ONodeAttr(name = "num_turns")
 	private final int numTurns;
 
-	public Metadata(@JsonProperty("model") String model, @JsonProperty("cost") Cost cost,
-			@JsonProperty("usage") Usage usage, @JsonProperty("duration_ms") long durationMs,
-			@JsonProperty("api_duration_ms") long apiDurationMs, @JsonProperty("session_id") String sessionId,
-			@JsonProperty("num_turns") int numTurns) {
+	public Metadata(@ONodeAttr(name = "model") String model, @ONodeAttr(name = "cost") Cost cost,
+			@ONodeAttr(name = "usage") Usage usage, @ONodeAttr(name = "duration_ms") long durationMs,
+			@ONodeAttr(name = "api_duration_ms") long apiDurationMs, @ONodeAttr(name = "session_id") String sessionId,
+			@ONodeAttr(name = "num_turns") int numTurns) {
 		this.model = model;
 		this.cost = cost;
 		this.usage = usage;

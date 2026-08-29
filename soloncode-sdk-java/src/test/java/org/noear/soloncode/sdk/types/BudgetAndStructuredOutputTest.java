@@ -16,7 +16,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.noear.soloncode.sdk.util.SdkCollections;
@@ -33,8 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Budget Exceeded and Structured Output Semantics")
 class BudgetAndStructuredOutputTest {
 
-	private final ObjectMapper mapper = new ObjectMapper();
-
 	@Test
 	@DisplayName("ResultMessage parses budget fields from JSON")
 	void budgetFieldsParsed() throws Exception {
@@ -43,7 +41,7 @@ class BudgetAndStructuredOutputTest {
 				+ "\"total_cost_usd\":0.0312,\"usage\":{},\"result\":\"done\","
 				+ "\"budget_limit_usd\":5.0,\"budget_exceeded\":true}";
 
-		ResultMessage rm = mapper.readValue(json, ResultMessage.class);
+		ResultMessage rm = SdkJson.toBean(json, ResultMessage.class);
 		assertThat(rm.totalCostUsd()).isEqualTo(0.0312);
 		assertThat(rm.budgetLimitUsd()).isEqualTo(5.0);
 		assertThat(rm.budgetExceeded()).isTrue();
@@ -55,7 +53,7 @@ class BudgetAndStructuredOutputTest {
 	void budgetFieldsAbsent() throws Exception {
 		String json = "{\"type\":\"result\",\"subtype\":\"success\",\"duration_ms\":1,\"duration_api_ms\":1,"
 				+ "\"is_error\":false,\"num_turns\":1,\"session_id\":\"s-2\",\"result\":\"ok\"}";
-		ResultMessage rm = mapper.readValue(json, ResultMessage.class);
+		ResultMessage rm = SdkJson.toBean(json, ResultMessage.class);
 		assertThat(rm.budgetLimitUsd()).isNull();
 		assertThat(rm.budgetExceeded()).isNull();
 		assertThat(rm.isBudgetExceeded()).isFalse();
@@ -88,14 +86,14 @@ class BudgetAndStructuredOutputTest {
 				+ "\"is_error\":false,\"num_turns\":1,\"session_id\":\"s-3\",\"result\":\"```json\\n{}\\n```\","
 				+ "\"structured_output\":{\"functions\":[{\"name\":\"foo\",\"signature\":\"public void foo()\"}]}}";
 
-		ResultMessage rm = mapper.readValue(json, ResultMessage.class);
+		ResultMessage rm = SdkJson.toBean(json, ResultMessage.class);
 		assertThat(rm.hasStructuredOutput()).isTrue();
 
 		java.util.Map<String, Object> asMap = rm.getStructuredOutputAsMap();
 		assertThat(asMap).isNotNull();
 		assertThat(asMap).containsKey("functions");
 
-		FunctionList typed = rm.getStructuredOutputAs(FunctionList.class, mapper);
+		FunctionList typed = rm.getStructuredOutputAs(FunctionList.class);
 		assertThat(typed.functions).hasSize(1);
 		assertThat(typed.functions.get(0).name).isEqualTo("foo");
 	}

@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.List;
 import java.util.Objects;
@@ -28,10 +28,10 @@ import java.util.Objects;
  */
 public final class UserMessage implements Message {
 
-	@JsonProperty("content")
+	@ONodeAttr(name = "content")
 	private final Object content; // Can be String or List<ContentBlock>
 
-	public UserMessage(@JsonProperty("content") Object content) {
+	public UserMessage(@ONodeAttr(name = "content") Object content) {
 		this.content = content;
 	}
 

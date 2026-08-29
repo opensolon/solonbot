@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Objects;
 
@@ -29,20 +29,20 @@ import java.util.Objects;
  */
 public final class RateLimitEvent {
 
-	@JsonProperty("type")
+	@ONodeAttr(name = "type")
 	private final String type;
 
-	@JsonProperty("rate_limit_info")
+	@ONodeAttr(name = "rate_limit_info")
 	private final RateLimitInfo rateLimitInfo;
 
-	@JsonProperty("uuid")
+	@ONodeAttr(name = "uuid")
 	private final String uuid;
 
-	@JsonProperty("session_id")
+	@ONodeAttr(name = "session_id")
 	private final String sessionId;
 
-	public RateLimitEvent(@JsonProperty("type") String type, @JsonProperty("rate_limit_info") RateLimitInfo rateLimitInfo,
-			@JsonProperty("uuid") String uuid, @JsonProperty("session_id") String sessionId) {
+	public RateLimitEvent(@ONodeAttr(name = "type") String type, @ONodeAttr(name = "rate_limit_info") RateLimitInfo rateLimitInfo,
+			@ONodeAttr(name = "uuid") String uuid, @ONodeAttr(name = "session_id") String sessionId) {
 		this.type = type;
 		this.rateLimitInfo = rateLimitInfo;
 		this.uuid = uuid;

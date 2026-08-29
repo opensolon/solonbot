@@ -520,6 +520,25 @@ public interface SolonCodeClient {
 		}
 
 		/**
+		 * prompt 风格入口：把当前 builder 配置（包括通道）绑定到一次请求，
+		 * 用 {@code call()} / {@code stream()} 收束。
+		 *
+		 * <pre>{@code
+		 * SolonCodeClient.sync()
+		 *     .http(url).authToken(token).workspace(ws)
+		 *     .prompt("分析这个模块")
+		 *     .stream()
+		 *     .subscribe(System.out::println);
+		 * }</pre>
+		 * @param prompt 提示语；不可为空
+		 * @return 请求描述
+		 */
+		public SolonCodeRequestDesc prompt(String prompt) {
+			// 通道与凭证由 builder 已经配好；这里只在每次执行时建一个新 client
+			return new DefaultSolonCodeRequestDesc(prompt, options -> build());
+		}
+
+		/**
 		 * Builds and returns the configured SolonCodeSyncClient.
 		 * @return a new SolonCodeSyncClient instance
 		 * @throws IllegalArgumentException if workingDirectory is not set
@@ -711,6 +730,15 @@ public interface SolonCodeClient {
 		public SyncSpecWithOptions hookRegistry(HookRegistry hookRegistry) {
 			this.hookRegistry = hookRegistry;
 			return this;
+		}
+
+		/**
+		 * prompt 风格入口：把当前 builder 配置（包括通道与 CLIOptions）绑定到一次请求。
+		 * @param prompt 提示语；不可为空
+		 * @return 请求描述，用 call() / stream() 收束
+		 */
+		public SolonCodeRequestDesc prompt(String prompt) {
+			return new DefaultSolonCodeRequestDesc(prompt, options -> build());
 		}
 
 		/**

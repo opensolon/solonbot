@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Objects;
 
@@ -27,10 +27,10 @@ import java.util.Objects;
  */
 public final class TextBlock implements ContentBlock {
 
-	@JsonProperty("text")
+	@ONodeAttr(name = "text")
 	private final String text;
 
-	public TextBlock(@JsonProperty("text") String text) {
+	public TextBlock(@ONodeAttr(name = "text") String text) {
 		this.text = text;
 	}
 

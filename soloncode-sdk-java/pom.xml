@@ -20,7 +20,7 @@
         <skipITs>true</skipITs>
 
         <zt-exec.version>1.12</zt-exec.version>
-        <jackson.version>2.18.2</jackson.version>
+        <snack4.version>4.0.59</snack4.version>
         <reactor.version>3.4.41</reactor.version>
         <slf4j.version>2.0.16</slf4j.version>
         <junit.version>5.11.3</junit.version>
@@ -37,19 +37,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
+            <groupId>org.noear</groupId>
+            <artifactId>snack4</artifactId>
+            <version>${snack4.version}</version>
         </dependency>
 
         <dependency>

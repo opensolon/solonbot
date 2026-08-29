@@ -16,10 +16,9 @@
 
 package org.noear.soloncode.sdk.parsing;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.ONode;
+import org.noear.snack4.SnackException;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.noear.soloncode.sdk.exceptions.MessageParseException;
@@ -62,8 +61,6 @@ public class ControlMessageParser {
 	/** Default maximum buffer size for JSON parsing (1MB). */
 	public static final int DEFAULT_MAX_BUFFER_SIZE = 1024 * 1024;
 
-	private final ObjectMapper objectMapper;
-
 	private final MessageParser messageParser;
 
 	private final int maxBufferSize;
@@ -80,26 +77,6 @@ public class ControlMessageParser {
 	 * @param maxBufferSize maximum message size in bytes (for buffer overflow protection)
 	 */
 	public ControlMessageParser(int maxBufferSize) {
-		this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		this.messageParser = new MessageParser();
-		this.maxBufferSize = maxBufferSize > 0 ? maxBufferSize : DEFAULT_MAX_BUFFER_SIZE;
-	}
-
-	/**
-	 * Creates a new parser with a custom ObjectMapper.
-	 * @param objectMapper the ObjectMapper to use for JSON processing
-	 */
-	public ControlMessageParser(ObjectMapper objectMapper) {
-		this(objectMapper, DEFAULT_MAX_BUFFER_SIZE);
-	}
-
-	/**
-	 * Creates a new parser with a custom ObjectMapper and max buffer size.
-	 * @param objectMapper the ObjectMapper to use for JSON processing
-	 * @param maxBufferSize maximum message size in bytes (for buffer overflow protection)
-	 */
-	public ControlMessageParser(ObjectMapper objectMapper, int maxBufferSize) {
-		this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		this.messageParser = new MessageParser();
 		this.maxBufferSize = maxBufferSize > 0 ? maxBufferSize : DEFAULT_MAX_BUFFER_SIZE;
 	}
@@ -124,10 +101,10 @@ public class ControlMessageParser {
 		}
 
 		try {
-			JsonNode root = objectMapper.readTree(json);
+			ONode root = SdkJson.parse(json);
 			return parseFromNode(root, json);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw MessageParseException.jsonDecodeError(json, e);
 		}
 	}
@@ -141,19 +118,17 @@ public class ControlMessageParser {
 	}
 
 	/**
-	 * Parses a JsonNode into either a regular message or a control request.
-	 * @param node the JsonNode to parse
+	 * Parses an ONode into either a regular message or a control request.
+	 * @param node the ONode to parse
 	 * @param originalJson the original JSON string (for error messages)
 	 * @return a ParsedMessage containing either a Message or ControlRequest
 	 * @throws MessageParseException if the message structure is invalid
 	 */
-	public ParsedMessage parseFromNode(JsonNode node, String originalJson) throws MessageParseException {
-		JsonNode typeNode = node.get("type");
-		if (typeNode == null || !typeNode.isTextual()) {
+	public ParsedMessage parseFromNode(ONode node, String originalJson) throws MessageParseException {
+		String type = SdkJson.getStringField(node, "type");
+		if (type == null) {
 			throw new MessageParseException("Missing or invalid 'type' field in message");
 		}
-
-		String type = typeNode.asText();
 
 		if (TYPE_CONTROL_REQUEST.equals(type)) {
 			return parseControlRequest(node, originalJson);
@@ -170,11 +145,11 @@ public class ControlMessageParser {
 	}
 
 	/**
-	 * Parses a control request from a JsonNode.
+	 * Parses a control request from an ONode.
 	 */
-	private ParsedMessage parseControlRequest(JsonNode node, String originalJson) throws MessageParseException {
+	private ParsedMessage parseControlRequest(ONode node, String originalJson) throws MessageParseException {
 		try {
-			ControlRequest request = objectMapper.treeToValue(node, ControlRequest.class);
+			ControlRequest request = SdkJson.toBean(node, ControlRequest.class);
 
 			if (request.requestId() == null) {
 				throw new MessageParseException("Control request missing 'request_id' field");
@@ -185,18 +160,18 @@ public class ControlMessageParser {
 
 			return ParsedMessage.Control.of(request);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw new MessageParseException("Failed to parse control request: " + e.getMessage(), e);
 		}
 	}
 
 	/**
-	 * Parses a control response from a JsonNode. These are responses from the CLI to our
+	 * Parses a control response from an ONode. These are responses from the CLI to our
 	 * outgoing control requests (e.g., interrupt, set_model, set_permission_mode).
 	 */
-	private ParsedMessage parseControlResponse(JsonNode node, String originalJson) throws MessageParseException {
+	private ParsedMessage parseControlResponse(ONode node, String originalJson) throws MessageParseException {
 		try {
-			ControlResponse response = objectMapper.treeToValue(node, ControlResponse.class);
+			ControlResponse response = SdkJson.toBean(node, ControlResponse.class);
 
 			String requestId = response.response() != null ? response.response().requestId() : null;
 			String subtype = response.response() != null ? response.response().subtype() : "null";
@@ -205,35 +180,35 @@ public class ControlMessageParser {
 
 			return ParsedMessage.ControlResponseMessage.of(response);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw new MessageParseException("Failed to parse control response: " + e.getMessage(), e);
 		}
 	}
 
 	/**
-	 * Parses a rate limit event from a JsonNode.
+	 * Parses a rate limit event from an ONode.
 	 */
-	private ParsedMessage parseRateLimitEvent(JsonNode node) throws MessageParseException {
+	private ParsedMessage parseRateLimitEvent(ONode node) throws MessageParseException {
 		try {
-			RateLimitEvent event = objectMapper.treeToValue(node, RateLimitEvent.class);
+			RateLimitEvent event = SdkJson.toBean(node, RateLimitEvent.class);
 			logger.debug("Rate limit event: status={}, type={}, resetsAt={}",
 					event.rateLimitInfo() != null ? event.rateLimitInfo().status() : "unknown",
 					event.rateLimitInfo() != null ? event.rateLimitInfo().rateLimitType() : "unknown",
 					event.rateLimitInfo() != null ? event.rateLimitInfo().resetsAt() : 0);
 			return ParsedMessage.RateLimitEventMessage.of(event);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw new MessageParseException("Failed to parse rate_limit_event: " + e.getMessage(), e);
 		}
 	}
 
 	/**
-	 * Parses a regular message from a JsonNode. Returns null if the message type is
+	 * Parses a regular message from an ONode. Returns null if the message type is
 	 * unrecognized (graceful forward-compatibility with newer CLI versions). The raw JSON
 	 * line is retained on the RegularMessage as a lossless escape hatch for wire fields
 	 * not yet modeled by the typed API.
 	 */
-	private ParsedMessage parseRegularMessage(JsonNode node, String originalJson) throws MessageParseException {
+	private ParsedMessage parseRegularMessage(ONode node, String originalJson) throws MessageParseException {
 		Message message = messageParser.parseMessageFromNode(node);
 		if (message == null) {
 			return null;
@@ -253,11 +228,11 @@ public class ControlMessageParser {
 		}
 
 		try {
-			JsonNode root = objectMapper.readTree(json);
-			JsonNode typeNode = root.get("type");
-			return typeNode != null && TYPE_CONTROL_REQUEST.equals(typeNode.asText());
+			ONode root = SdkJson.parse(json);
+			ONode typeNode = SdkJson.getField(root, "type");
+			return typeNode != null && TYPE_CONTROL_REQUEST.equals(typeNode.getString());
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			return false;
 		}
 	}
@@ -274,11 +249,9 @@ public class ControlMessageParser {
 		}
 
 		try {
-			JsonNode root = objectMapper.readTree(json);
-			JsonNode requestIdNode = root.get("request_id");
-			return requestIdNode != null && requestIdNode.isTextual() ? requestIdNode.asText() : null;
+			return SdkJson.getStringField(SdkJson.parse(json), "request_id");
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			return null;
 		}
 	}

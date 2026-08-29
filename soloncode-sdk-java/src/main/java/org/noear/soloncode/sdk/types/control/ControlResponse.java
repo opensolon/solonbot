@@ -16,10 +16,11 @@
 
 package org.noear.soloncode.sdk.types.control;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.noear.snack4.ONode;
+import org.noear.snack4.Options;
+import org.noear.snack4.annotation.ONodeAttr;
+import org.noear.snack4.codec.CodecException;
+import org.noear.snack4.codec.ObjectCreator;
 
 import java.util.Objects;
 
@@ -27,16 +28,15 @@ import java.util.Objects;
  * Control response wrapper for bidirectional communication with SolonCode CLI. The SDK sends
  * these responses back to the CLI.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ControlResponse {
 
-	@JsonProperty("type")
+	@ONodeAttr(name = "type")
 	private final String type;
 
-	@JsonProperty("response")
+	@ONodeAttr(name = "response")
 	private final ResponsePayload response;
 
-	public ControlResponse(@JsonProperty("type") String type, @JsonProperty("response") ResponsePayload response) {
+	public ControlResponse(@ONodeAttr(name = "type") String type, @ONodeAttr(name = "response") ResponsePayload response) {
 		this.type = type;
 		this.response = response;
 	}
@@ -67,10 +67,13 @@ public final class ControlResponse {
 
 	/**
 	 * Interface for response payload types.
+	 *
+	 * <p>
+	 * 多态入向由 {@link PayloadCreator} 按判别字段 {@code subtype} 分派（替代 Jackson 的
+	 * {@code @JsonTypeInfo/@JsonSubTypes}）；出向由子类自带的 {@code subtype} 字段落地。
+	 * </p>
 	 */
-	@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "subtype")
-	@JsonSubTypes({ @JsonSubTypes.Type(value = SuccessPayload.class, name = "success"),
-			@JsonSubTypes.Type(value = ErrorPayload.class, name = "error") })
+	@ONodeAttr(creator = PayloadCreator.class)
 	public interface ResponsePayload {
 
 		String subtype();
@@ -80,22 +83,49 @@ public final class ControlResponse {
 	}
 
 	/**
+	 * {@link ResponsePayload} 的多态解码分派器。判别字段：{@code subtype}。
+	 */
+	public static final class PayloadCreator implements ObjectCreator<ResponsePayload> {
+
+		@Override
+		public ResponsePayload create(Options opts, ONode node, Class<?> clazz) {
+			if (node == null || !node.isObject()) {
+				return null;
+			}
+
+			String subtype = node.get("subtype").getString();
+			if (subtype == null) {
+				throw new CodecException("Missing 'subtype' in control response payload");
+			}
+
+			switch (subtype) {
+				case "success":
+					return node.toBean(SuccessPayload.class);
+				case "error":
+					return node.toBean(ErrorPayload.class);
+				default:
+					throw new CodecException("Unknown control response subtype: " + subtype);
+			}
+		}
+
+	}
+
+	/**
 	 * Success response payload.
 	 */
-	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static final class SuccessPayload implements ResponsePayload {
 
-		@JsonProperty("subtype")
+		@ONodeAttr(name = "subtype")
 		private final String subtype;
 
-		@JsonProperty("request_id")
+		@ONodeAttr(name = "request_id")
 		private final String requestId;
 
-		@JsonProperty("response")
+		@ONodeAttr(name = "response")
 		private final Object response;
 
-		public SuccessPayload(@JsonProperty("subtype") String subtype, @JsonProperty("request_id") String requestId,
-				@JsonProperty("response") Object response) {
+		public SuccessPayload(@ONodeAttr(name = "subtype") String subtype, @ONodeAttr(name = "request_id") String requestId,
+				@ONodeAttr(name = "response") Object response) {
 			this.subtype = subtype;
 			this.requestId = requestId;
 			this.response = response;
@@ -144,17 +174,17 @@ public final class ControlResponse {
 	 */
 	public static final class ErrorPayload implements ResponsePayload {
 
-		@JsonProperty("subtype")
+		@ONodeAttr(name = "subtype")
 		private final String subtype;
 
-		@JsonProperty("request_id")
+		@ONodeAttr(name = "request_id")
 		private final String requestId;
 
-		@JsonProperty("error")
+		@ONodeAttr(name = "error")
 		private final String error;
 
-		public ErrorPayload(@JsonProperty("subtype") String subtype, @JsonProperty("request_id") String requestId,
-				@JsonProperty("error") String error) {
+		public ErrorPayload(@ONodeAttr(name = "subtype") String subtype, @ONodeAttr(name = "request_id") String requestId,
+				@ONodeAttr(name = "error") String error) {
 			this.subtype = subtype;
 			this.requestId = requestId;
 			this.error = error;

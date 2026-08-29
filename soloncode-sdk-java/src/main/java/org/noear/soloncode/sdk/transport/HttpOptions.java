@@ -20,7 +20,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * HTTP 通道的网络层选项：代理与 SSL/TLS。
@@ -63,6 +68,21 @@ import java.util.Objects;
  * <p>trustAll 与 trustStore 互斥（同时设置 build 时抛异常）；跳过校验类选项
  * 会打 WARN 日志提醒风险。</p>
  *
+ * <h2>自定义请求头</h2>
+ * <pre>{@code
+ * // 单个头
+ * HttpOptions.create().header("X-Tenant-Id", "t-1024")
+ *
+ * // 批量（链式追加，同名覆盖且忽略大小写）
+ * HttpOptions.create().headers(map).header("X-Trace-Id", traceId)
+ * }</pre>
+ *
+ * <p>自定义头会带到 {@code /web/run} 与 {@code /web/run/interrupt} 两条链路上，
+ * 用于网关路由、租户标识、链路追踪等扩展场景。协议关键头
+ * （{@code Content-Type}/{@code Accept}/{@code Content-Length}）与由 SDK
+ * 自行管理的 {@code Proxy-Authorization} 不允许覆盖，设置即抛异常；
+ * {@code Authorization} 允许覆盖 authToken（会打 WARN），便于对接前置网关。</p>
+ *
  * <h2>组合</h2>
  * <pre>{@code
  * SolonCodeClient.sync()
@@ -70,7 +90,8 @@ import java.util.Objects;
  *     .authToken(token)
  *     .httpOptions(HttpOptions.proxy("proxy.corp.example", 3128)
  *             .proxyAuth("user", "pass")
- *             .tlsTrustStore(caPath, caPass))
+ *             .trustStore(caPath, caPass)
+ *             .header("X-Tenant-Id", "t-1024"))
  *     .build();
  * }</pre>
  *
@@ -122,6 +143,38 @@ public final class HttpOptions {
 	/** 跳过主机名校验（危险） */
 	private final boolean skipHostnameVerify;
 
+	// ============================================================
+	// Headers
+	// ============================================================
+
+	/**
+	 * 协议关键头 / SDK 自管头：不允许用自定义头覆盖，否则 SSE 流式契约或代理认证会被悄悄破坏。
+	 */
+	private static final Set<String> RESERVED_HEADERS;
+
+	static {
+		Set<String> reserved = new LinkedHashSet<>();
+		reserved.add("content-type");
+		reserved.add("accept");
+		reserved.add("content-length");
+		reserved.add("proxy-authorization");
+		RESERVED_HEADERS = Collections.unmodifiableSet(reserved);
+	}
+
+	/** 值需要脱敏的头名（toString 不输出明文）。 */
+	private static final Set<String> SENSITIVE_HEADERS;
+
+	static {
+		Set<String> sensitive = new LinkedHashSet<>();
+		sensitive.add("authorization");
+		sensitive.add("cookie");
+		sensitive.add("set-cookie");
+		SENSITIVE_HEADERS = Collections.unmodifiableSet(sensitive);
+	}
+
+	/** 自定义请求头（大小写不敏感，键序稳定）；永不为 null */
+	private final Map<String, String> headers;
+
 	private HttpOptions(Builder builder) {
 		this.proxyHost = builder.proxyHost;
 		this.proxyPort = builder.proxyPort;
@@ -133,7 +186,17 @@ public final class HttpOptions {
 		this.keyStorePassword = clone(builder.keyStorePassword);
 		this.trustAll = builder.trustAll;
 		this.skipHostnameVerify = builder.skipHostnameVerify;
+		this.headers = Collections.unmodifiableMap(newHeaderMap(builder.headers));
 		validate();
+	}
+
+	/** 大小写不敏感 + 键序稳定的头容器（TreeMap + CASE_INSENSITIVE_ORDER）。 */
+	private static Map<String, String> newHeaderMap(Map<String, String> src) {
+		Map<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		if (src != null) {
+			map.putAll(src);
+		}
+		return map;
 	}
 
 	private static char[] clone(char[] src) {
@@ -166,7 +229,16 @@ public final class HttpOptions {
 	}
 
 	/**
-	 * 只有 TLS 配置（不配代理）。
+	 * 中立起点（无任何配置），用于链式追加 TLS / 自定义头。
+	 * <pre>{@code HttpOptions.create().header("X-Tenant-Id", "t-1024")}</pre>
+	 * @return 选项
+	 */
+	public static HttpOptions create() {
+		return new Builder().build();
+	}
+
+	/**
+	 * 只有 TLS 配置（不配代理）；等价于 {@link #create()}，保留语义化命名。
 	 * @return 选项
 	 */
 	public static HttpOptions tls() {
@@ -245,6 +317,25 @@ public final class HttpOptions {
 		return toBuilder().skipHostnameVerify(skipHostnameVerify).build();
 	}
 
+	/**
+	 * 追加一个自定义请求头（返回新实例）。同名头忽略大小写覆盖。
+	 * @param name 头名；不可为空，不可为协议关键头
+	 * @param value 头值；不可为 null
+	 * @return 新选项实例
+	 */
+	public HttpOptions header(String name, String value) {
+		return toBuilder().header(name, value).build();
+	}
+
+	/**
+	 * 批量追加自定义请求头（返回新实例）。同名头忽略大小写覆盖，已有头保留。
+	 * @param headers 头集合；null 视为空
+	 * @return 新选项实例
+	 */
+	public HttpOptions headers(Map<String, String> headers) {
+		return toBuilder().headers(headers).build();
+	}
+
 	// ============================================================
 	// Accessors
 	// ============================================================
@@ -299,10 +390,15 @@ public final class HttpOptions {
 		return skipHostnameVerify;
 	}
 
-	/** @return 是否没有任何代理或 TLS 配置（全空即默认直连） */
+	/** @return 自定义请求头（不可修改，大小写不敏感）；未配置为空 Map */
+	public Map<String, String> headers() {
+		return headers;
+	}
+
+	/** @return 是否没有任何代理、TLS 或自定义头配置（全空即默认直连） */
 	public boolean isDefault() {
 		return proxyHost == null && trustStorePath == null && keyStorePath == null && !trustAll
-				&& !skipHostnameVerify;
+				&& !skipHostnameVerify && headers.isEmpty();
 	}
 
 	// ============================================================
@@ -323,13 +419,14 @@ public final class HttpOptions {
 				&& Objects.equals(proxyHost, that.proxyHost)
 				&& proxyType == that.proxyType
 				&& Objects.equals(trustStorePath, that.trustStorePath)
-				&& Objects.equals(keyStorePath, that.keyStorePath);
+				&& Objects.equals(keyStorePath, that.keyStorePath)
+				&& headers.equals(that.headers);
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(proxyHost, proxyPort, proxyType, trustStorePath, keyStorePath, trustAll,
-				skipHostnameVerify);
+				skipHostnameVerify, headers);
 	}
 
 	@Override
@@ -354,10 +451,28 @@ public final class HttpOptions {
 		if (skipHostnameVerify) {
 			sb.append(", skipHostnameVerify=true");
 		}
+		if (!headers.isEmpty()) {
+			sb.append(", headers={");
+			boolean first = true;
+			for (Map.Entry<String, String> e : headers.entrySet()) {
+				if (!first) {
+					sb.append(", ");
+				}
+				first = false;
+				sb.append(e.getKey()).append('=');
+				// 敏感头只输出存在性，不输出明文（防日志泄露）
+				sb.append(isSensitive(e.getKey()) ? "***" : e.getValue());
+			}
+			sb.append('}');
+		}
 		if (sb.length() == "HttpOptions{".length()) {
 			sb.append("default");
 		}
 		return sb.append('}').toString();
+	}
+
+	private static boolean isSensitive(String name) {
+		return SENSITIVE_HEADERS.contains(name.toLowerCase());
 	}
 
 	// ============================================================
@@ -388,6 +503,7 @@ public final class HttpOptions {
 		b.keyStorePassword = clone(this.keyStorePassword);
 		b.trustAll = this.trustAll;
 		b.skipHostnameVerify = this.skipHostnameVerify;
+		b.headers = newHeaderMap(this.headers);
 		return b;
 	}
 
@@ -413,6 +529,33 @@ public final class HttpOptions {
 		private boolean trustAll;
 
 		private boolean skipHostnameVerify;
+
+		private Map<String, String> headers = newHeaderMap(null);
+
+		Builder header(String name, String value) {
+			if (name == null || name.trim().isEmpty()) {
+				throw new IllegalArgumentException("header name must not be empty");
+			}
+			if (value == null) {
+				throw new IllegalArgumentException("header value must not be null: " + name);
+			}
+			String key = name.trim();
+			if (RESERVED_HEADERS.contains(key.toLowerCase())) {
+				throw new IllegalArgumentException(
+						"header is managed by the SDK and must not be overridden: " + key);
+			}
+			this.headers.put(key, value);
+			return this;
+		}
+
+		Builder headers(Map<String, String> headers) {
+			if (headers != null) {
+				for (Map.Entry<String, String> e : headers.entrySet()) {
+					header(e.getKey(), e.getValue());
+				}
+			}
+			return this;
+		}
 
 		Builder proxy(String host, int port, ProxyType type) {
 			this.proxyHost = host;

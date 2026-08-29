@@ -16,8 +16,7 @@
 
 package org.noear.soloncode.sdk.transport;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.ONode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -59,15 +58,13 @@ class HttpTransportTest {
 	private String baseUrl;
 
 	/** 服务端收到的请求记录（JSON 根节点） */
-	private final List<JsonNode> receivedRequests = new CopyOnWriteArrayList<>();
+	private final List<ONode> receivedRequests = new CopyOnWriteArrayList<>();
 
 	/** 服务端收到的 Authorization 头 */
 	private final List<String> receivedAuthHeaders = new CopyOnWriteArrayList<>();
 
 	/** interrupt 请求收到的 session_id */
 	private final List<String> interruptRequests = new CopyOnWriteArrayList<>();
-
-	private final ObjectMapper mapper = new ObjectMapper();
 
 	@BeforeEach
 	void startServer() throws IOException {
@@ -123,7 +120,7 @@ class HttpTransportTest {
 		server.createContext("/web/run", exchange -> {
 			try {
 				String body = readBody(exchange);
-				receivedRequests.add(mapper.readTree(body));
+				receivedRequests.add(ONode.ofJson(body));
 				receivedAuthHeaders.add(exchange.getRequestHeaders().getFirst("Authorization"));
 
 				exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
@@ -144,7 +141,7 @@ class HttpTransportTest {
 	private void registerStatusHandler(int status, String body) {
 		server.createContext("/web/run", exchange -> {
 			String requestBody = readBody(exchange);
-			receivedRequests.add(mapper.readTree(requestBody));
+			receivedRequests.add(ONode.ofJson(requestBody));
 			respond(exchange, status, body);
 		});
 	}
@@ -185,25 +182,25 @@ class HttpTransportTest {
 				.bare(true)
 				.build());
 
-		JsonNode root = mapper.readTree(json);
-		assertThat(root.get("prompt").asText()).isEqualTo("分析这个模块");
-		assertThat(root.get("workspace").asText()).isEqualTo("my-project");
+		ONode root = ONode.ofJson(json);
+		assertThat(root.get("prompt").getString()).isEqualTo("分析这个模块");
+		assertThat(root.get("workspace").getString()).isEqualTo("my-project");
 
-		JsonNode options = root.get("options");
-		assertThat(options.get("output_format").asText()).isEqualTo("stream-json");
-		assertThat(options.get("model").asText()).isEqualTo("sonnet");
-		assertThat(options.get("allowed_tools")).isNotNull();
+		ONode options = root.get("options");
+		assertThat(options.get("output_format").getString()).isEqualTo("stream-json");
+		assertThat(options.get("model").getString()).isEqualTo("sonnet");
+		assertThat(options.hasKey("allowed_tools")).isTrue();
 		assertThat(options.get("allowed_tools").size()).isEqualTo(2);
-		assertThat(options.get("disallowed_tools").get(0).asText()).isEqualTo("Bash(rm *)");
-		assertThat(options.get("permission_mode").asText()).isEqualTo("dontAsk");
-		assertThat(options.get("max_turns").asInt()).isEqualTo(15);
-		assertThat(options.get("max_budget_usd").asDouble()).isEqualTo(2.0);
-		assertThat(options.get("fallback_model").asText()).isEqualTo("haiku");
-		assertThat(options.get("session_id").asText()).isEqualTo("my-task-001");
-		assertThat(options.get("bare").asBoolean()).isTrue();
+		assertThat(options.get("disallowed_tools").get(0).getString()).isEqualTo("Bash(rm *)");
+		assertThat(options.get("permission_mode").getString()).isEqualTo("dontAsk");
+		assertThat(options.get("max_turns").getInt()).isEqualTo(15);
+		assertThat(options.get("max_budget_usd").getDouble()).isEqualTo(2.0);
+		assertThat(options.get("fallback_model").getString()).isEqualTo("haiku");
+		assertThat(options.get("session_id").getString()).isEqualTo("my-task-001");
+		assertThat(options.get("bare").getBoolean()).isTrue();
 		// 未设置的字段不出现（null 不序列化，避免服务端 400 未识别字段）
-		assertThat(options.has("resume")).isFalse();
-		assertThat(options.has("continue")).isFalse();
+		assertThat(options.hasKey("resume")).isFalse();
+		assertThat(options.hasKey("continue")).isFalse();
 	}
 
 	@Test
@@ -215,9 +212,9 @@ class HttpTransportTest {
 				.sessionId("sdk-abc123")
 				.build());
 
-		JsonNode options = mapper.readTree(json).get("options");
-		assertThat(options.get("resume").asText()).isEqualTo("sdk-abc123");
-		assertThat(options.has("session_id")).isFalse(); // resume 优先，不再传 session_id
+		ONode options = ONode.ofJson(json).get("options");
+		assertThat(options.get("resume").getString()).isEqualTo("sdk-abc123");
+		assertThat(options.hasKey("session_id")).isFalse(); // resume 优先，不再传 session_id
 	}
 
 	@Test
@@ -227,8 +224,8 @@ class HttpTransportTest {
 				.continueConversation(true)
 				.build());
 
-		JsonNode options = mapper.readTree(json).get("options");
-		assertThat(options.get("continue").asBoolean()).isTrue();
+		ONode options = ONode.ofJson(json).get("options");
+		assertThat(options.get("continue").getBoolean()).isTrue();
 	}
 
 	@Test
@@ -240,11 +237,23 @@ class HttpTransportTest {
 				.permissionMode(PermissionMode.DANGEROUSLY_SKIP_PERMISSIONS)
 				.build());
 
-		assertThat(mapper.readTree(json).get("options").get("permission_mode").asText()).isEqualTo("default");
+		assertThat(ONode.ofJson(json).get("options").get("permission_mode").getString()).isEqualTo("default");
 		// 默认 BYPASS 同样回落（不再吃 403）
 		String jsonDefault = transport.buildRequestBody("test", CLIOptions.builder().build());
-		assertThat(mapper.readTree(jsonDefault).get("options").get("permission_mode").asText())
+		assertThat(ONode.ofJson(jsonDefault).get("options").get("permission_mode").getString())
 				.isEqualTo("default");
+	}
+
+	@Test
+	void buildRequestBodyKeepsNullPromptField() throws Exception {
+		// 迁移到 snack4 后的回归防线：snack4 默认不写 null，而 Jackson 会写。
+		// connect() 不带 prompt 时请求体原本就带 "prompt":null，这个字段不能凭空消失。
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		String json = transport.buildRequestBody(null, options());
+
+		assertThat(json).contains("\"prompt\":null");
+		assertThat(ONode.ofJson(json).hasKey("prompt")).isTrue();
+		transport.close();
 	}
 
 	// ---------- SSE 流 ----------
@@ -266,10 +275,10 @@ class HttpTransportTest {
 
 		// 服务端收到了正确的请求体与鉴权头
 		assertThat(receivedRequests).hasSize(1);
-		JsonNode request = receivedRequests.get(0);
-		assertThat(request.get("prompt").asText()).isEqualTo("分析这个模块");
-		assertThat(request.get("workspace").asText()).isEqualTo("my-project");
-		assertThat(request.get("options").get("output_format").asText()).isEqualTo("stream-json");
+		ONode request = receivedRequests.get(0);
+		assertThat(request.get("prompt").getString()).isEqualTo("分析这个模块");
+		assertThat(request.get("workspace").getString()).isEqualTo("my-project");
+		assertThat(request.get("options").get("output_format").getString()).isEqualTo("stream-json");
 		assertThat(receivedAuthHeaders.get(0)).isEqualTo("Bearer secret-token");
 	}
 
@@ -467,7 +476,7 @@ class HttpTransportTest {
 	void noWorkspaceMeansNoWorkspaceField() throws Exception {
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
 		String json = transport.buildRequestBody("hi", options());
-		assertThat(mapper.readTree(json).has("workspace")).isFalse();
+		assertThat(ONode.ofJson(json).hasKey("workspace")).isFalse();
 		transport.close();
 	}
 
@@ -666,15 +675,15 @@ class HttpTransportTest {
 				.extraArgs(java.util.Collections.singletonMap("f", "v"))
 				.addDirs(java.util.Collections.singletonList(java.nio.file.Paths.get("/srv/data")))
 				.build());
-		JsonNode options = mapper.readTree(json).get("options");
+		ONode options = ONode.ofJson(json).get("options");
 		// 不支持的选项全部省略，add_dirs 告警透传
-		assertThat(options.has("system_prompt")).isFalse();
-		assertThat(options.has("append_system_prompt")).isFalse();
-		assertThat(options.has("tools")).isFalse();
-		assertThat(options.has("mcp_servers")).isFalse();
-		assertThat(options.has("max_thinking_tokens")).isFalse();
-		assertThat(options.has("extra_args")).isFalse();
-		assertThat(options.get("add_dirs").get(0).asText()).isEqualTo("/srv/data");
+		assertThat(options.hasKey("system_prompt")).isFalse();
+		assertThat(options.hasKey("append_system_prompt")).isFalse();
+		assertThat(options.hasKey("tools")).isFalse();
+		assertThat(options.hasKey("mcp_servers")).isFalse();
+		assertThat(options.hasKey("max_thinking_tokens")).isFalse();
+		assertThat(options.hasKey("extra_args")).isFalse();
+		assertThat(options.get("add_dirs").get(0).getString()).isEqualTo("/srv/data");
 		transport.close();
 	}
 
@@ -682,7 +691,7 @@ class HttpTransportTest {
 	void buildRequestBodyResumeFromOptionsWithoutTurn() throws Exception {
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
 		String json = transport.buildRequestBody("p", CLIOptions.builder().resume("opt-resume-1").build());
-		assertThat(mapper.readTree(json).get("options").get("resume").asText()).isEqualTo("opt-resume-1");
+		assertThat(ONode.ofJson(json).get("options").get("resume").getString()).isEqualTo("opt-resume-1");
 		transport.close();
 	}
 
@@ -691,7 +700,7 @@ class HttpTransportTest {
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
 		transport.setTurnSession("turn-sid", null);
 		String json = transport.buildRequestBody("p", CLIOptions.builder().sessionId("opt-sid").build());
-		assertThat(mapper.readTree(json).get("options").get("session_id").asText()).isEqualTo("turn-sid");
+		assertThat(ONode.ofJson(json).get("options").get("session_id").getString()).isEqualTo("turn-sid");
 		transport.close();
 	}
 

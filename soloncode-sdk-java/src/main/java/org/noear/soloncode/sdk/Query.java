@@ -265,7 +265,7 @@ public class Query {
 	/**
 	 * Builds a QueryResult from raw messages with domain-rich metadata.
 	 */
-	private static QueryResult buildQueryResult(List<Message> messages, CLIOptions options) {
+	static QueryResult buildQueryResult(List<Message> messages, CLIOptions options) {
 		// Find the result message to extract metadata
 		Optional<ResultMessage> resultMessage = messages.stream()
 			.filter(m -> m instanceof ResultMessage)

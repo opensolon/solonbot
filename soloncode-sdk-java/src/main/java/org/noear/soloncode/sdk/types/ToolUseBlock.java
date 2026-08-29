@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Map;
 import java.util.Objects;
@@ -28,17 +28,17 @@ import java.util.Objects;
  */
 public final class ToolUseBlock implements ContentBlock {
 
-	@JsonProperty("id")
+	@ONodeAttr(name = "id")
 	private final String id;
 
-	@JsonProperty("name")
+	@ONodeAttr(name = "name")
 	private final String name;
 
-	@JsonProperty("input")
+	@ONodeAttr(name = "input")
 	private final Map<String, Object> input;
 
-	public ToolUseBlock(@JsonProperty("id") String id, @JsonProperty("name") String name,
-			@JsonProperty("input") Map<String, Object> input) {
+	public ToolUseBlock(@ONodeAttr(name = "id") String id, @ONodeAttr(name = "name") String name,
+			@ONodeAttr(name = "input") Map<String, Object> input) {
 		this.id = id;
 		this.name = name;
 		this.input = input;

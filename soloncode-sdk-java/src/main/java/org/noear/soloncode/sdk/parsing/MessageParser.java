@@ -21,9 +21,9 @@ package org.noear.soloncode.sdk.parsing;
 import org.noear.soloncode.sdk.exceptions.MessageParseException;
 import org.noear.soloncode.sdk.types.*;
 import org.noear.soloncode.sdk.util.SdkCollections;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.ONode;
+import org.noear.snack4.SnackException;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,10 +40,7 @@ public class MessageParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(MessageParser.class);
 
-	private final ObjectMapper objectMapper;
-
 	public MessageParser() {
-		this.objectMapper = new ObjectMapper();
 	}
 
 	/**
@@ -51,18 +48,18 @@ public class MessageParser {
 	 */
 	public Message parseMessage(String json) throws MessageParseException {
 		try {
-			JsonNode root = objectMapper.readTree(json);
+			ONode root = SdkJson.parse(json);
 			return parseMessageFromNode(root);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw MessageParseException.jsonDecodeError(json, e);
 		}
 	}
 
 	/**
-	 * Parses a JsonNode into a Message object.
+	 * Parses a ONode into a Message object.
 	 */
-	public Message parseMessageFromNode(JsonNode node) throws MessageParseException {
+	public Message parseMessageFromNode(ONode node) throws MessageParseException {
 		String type = getStringField(node, "type");
 		if (type == null) {
 			throw new MessageParseException("Missing 'type' field in message");
@@ -95,19 +92,19 @@ public class MessageParser {
 		}
 	}
 
-	private UserMessage parseUserMessage(JsonNode node) throws MessageParseException {
-		JsonNode messageNode = node.get("message");
+	private UserMessage parseUserMessage(ONode node) throws MessageParseException {
+		ONode messageNode = SdkJson.getField(node, "message");
 		if (messageNode == null) {
 			throw new MessageParseException("Missing 'message' field in user message");
 		}
 
-		JsonNode contentNode = messageNode.get("content");
+		ONode contentNode = SdkJson.getField(messageNode, "content");
 		if (contentNode == null) {
 			throw new MessageParseException("Missing 'content' field in user message");
 		}
 
-		if (contentNode.isTextual()) {
-			return UserMessage.of(contentNode.asText());
+		if (contentNode.isString()) {
+			return UserMessage.of(contentNode.getString());
 		}
 		else if (contentNode.isArray()) {
 			List<ContentBlock> blocks = parseContentBlocks(contentNode);
@@ -118,13 +115,13 @@ public class MessageParser {
 		}
 	}
 
-	private AssistantMessage parseAssistantMessage(JsonNode node) throws MessageParseException {
-		JsonNode messageNode = node.get("message");
+	private AssistantMessage parseAssistantMessage(ONode node) throws MessageParseException {
+		ONode messageNode = SdkJson.getField(node, "message");
 		if (messageNode == null) {
 			throw new MessageParseException("Missing 'message' field in assistant message");
 		}
 
-		JsonNode contentNode = messageNode.get("content");
+		ONode contentNode = SdkJson.getField(messageNode, "content");
 		if (contentNode == null || !contentNode.isArray()) {
 			throw new MessageParseException("Missing or invalid 'content' field in assistant message");
 		}
@@ -133,7 +130,7 @@ public class MessageParser {
 		return AssistantMessage.of(blocks);
 	}
 
-	private SystemMessage parseSystemMessage(JsonNode node) throws MessageParseException {
+	private SystemMessage parseSystemMessage(ONode node) throws MessageParseException {
 		// System messages have data directly in the root node, not nested under "message"
 		String subtype = getStringField(node, "subtype");
 		if (subtype == null) {
@@ -152,22 +149,22 @@ public class MessageParser {
 	 * 顶层 error 事件：{"type":"error","message":...[,"code":...]}，无 subtype 字段。
 	 * 以 SystemMessage(subtype="error") 投递，message/code 进 data。
 	 */
-	private SystemMessage parseErrorMessage(JsonNode node) {
+	private SystemMessage parseErrorMessage(ONode node) {
 		Map<String, Object> data = parseDataMap(node);
 		data.remove("type");
 		return SystemMessage.of("error", data);
 	}
 
-	private ResultMessage parseResultMessage(JsonNode node) throws MessageParseException {
+	private ResultMessage parseResultMessage(ONode node) throws MessageParseException {
 		// Result messages have data directly in the root node, not nested under "message"
 		// soloncode 的 result 事件用 metrics 携带 token/耗时统计（claude 用 usage），两者都兼容。
-		JsonNode usageNode = node.get("usage");
-		JsonNode metricsNode = node.get("metrics");
+		ONode usageNode = SdkJson.getField(node, "usage");
+		ONode metricsNode = SdkJson.getField(node, "metrics");
 		Map<String, Object> usage = parseUsageMap(usageNode != null ? usageNode : metricsNode);
 
 		int durationMs = getIntField(node, "duration_ms", 0);
-		if (durationMs == 0 && metricsNode != null && metricsNode.has("duration_ms")) {
-			durationMs = metricsNode.get("duration_ms").asInt(0);
+		if (durationMs == 0 && SdkJson.hasField(metricsNode, "duration_ms")) {
+			durationMs = getIntField(metricsNode, "duration_ms", 0);
 		}
 
 		// soloncode 的 result 事件不带 subtype，按 is_error 推导，保证语义与 claude 一致。
@@ -187,22 +184,22 @@ public class MessageParser {
 			.totalCostUsd(getDoubleField(node, "total_cost_usd"))
 			.usage(usage)
 			.result(getStringField(node, "result"))
-			.structuredOutput(parseStructuredOutput(node.get("structured_output")))
+			.structuredOutput(parseStructuredOutput(SdkJson.getField(node, "structured_output")))
 			.build();
 	}
 
-	private Object parseStructuredOutput(JsonNode node) {
+	private Object parseStructuredOutput(ONode node) {
 		if (node == null || node.isNull()) {
 			return null;
 		}
-		// Convert JsonNode to native Java types (Map, List, primitives)
-		return objectMapper.convertValue(node, Object.class);
+		// Convert ONode to native Java types (Map, List, primitives)
+		return node.toBean(Object.class);
 	}
 
-	private List<ContentBlock> parseContentBlocks(JsonNode arrayNode) throws MessageParseException {
+	private List<ContentBlock> parseContentBlocks(ONode arrayNode) throws MessageParseException {
 		List<ContentBlock> blocks = new ArrayList<>();
 
-		for (JsonNode blockNode : arrayNode) {
+		for (ONode blockNode : arrayNode.getArray()) {
 			String type = getStringField(blockNode, "type");
 			if (type == null) {
 				throw new MessageParseException("Missing 'type' field in content block");
@@ -234,7 +231,7 @@ public class MessageParser {
 		return blocks;
 	}
 
-	private TextBlock parseTextBlock(JsonNode node) throws MessageParseException {
+	private TextBlock parseTextBlock(ONode node) throws MessageParseException {
 		String text = getStringField(node, "text");
 		if (text == null) {
 			throw new MessageParseException("Missing 'text' field in text block");
@@ -242,16 +239,16 @@ public class MessageParser {
 		return TextBlock.of(text);
 	}
 
-	private ThinkingBlock parseThinkingBlock(JsonNode node) {
+	private ThinkingBlock parseThinkingBlock(ONode node) {
 		String thinking = getStringField(node, "thinking");
 		String signature = getStringField(node, "signature");
 		return ThinkingBlock.of(thinking != null ? thinking : "", signature);
 	}
 
-	private ToolUseBlock parseToolUseBlock(JsonNode node) throws MessageParseException {
+	private ToolUseBlock parseToolUseBlock(ONode node) throws MessageParseException {
 		String id = getStringField(node, "id");
 		String name = getStringField(node, "name");
-		JsonNode inputNode = node.get("input");
+		ONode inputNode = SdkJson.getField(node, "input");
 
 		if (id == null || name == null) {
 			throw new MessageParseException("Missing required fields in tool_use block");
@@ -262,17 +259,17 @@ public class MessageParser {
 		return ToolUseBlock.builder().id(id).name(name).input(input).build();
 	}
 
-	private ToolResultBlock parseToolResultBlock(JsonNode node) throws MessageParseException {
+	private ToolResultBlock parseToolResultBlock(ONode node) throws MessageParseException {
 		String toolUseId = getStringField(node, "tool_use_id");
 		if (toolUseId == null) {
 			throw new MessageParseException("Missing 'tool_use_id' field in tool_result block");
 		}
 
-		JsonNode contentNode = node.get("content");
+		ONode contentNode = SdkJson.getField(node, "content");
 		Object content = null;
 		if (contentNode != null) {
-			if (contentNode.isTextual()) {
-				content = contentNode.asText();
+			if (contentNode.isString()) {
+				content = contentNode.getString();
 			}
 			else if (contentNode.isArray()) {
 				content = parseDataList(contentNode);
@@ -293,31 +290,37 @@ public class MessageParser {
 		return builder.build();
 	}
 
-	private Map<String, Object> parseDataMap(JsonNode node) {
+	private Map<String, Object> parseDataMap(ONode node) {
 		Map<String, Object> map = new HashMap<>();
-		node.fields().forEachRemaining(entry -> {
+		if (node == null || !node.isObject()) {
+			return map;
+		}
+		for (Map.Entry<String, ONode> entry : node.getObject().entrySet()) {
 			map.put(entry.getKey(), parseJsonValue(entry.getValue()));
-		});
+		}
 		return map;
 	}
 
-	private List<Object> parseDataList(JsonNode node) {
+	private List<Object> parseDataList(ONode node) {
 		List<Object> list = new ArrayList<>();
-		for (JsonNode item : node) {
+		for (ONode item : node.getArray()) {
 			list.add(parseJsonValue(item));
 		}
 		return list;
 	}
 
-	private Object parseJsonValue(JsonNode node) {
-		if (node.isTextual()) {
-			return node.asText();
+	private Object parseJsonValue(ONode node) {
+		if (node.isString()) {
+			return node.getString();
 		}
 		else if (node.isNumber()) {
-			return node.isInt() ? node.asInt() : node.asDouble();
+			// 迁移前是 `node.isInt() ? node.asInt() : node.asDouble()`：三目运算符会把 int 提升为
+			// double，即所有数字最终都装箱成 Double。这里保持同样的结果类型，否则 usage/metrics
+			// 里的整数会由 Double 变成 Integer，改变调用方拿到的 Map 值类型。
+			return Double.valueOf(node.getNumber().doubleValue());
 		}
 		else if (node.isBoolean()) {
-			return node.asBoolean();
+			return node.getBoolean();
 		}
 		else if (node.isArray()) {
 			return parseDataList(node);
@@ -330,34 +333,35 @@ public class MessageParser {
 		}
 	}
 
-	private Map<String, Object> parseUsageMap(JsonNode node) {
+	private Map<String, Object> parseUsageMap(ONode node) {
 		return node != null ? parseDataMap(node) : SdkCollections.map();
 	}
 
 	// Utility methods for safe field extraction
-	private String getStringField(JsonNode node, String fieldName) {
-		JsonNode field = node.get(fieldName);
-		return field != null && field.isTextual() ? field.asText() : null;
+	// 类型判定与迁移前 Jackson 版一致：字段缺失、为 null 或类型不符时返回 null / 默认值。
+	// 注意不能直接用 ONode#getString()——它会把数字/布尔/对象也转成字符串，语义比 isTextual() 宽。
+	private String getStringField(ONode node, String fieldName) {
+		return SdkJson.getStringField(node, fieldName);
 	}
 
-	private int getIntField(JsonNode node, String fieldName, int defaultValue) {
-		JsonNode field = node.get(fieldName);
-		return field != null && field.isNumber() ? field.asInt() : defaultValue;
+	private int getIntField(ONode node, String fieldName, int defaultValue) {
+		ONode field = SdkJson.getField(node, fieldName);
+		return field != null && field.isNumber() ? field.getInt() : defaultValue;
 	}
 
-	private boolean getBooleanField(JsonNode node, String fieldName, boolean defaultValue) {
-		JsonNode field = node.get(fieldName);
-		return field != null && field.isBoolean() ? field.asBoolean() : defaultValue;
+	private boolean getBooleanField(ONode node, String fieldName, boolean defaultValue) {
+		ONode field = SdkJson.getField(node, fieldName);
+		return field != null && field.isBoolean() ? field.getBoolean() : defaultValue;
 	}
 
-	private Boolean getBooleanField(JsonNode node, String fieldName) {
-		JsonNode field = node.get(fieldName);
-		return field != null && field.isBoolean() ? field.asBoolean() : null;
+	private Boolean getBooleanField(ONode node, String fieldName) {
+		ONode field = SdkJson.getField(node, fieldName);
+		return field != null && field.isBoolean() ? field.getBoolean() : null;
 	}
 
-	private Double getDoubleField(JsonNode node, String fieldName) {
-		JsonNode field = node.get(fieldName);
-		return field != null && field.isNumber() ? field.asDouble() : null;
+	private Double getDoubleField(ONode node, String fieldName) {
+		ONode field = SdkJson.getField(node, fieldName);
+		return field != null && field.isNumber() ? field.getDouble() : null;
 	}
 
 }

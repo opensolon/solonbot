@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Objects;
 
@@ -36,25 +36,25 @@ import java.util.Objects;
  */
 public final class Usage {
 
-	@JsonProperty("input_tokens")
+	@ONodeAttr(name = "input_tokens")
 	private final int inputTokens;
 
-	@JsonProperty("output_tokens")
+	@ONodeAttr(name = "output_tokens")
 	private final int outputTokens;
 
-	@JsonProperty("thinking_tokens")
+	@ONodeAttr(name = "thinking_tokens")
 	private final int thinkingTokens;
 
-	@JsonProperty("cache_creation_input_tokens")
+	@ONodeAttr(name = "cache_creation_input_tokens")
 	private final int cacheCreationInputTokens;
 
-	@JsonProperty("cache_read_input_tokens")
+	@ONodeAttr(name = "cache_read_input_tokens")
 	private final int cacheReadInputTokens;
 
-	public Usage(@JsonProperty("input_tokens") int inputTokens, @JsonProperty("output_tokens") int outputTokens,
-			@JsonProperty("thinking_tokens") int thinkingTokens,
-			@JsonProperty("cache_creation_input_tokens") int cacheCreationInputTokens,
-			@JsonProperty("cache_read_input_tokens") int cacheReadInputTokens) {
+	public Usage(@ONodeAttr(name = "input_tokens") int inputTokens, @ONodeAttr(name = "output_tokens") int outputTokens,
+			@ONodeAttr(name = "thinking_tokens") int thinkingTokens,
+			@ONodeAttr(name = "cache_creation_input_tokens") int cacheCreationInputTokens,
+			@ONodeAttr(name = "cache_read_input_tokens") int cacheReadInputTokens) {
 		this.inputTokens = inputTokens;
 		this.outputTokens = outputTokens;
 		this.thinkingTokens = thinkingTokens;

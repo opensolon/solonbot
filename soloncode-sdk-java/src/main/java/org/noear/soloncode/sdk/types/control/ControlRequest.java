@@ -16,9 +16,11 @@
 
 package org.noear.soloncode.sdk.types.control;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.noear.snack4.ONode;
+import org.noear.snack4.Options;
+import org.noear.snack4.annotation.ONodeAttr;
+import org.noear.snack4.codec.CodecException;
+import org.noear.snack4.codec.ObjectCreator;
 
 import java.util.List;
 import java.util.Map;
@@ -30,17 +32,17 @@ import java.util.Objects;
  */
 public final class ControlRequest {
 
-	@JsonProperty("type")
+	@ONodeAttr(name = "type")
 	private final String type;
 
-	@JsonProperty("request_id")
+	@ONodeAttr(name = "request_id")
 	private final String requestId;
 
-	@JsonProperty("request")
+	@ONodeAttr(name = "request")
 	private final ControlRequestPayload request;
 
-	public ControlRequest(@JsonProperty("type") String type, @JsonProperty("request_id") String requestId,
-			@JsonProperty("request") ControlRequestPayload request) {
+	public ControlRequest(@ONodeAttr(name = "type") String type, @ONodeAttr(name = "request_id") String requestId,
+			@ONodeAttr(name = "request") ControlRequestPayload request) {
 		this.type = type;
 		this.requestId = requestId;
 		this.request = request;
@@ -69,18 +71,56 @@ public final class ControlRequest {
 
 	/**
 	 * Interface for control request payload types.
+	 *
+	 * <p>
+	 * snack4 无 Jackson 的 {@code @JsonTypeInfo/@JsonSubTypes} 等价物，多态入向由
+	 * {@link PayloadCreator} 按判别字段 {@code subtype} 手工分派；出向由各实现类自带的
+	 * {@code subtype} 字段落地（与 Jackson 的 As.PROPERTY 输出等价）。
+	 * </p>
 	 */
-	@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "subtype")
-	@JsonSubTypes({ @JsonSubTypes.Type(value = InitializeRequest.class, name = "initialize"),
-			@JsonSubTypes.Type(value = CanUseToolRequest.class, name = "can_use_tool"),
-			@JsonSubTypes.Type(value = HookCallbackRequest.class, name = "hook_callback"),
-			@JsonSubTypes.Type(value = InterruptRequest.class, name = "interrupt"),
-			@JsonSubTypes.Type(value = SetPermissionModeRequest.class, name = "set_permission_mode"),
-			@JsonSubTypes.Type(value = SetModelRequest.class, name = "set_model"),
-			@JsonSubTypes.Type(value = McpMessageRequest.class, name = "mcp_message") })
+	@ONodeAttr(creator = PayloadCreator.class)
 	public interface ControlRequestPayload {
 
 		String subtype();
+
+	}
+
+	/**
+	 * {@link ControlRequestPayload} 的多态解码分派器。判别字段：{@code subtype}。
+	 * 映射表与原 Jackson {@code @JsonSubTypes} 逐项对齐。
+	 */
+	public static final class PayloadCreator implements ObjectCreator<ControlRequestPayload> {
+
+		@Override
+		public ControlRequestPayload create(Options opts, ONode node, Class<?> clazz) {
+			if (node == null || !node.isObject()) {
+				return null;
+			}
+
+			String subtype = node.get("subtype").getString();
+			if (subtype == null) {
+				throw new CodecException("Missing 'subtype' in control request payload");
+			}
+
+			switch (subtype) {
+				case "initialize":
+					return node.toBean(InitializeRequest.class);
+				case "can_use_tool":
+					return node.toBean(CanUseToolRequest.class);
+				case "hook_callback":
+					return node.toBean(HookCallbackRequest.class);
+				case "interrupt":
+					return node.toBean(InterruptRequest.class);
+				case "set_permission_mode":
+					return node.toBean(SetPermissionModeRequest.class);
+				case "set_model":
+					return node.toBean(SetModelRequest.class);
+				case "mcp_message":
+					return node.toBean(McpMessageRequest.class);
+				default:
+					throw new CodecException("Unknown control request subtype: " + subtype);
+			}
+		}
 
 	}
 
@@ -89,10 +129,14 @@ public final class ControlRequest {
 	 */
 	public static final class InitializeRequest implements ControlRequestPayload {
 
-		@JsonProperty("hooks")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "initialize";
+
+		@ONodeAttr(name = "hooks")
 		private final Map<String, List<HookMatcherConfig>> hooks;
 
-		public InitializeRequest(@JsonProperty("hooks") Map<String, List<HookMatcherConfig>> hooks) {
+		public InitializeRequest(@ONodeAttr(name = "hooks") Map<String, List<HookMatcherConfig>> hooks) {
 			this.hooks = hooks;
 		}
 
@@ -102,7 +146,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "initialize";
+			return subtypeValue;
 		}
 
 		@Override
@@ -133,18 +177,18 @@ public final class ControlRequest {
 	 */
 	public static final class HookMatcherConfig {
 
-		@JsonProperty("matcher")
+		@ONodeAttr(name = "matcher")
 		private final String matcher;
 
-		@JsonProperty("hookCallbackIds")
+		@ONodeAttr(name = "hookCallbackIds")
 		private final List<String> hookCallbackIds;
 
-		@JsonProperty("timeout")
+		@ONodeAttr(name = "timeout")
 		private final Integer timeout;
 
-		public HookMatcherConfig(@JsonProperty("matcher") String matcher,
-				@JsonProperty("hookCallbackIds") List<String> hookCallbackIds,
-				@JsonProperty("timeout") Integer timeout) {
+		public HookMatcherConfig(@ONodeAttr(name = "matcher") String matcher,
+				@ONodeAttr(name = "hookCallbackIds") List<String> hookCallbackIds,
+				@ONodeAttr(name = "timeout") Integer timeout) {
 			this.matcher = matcher;
 			this.hookCallbackIds = hookCallbackIds;
 			this.timeout = timeout;
@@ -192,22 +236,26 @@ public final class ControlRequest {
 	 */
 	public static final class CanUseToolRequest implements ControlRequestPayload {
 
-		@JsonProperty("tool_name")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "can_use_tool";
+
+		@ONodeAttr(name = "tool_name")
 		private final String toolName;
 
-		@JsonProperty("input")
+		@ONodeAttr(name = "input")
 		private final Map<String, Object> input;
 
-		@JsonProperty("permission_suggestions")
+		@ONodeAttr(name = "permission_suggestions")
 		private final List<Map<String, Object>> permissionSuggestions;
 
-		@JsonProperty("blocked_path")
+		@ONodeAttr(name = "blocked_path")
 		private final String blockedPath;
 
-		public CanUseToolRequest(@JsonProperty("tool_name") String toolName,
-				@JsonProperty("input") Map<String, Object> input,
-				@JsonProperty("permission_suggestions") List<Map<String, Object>> permissionSuggestions,
-				@JsonProperty("blocked_path") String blockedPath) {
+		public CanUseToolRequest(@ONodeAttr(name = "tool_name") String toolName,
+				@ONodeAttr(name = "input") Map<String, Object> input,
+				@ONodeAttr(name = "permission_suggestions") List<Map<String, Object>> permissionSuggestions,
+				@ONodeAttr(name = "blocked_path") String blockedPath) {
 			this.toolName = toolName;
 			this.input = input;
 			this.permissionSuggestions = permissionSuggestions;
@@ -232,7 +280,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "can_use_tool";
+			return subtypeValue;
 		}
 
 		@Override
@@ -266,18 +314,22 @@ public final class ControlRequest {
 	 */
 	public static final class HookCallbackRequest implements ControlRequestPayload {
 
-		@JsonProperty("callback_id")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "hook_callback";
+
+		@ONodeAttr(name = "callback_id")
 		private final String callbackId;
 
-		@JsonProperty("input")
+		@ONodeAttr(name = "input")
 		private final Map<String, Object> input;
 
-		@JsonProperty("tool_use_id")
+		@ONodeAttr(name = "tool_use_id")
 		private final String toolUseId;
 
-		public HookCallbackRequest(@JsonProperty("callback_id") String callbackId,
-				@JsonProperty("input") Map<String, Object> input,
-				@JsonProperty("tool_use_id") String toolUseId) {
+		public HookCallbackRequest(@ONodeAttr(name = "callback_id") String callbackId,
+				@ONodeAttr(name = "input") Map<String, Object> input,
+				@ONodeAttr(name = "tool_use_id") String toolUseId) {
 			this.callbackId = callbackId;
 			this.input = input;
 			this.toolUseId = toolUseId;
@@ -297,7 +349,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "hook_callback";
+			return subtypeValue;
 		}
 
 		@Override
@@ -330,12 +382,16 @@ public final class ControlRequest {
 	 */
 	public static final class InterruptRequest implements ControlRequestPayload {
 
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "interrupt";
+
 		public InterruptRequest() {
 		}
 
 		@Override
 		public String subtype() {
-			return "interrupt";
+			return subtypeValue;
 		}
 
 		@Override
@@ -359,10 +415,14 @@ public final class ControlRequest {
 	 */
 	public static final class SetPermissionModeRequest implements ControlRequestPayload {
 
-		@JsonProperty("mode")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "set_permission_mode";
+
+		@ONodeAttr(name = "mode")
 		private final String mode;
 
-		public SetPermissionModeRequest(@JsonProperty("mode") String mode) {
+		public SetPermissionModeRequest(@ONodeAttr(name = "mode") String mode) {
 			this.mode = mode;
 		}
 
@@ -372,7 +432,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "set_permission_mode";
+			return subtypeValue;
 		}
 
 		@Override
@@ -403,10 +463,14 @@ public final class ControlRequest {
 	 */
 	public static final class SetModelRequest implements ControlRequestPayload {
 
-		@JsonProperty("model")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "set_model";
+
+		@ONodeAttr(name = "model")
 		private final String model;
 
-		public SetModelRequest(@JsonProperty("model") String model) {
+		public SetModelRequest(@ONodeAttr(name = "model") String model) {
 			this.model = model;
 		}
 
@@ -416,7 +480,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "set_model";
+			return subtypeValue;
 		}
 
 		@Override
@@ -450,14 +514,18 @@ public final class ControlRequest {
 	 */
 	public static final class McpMessageRequest implements ControlRequestPayload {
 
-		@JsonProperty("server_name")
+		/** 判别字段：原 Jackson 由 @JsonTypeInfo(As.PROPERTY) 输出，snack4 下由本字段输出。 */
+		@ONodeAttr(name = "subtype")
+		private final String subtypeValue = "mcp_message";
+
+		@ONodeAttr(name = "server_name")
 		private final String serverName;
 
-		@JsonProperty("message")
+		@ONodeAttr(name = "message")
 		private final Map<String, Object> message;
 
-		public McpMessageRequest(@JsonProperty("server_name") String serverName,
-				@JsonProperty("message") Map<String, Object> message) {
+		public McpMessageRequest(@ONodeAttr(name = "server_name") String serverName,
+				@ONodeAttr(name = "message") Map<String, Object> message) {
 			this.serverName = serverName;
 			this.message = message;
 		}
@@ -472,7 +540,7 @@ public final class ControlRequest {
 
 		@Override
 		public String subtype() {
-			return "mcp_message";
+			return subtypeValue;
 		}
 
 		/**

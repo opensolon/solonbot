@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Objects;
 
@@ -34,13 +34,13 @@ import java.util.Objects;
  */
 public final class ThinkingBlock implements ContentBlock {
 
-	@JsonProperty("thinking")
+	@ONodeAttr(name = "thinking")
 	private final String thinking;
 
-	@JsonProperty("signature")
+	@ONodeAttr(name = "signature")
 	private final String signature;
 
-	public ThinkingBlock(@JsonProperty("thinking") String thinking, @JsonProperty("signature") String signature) {
+	public ThinkingBlock(@ONodeAttr(name = "thinking") String thinking, @ONodeAttr(name = "signature") String signature) {
 		this.thinking = thinking;
 		this.signature = signature;
 	}

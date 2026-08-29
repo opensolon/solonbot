@@ -16,8 +16,7 @@
 
 package org.noear.soloncode.sdk.transport;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.noear.soloncode.sdk.config.SolonCodeCliDiscovery;
@@ -102,7 +101,6 @@ public class StdioTransport implements Transport {
 	/** Parser is re-created per session to respect maxBufferSize from options. */
 	private ControlMessageParser parser;
 
-	private final ObjectMapper objectMapper;
 
 	// ============================================================
 	// State Management (Atomic State Machine)
@@ -220,7 +218,6 @@ public class StdioTransport implements Transport {
 		this.defaultTimeout = defaultTimeout;
 		this.soloncodeCommand = cliPath != null ? cliPath : discoverSolonCodePath();
 		this.parser = new ControlMessageParser();
-		this.objectMapper = new ObjectMapper();
 
 		// Initialize schedulers with named threads for debugging
 		this.inboundScheduler = Schedulers
@@ -608,11 +605,12 @@ public class StdioTransport implements Transport {
 		// Add JSON schema for structured output support
 		if (options.getJsonSchema() != null && !options.getJsonSchema().isEmpty()) {
 			try {
-				String schemaJson = objectMapper.writeValueAsString(options.getJsonSchema());
+				// Jackson 默认会输出 Map 里的 null 值，这里用 Write_Nulls 对齐，避免 schema 字段静默消失
+				String schemaJson = SdkJson.toJsonWithNulls(options.getJsonSchema());
 				command.add("--json-schema");
 				command.add(schemaJson);
 			}
-			catch (JsonProcessingException e) {
+			catch (RuntimeException e) {
 				logger.warn("Failed to serialize JSON schema, skipping --json-schema flag", e);
 			}
 		}
@@ -1029,17 +1027,20 @@ public class StdioTransport implements Transport {
 	public void sendResponse(ControlResponse response) throws SolonCodeSDKException {
 		assertConnected();
 
+		final String json;
 		try {
-			String json = objectMapper.writeValueAsString(response);
-			logger.debug("Sending control response: {}", json);
-
-			Sinks.EmitResult result = outboundSink.tryEmitNext(json);
-			if (result.isFailure()) {
-				throw new TransportException("Failed to queue control response: " + result);
-			}
+			// ControlResponse 原带 @JsonInclude(NON_NULL)，snack4 默认即不写 null，语义一致
+			json = SdkJson.toJson(response);
 		}
-		catch (IOException e) {
+		catch (RuntimeException e) {
 			throw new TransportException("Failed to serialize control response", e);
+		}
+
+		logger.debug("Sending control response: {}", json);
+
+		Sinks.EmitResult result = outboundSink.tryEmitNext(json);
+		if (result.isFailure()) {
+			throw new TransportException("Failed to queue control response: " + result);
 		}
 	}
 

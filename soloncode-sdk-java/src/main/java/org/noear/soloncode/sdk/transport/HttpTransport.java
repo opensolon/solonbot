@@ -16,8 +16,7 @@
 
 package org.noear.soloncode.sdk.transport;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.exceptions.SessionClosedException;
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
@@ -117,7 +116,6 @@ public class HttpTransport implements Transport {
 
 	private final Duration defaultTimeout;
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/** 网络层选项构建出的 SSL 工厂（trustStore/keyStore/trustAll）；null 用 JVM 默认 */
 	private final SSLSocketFactory sslSocketFactory;
@@ -322,6 +320,15 @@ public class HttpTransport implements Transport {
 		}
 		if (options != null && options.proxyAuthHeader() != null) {
 			conn.setRequestProperty("Proxy-Authorization", options.proxyAuthHeader());
+		}
+		if (options != null && !options.headers().isEmpty()) {
+			for (Map.Entry<String, String> e : options.headers().entrySet()) {
+				// Authorization 允许用户覆盖 authToken（对接前置网关时需要），但要可观测
+				if (token != null && "authorization".equalsIgnoreCase(e.getKey())) {
+					logger.warn("custom header 'Authorization' overrides authToken");
+				}
+				conn.setRequestProperty(e.getKey(), e.getValue());
+			}
 		}
 		return conn;
 	}
@@ -545,9 +552,10 @@ public class HttpTransport implements Transport {
 			body.put("workspace", workspace);
 		}
 		try {
-			return objectMapper.writeValueAsString(body);
+			// Jackson 默认输出 Map 中的 null（如 prompt=null），用 Write_Nulls 保持请求体结构不变
+			return SdkJson.toJsonWithNulls(body);
 		}
-		catch (JsonProcessingException e) {
+		catch (RuntimeException e) {
 			throw new TransportException("Failed to serialize /web/run request body", e);
 		}
 	}

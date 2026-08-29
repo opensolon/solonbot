@@ -4,6 +4,7 @@ Java SDK for the **soloncode CLI** headless mode (`soloncode run`). Forked and a
 from [claude-agent-sdk-java](https://github.com/anthropics/claude-agent-sdk-java) (Apache License 2.0).
 
 - Requires **JDK 8+**（与仓库其余模块同基线：`maven.compiler.source/target=8`）
+- JSON 序列化用 **snack4**（`org.noear:snack4`）；不依赖 Jackson
 - 两条通讯通道：**stdio**（本机拉起 `soloncode run` 子进程，需 CLI 在 PATH，可用 `stdio(path)` 指定）
   与 **http**（投递到服务端 `/web/run` 端点，需 `soloncode web` 启动）
 
@@ -56,6 +57,36 @@ client.connect().block();
 client.query("重构日志模块").messages().subscribe(System.out::println);
 ```
 
+## call() / stream()：prompt 风格入口
+
+与 solon-ai 的 `ChatModel.prompt(...).call() / .stream()` 对齐：`call()` 阻塞到本轮结束、
+返回聚合结果；`stream()` 返回**真流式** `Flux`，消息一到就下发。
+
+```java
+// 阻塞聚合（含 metadata / cost / status）
+QueryResult result = SolonCode.prompt("写一首俿句").call();
+
+// 真流式：边生成边消费
+SolonCode.prompt("解释递归")
+    .options(QueryOptions.builder().model("sonnet").build())
+    .stream()
+    .subscribe(System.out::println);
+
+// 走 http 通道：通道与凭证由 client builder 配，末尾接 prompt(...)
+SolonCodeClient.sync()
+    .http("http://127.0.0.1:18080/web/run").authToken(token).workspace("my-project")
+    .prompt("分析这个模块")
+    .stream()
+    .subscribe(System.out::println);
+```
+
+语义要点：
+
+- `stream()` 是**冷流**，每次订阅发起一次新执行；取消订阅即停止拉取并释放通道资源。
+- 执行在 `Schedulers.boundedElastic()` 上，不占调用方线程。
+- 异常统一包成 `SolonCodeSDKException`（已是该类型则原样抛出）；无论正常结束、异常还是取消，客户端都会关闭。
+- 旧的 `Query.stream(prompt)` 是「先跑完再把列表转成 Stream」的**伪流式**，为兼容保留；新代码用 `stream()`。
+
 ## 两条通讯通道
 
 通道是必选项（有默认值），builder 层一级方法选择：
@@ -80,7 +111,7 @@ SolonCodeClient.sync().http("http://127.0.0.1:18080/web/run")  // 服务端通�
 HTTP 通道下 MCP 注册、权限审批回调等在服务端配置，客户端同名选项仅告警忽略。
 协议契约详见 `soloncode-cli/docs/run-headless-mode-http.md`。
 
-### 网络层：代理与 SSL/TLS（仅 http 通道）
+### 网络层：代理、SSL/TLS 与自定义请求头（仅 http 通道）
 
 ```java
 // HTTP 正向代理（含 HTTPS CONNECT 隧道），带 Basic 认证
@@ -102,6 +133,16 @@ HttpOptions.tls().trustStore(caPath, caPass).keyStore("/path/client.p12", "chang
 // 跳过证书校验 / 主机名校验（危险，仅限内网联调；启用时打 WARN 日志）
 HttpOptions.tls().trustAll(true)
 HttpOptions.tls().skipHostnameVerify(true)
+
+// 自定义请求头：网关路由、租户标识、链路追踪
+HttpOptions.create().header("X-Tenant-Id", "t-1024").header("X-Trace-Id", traceId)
+HttpOptions.create().headers(headerMap)          // 批量
+
+// 组合（代理 + TLS + 自定义头）
+HttpOptions.proxy("proxy.corp.example", 3128)
+    .proxyAuth("user", "pass")
+    .trustStore(caPath, caPass)
+    .header("X-Tenant-Id", "t-1024")
 ```
 
 要点：
@@ -110,6 +151,7 @@ HttpOptions.tls().skipHostnameVerify(true)
 - 代理认证走 `Proxy-Authorization` 头，`/web/run` 与 `/web/run/interrupt` 每个连接都带；SOCKS 认证需调用方自行 `Authenticator.setDefault`（SDK 不改 JVM 全局状态）。
 - trustStore/keyStore 支持 JKS 与 PKCS12（按文件内容自动识别）；密码字段不参与 equals/toString，防泄漏。
 - trustAll 与 trustStore 互斥；SSL 初始化失败（文件不存在/密码错/格式不对）在传输实例创建时立即抛 `TransportException`，不留到首次请求。
+- 自定义头同样带到 `/web/run` 与 `/web/run/interrupt` 两条链路；头名大小写不敏感、同名覆盖。`Content-Type`/`Accept`/`Content-Length`/`Proxy-Authorization` 是协议关键头或 SDK 自管头，设置即抛 `IllegalArgumentException`；`Authorization` 允许覆盖 `authToken`（对接前置网关时需要），会打 WARN。`Authorization`/`Cookie` 的值在 `toString()` 中脱敏为 `***`。
 
 > SDK 本身不读任何 `soloncode.http.*` 环境配置——服务地址、token、workspace 一律构建器传入；
 > 需要从外部配置注入时，由调用方读出来再传给 builder。

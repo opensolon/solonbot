@@ -16,7 +16,7 @@
 
 package org.noear.soloncode.sdk;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.noear.soloncode.sdk.exceptions.TransportException;
@@ -94,7 +94,6 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 	private final HookRegistry hookRegistry;
 
-	private final ObjectMapper objectMapper;
 
 	// MCP message handler for in-process SDK servers
 	private final McpMessageHandler mcpMessageHandler;
@@ -187,8 +186,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 		this.timeout = timeout != null ? timeout : Duration.ofMinutes(10);
 		this.transportSpec = transportSpec != null ? transportSpec : TransportSpec.stdio();
 		this.hookRegistry = hookRegistry != null ? hookRegistry : new HookRegistry();
-		this.objectMapper = new ObjectMapper();
-		this.mcpMessageHandler = new McpMessageHandler(this.objectMapper);
+		this.mcpMessageHandler = new McpMessageHandler();
 
 		// 会话 ID：优先用调用方指定的 --session-id，否则自生成（用于多轮 --resume 串接）
 		String explicitSessionId = this.options.getSessionId();
@@ -694,7 +692,8 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			String callbackId = hookCallback.callbackId();
 			Map<String, Object> inputMap = hookCallback.input();
 
-			HookInput input = objectMapper.convertValue(inputMap, HookInput.class);
+			// 多态：按 hook_event_name 分派（见 HookInput.HookInputCreator）
+			HookInput input = SdkJson.convert(inputMap, HookInput.class);
 			HookOutput output = hookRegistry.executeHook(callbackId, input);
 
 			Map<String, Object> responsePayload = new LinkedHashMap<>();
@@ -832,7 +831,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			fullRequest.put("request_id", requestId);
 			fullRequest.putAll(request);
 
-			String json = objectMapper.writeValueAsString(fullRequest);
+			String json = SdkJson.toJsonWithNulls(fullRequest);
 			transportRef.get().sendMessage(json);
 
 			logger.debug("Sent control request: id={}, subtype={}", requestId, request.get("subtype"));

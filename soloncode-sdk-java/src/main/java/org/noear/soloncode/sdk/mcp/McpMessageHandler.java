@@ -18,8 +18,8 @@
 
 package org.noear.soloncode.sdk.mcp;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.codec.TypeRef;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.noear.soloncode.sdk.util.SdkCollections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,14 +51,7 @@ public class McpMessageHandler {
 
 	private final Map<String, List<McpSchema.Prompt>> registeredPrompts = new ConcurrentHashMap<>();
 
-	private final ObjectMapper objectMapper;
-
 	public McpMessageHandler() {
-		this(new ObjectMapper());
-	}
-
-	public McpMessageHandler(ObjectMapper objectMapper) {
-		this.objectMapper = objectMapper;
 	}
 
 	/**
@@ -211,8 +204,8 @@ public class McpMessageHandler {
 			return errorResponse(id, -32602, "Invalid params: missing parameters");
 		}
 
-		Map<String, Object> paramsMap = objectMapper.convertValue(params, new TypeReference<Map<String, Object>>() {
-		});
+		Map<String, Object> paramsMap = SdkJson.convert(params, new TypeRef<Map<String, Object>>() {
+		}.getType());
 		String toolName = (String) paramsMap.get("name");
 		Map<String, Object> arguments = (Map<String, Object>) paramsMap.get("arguments");
 
@@ -283,9 +276,8 @@ public class McpMessageHandler {
 			map.put("description", tool.description());
 		}
 		if (tool.inputSchema() != null) {
-			map.put("inputSchema",
-					objectMapper.convertValue(tool.inputSchema(), new TypeReference<Map<String, Object>>() {
-					}));
+			map.put("inputSchema", SdkJson.convert(tool.inputSchema(), new TypeRef<Map<String, Object>>() {
+			}.getType()));
 		}
 		return map;
 	}

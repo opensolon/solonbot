@@ -16,14 +16,12 @@
 
 package org.noear.soloncode.sdk.mcp;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 /**
  * Minimal inlined replacement for the MCP Java SDK types that were previously provided by
  * io.modelcontextprotocol.sdk:mcp (which requires Java 17). Only the members actually used by
  * this SDK are provided; semantics mirror the original records.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public final class McpSchema {
 
 	private McpSchema() {

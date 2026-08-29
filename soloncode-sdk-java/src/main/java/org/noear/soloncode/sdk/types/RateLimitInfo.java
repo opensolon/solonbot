@@ -18,7 +18,8 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
+import org.noear.soloncode.sdk.util.PrimitiveSafeCreator;
 
 import java.util.Objects;
 
@@ -26,30 +27,31 @@ import java.util.Objects;
  * Rate limit information from a {@code rate_limit_event} server-sent event. Contains the
  * current rate limit status, quota type, and reset timing.
  */
+@ONodeAttr(creator = PrimitiveSafeCreator.class)
 public final class RateLimitInfo {
 
-	@JsonProperty("status")
+	@ONodeAttr(name = "status")
 	private final String status;
 
-	@JsonProperty("resetsAt")
+	@ONodeAttr(name = "resetsAt")
 	private final long resetsAt;
 
-	@JsonProperty("rateLimitType")
+	@ONodeAttr(name = "rateLimitType")
 	private final String rateLimitType;
 
-	@JsonProperty("overageStatus")
+	@ONodeAttr(name = "overageStatus")
 	private final String overageStatus;
 
-	@JsonProperty("overageDisabledReason")
+	@ONodeAttr(name = "overageDisabledReason")
 	private final String overageDisabledReason;
 
-	@JsonProperty("isUsingOverage")
+	@ONodeAttr(name = "isUsingOverage")
 	private final boolean isUsingOverage;
 
-	public RateLimitInfo(@JsonProperty("status") String status, @JsonProperty("resetsAt") long resetsAt,
-			@JsonProperty("rateLimitType") String rateLimitType, @JsonProperty("overageStatus") String overageStatus,
-			@JsonProperty("overageDisabledReason") String overageDisabledReason,
-			@JsonProperty("isUsingOverage") boolean isUsingOverage) {
+	public RateLimitInfo(@ONodeAttr(name = "status") String status, @ONodeAttr(name = "resetsAt") long resetsAt,
+			@ONodeAttr(name = "rateLimitType") String rateLimitType, @ONodeAttr(name = "overageStatus") String overageStatus,
+			@ONodeAttr(name = "overageDisabledReason") String overageDisabledReason,
+			@ONodeAttr(name = "isUsingOverage") boolean isUsingOverage) {
 		this.status = status;
 		this.resetsAt = resetsAt;
 		this.rateLimitType = rateLimitType;

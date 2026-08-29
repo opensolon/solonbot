@@ -20,9 +20,9 @@ package org.noear.soloncode.sdk.parsing;
 
 import org.noear.soloncode.sdk.exceptions.MessageParseException;
 import org.noear.soloncode.sdk.types.ResultMessage;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.snack4.ONode;
+import org.noear.snack4.SnackException;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,10 +69,7 @@ public class JsonResultParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(JsonResultParser.class);
 
-	private final ObjectMapper objectMapper;
-
 	public JsonResultParser() {
-		this.objectMapper = new ObjectMapper();
 	}
 
 	/**
@@ -83,18 +80,18 @@ public class JsonResultParser {
 	 */
 	public ResultMessage parseJsonResult(String json) throws MessageParseException {
 		try {
-			JsonNode root = objectMapper.readTree(json);
+			ONode root = SdkJson.parse(json);
 			return parseResultFromNode(root);
 		}
-		catch (JsonProcessingException e) {
+		catch (SnackException e) {
 			throw MessageParseException.jsonDecodeError(json, e);
 		}
 	}
 
 	/**
-	 * Parses a JsonNode into a ResultMessage object.
+	 * Parses an ONode into a ResultMessage object.
 	 */
-	private ResultMessage parseResultFromNode(JsonNode node) throws MessageParseException {
+	private ResultMessage parseResultFromNode(ONode node) throws MessageParseException {
 		// Validate this is a result type
 		String type = getStringField(node, "type");
 		if (!"result".equals(type)) {
@@ -113,16 +110,16 @@ public class JsonResultParser {
 
 		// Parse usage information
 		// soloncode 的 result 事件用 metrics 携带 token/耗时统计（claude 用 usage），两者都兼容。
-		JsonNode usageNode = node.get("usage");
-		JsonNode metricsNode = node.get("metrics");
+		ONode usageNode = SdkJson.getField(node, "usage");
+		ONode metricsNode = SdkJson.getField(node, "metrics");
 		Map<String, Object> usage = parseUsageMap(usageNode != null ? usageNode : metricsNode);
 
-		if (durationMs == 0 && metricsNode != null && metricsNode.has("duration_ms")) {
-			durationMs = metricsNode.get("duration_ms").asInt(0);
+		if (durationMs == 0 && SdkJson.hasField(metricsNode, "duration_ms")) {
+			durationMs = getIntField(metricsNode, "duration_ms", 0);
 		}
 
 		// Parse structured output (for --json-schema responses)
-		Object structuredOutput = parseStructuredOutput(node.get("structured_output"));
+		Object structuredOutput = parseStructuredOutput(SdkJson.getField(node, "structured_output"));
 
 		// Build and return ResultMessage
 		return ResultMessage.builder()
@@ -142,81 +139,114 @@ public class JsonResultParser {
 	/**
 	 * Parses the structured_output node into a native Java object.
 	 */
-	private Object parseStructuredOutput(JsonNode node) {
+	private Object parseStructuredOutput(ONode node) {
 		if (node == null || node.isNull()) {
 			return null;
 		}
-		// Convert JsonNode to native Java types (Map, List, primitives)
-		return objectMapper.convertValue(node, Object.class);
+		// Convert ONode to native Java types (Map, List, primitives)
+		return node.toBean(Object.class);
 	}
 
 	/**
 	 * Parses the usage node into a Map structure.
 	 */
-	private Map<String, Object> parseUsageMap(JsonNode usageNode) {
+	private Map<String, Object> parseUsageMap(ONode usageNode) {
 		Map<String, Object> usage = new HashMap<>();
 
-		if (usageNode == null || usageNode.isNull()) {
+		if (usageNode == null || usageNode.isNull() || !usageNode.isObject()) {
 			return usage;
 		}
 
 		// Parse all usage fields
-		usageNode.fields().forEachRemaining(entry -> {
+		// 类型判定与迁移前 Jackson 版逐一对齐：isInt/isDouble/isTextual/isObject，其余落到 toString()。
+		for (Map.Entry<String, ONode> entry : usageNode.getObject().entrySet()) {
 			String key = entry.getKey();
-			JsonNode value = entry.getValue();
+			ONode value = entry.getValue();
 
-			if (value.isInt()) {
-				usage.put(key, value.asInt());
+			if (isIntNode(value)) {
+				usage.put(key, value.getInt());
 			}
-			else if (value.isDouble()) {
-				usage.put(key, value.asDouble());
+			else if (isDoubleNode(value)) {
+				usage.put(key, value.getDouble());
 			}
-			else if (value.isTextual()) {
-				usage.put(key, value.asText());
+			else if (value.isString()) {
+				usage.put(key, value.getString());
 			}
 			else if (value.isObject()) {
 				// Handle nested objects like server_tool_use
 				Map<String, Object> nestedMap = new HashMap<>();
-				value.fields().forEachRemaining(nestedEntry -> {
-					JsonNode nestedValue = nestedEntry.getValue();
-					if (nestedValue.isInt()) {
-						nestedMap.put(nestedEntry.getKey(), nestedValue.asInt());
+				for (Map.Entry<String, ONode> nestedEntry : value.getObject().entrySet()) {
+					ONode nestedValue = nestedEntry.getValue();
+					if (isIntNode(nestedValue)) {
+						nestedMap.put(nestedEntry.getKey(), nestedValue.getInt());
 					}
-					else if (nestedValue.isTextual()) {
-						nestedMap.put(nestedEntry.getKey(), nestedValue.asText());
+					else if (nestedValue.isString()) {
+						nestedMap.put(nestedEntry.getKey(), nestedValue.getString());
 					}
 					else {
-						nestedMap.put(nestedEntry.getKey(), nestedValue.toString());
+						nestedMap.put(nestedEntry.getKey(), nestedValue.toJson());
 					}
-				});
+				}
 				usage.put(key, nestedMap);
 			}
 			else {
-				usage.put(key, value.toString());
+				usage.put(key, value.toJson());
 			}
-		});
+		}
 
 		return usage;
 	}
 
-	private String getStringField(JsonNode node, String fieldName) {
-		JsonNode field = node.get(fieldName);
-		return (field != null && !field.isNull()) ? field.asText() : null;
+	/** 对应 Jackson JsonNode#isInt()：整型且在 int 范围内 */
+	private static boolean isIntNode(ONode node) {
+		return node.isNumber() && node.getValue() instanceof Integer;
 	}
 
-	private int getIntField(JsonNode node, String fieldName, int defaultValue) {
-		JsonNode field = node.get(fieldName);
-		return (field != null && !field.isNull()) ? field.asInt() : defaultValue;
+	/** 对应 Jackson JsonNode#isDouble() */
+	private static boolean isDoubleNode(ONode node) {
+		return node.isNumber() && node.getValue() instanceof Double;
 	}
 
-	private boolean getBooleanField(JsonNode node, String fieldName, boolean defaultValue) {
-		JsonNode field = node.get(fieldName);
-		return (field != null && !field.isNull()) ? field.asBoolean() : defaultValue;
+	// 取值语义与迁移前一致：字段缺失或为 null 返回默认值；否则做宽松类型转换。
+	// snack4 的 getInt/getDouble 在字符串不可解析时会抛异常，这里兜底成默认值，
+	// 对齐 Jackson asInt()/asDouble() 解析失败返回 0 的宽容行为。
+	private String getStringField(ONode node, String fieldName) {
+		ONode field = SdkJson.getField(node, fieldName);
+		return (field != null && !field.isNull()) ? field.getString() : null;
 	}
 
-	private Double getDoubleField(JsonNode node, String fieldName) {
-		JsonNode field = node.get(fieldName);
-		return (field != null && !field.isNull()) ? field.asDouble() : null;
+	private int getIntField(ONode node, String fieldName, int defaultValue) {
+		ONode field = SdkJson.getField(node, fieldName);
+		if (field == null || field.isNull()) {
+			return defaultValue;
+		}
+		try {
+			return field.getInt(defaultValue);
+		}
+		catch (RuntimeException e) {
+			return 0;
+		}
+	}
+
+	private boolean getBooleanField(ONode node, String fieldName, boolean defaultValue) {
+		ONode field = SdkJson.getField(node, fieldName);
+		if (field == null || field.isNull()) {
+			return defaultValue;
+		}
+		return field.getBoolean(defaultValue);
+	}
+
+	private Double getDoubleField(ONode node, String fieldName) {
+		ONode field = SdkJson.getField(node, fieldName);
+		if (field == null || field.isNull()) {
+			return null;
+		}
+		try {
+			return field.getDouble();
+		}
+		catch (RuntimeException e) {
+			return 0D;
+		}
 	}
 
 }

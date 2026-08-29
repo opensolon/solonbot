@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Map;
 import java.util.Objects;
@@ -28,13 +28,13 @@ import java.util.Objects;
  */
 public final class SystemMessage implements Message {
 
-	@JsonProperty("subtype")
+	@ONodeAttr(name = "subtype")
 	private final String subtype;
 
-	@JsonProperty("data")
+	@ONodeAttr(name = "data")
 	private final Map<String, Object> data;
 
-	public SystemMessage(@JsonProperty("subtype") String subtype, @JsonProperty("data") Map<String, Object> data) {
+	public SystemMessage(@ONodeAttr(name = "subtype") String subtype, @ONodeAttr(name = "data") Map<String, Object> data) {
 		this.subtype = subtype;
 		this.data = data;
 	}

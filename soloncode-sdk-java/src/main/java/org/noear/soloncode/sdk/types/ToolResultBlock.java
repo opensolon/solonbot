@@ -18,7 +18,7 @@
 
 package org.noear.soloncode.sdk.types;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.List;
 import java.util.Map;
@@ -29,17 +29,17 @@ import java.util.Objects;
  */
 public final class ToolResultBlock implements ContentBlock {
 
-	@JsonProperty("tool_use_id")
+	@ONodeAttr(name = "tool_use_id")
 	private final String toolUseId;
 
-	@JsonProperty("content")
+	@ONodeAttr(name = "content")
 	private final Object content; // Can be String, List<Map<String, Object>>, or null
 
-	@JsonProperty("is_error")
+	@ONodeAttr(name = "is_error")
 	private final Boolean isError;
 
-	public ToolResultBlock(@JsonProperty("tool_use_id") String toolUseId, @JsonProperty("content") Object content,
-			@JsonProperty("is_error") Boolean isError) {
+	public ToolResultBlock(@ONodeAttr(name = "tool_use_id") String toolUseId, @ONodeAttr(name = "content") Object content,
+			@ONodeAttr(name = "is_error") Boolean isError) {
 		this.toolUseId = toolUseId;
 		this.content = content;
 		this.isError = isError;

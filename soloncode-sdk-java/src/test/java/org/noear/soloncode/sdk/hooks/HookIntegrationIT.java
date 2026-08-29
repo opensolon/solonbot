@@ -16,7 +16,7 @@
 
 package org.noear.soloncode.sdk.hooks;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.noear.soloncode.sdk.util.SdkJson;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -64,7 +64,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Disabled("soloncode run 不支持 --input-format stream-json 的双向控制协议：hooks 由 CLI 侧工作区配置驱动，SDK 无 stdin 回调通道")
 class HookIntegrationIT extends SolonCodeCliTestBase {
 
-	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
 	 * Tests that PreToolUse hooks are called when registered.
@@ -100,7 +99,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 				if (request.request() instanceof ControlRequest.HookCallbackRequest) {
 					String callbackId = ((ControlRequest.HookCallbackRequest) request.request()).callbackId();
 					// Parse the input to HookInput
-					HookInput input = objectMapper.convertValue(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
+					HookInput input = SdkJson.convert(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
 					HookOutput output = registry.executeHook(callbackId, input);
 					return ControlResponse.success(request.requestId(), output);
 				}
@@ -109,7 +108,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 
 			// Send initialize request with hook configuration
 			ControlRequest initRequest = registry.createInitializeRequest("init_" + System.currentTimeMillis());
-			String initJson = objectMapper.writeValueAsString(initRequest);
+			String initJson = SdkJson.toJsonWithNulls(initRequest);
 			transport.sendMessage(initJson);
 
 			// Small delay to ensure initialize is processed
@@ -163,7 +162,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			}, request -> {
 				if (request.request() instanceof ControlRequest.HookCallbackRequest) {
 					String callbackId = ((ControlRequest.HookCallbackRequest) request.request()).callbackId();
-					HookInput input = objectMapper.convertValue(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
+					HookInput input = SdkJson.convert(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
 					HookOutput output = registry.executeHook(callbackId, input);
 					return ControlResponse.success(request.requestId(), output);
 				}
@@ -172,7 +171,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 
 			// Send initialize request with hook configuration
 			ControlRequest initRequest = registry.createInitializeRequest("init_" + System.currentTimeMillis());
-			transport.sendMessage(objectMapper.writeValueAsString(initRequest));
+			transport.sendMessage(SdkJson.toJsonWithNulls(initRequest));
 
 			Thread.sleep(500);
 
@@ -218,7 +217,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 			}, request -> {
 				if (request.request() instanceof ControlRequest.HookCallbackRequest) {
 					String callbackId = ((ControlRequest.HookCallbackRequest) request.request()).callbackId();
-					HookInput input = objectMapper.convertValue(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
+					HookInput input = SdkJson.convert(((ControlRequest.HookCallbackRequest) request.request()).input(), HookInput.class);
 					HookOutput output = registry.executeHook(callbackId, input);
 					return ControlResponse.success(request.requestId(), output);
 				}
@@ -227,7 +226,7 @@ class HookIntegrationIT extends SolonCodeCliTestBase {
 
 			// Send initialize request with hook configuration
 			ControlRequest initRequest = registry.createInitializeRequest("init_" + System.currentTimeMillis());
-			transport.sendMessage(objectMapper.writeValueAsString(initRequest));
+			transport.sendMessage(SdkJson.toJsonWithNulls(initRequest));
 
 			Thread.sleep(500);
 

@@ -16,10 +16,12 @@
 
 package org.noear.soloncode.sdk.types.control;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.noear.snack4.ONode;
+import org.noear.snack4.Options;
+import org.noear.snack4.annotation.ONodeAttr;
+import org.noear.snack4.codec.CodecException;
+import org.noear.snack4.codec.ObjectCreator;
+import org.noear.soloncode.sdk.util.PrimitiveSafeCreator;
 
 import java.util.Map;
 import java.util.Objects;
@@ -28,16 +30,52 @@ import java.util.Optional;
 /**
  * Base interface for all hook input types. Each hook event receives a specific
  * input type with relevant data.
+ *
+ * <p>
+ * 多态入向由 {@link HookInputCreator} 按判别字段 {@code hook_event_name} 手工分派（替代
+ * Jackson 的 {@code @JsonTypeInfo(property = "hook_event_name", visible = true)}）；各实现类
+ * 自带 {@code hook_event_name} 字段，所以判别字段同样会被回填（等价 visible = true）。
+ * </p>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "hook_event_name",
-		visible = true)
-@JsonSubTypes({ @JsonSubTypes.Type(value = HookInput.PreToolUseInput.class, name = "PreToolUse"),
-		@JsonSubTypes.Type(value = HookInput.PostToolUseInput.class, name = "PostToolUse"),
-		@JsonSubTypes.Type(value = HookInput.UserPromptSubmitInput.class, name = "UserPromptSubmit"),
-		@JsonSubTypes.Type(value = HookInput.StopInput.class, name = "Stop"),
-		@JsonSubTypes.Type(value = HookInput.SubagentStopInput.class, name = "SubagentStop"),
-		@JsonSubTypes.Type(value = HookInput.PreCompactInput.class, name = "PreCompact") })
+@ONodeAttr(creator = HookInput.HookInputCreator.class)
 public interface HookInput {
+
+	/**
+	 * {@link HookInput} 的多态解码分派器。判别字段：{@code hook_event_name}。
+	 * 映射表与原 Jackson {@code @JsonSubTypes} 逐项对齐。
+	 */
+	final class HookInputCreator implements ObjectCreator<HookInput> {
+
+		@Override
+		public HookInput create(Options opts, ONode node, Class<?> clazz) {
+			if (node == null || !node.isObject()) {
+				return null;
+			}
+
+			String eventName = node.get("hook_event_name").getString();
+			if (eventName == null) {
+				throw new CodecException("Missing 'hook_event_name' in hook input");
+			}
+
+			switch (eventName) {
+				case "PreToolUse":
+					return node.toBean(PreToolUseInput.class);
+				case "PostToolUse":
+					return node.toBean(PostToolUseInput.class);
+				case "UserPromptSubmit":
+					return node.toBean(UserPromptSubmitInput.class);
+				case "Stop":
+					return node.toBean(StopInput.class);
+				case "SubagentStop":
+					return node.toBean(SubagentStopInput.class);
+				case "PreCompact":
+					return node.toBean(PreCompactInput.class);
+				default:
+					throw new CodecException("Unknown hook_event_name: " + eventName);
+			}
+		}
+
+	}
 
 	/**
 	 * Get the hook event name.
@@ -67,38 +105,37 @@ public interface HookInput {
 	/**
 	 * Input for PreToolUse hook - called before a tool is executed.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
 	final class PreToolUseInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("tool_name")
+		@ONodeAttr(name = "tool_name")
 		private final String toolName;
 
-		@JsonProperty("tool_use_id")
+		@ONodeAttr(name = "tool_use_id")
 		private final String toolUseId;
 
-		@JsonProperty("tool_input")
+		@ONodeAttr(name = "tool_input")
 		private final Map<String, Object> toolInput;
 
-		public PreToolUseInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("tool_name") String toolName, @JsonProperty("tool_use_id") String toolUseId,
-				@JsonProperty("tool_input") Map<String, Object> toolInput) {
+		public PreToolUseInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "tool_name") String toolName, @ONodeAttr(name = "tool_use_id") String toolUseId,
+				@ONodeAttr(name = "tool_input") Map<String, Object> toolInput) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;
@@ -196,42 +233,41 @@ public interface HookInput {
 	/**
 	 * Input for PostToolUse hook - called after a tool is executed.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
 	final class PostToolUseInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("tool_name")
+		@ONodeAttr(name = "tool_name")
 		private final String toolName;
 
-		@JsonProperty("tool_use_id")
+		@ONodeAttr(name = "tool_use_id")
 		private final String toolUseId;
 
-		@JsonProperty("tool_input")
+		@ONodeAttr(name = "tool_input")
 		private final Map<String, Object> toolInput;
 
-		@JsonProperty("tool_response")
+		@ONodeAttr(name = "tool_response")
 		private final Object toolResponse;
 
-		public PostToolUseInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("tool_name") String toolName, @JsonProperty("tool_use_id") String toolUseId,
-				@JsonProperty("tool_input") Map<String, Object> toolInput,
-				@JsonProperty("tool_response") Object toolResponse) {
+		public PostToolUseInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "tool_name") String toolName, @ONodeAttr(name = "tool_use_id") String toolUseId,
+				@ONodeAttr(name = "tool_input") Map<String, Object> toolInput,
+				@ONodeAttr(name = "tool_response") Object toolResponse) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;
@@ -322,31 +358,30 @@ public interface HookInput {
 	/**
 	 * Input for UserPromptSubmit hook - called before user prompt is sent.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
 	final class UserPromptSubmitInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("prompt")
+		@ONodeAttr(name = "prompt")
 		private final String prompt;
 
-		public UserPromptSubmitInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("prompt") String prompt) {
+		public UserPromptSubmitInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "prompt") String prompt) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;
@@ -419,31 +454,31 @@ public interface HookInput {
 	/**
 	 * Input for Stop hook - called when agent stops.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
+	@ONodeAttr(creator = PrimitiveSafeCreator.class)
 	final class StopInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("stop_hook_active")
+		@ONodeAttr(name = "stop_hook_active")
 		private final boolean stopHookActive;
 
-		public StopInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("stop_hook_active") boolean stopHookActive) {
+		public StopInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "stop_hook_active") boolean stopHookActive) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;
@@ -516,31 +551,31 @@ public interface HookInput {
 	/**
 	 * Input for SubagentStop hook - called when subagent stops.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
+	@ONodeAttr(creator = PrimitiveSafeCreator.class)
 	final class SubagentStopInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("stop_hook_active")
+		@ONodeAttr(name = "stop_hook_active")
 		private final boolean stopHookActive;
 
-		public SubagentStopInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("stop_hook_active") boolean stopHookActive) {
+		public SubagentStopInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "stop_hook_active") boolean stopHookActive) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;
@@ -613,35 +648,34 @@ public interface HookInput {
 	/**
 	 * Input for PreCompact hook - called before context compaction.
 	 */
-	@JsonIgnoreProperties(ignoreUnknown = true)
 	final class PreCompactInput implements HookInput {
 
-		@JsonProperty("hook_event_name")
+		@ONodeAttr(name = "hook_event_name")
 		private final String hookEventName;
 
-		@JsonProperty("session_id")
+		@ONodeAttr(name = "session_id")
 		private final String sessionId;
 
-		@JsonProperty("transcript_path")
+		@ONodeAttr(name = "transcript_path")
 		private final String transcriptPath;
 
-		@JsonProperty("cwd")
+		@ONodeAttr(name = "cwd")
 		private final String cwd;
 
-		@JsonProperty("permission_mode")
+		@ONodeAttr(name = "permission_mode")
 		private final String permissionModeValue;
 
-		@JsonProperty("trigger")
+		@ONodeAttr(name = "trigger")
 		private final String trigger;
 
-		@JsonProperty("custom_instructions")
+		@ONodeAttr(name = "custom_instructions")
 		private final String customInstructions;
 
-		public PreCompactInput(@JsonProperty("hook_event_name") String hookEventName,
-				@JsonProperty("session_id") String sessionId, @JsonProperty("transcript_path") String transcriptPath,
-				@JsonProperty("cwd") String cwd, @JsonProperty("permission_mode") String permissionModeValue,
-				@JsonProperty("trigger") String trigger,
-				@JsonProperty("custom_instructions") String customInstructions) {
+		public PreCompactInput(@ONodeAttr(name = "hook_event_name") String hookEventName,
+				@ONodeAttr(name = "session_id") String sessionId, @ONodeAttr(name = "transcript_path") String transcriptPath,
+				@ONodeAttr(name = "cwd") String cwd, @ONodeAttr(name = "permission_mode") String permissionModeValue,
+				@ONodeAttr(name = "trigger") String trigger,
+				@ONodeAttr(name = "custom_instructions") String customInstructions) {
 			this.hookEventName = hookEventName;
 			this.sessionId = sessionId;
 			this.transcriptPath = transcriptPath;

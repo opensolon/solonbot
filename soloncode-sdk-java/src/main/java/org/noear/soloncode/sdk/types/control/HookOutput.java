@@ -16,8 +16,7 @@
 
 package org.noear.soloncode.sdk.types.control;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.noear.snack4.annotation.ONodeAttr;
 
 import java.util.Map;
 import java.util.Objects;
@@ -27,49 +26,48 @@ import java.util.Objects;
  *
  * <p>
  * Field naming note: Java uses camelCase but the protocol uses snake_case.
- * Jackson @JsonProperty handles the conversion. Additionally, "continue" and "async" are
+ * snack4 @ONodeAttr(name = ...) handles the conversion. Additionally, "continue" and "async" are
  * Java keywords, so we use alternative names that get serialized correctly.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public final class HookOutput {
 
 	// Control fields - note: "continue" is a Java keyword, so we use a workaround
-	@JsonProperty("continue")
+	@ONodeAttr(name = "continue")
 	private final Boolean continueExecution;
 
-	@JsonProperty("suppressOutput")
+	@ONodeAttr(name = "suppressOutput")
 	private final Boolean suppressOutput;
 
-	@JsonProperty("stopReason")
+	@ONodeAttr(name = "stopReason")
 	private final String stopReason;
 
 	// Decision fields
-	@JsonProperty("decision")
+	@ONodeAttr(name = "decision")
 	private final String decision;
 
-	@JsonProperty("systemMessage")
+	@ONodeAttr(name = "systemMessage")
 	private final String systemMessage;
 
-	@JsonProperty("reason")
+	@ONodeAttr(name = "reason")
 	private final String reason;
 
 	// Async support - note: "async" is a Java keyword in some contexts
-	@JsonProperty("async")
+	@ONodeAttr(name = "async")
 	private final Boolean asyncExecution;
 
-	@JsonProperty("asyncTimeout")
+	@ONodeAttr(name = "asyncTimeout")
 	private final Integer asyncTimeout;
 
 	// Hook-specific output
-	@JsonProperty("hookSpecificOutput")
+	@ONodeAttr(name = "hookSpecificOutput")
 	private final HookSpecificOutput hookSpecificOutput;
 
-	public HookOutput(@JsonProperty("continue") Boolean continueExecution,
-			@JsonProperty("suppressOutput") Boolean suppressOutput, @JsonProperty("stopReason") String stopReason,
-			@JsonProperty("decision") String decision, @JsonProperty("systemMessage") String systemMessage,
-			@JsonProperty("reason") String reason, @JsonProperty("async") Boolean asyncExecution,
-			@JsonProperty("asyncTimeout") Integer asyncTimeout,
-			@JsonProperty("hookSpecificOutput") HookSpecificOutput hookSpecificOutput) {
+	public HookOutput(@ONodeAttr(name = "continue") Boolean continueExecution,
+			@ONodeAttr(name = "suppressOutput") Boolean suppressOutput, @ONodeAttr(name = "stopReason") String stopReason,
+			@ONodeAttr(name = "decision") String decision, @ONodeAttr(name = "systemMessage") String systemMessage,
+			@ONodeAttr(name = "reason") String reason, @ONodeAttr(name = "async") Boolean asyncExecution,
+			@ONodeAttr(name = "asyncTimeout") Integer asyncTimeout,
+			@ONodeAttr(name = "hookSpecificOutput") HookSpecificOutput hookSpecificOutput) {
 		this.continueExecution = continueExecution;
 		this.suppressOutput = suppressOutput;
 		this.stopReason = stopReason;
@@ -269,31 +267,30 @@ public final class HookOutput {
 	/**
 	 * Hook-specific output - varies by hook type.
 	 */
-	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static final class HookSpecificOutput {
 
-		@JsonProperty("hookEventName")
+		@ONodeAttr(name = "hookEventName")
 		private final String hookEventName;
 
 		// PreToolUse specific
-		@JsonProperty("permissionDecision")
+		@ONodeAttr(name = "permissionDecision")
 		private final String permissionDecision;
 
-		@JsonProperty("permissionDecisionReason")
+		@ONodeAttr(name = "permissionDecisionReason")
 		private final String permissionDecisionReason;
 
-		@JsonProperty("updatedInput")
+		@ONodeAttr(name = "updatedInput")
 		private final Map<String, Object> updatedInput;
 
 		// PostToolUse / UserPromptSubmit specific
-		@JsonProperty("additionalContext")
+		@ONodeAttr(name = "additionalContext")
 		private final String additionalContext;
 
-		public HookSpecificOutput(@JsonProperty("hookEventName") String hookEventName,
-				@JsonProperty("permissionDecision") String permissionDecision,
-				@JsonProperty("permissionDecisionReason") String permissionDecisionReason,
-				@JsonProperty("updatedInput") Map<String, Object> updatedInput,
-				@JsonProperty("additionalContext") String additionalContext) {
+		public HookSpecificOutput(@ONodeAttr(name = "hookEventName") String hookEventName,
+				@ONodeAttr(name = "permissionDecision") String permissionDecision,
+				@ONodeAttr(name = "permissionDecisionReason") String permissionDecisionReason,
+				@ONodeAttr(name = "updatedInput") Map<String, Object> updatedInput,
+				@ONodeAttr(name = "additionalContext") String additionalContext) {
 			this.hookEventName = hookEventName;
 			this.permissionDecision = permissionDecision;
 			this.permissionDecisionReason = permissionDecisionReason;
