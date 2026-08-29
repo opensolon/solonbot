@@ -51,6 +51,9 @@ import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.handle.UploadedFile;
 import org.noear.solon.core.util.Assert;
+import org.noear.solon.core.util.IoUtil;
+import org.noear.solon.server.io.LimitedInputException;
+import org.noear.solon.server.io.LimitedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1263,12 +1266,26 @@ public class WebController {
      * @return 操作结果（AI 结果通过 WebSocket 推送）
      */
     @Mapping("/web/chat/input")
-    public Result chat_input(Context ctx, String input, UploadedFile[] attachments, String attachmentTypes[],
+    public Result chat_input(Context ctx, String input, UploadedFile inputPayload,
+                             UploadedFile[] attachments, String attachmentTypes[],
                              String model, String sessionId,
                              @Param(value = "reasoningEffort", required = false) String reasoningEffort,
                              @Param(value = "thinkingMode", required = false) String thinkingMode,
                              @Param(value = "selectedAgent", required = false) String selectedAgent) {
         try {
+            // 新版 Web 将长文本作为文件 part 发送，绕开 multipart 普通字段受 readBuffer
+            // 大小限制的问题；保留 input 参数以兼容旧页面和其他调用方。
+            if (inputPayload != null) {
+                try {
+                    //不能超过 100k
+                    input = IoUtil.transferToString(new LimitedInputStream(inputPayload.getContent(), 100_000));
+                } catch (LimitedInputException e) {
+                    ctx.status(413);
+                    ctx.output(e.getMessage());
+                    return null;
+                }
+            }
+
             if (sessionId == null || sessionId.isEmpty()) {
                 sessionId = ctx.headerOrDefault("X-Session-Id", "web");
             }

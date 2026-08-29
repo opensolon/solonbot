@@ -892,7 +892,9 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
         ? options.model
         : getSelectedModel();
     var formData = new FormData();
-    formData.append('input', text);
+    // 文本按文件 part 发送：feathttp 的 multipart 普通字段受 readBuffer 大小约束，
+    // 大段文本可能在尚未达到 maxBodySize 时就被判为 400；文件 part 则支持流式解码。
+    formData.append('inputPayload', new Blob([text], { type: 'text/plain;charset=UTF-8' }), 'input.txt');
     formData.append('sessionId', sess.sessionId);
     if (model) formData.append('model', model);
     var effort = (options.reasoningEffort !== undefined && options.reasoningEffort !== null)
@@ -941,6 +943,13 @@ function sendWithFormDataGrouped(sess, text, filesToSend, options) {
         // HTTP 响应只有 {"status":"ok"}，实际数据通过 WebSocket 推送
     }).fail(function(err) {
         console.error('Send error:', err);
+        var status = err && err.status;
+        var errorText = status
+            ? I18n.t('im.requestFailed', {status: 'HTTP ' + status})
+            : I18n.t('toast.networkErrorRetry');
+        // toast 负责即时反馈，系统通知保留在消息流中，避免用户错过短暂提示。
+        if (typeof showToast === 'function') showToast(errorText, 'error', 3500);
+        if (typeof appendSystemNotice === 'function') appendSystemNotice(sess, errorText);
         finishStream(sess);
     });
 }
