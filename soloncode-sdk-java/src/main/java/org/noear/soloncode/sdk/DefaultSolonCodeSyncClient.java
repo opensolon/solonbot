@@ -58,8 +58,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Default implementation of {@link SolonCodeSyncClient} providing blocking multi-turn
- * conversation support.
+ * Internal session implementation used by the unified client. The legacy sync facade is
+ * still implemented here temporarily, but is no longer part of the unified client's contract.
  *
  * <p>
  * This implementation maintains a persistent connection to the SolonCode CLI, allowing
@@ -76,7 +76,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * @see SolonCodeClient
  * @see Transport
  */
-public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient {
+public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCodeSession {
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultSolonCodeSyncClient.class);
 

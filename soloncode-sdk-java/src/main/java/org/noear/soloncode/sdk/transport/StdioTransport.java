@@ -685,7 +685,7 @@ public class StdioTransport implements Transport {
 		}
 
 		// Custom settings file
-		if (options.getSettings() != null && options.getSettings().trim().isEmpty()) {
+		if (options.getSettings() != null && !options.getSettings().trim().isEmpty()) {
 			logger.warn("settings is not supported by soloncode run; ignoring");
 		}
 
@@ -699,7 +699,8 @@ public class StdioTransport implements Transport {
 		// permission_prompt_tool_name="stdio"
 		// when a can_use_tool callback is configured
 		// --permission-prompt-tool / stdin control protocol is not supported by soloncode run
-		if (options.getPermissionPromptToolName() != null && options.getPermissionPromptToolName().trim().isEmpty()) {
+		if (options.getPermissionPromptToolName() != null
+				&& !options.getPermissionPromptToolName().trim().isEmpty()) {
 			logger.warn("permissionPromptToolName is not supported by soloncode run; ignoring");
 		}
 		if (options.getToolPermissionCallback() != null) {
@@ -1205,6 +1206,9 @@ public class StdioTransport implements Transport {
 	public boolean waitForCompletion(Duration timeout) throws SolonCodeSDKException {
 		if (process == null) {
 			return true;
+		}
+		if (timeout == null || timeout.isNegative() || timeout.isZero()) {
+			throw new IllegalArgumentException("timeout must be positive");
 		}
 
 		try {

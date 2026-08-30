@@ -63,7 +63,7 @@ import java.util.Map;
  * @see SolonCodeClient
  * @see SolonCodeAsyncClient
  */
-public interface SolonCodeSyncClient extends AutoCloseable {
+public interface SolonCodeSyncClient extends SolonCodeSession {
 
 	/**
 	 * Connects to the SolonCode CLI without an initial prompt. The client is ready for

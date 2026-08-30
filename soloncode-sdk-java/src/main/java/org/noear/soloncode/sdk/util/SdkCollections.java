@@ -80,7 +80,7 @@ public final class SdkCollections {
 	public static <K, V> Map<K, V> copyMap(Map<? extends K, ? extends V> map) {
 		Map<K, V> m = new LinkedHashMap<>();
 		for (Map.Entry<? extends K, ? extends V> e : map.entrySet()) {
-			m.put(Objects.requireNonNull(e.getKey()), Objects.requireNonNull(e.getValue()));
+			m.put(Objects.requireNonNull(e.getKey()), e.getValue());
 		}
 		return Collections.unmodifiableMap(m);
 	}

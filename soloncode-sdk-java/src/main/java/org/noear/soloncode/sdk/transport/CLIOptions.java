@@ -170,30 +170,30 @@ public final class CLIOptions {
 		this.maxTokens = maxTokens;
 		this.maxThinkingTokens = maxThinkingTokens;
 		this.timeout = timeout;
-		this.tools = tools;
-		this.allowedTools = allowedTools;
-		this.disallowedTools = disallowedTools;
+		this.tools = tools == null ? null : SdkCollections.copyList(tools);
+		this.allowedTools = SdkCollections.copyList(allowedTools);
+		this.disallowedTools = SdkCollections.copyList(disallowedTools);
 		this.permissionMode = permissionMode;
 		this.interactive = interactive;
 		this.outputFormat = outputFormat;
-		this.settingSources = settingSources;
+		this.settingSources = SdkCollections.copyList(settingSources);
 		this.agents = agents;
 		this.forkSession = forkSession;
 		this.includePartialMessages = includePartialMessages;
-		this.jsonSchema = jsonSchema;
-		this.mcpServers = mcpServers;
+		this.jsonSchema = jsonSchema == null ? null : SdkCollections.copyMap(jsonSchema);
+		this.mcpServers = SdkCollections.copyMap(mcpServers);
 		this.maxTurns = maxTurns;
 		this.maxBudgetUsd = maxBudgetUsd;
 		this.fallbackModel = fallbackModel;
 		this.appendSystemPrompt = appendSystemPrompt;
 		this.continueConversation = continueConversation;
 		this.resume = resume;
-		this.addDirs = addDirs;
+		this.addDirs = SdkCollections.copyList(addDirs);
 		this.settings = settings;
 		this.permissionPromptToolName = permissionPromptToolName;
-		this.extraArgs = extraArgs;
-		this.plugins = plugins;
-		this.env = env;
+		this.extraArgs = SdkCollections.copyMap(extraArgs);
+		this.plugins = SdkCollections.copyList(plugins);
+		this.env = SdkCollections.copyMap(env);
 		this.maxBufferSize = maxBufferSize;
 		this.user = user;
 		this.sessionId = sessionId;
@@ -388,20 +388,25 @@ public final class CLIOptions {
 
 	@Override
 	public String toString() {
-		return "CLIOptions[model=" + model + ", systemPrompt=" + systemPrompt + ", maxTokens=" + maxTokens
-				+ ", maxThinkingTokens=" + maxThinkingTokens + ", timeout=" + timeout + ", tools=" + tools
-				+ ", allowedTools=" + allowedTools + ", disallowedTools=" + disallowedTools + ", permissionMode="
-				+ permissionMode + ", interactive=" + interactive + ", outputFormat=" + outputFormat
-				+ ", settingSources=" + settingSources + ", agents=" + agents + ", forkSession=" + forkSession
-				+ ", includePartialMessages=" + includePartialMessages + ", jsonSchema=" + jsonSchema
-				+ ", mcpServers=" + mcpServers + ", maxTurns=" + maxTurns + ", maxBudgetUsd=" + maxBudgetUsd
-				+ ", fallbackModel=" + fallbackModel + ", appendSystemPrompt=" + appendSystemPrompt
-				+ ", continueConversation=" + continueConversation + ", resume=" + resume + ", addDirs=" + addDirs
-				+ ", settings=" + settings + ", permissionPromptToolName=" + permissionPromptToolName
-				+ ", extraArgs=" + extraArgs + ", plugins=" + plugins + ", env=" + env + ", maxBufferSize=" + maxBufferSize
-				+ ", user=" + user + ", sessionId=" + sessionId + ", bare=" + bare + ", stderrHandler=" + stderrHandler
-				+ ", toolPermissionCallback="
-				+ toolPermissionCallback + "]";
+		return "CLIOptions[model=" + model + ", maxTokens=" + maxTokens
+				+ ", maxThinkingTokens=" + maxThinkingTokens + ", timeout=" + timeout
+				+ ", tools=" + (tools == null ? null : tools.size())
+				+ ", allowedTools=" + allowedTools.size() + ", disallowedTools=" + disallowedTools.size()
+				+ ", permissionMode=" + permissionMode + ", interactive=" + interactive
+				+ ", outputFormat=" + outputFormat + ", settingSources=" + settingSources
+				+ ", agents=" + agents + ", forkSession=" + forkSession
+				+ ", includePartialMessages=" + includePartialMessages
+				+ ", jsonSchema=" + (jsonSchema == null ? null : "<" + jsonSchema.size() + " entries>")
+				+ ", mcpServers=" + mcpServers.keySet() + ", maxTurns=" + maxTurns
+				+ ", maxBudgetUsd=" + maxBudgetUsd + ", fallbackModel=" + fallbackModel
+				+ ", appendSystemPrompt=" + (appendSystemPrompt == null ? null : "<set>")
+				+ ", continueConversation=" + continueConversation + ", resume=" + (resume == null ? null : "<set>")
+				+ ", addDirs=" + addDirs + ", settings=" + (settings == null ? null : "<set>")
+				+ ", permissionPromptToolName=" + permissionPromptToolName
+				+ ", extraArgs=" + extraArgs.keySet() + ", plugins=" + plugins.size()
+				+ ", envKeys=" + env.keySet() + ", maxBufferSize=" + maxBufferSize
+				+ ", user=" + user + ", sessionId=" + sessionId + ", bare=" + bare
+				+ ", stderrHandler=" + stderrHandler + "]";
 	}
 
 	public static Builder builder() {

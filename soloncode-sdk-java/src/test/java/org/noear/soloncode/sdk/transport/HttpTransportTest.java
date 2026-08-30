@@ -576,7 +576,7 @@ class HttpTransportTest {
 	}
 
 	@Test
-	void malformedDataLineDoesNotBreakStream() throws Exception {
+	void malformedDataLineFailsFast() throws Exception {
 		registerSseHandler("{{{not json",
 				"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\",\"session_id\":\"m1\"}");
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
@@ -586,10 +586,11 @@ class HttpTransportTest {
 				received.add(m);
 			}
 		}, null, null);
-		assertThat(transport.waitForCompletion(Duration.ofSeconds(10))).isTrue();
+		assertThatThrownBy(() -> transport.waitForCompletion(Duration.ofSeconds(10)))
+				.hasMessageContaining("Session error");
 		transport.close();
-		// 垃圾行被跳过，result 正常投递
-		assertThat(received).hasSize(1);
+		// 已声明为 SSE JSON 事件但无法解析时，必须失败，不能把截断响应误报成功。
+		assertThat(received).isEmpty();
 	}
 
 	@Test

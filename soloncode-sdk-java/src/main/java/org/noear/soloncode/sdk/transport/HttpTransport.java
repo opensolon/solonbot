@@ -155,6 +155,7 @@ public class HttpTransport implements Transport {
 
 	/** 已收到 result 事件（区分「执行结论」与「请求故障」）。 */
 	private volatile boolean resultReceived = false;
+	private volatile boolean terminalErrorReceived = false;
 
 	@Override
 	public void setTurnSession(String sessionId, String resume) {
@@ -429,6 +430,11 @@ public class HttpTransport implements Transport {
 							sessionId.set(sid);
 						}
 					}
+					else if (parsed.isRegularMessage()
+							&& payload.matches("(?s).*\\\"type\\\"\\s*:\\s*\\\"error\\\".*")) {
+						// error 事件本身是一次完整的终态，不要求再伪造 result。
+						terminalErrorReceived = true;
+					}
 					Sinks.EmitResult emit = inboundSink.tryEmitNext(parsed);
 					if (!emit.isSuccess() && !isClosing) {
 						logger.error("Failed to emit inbound message: {}", emit);
@@ -437,8 +443,10 @@ public class HttpTransport implements Transport {
 				}
 				catch (Exception e) {
 					if (!isClosing) {
+						sessionError.compareAndSet(null, new TransportException("Invalid SSE message", e));
 						logger.error("Failed to process SSE message: {}",
 								payload.substring(0, Math.min(200, payload.length())), e);
+						break;
 					}
 				}
 			}
@@ -450,6 +458,11 @@ public class HttpTransport implements Transport {
 			}
 		}
 		finally {
+			// 非主动关闭时，EOF 必须有 result 事件才能视为正常结束；否则响应被截断。
+			if (!isClosing && !resultReceived && !terminalErrorReceived) {
+				sessionError.compareAndSet(null,
+						new TransportException("HTTP stream ended before result event"));
+			}
 			// 流结束（服务端在 result/error 后关闭连接）≈ 进程退出：完成 sink + 通知 handler
 			isClosing = true;
 			inboundSink.tryEmitComplete();
@@ -655,7 +668,9 @@ public class HttpTransport implements Transport {
 				completion.block();
 			}
 		}
-		catch (IllegalStateException e) {
+		catch (RuntimeException e) {
+			// 超时/阻塞异常必须主动断开 SSE，否则后台 reader 和连接会泄漏。
+			close();
 			if (e.getCause() != null) {
 				throw new TransportException("HTTP session failed", e.getCause());
 			}

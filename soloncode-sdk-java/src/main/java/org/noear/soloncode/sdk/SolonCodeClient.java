@@ -97,7 +97,7 @@ import java.util.Map;
  * @see SolonCodeSyncClient
  * @see SolonCodeAsyncClient
  */
-public interface SolonCodeClient {
+public interface SolonCodeClient extends AutoCloseable {
 
 	/**
 	 * Start building a synchronous SolonCode client with fluent configuration.
@@ -128,6 +128,11 @@ public interface SolonCodeClient {
 	 */
 	static SyncSpecWithOptions sync(CLIOptions options) {
 		return new SyncSpecWithOptions(options);
+	}
+
+	/** Creates the unified request-oriented client; call() or stream() selects the mode. */
+	static Builder builder() {
+		return new Builder();
 	}
 
 	/**
@@ -1248,5 +1253,61 @@ public interface SolonCodeClient {
 		}
 
 	}
+
+	/** Request-oriented client API shared by blocking and streaming callers. */
+	interface Request {
+		org.noear.soloncode.sdk.types.QueryResult call() throws org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
+		reactor.core.publisher.Flux<org.noear.soloncode.sdk.types.Message> stream();
+	}
+
+	/** Unified builder. Successive requests on the built client are successive turns. */
+	class Builder {
+		private final SyncSpec delegate = new SyncSpec();
+		public Builder workingDirectory(Path v) { delegate.workingDirectory(v); return this; }
+		public Builder timeout(Duration v) { delegate.timeout(v); return this; }
+		public Builder stdio() { delegate.stdio(); return this; }
+		public Builder stdio(String v) { delegate.stdio(v); return this; }
+		public Builder stdioOneShot(String v) { delegate.stdioOneShot(v); return this; }
+		public Builder http(String v) { delegate.http(v); return this; }
+		public Builder authToken(String v) { delegate.authToken(v); return this; }
+		public Builder workspace(String v) { delegate.workspace(v); return this; }
+		public Builder httpOptions(HttpOptions v) { delegate.httpOptions(v); return this; }
+		public Builder hookRegistry(HookRegistry v) { delegate.hookRegistry(v); return this; }
+		public Builder model(String v) { delegate.model(v); return this; }
+		public Builder systemPrompt(String v) { delegate.systemPrompt(v); return this; }
+		public Builder appendSystemPrompt(String v) { delegate.appendSystemPrompt(v); return this; }
+		public Builder maxTokens(Integer v) { delegate.maxTokens(v); return this; }
+		public Builder maxThinkingTokens(Integer v) { delegate.maxThinkingTokens(v); return this; }
+		public Builder tools(List<String> v) { delegate.tools(v); return this; }
+		public Builder allowedTools(List<String> v) { delegate.allowedTools(v); return this; }
+		public Builder disallowedTools(List<String> v) { delegate.disallowedTools(v); return this; }
+		public Builder permissionMode(PermissionMode v) { delegate.permissionMode(v); return this; }
+		public Builder maxTurns(Integer v) { delegate.maxTurns(v); return this; }
+		public Builder maxBudgetUsd(Double v) { delegate.maxBudgetUsd(v); return this; }
+		public Builder sessionId(String v) { delegate.sessionId(v); return this; }
+		public Builder bare(boolean v) { delegate.bare(v); return this; }
+		public Builder fallbackModel(String v) { delegate.fallbackModel(v); return this; }
+		public Builder mcpServer(String name, McpServerConfig v) { delegate.mcpServer(name, v); return this; }
+		public Builder mcpServers(Map<String, McpServerConfig> v) { delegate.mcpServers(v); return this; }
+		public SolonCodeClient build() {
+            // The legacy builder still declares SolonCodeSyncClient for now; its concrete
+            // implementation also supplies the internal session contract used here.
+            return new DefaultSolonCodeClient((SolonCodeSession) delegate.build());
+        }
+	}
+
+	Request prompt(String prompt);
+	void interrupt() throws org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
+	void setModel(String model) throws org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
+	void setPermissionMode(String mode) throws org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
+	CLIOptions getOptions();
+	String getCurrentModel();
+	String getCurrentPermissionMode();
+	Map<String, Object> getServerInfo();
+	boolean isConnected();
+	void setToolPermissionCallback(org.noear.soloncode.sdk.permission.ToolPermissionCallback callback);
+	org.noear.soloncode.sdk.permission.ToolPermissionCallback getToolPermissionCallback();
+	@Override
+	void close();
 
 }

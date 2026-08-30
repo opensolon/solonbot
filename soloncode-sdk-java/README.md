@@ -11,51 +11,37 @@ from [claude-agent-sdk-java](https://github.com/anthropics/claude-agent-sdk-java
 ## Quick Start
 
 ```java
-// Sync query（stdio 通道，默认）
-String answer = SolonCodeClient.sync()
-    .stdio()                              // 默认通道，可省略；等价于 .stdio("/usr/local/bin/soloncode")
-    .workingDirectory(Paths.get("."))
-    .model("sonnet")
-    .permissionMode(PermissionMode.DONT_ASK)
-    .bare(true)                            // CI 推荐：跳过技能/MCP/记忆自动发现
-    .maxTurns(10)
-    .query("总结最近一次提交的变更内容");
-```
-
-```java
-// HTTP 通道：同一组选项投递到服务端 /web/run（soloncode web 启动），SSE 接收同构事件流
-String answer = SolonCodeClient.sync()
-    .http("http://127.0.0.1:18080/web/run") // /web/run 完整 URL
-    .authToken(token)                       // 服务端 ~/.soloncode/run.token；缺省不带鉴权头
-    .workspace("my-project")               // 服务端工作区标识（替代 workingDirectory，两者互斥）
-    .query("总结最近一次提交的变更内容");
-```
-
-```java
-// 多轮对话：默认复用同一个 soloncode stream 进程和 AgentSession
-try (SolonCodeSyncClient client = SolonCodeClient.sync()
+// 统一入口：由 call() / stream() 选择执行方式，不再区分 SyncClient 与 AsyncClient
+try (SolonCodeClient client = SolonCodeClient.builder()
+        .stdio()                              // 默认复用一个常驻 soloncode stream 进程
         .workingDirectory(Paths.get("."))
-        .sessionId("my-task-001")          // 可选；不设则自动生成
+        .model("sonnet")
+        .permissionMode(PermissionMode.DONT_ASK)
+        .bare(true)
+        .maxTurns(10)
         .build()) {
-    client.connect();                      // 不启动进程，等首个 query
-    client.query("分析这个模块的结构");        // 第 1 轮：启动 stream 并写 JSONL user 帧
-    for (Message m : client.messages()) { /* ... */ }
+    QueryResult result = client.prompt("总结最近一次提交的变更内容").call();
+    System.out.println(result);
 
-    client.query("基于上面的分析写单元测试");    // 第 2 轮：复用进程，继续写 JSONL user 帧
-    for (Message m : client.messages()) { /* ... */ }
+    // 同一 client 的后续 prompt 是同一会话的下一轮
+    client.prompt("再用三句话解释").stream().subscribe(System.out::println);
 }
 ```
 
 ```java
-// Async streaming query
-SolonCodeAsyncClient client = SolonCodeClient.async()
-    .workingDirectory(Paths.get("."))
-    .bare(true)
-    .build();
-
-client.connect().block();
-client.query("重构日志模块").messages().subscribe(System.out::println);
+// HTTP 通道：统一入口同样由 call() / stream() 决定模式
+try (SolonCodeClient client = SolonCodeClient.builder()
+        .http("http://127.0.0.1:18080/web/run")
+        .authToken(token)
+        .workspace("my-project")
+        .build()) {
+    QueryResult result = client.prompt("总结最近一次提交的变更内容").call();
+}
 ```
+
+旧的 `SolonCodeClient.sync()` / `SolonCodeClient.async()` 工厂及其客户端类型暂时保留，
+用于迁移已有代码；新代码应优先使用上面的统一 request-oriented API。`call()` 是阻塞聚合，
+`stream()` 返回 Reactor `Flux`，两者共享同一套 prompt 语义。
 
 ## call() / stream()：prompt 风格入口
 
@@ -82,10 +68,9 @@ SolonCodeClient.sync()
 
 语义要点：
 
-- `stream()` 是**冷流**，每次订阅发起一次新执行；取消订阅即停止拉取并释放通道资源。
-- 执行在 `Schedulers.boundedElastic()` 上，不占调用方线程。
-- 异常统一包成 `SolonCodeSDKException`（已是该类型则原样抛出）；无论正常结束、异常还是取消，客户端都会关闭。
-- 旧的 `Query.stream(prompt)` 是「先跑完再把列表转成 Stream」的**伪流式**，为兼容保留；新代码用 `stream()`。
+- `SolonCodeClient.builder().prompt(...).stream()` 使用已构建 client 的会话，客户端由调用方负责关闭；正常结束、异常或取消不会自动关闭 client。
+- `SolonCode.prompt(...).stream()` 是兼容的单轮冷流，每次订阅发起一次新执行并在结束时释放临时客户端。
+- 旧的 `Query.stream(prompt)` 是「先跑完再把列表转成 Stream」的**伪流式**，为兼容保留；新代码用统一入口的 `stream()`。
 
 ## 两条通讯通道
 
@@ -204,9 +189,9 @@ soloncode CLI 的 `stream` 子命令支持 stdin JSON 双向协议；`run` 和 H
 | 3 | 未提供提示词 |
 | 4 | 超过 `--max-budget-usd` |
 
-> 需要 soloncode **v2026.8.29+**：更早版本的 `soloncode run` / `--version` 走 `Solon.stop()`，
+> 需要 soloncode **v2026.8.30+**：更早版本的 `soloncode run` / `--version` 走 `Solon.stop()`，
 > 而它内部固定 `System.exit(1)`，即便成功也返回退出码 1。若必须对接旧版 CLI，请以 `result`
-> 事件的 `is_error` 判定成功与否，不要依赖退出码。v2026.8.29 同时引入 `soloncode help`
+> 事件的 `is_error` 判定成功与否，不要依赖退出码。v2026.8.30 同时引入 `soloncode help`
 > 与 `soloncode run --help`，`CLIFlagParityIT` 以后者为基准校验 SDK 与 CLI 的选项对齐。
 
 ## 构建
