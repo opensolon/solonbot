@@ -14,6 +14,7 @@ import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
 import org.noear.solon.codecli.config.models.ModelsFetchException;
 import org.noear.solon.codecli.config.models.ModelsFetchReason;
+import org.noear.solon.codecli.config.models.ModelsHttp;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -472,10 +473,15 @@ public class LlmSettingController extends BaseSettingsController {
     @Mapping("/web/settings/llm/providers/fetch")
     public Result providersFetch(@Param("apiUrl") String apiUrl, @Param("apiKey") String apiKey, @Param("standard") String standard) {
         if (Assert.isEmpty(apiUrl)) {
-            return Result.failure("apiUrl is required");
+            return Result.failure("apiUrl is required",
+                    fetchErrorData(ModelsFetchReason.INVALID_URL.name(), 0));
         }
 
         try {
+            // 先校验用户填的地址：缺协议、拼错协议或带空白/全角字符时立即反馈，
+            // 否则会一路走到 HTTP 层白白耗掉一次超时，且提示不能指向地址本身
+            ModelsHttp.requireHttpUrl(apiUrl.trim(), "Settings");
+
             // 使用 ModelsAdapterManager 获取对应的提供商
             ModelsAdapter provider = modelsAdapterManager.getAdapter(standard);
             String baseUrl = provider.deriveBaseUrl(apiUrl);

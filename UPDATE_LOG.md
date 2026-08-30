@@ -3,6 +3,7 @@
 
 * 添加 soloncode web 输入超大提示（100K）
 * 优化 soloncode web 供应商拉取失败的提示
+* 优化 soloncode-sdk-java 模块
 * 细节优化
 
 ### v2026.8.30

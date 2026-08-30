@@ -367,13 +367,20 @@
     }
 
     // 后端拉取失败原因 -> 提示文案：404 类“不支持列表接口”与“拉取失败”处置方式不同，不能共用一句提示
+    // 地址填错的表现有多种（域名不存在、端口无监听、连得上不响应、协议写反），处置动作不同，需分开提示
     var FETCH_REASON_TIPS = {
+        INVALID_URL: { key: 'provider.fetchInvalidUrl', icon: 0, time: 5000 },
         NOT_SUPPORTED: { key: 'provider.fetchNotSupported', icon: 0, time: 5000 },
         AUTH_FAILED: { key: 'provider.fetchAuthFailed', icon: 2, time: 4000 },
         RATE_LIMITED: { key: 'provider.fetchRateLimited', icon: 0, time: 4000 },
         UPSTREAM_ERROR: { key: 'provider.fetchUpstreamError', icon: 2, time: 4000 },
         BAD_STATUS: { key: 'provider.fetchBadStatus', icon: 2, time: 4500 },
+        CONNECT_TIMEOUT: { key: 'provider.fetchConnectTimeout', icon: 2, time: 5000 },
+        READ_TIMEOUT: { key: 'provider.fetchReadTimeout', icon: 2, time: 4500 },
         TIMEOUT: { key: 'provider.fetchTimeout', icon: 2, time: 4000 },
+        DNS_FAILED: { key: 'provider.fetchDnsFailed', icon: 2, time: 5000 },
+        CONNECT_REFUSED: { key: 'provider.fetchConnectRefused', icon: 2, time: 5000 },
+        TLS_ERROR: { key: 'provider.fetchTlsError', icon: 2, time: 5000 },
         NETWORK_ERROR: { key: 'provider.fetchNetworkError', icon: 2, time: 4500 },
         INVALID_RESPONSE: { key: 'provider.fetchInvalidResponse', icon: 2, time: 4500 },
         UNKNOWN: { key: 'provider.fetchListFailedKeepExisting', icon: 2, time: 4000 }
@@ -417,6 +424,14 @@
     }
 
 
+    // 地址明显非法时不用发请求：缺协议、协议拼错、粘贴带空白或全角字符都属于可即时判定的情况
+    function isHttpUrl(value) {
+        if (!/^https?:\/\//i.test(value)) return false;
+        if (/[\s\u3000\uFF1A\uFF0F]/.test(value)) return false;
+        var host = value.replace(/^https?:\/\//i, '').split(/[\/?#]/)[0];
+        return host.length > 0;
+    }
+
     function fetchModels() {
         var apiUrl = String($('#providerApiUrl').val() || '').trim();
         var apiKey = $('#providerApiKey').val();
@@ -424,6 +439,10 @@
 
         if (!apiUrl) {
             layui.layer.msg(I18n.t('provider.apiUrlRequired'), { icon: 0, time: 2200, offset: '120px' });
+            return;
+        }
+        if (!isHttpUrl(apiUrl)) {
+            layui.layer.msg(I18n.t('provider.fetchInvalidUrl'), { icon: 0, time: 4000, offset: '120px' });
             return;
         }
 

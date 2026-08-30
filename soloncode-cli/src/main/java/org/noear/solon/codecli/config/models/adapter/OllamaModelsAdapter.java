@@ -38,12 +38,12 @@ public class OllamaModelsAdapter implements ModelsAdapter {
     @Override
     public List<ModelInfo> fetchModels(String userAgent, String baseUrl, Map<String, String> headers, String apiKey) {
         String modelsUrl = baseUrl + "/api/tags";
+        // 地址非法时立即失败，不必白等一轮连接超时
+        ModelsHttp.requireHttpUrl(modelsUrl, "Ollama");
         List<ModelInfo> result = new ArrayList<>();
 
         try {
-            HttpUtils http = HttpUtils.http(modelsUrl)
-                    .userAgent(userAgent)
-                    .timeout(15);
+            HttpUtils http = ModelsHttp.create(modelsUrl, userAgent);
             ProxyConfig.applyIfNeeded(http);
 
             if (headers != null) {

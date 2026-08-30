@@ -17,8 +17,10 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /**
  * /web/run 控制器 —— soloncode run 的 HTTP/SSE 远程执行入口。
@@ -116,14 +118,18 @@ public class RunController {
 
         try {
             if (stream) {
+                // SSE 在后台执行；会话必须一直登记到子进程和 SSE 都结束，不能在此处提前注销。
                 return startStreamRun(ctx, req, runHandle, lockSessionId);
             } else {
-                return runBlocking(ctx, req, runHandle, lockSessionId);
+                try {
+                    return runBlocking(ctx, req, runHandle, lockSessionId);
+                } finally {
+                    unregister(lockSessionId);
+                }
             }
-        } finally {
-            if (lockSessionId != null) {
-                RunSessionRegistry.getInstance().unregister(lockSessionId);
-            }
+        } catch (RuntimeException e) {
+            unregister(lockSessionId);
+            throw e;
         }
     }
 
@@ -136,6 +142,16 @@ public class RunController {
         if (!verifyToken(ctx)) {
             ctx.status(401);
             return Result.failure(401, "Missing or invalid bearer token");
+        }
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            try {
+                String raw = ctx.body();
+                if (raw != null && !raw.trim().isEmpty()) {
+                    sessionId = ONode.ofJson(raw).get("session_id").getString();
+                }
+            } catch (Exception ignored) {
+                // Keep the normal validation response below for malformed bodies.
+            }
         }
         if (sessionId == null || sessionId.trim().isEmpty()) {
             return badRequestResult(ctx, "session_id is required");
@@ -199,36 +215,42 @@ public class RunController {
     private SseEmitter startStreamRun(Context ctx, RunRequestService.NormalizedRequest req,
                                       RunSessionRegistry.RunHandle handle, String lockSessionId) {
         // SseEmitter 在 onInited 后才可 send；return 之前不能发消息
+        final CountDownLatch emitterReady = new CountDownLatch(1);
         SseEmitter emitter = new SseEmitter(0L) // 0L = 默认超时（异步）
+                .onInited(s -> emitterReady.countDown())
                 .onError(t -> LOG.warn("[web/run] SSE error: {}", t.getMessage()))
-                .onCompletion(() -> LOG.debug("[web/run] SSE completed"));
+                .onCompletion(() -> {
+                    if (handle != null) {
+                        handle.cancel();
+                    }
+                    unregister(lockSessionId);
+                    LOG.debug("[web/run] SSE completed");
+                });
 
         runExecutor.submit(() -> {
             String lastSessionId = null;
             int exitCode = -1;
             try {
-                ProcessAndOutput result = execSubprocess(req, handle);
+                emitterReady.await();
+                ProcessAndOutput result = execSubprocess(req, handle, line -> {
+                    if (line.trim().isEmpty()) return;
+                    emitter.send(new SseEvent().name("message").data(line));
+                });
                 exitCode = result.exitCode;
                 lastSessionId = result.lastSessionId;
 
-                boolean sentResult = false;
-                for (String line : result.lines) {
-                    if (line.trim().isEmpty()) continue;
-                    emitter.send(new SseEvent().name("message").data(line));
-                    if (line.contains("\"type\":\"result\"")) {
-                        sentResult = true;
-                    }
-                }
-
-                // 子进程异常退出（非 0/2/4）且流中没有 result 事件 → 补 error 事件再关闭
+                // 正常情况下 CLI 已输出 result；异常退出且没有终态时补充协议错误。
                 boolean abnormalExit = exitCode != PrintModeExitCodes.EXIT_SUCCESS
                         && exitCode != PrintModeExitCodes.EXIT_MAX_TURNS
                         && exitCode != PrintModeExitCodes.EXIT_BUDGET_EXCEEDED;
-                if (abnormalExit && !sentResult) {
+                if (abnormalExit && !result.resultSent) {
                     emitter.send(new SseEvent().name("message").data(
                             "{\"type\":\"error\",\"message\":\"Run failed with exit code " + exitCode
                                     + "\",\"code\":\"ERR_SUBPROCESS\"}"));
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOG.warn("[web/run] Stream worker interrupted");
             } catch (Exception e) {
                 LOG.error("[web/run] Stream run failed: {}", e.getMessage(), e);
                 try {
@@ -239,6 +261,7 @@ public class RunController {
                 }
             } finally {
                 audit("run-stream", ctx, req, lastSessionId, lockSessionId, exitCode);
+                unregister(lockSessionId);
                 emitter.complete();
             }
         });
@@ -253,6 +276,7 @@ public class RunController {
         String stdout = "";
         List<String> lines = new ArrayList<>();
         String lastSessionId;
+        boolean resultSent;
     }
 
     /**
@@ -260,7 +284,30 @@ public class RunController {
      * stdout 逐行读取（stream-json 每行一个事件；text/json 即最终载荷）。
      */
     private ProcessAndOutput execSubprocess(RunRequestService.NormalizedRequest req,
-                                            RunSessionRegistry.RunHandle handle) throws Exception {
+                                             RunSessionRegistry.RunHandle handle) throws Exception {
+        ProcessAndOutput out = new ProcessAndOutput();
+        StringBuilder sb = new StringBuilder();
+        execSubprocess(req, handle, line -> {
+            // The streaming overload already records the line; this callback only
+            // keeps the blocking aggregate path's output representation.
+        }, out, sb);
+        out.stdout = sb.toString();
+        return out;
+    }
+
+    private ProcessAndOutput execSubprocess(RunRequestService.NormalizedRequest req,
+                                             RunSessionRegistry.RunHandle handle,
+                                             Consumer<String> lineConsumer) throws Exception {
+        ProcessAndOutput out = new ProcessAndOutput();
+        execSubprocess(req, handle, lineConsumer, out, new StringBuilder());
+        return out;
+    }
+
+    private void execSubprocess(RunRequestService.NormalizedRequest req,
+                                RunSessionRegistry.RunHandle handle,
+                                Consumer<String> lineConsumer,
+                                ProcessAndOutput out,
+                                StringBuilder stdout) throws Exception {
         List<String> command = new ArrayList<>();
         command.add(javaBin());
         // fat jar 部署（BOOT-INF/classes）下 -cp 找不到主类，须走 -jar；
@@ -293,31 +340,55 @@ public class RunController {
         pb.environment().putIfAbsent("SOLONCODE_ENTRYPOINT", "web-run");
 
         Process process = pb.start();
+        // stderr must be drained independently; otherwise a verbose child can block
+        // after filling the OS error pipe while stdout is being streamed.
+        Thread errorDrainer = new Thread(() -> drain(process.getErrorStream()), "soloncode-web-run-stderr");
+        errorDrainer.setDaemon(true);
+        errorDrainer.start();
         if (handle != null) {
             handle.attach(process);
         }
 
-        ProcessAndOutput out = new ProcessAndOutput();
-        StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 out.lines.add(line);
-                sb.append(line).append('\n');
+                stdout.append(line).append('\n');
                 String sid = extractSessionId(line);
                 if (sid != null) {
                     out.lastSessionId = sid;
                 }
+                if (isResultLine(line)) {
+                    out.resultSent = true;
+                }
+                lineConsumer.accept(line);
             }
         } finally {
-            out.stdout = sb.toString();
+            out.stdout = stdout.toString();
             out.exitCode = process.waitFor();
         }
-        return out;
     }
 
-    /** 退出码常量（与 PrintMode 保持数值一致；子进程隔离，这里独立声明避免拉入 PrintMode 依赖） */
+    private static boolean isResultLine(String line) {
+        return line != null && line.replace(" ", "").contains("\"type\":\"result\"");
+    }
+
+    private static void drain(java.io.InputStream input) {
+        byte[] buffer = new byte[1024];
+        try {
+            while (input.read(buffer) >= 0) {
+                // stderr is intentionally not mixed into the JSONL protocol.
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void unregister(String sessionId) {
+        if (sessionId != null) {
+            RunSessionRegistry.getInstance().unregister(sessionId);
+        }
+    }
     static class PrintModeExitCodes {
         static final int EXIT_SUCCESS = 0;
         static final int EXIT_ERROR = 1;

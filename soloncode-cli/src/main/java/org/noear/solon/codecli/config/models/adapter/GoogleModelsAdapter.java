@@ -57,13 +57,13 @@ public class GoogleModelsAdapter implements ModelsAdapter {
     public List<ModelInfo> fetchModels(String userAgent, String baseUrl, Map<String, String> headers, String apiKey) {
         // 密钥只走请求头，不拼进 URL：URL 可能被日志、异常消息或代理记录下来
         String modelsUrl = buildModelsUrl(baseUrl);
+        // 地址非法时立即失败，不必白等一轮连接超时
+        ModelsHttp.requireHttpUrl(modelsUrl, "Google");
 
         List<ModelInfo> result = new ArrayList<>();
 
         try {
-            HttpUtils http = HttpUtils.http(modelsUrl)
-                    .userAgent(userAgent)
-                    .timeout(15);
+            HttpUtils http = ModelsHttp.create(modelsUrl, userAgent);
             ProxyConfig.applyIfNeeded(http);
 
             if (headers != null) {
