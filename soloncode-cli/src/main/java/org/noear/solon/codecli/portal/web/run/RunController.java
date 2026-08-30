@@ -7,6 +7,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
+import org.noear.solon.core.util.RunUtil;
 import org.noear.solon.web.sse.SseEmitter;
 import org.noear.solon.web.sse.SseEvent;
 import org.slf4j.Logger;
@@ -234,7 +235,9 @@ public class RunController {
                 emitterReady.await();
                 ProcessAndOutput result = execSubprocess(req, handle, line -> {
                     if (line.trim().isEmpty()) return;
-                    emitter.send(new SseEvent().name("message").data(line));
+                    RunUtil.runAndTry(() -> {
+                        emitter.send(new SseEvent().name("message").data(line));
+                    });
                 });
                 exitCode = result.exitCode;
                 lastSessionId = result.lastSessionId;

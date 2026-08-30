@@ -9,7 +9,6 @@ import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.channel.Channel;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
-import org.noear.solon.codecli.portal.web.pipeline.ChannelBroadcastSink;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
 import org.noear.solon.ai.talents.lsp.LspCheckState;
 import org.noear.solon.codecli.portal.web.pipeline.ToolPresentationFilter;
@@ -20,8 +19,6 @@ import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.core.util.Assert;
 import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -32,7 +29,6 @@ import java.util.function.Function;
 @Slf4j
 public class WebStreamBuilder {
     private final WebGate webGate;
-    private final ChannelBroadcastSink broadcastSink = new ChannelBroadcastSink();
 
     public WebStreamBuilder(WebGate webGate) {
         this.webGate = webGate;
@@ -43,7 +39,15 @@ public class WebStreamBuilder {
     }
 
     public void replyToBoundChannel(WorkspaceContext wsContext, String sessionId, String text, boolean isFinal) {
-        broadcastSink.replyToBoundChannel(wsContext.getChannelHub(), sessionId, text, isFinal);
+        if (sessionId == null) {
+            return;
+        }
+
+        for (Channel link : wsContext.getChannelHub().getImLinks()) {
+            if (link.isBound(sessionId)) {
+                link.sendReply(sessionId, text, isFinal);
+            }
+        }
     }
 
     /**
@@ -153,7 +157,6 @@ public class WebStreamBuilder {
                 .filter(WebEvent::isNotEmpty)
                 .map(toolFilter::apply)
                 .map(uiRenderFilter::apply)
-                .doOnNext(event -> broadcastSink.broadcast(wsContext.getChannelHub(), event))
                 .doOnNext(metricsRecorder::record)
                 .onErrorResume(e -> {
                     log.error("Stream execution error", e);
