@@ -179,8 +179,8 @@ public final class ResultMessage implements Message {
 			return new Usage(0, 0, 0);
 		}
 
-		int inputTokens = getIntFromUsage("input_tokens", 0);
-		int outputTokens = getIntFromUsage("output_tokens", 0);
+		int inputTokens = getIntFromUsage("input_tokens", getIntFromUsage("prompt_tokens", 0));
+		int outputTokens = getIntFromUsage("output_tokens", getIntFromUsage("completion_tokens", 0));
 		int thinkingTokens = getIntFromUsage("thinking_tokens", 0);
 		int cacheCreationInputTokens = getIntFromUsage("cache_creation_input_tokens", 0);
 		int cacheReadInputTokens = getIntFromUsage("cache_read_input_tokens", 0);
@@ -358,12 +358,14 @@ public final class ResultMessage implements Message {
 				&& numTurns == that.numTurns && Objects.equals(subtype, that.subtype)
 				&& Objects.equals(sessionId, that.sessionId) && Objects.equals(totalCostUsd, that.totalCostUsd)
 				&& Objects.equals(usage, that.usage) && Objects.equals(result, that.result)
-				&& Objects.equals(structuredOutput, that.structuredOutput);
+				&& Objects.equals(structuredOutput, that.structuredOutput)
+				&& Objects.equals(budgetLimitUsd, that.budgetLimitUsd)
+				&& Objects.equals(budgetExceeded, that.budgetExceeded);
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(subtype, durationMs, durationApiMs, isError, numTurns, sessionId, totalCostUsd, usage,
-				result, structuredOutput);
+				result, structuredOutput, budgetLimitUsd, budgetExceeded);
 	}
 }

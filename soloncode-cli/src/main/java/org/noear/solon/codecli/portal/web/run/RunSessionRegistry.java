@@ -74,11 +74,21 @@ public class RunSessionRegistry {
     }
 
     /**
-     * 注销执行（finally 语义）
+     * 注销执行（兼容测试及非异步调用方）。异步完成路径应优先使用带句柄的重载。
      */
     public void unregister(String sessionId) {
         if (sessionId != null) {
             activeRuns.remove(sessionId);
+        }
+    }
+
+    /**
+     * 按句柄注销执行。只有登记表中仍是同一轮执行时才移除，避免旧任务的 finally
+     * 误删新一轮同 session 的登记。
+     */
+    public void unregister(String sessionId, RunHandle handle) {
+        if (sessionId != null && handle != null) {
+            activeRuns.remove(sessionId, handle);
         }
     }
 

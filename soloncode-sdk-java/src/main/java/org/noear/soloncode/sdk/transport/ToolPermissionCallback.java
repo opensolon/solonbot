@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * // Read-only mode - only allow specific tools
  * ToolPermissionCallback readOnly = ToolPermissionCallback.allowList(
- *     Set.of("Read", "Glob", "Grep", "WebFetch"));
+ *     new java.util.HashSet<String>(java.util.Arrays.asList("Read", "Glob", "Grep", "WebFetch")));
  *
  * // Custom logic
  * ToolPermissionCallback custom = (tool, input, ctx) -> {

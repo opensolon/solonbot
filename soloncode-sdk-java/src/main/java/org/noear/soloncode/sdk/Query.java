@@ -52,7 +52,8 @@ import java.util.stream.Stream;
  *
  * // Iterate over messages (for streaming-style processing)
  * for (Message msg : Query.query("Explain recursion")) {
- *     if (msg instanceof AssistantMessage assistant) {
+ *     if (msg instanceof AssistantMessage) {
+ *         AssistantMessage assistant = (AssistantMessage) msg;
  *         assistant.getTextContent().ifPresent(System.out::print);
  *     }
  * }
@@ -124,7 +125,8 @@ public class Query {
 	 *
 	 * <pre>{@code
 	 * for (Message msg : Query.query("Explain recursion")) {
-	 *     if (msg instanceof AssistantMessage assistant) {
+	 *     if (msg instanceof AssistantMessage) {
+ *         AssistantMessage assistant = (AssistantMessage) msg;
 	 *         assistant.getTextContent().ifPresent(System.out::print);
 	 *     }
 	 * }
@@ -316,6 +318,14 @@ public class Query {
 			if (rm.isError()) {
 				return ResultStatus.ERROR;
 			}
+		}
+
+		boolean hasTerminalError = messages.stream()
+				.filter(m -> m instanceof SystemMessage)
+				.map(m -> (SystemMessage) m)
+				.anyMatch(m -> "error".equals(m.subtype()));
+		if (hasTerminalError) {
+			return ResultStatus.ERROR;
 		}
 
 		// Check if we have any messages at all

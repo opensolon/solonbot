@@ -133,6 +133,9 @@ public class JsonResultParser {
 			.usage(usage)
 			.result(result)
 			.structuredOutput(structuredOutput)
+			.budgetLimitUsd(getDoubleField(node, "budget_limit_usd"))
+			.budgetExceeded(SdkJson.hasField(node, "budget_exceeded")
+					? getBooleanField(node, "budget_exceeded", false) : null)
 			.build();
 	}
 

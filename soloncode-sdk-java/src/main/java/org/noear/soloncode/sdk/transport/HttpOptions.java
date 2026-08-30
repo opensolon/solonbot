@@ -486,6 +486,10 @@ public final class HttpOptions {
 		if (proxyAuthHeader != null && proxyHost == null) {
 			throw new IllegalArgumentException("proxyAuth requires a proxy (call proxy(host, port) first)");
 		}
+		if (proxyAuthHeader != null && proxyType == ProxyType.SOCKS) {
+			throw new IllegalArgumentException(
+					"proxyAuth is only supported for HTTP proxies; configure SOCKS authentication with a JVM Authenticator");
+		}
 		if (trustAll && trustStorePath != null) {
 			throw new IllegalArgumentException("trustAll and trustStore are mutually exclusive");
 		}

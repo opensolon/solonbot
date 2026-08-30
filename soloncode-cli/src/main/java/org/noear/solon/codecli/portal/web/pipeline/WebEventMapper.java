@@ -294,9 +294,7 @@ public class WebEventMapper {
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
         ReActTrace trace = event.getTrace();
         String sessionId = session.getSessionId();
-        String resultContent = event.getAssistantMessage().getResultContent();
-
-        Metrics metrics = trace.getMetrics();
+        String resultContent = event.getAssistantMessage().getText();
 
         if (Assert.isNotEmpty(resultContent)) {
             // 向所有已绑定的 IM 通道回复
@@ -318,6 +316,8 @@ public class WebEventMapper {
             }
         }
 
+
+//        Metrics metrics = trace.getMetrics();
 //        if (metrics != null) {
 //            double cacheRate = metrics.getCacheRate();
 //            if (cacheRate > 0) {

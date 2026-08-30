@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -248,6 +249,58 @@ class SolonCodeRequestDescTest {
 		}
 		assertThat(stopped).as("iterator should stop being pulled after cancel").isTrue();
 		assertThat(firstSeen).isTrue();
+	}
+
+	@Test
+	void streamCancellationInterruptsBlockedClientAndClosesOnce() throws Exception {
+		CountDownLatch enteredHasNext = new CountDownLatch(1);
+		CountDownLatch releaseHasNext = new CountDownLatch(1);
+		CountDownLatch closed = new CountDownLatch(1);
+		AtomicBoolean errored = new AtomicBoolean();
+
+		Iterator<ParsedMessage> blocked = new Iterator<ParsedMessage>() {
+			@Override
+			public boolean hasNext() {
+				enteredHasNext.countDown();
+				try {
+					releaseHasNext.await();
+					return false;
+				}
+				catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return false;
+				}
+			}
+
+			@Override
+			public ParsedMessage next() {
+				throw new UnsupportedOperationException("no message expected");
+			}
+		};
+
+		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		when(client.receiveResponse()).thenReturn(blocked);
+		doAnswer(invocation -> {
+			releaseHasNext.countDown();
+			return null;
+		}).when(client).interrupt();
+		doAnswer(invocation -> {
+			closed.countDown();
+			return null;
+		}).when(client).close();
+
+		Disposable sub = new DefaultSolonCodeRequestDesc("long task", options -> client).stream()
+			.subscribe(message -> {
+			}, error -> errored.set(true));
+
+		assertThat(enteredHasNext.await(5, TimeUnit.SECONDS)).isTrue();
+		sub.dispose();
+
+		assertThat(closed.await(5, TimeUnit.SECONDS)).as("client should close after cancellation").isTrue();
+		verify(client, times(1)).interrupt();
+		verify(client, times(1)).close();
+		verify(client, times(1)).connect("long task");
+		assertThat(errored).as("cancellation must not surface an error").isFalse();
 	}
 
 	@Test

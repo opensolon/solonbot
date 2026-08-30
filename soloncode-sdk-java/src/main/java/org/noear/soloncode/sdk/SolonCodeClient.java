@@ -45,14 +45,14 @@ import java.util.Map;
  * </p>
  * <pre>{@code
  * try (SolonCodeSyncClient client = SolonCodeClient.sync()
- *         .workingDirectory(Path.of("."))
+ *         .workingDirectory(java.nio.file.Paths.get("."))
  *         .model("sonnet")
  *         .systemPrompt("Be concise")
  *         .timeout(Duration.ofMinutes(5))
  *         .build()) {
  *
  *     client.connect("Hello!");
- *     for (var msg : client.receiveResponse()) {
+ *     for (ParsedMessage msg : client.receiveResponse()) {
  *         // Process response
  *     }
  * }
@@ -69,7 +69,7 @@ import java.util.Map;
  *     .build();
  *
  * try (SolonCodeSyncClient client = SolonCodeClient.sync(options)
- *         .workingDirectory(Path.of("."))
+ *         .workingDirectory(java.nio.file.Paths.get("."))
  *         .timeout(Duration.ofMinutes(5))
  *         .build()) {
  *     // Only session-level config available, CLI options already set
@@ -87,7 +87,7 @@ import java.util.Map;
  * });
  *
  * try (SolonCodeSyncClient client = SolonCodeClient.sync()
- *         .workingDirectory(Path.of("."))
+ *         .workingDirectory(java.nio.file.Paths.get("."))
  *         .hookRegistry(hooks)
  *         .build()) {
  *     // Hooks intercept tool usage
@@ -191,11 +191,9 @@ public interface SolonCodeClient extends AutoCloseable {
 	 *
 	 * <h2>Example</h2> <pre>{@code
 	 * SolonCodeSyncClient client = SolonCodeClient.sync()
-	 *     .workingDirectory(Path.of("."))
-	 *     .model("sonnet")
-	 *     .systemPrompt("You are a helpful assistant")
-	 *     .maxTokens(4096)
-	 *     .timeout(Duration.ofMinutes(5))
+	 *     .workingDirectory(java.nio.file.Paths.get("."))
+ *     .model("sonnet")
+ *     .timeout(Duration.ofMinutes(5))
 	 *     .build();
 	 * }</pre>
 	 *
@@ -545,8 +543,8 @@ public interface SolonCodeClient extends AutoCloseable {
 		 * @return 请求描述
 		 */
 		public SolonCodeRequestDesc prompt(String prompt) {
-			// 通道与凭证由 builder 已经配好；这里只在每次执行时建一个新 client
-			return new DefaultSolonCodeRequestDesc(prompt, options -> build());
+			return new DefaultSolonCodeRequestDesc(prompt,
+					options -> (SolonCodeSyncClient) buildForRequest(options));
 		}
 
 		/**
@@ -555,30 +553,13 @@ public interface SolonCodeClient extends AutoCloseable {
 		 * @throws IllegalArgumentException if workingDirectory is not set
 		 */
 		public SolonCodeSyncClient build() {
-			if (transportSpec.isHttp()) {
-				// http 通道：workspace 标识替代 workingDirectory，互斥校验在 builder 层
-				if (workingDirectory != null) {
-					throw new IllegalArgumentException(
-							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
-				}
-				if (authToken != null || httpWorkspace != null) {
-					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
-				}
-				if (httpOptions != null) {
-					transportSpec = transportSpec.withHttpOptions(httpOptions);
-				}
-			}
-			else {
-				if (httpOptions != null) {
-					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
-				}
-				if (workingDirectory == null) {
-					throw new IllegalArgumentException("workingDirectory is required");
-				}
-			}
+			TransportSpec effectiveTransport = resolveTransport(workingDirectory);
+			return new DefaultSolonCodeSyncClient(workingDirectory, buildOptions(), timeout, effectiveTransport,
+					hookRegistry);
+		}
 
-			// Build CLIOptions from individual settings
-			CLIOptions options = CLIOptions.builder()
+		private CLIOptions buildOptions() {
+			return CLIOptions.builder()
 				.model(model)
 				.systemPrompt(systemPrompt)
 				.appendSystemPrompt(appendSystemPrompt)
@@ -595,40 +576,50 @@ public interface SolonCodeClient extends AutoCloseable {
 				.bare(bare)
 				.fallbackModel(fallbackModel)
 				.build();
-
-			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
-
-		/** Builds the unified client's first session with request-scoped options. */
-		SolonCodeSession buildForRequest(QueryOptions requestOptions) {
-			if (requestOptions == null) {
-				return (SolonCodeSession) build();
-			}
+		private TransportSpec resolveTransport(Path effectiveDirectory) {
+			TransportSpec effectiveTransport = transportSpec;
 			if (transportSpec.isHttp()) {
-				if (workingDirectory != null) {
-					throw new IllegalArgumentException("workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				if (effectiveDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
 				}
 				if (authToken != null || httpWorkspace != null) {
-					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+					effectiveTransport = effectiveTransport.withHttpCredentials(authToken, httpWorkspace);
 				}
 				if (httpOptions != null) {
-					transportSpec = transportSpec.withHttpOptions(httpOptions);
+					effectiveTransport = effectiveTransport.withHttpOptions(httpOptions);
 				}
 			}
 			else {
 				if (httpOptions != null) {
 					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
 				}
-				Path requestDirectory = workingDirectory != null ? workingDirectory : requestOptions.workingDirectory();
-				if (requestDirectory == null) {
+				if (effectiveDirectory == null) {
 					throw new IllegalArgumentException("workingDirectory is required");
 				}
-				return new DefaultSolonCodeSyncClient(requestDirectory, requestOptions.toCLIOptions(),
-						timeout, transportSpec, hookRegistry);
 			}
-			return new DefaultSolonCodeSyncClient(null, requestOptions.toCLIOptions(),
-					timeout, transportSpec, hookRegistry);
+			return effectiveTransport;
+		}
+
+		/** Builds the unified client's first session with request-scoped overrides. */
+		SolonCodeSession buildForRequest(QueryOptions requestOptions) {
+			CLIOptions base = buildOptions();
+			CLIOptions effectiveOptions = requestOptions == null ? base : requestOptions.mergeInto(base);
+			Path effectiveDirectory = workingDirectory;
+			Duration effectiveTimeout = timeout;
+			if (requestOptions != null) {
+				if (requestOptions.isExplicit("workingDirectory")) {
+					effectiveDirectory = requestOptions.workingDirectory();
+				}
+				if (requestOptions.isExplicit("timeout")) {
+					effectiveTimeout = requestOptions.timeout();
+				}
+			}
+			TransportSpec effectiveTransport = resolveTransport(effectiveDirectory);
+			return new DefaultSolonCodeSyncClient(effectiveDirectory, effectiveOptions, effectiveTimeout,
+					effectiveTransport, hookRegistry);
 		}
 	}
 
@@ -675,7 +666,7 @@ public interface SolonCodeClient extends AutoCloseable {
 	 *
 	 * // Build client with pre-configured options
 	 * SolonCodeSyncClient client = SolonCodeClient.sync(options)
-	 *     .workingDirectory(Path.of("."))
+	 *     .workingDirectory(java.nio.file.Paths.get("."))
 	 *     .timeout(Duration.ofMinutes(5))
 	 *     .build();
 	 * }</pre>
@@ -794,7 +785,44 @@ public interface SolonCodeClient extends AutoCloseable {
 		 * @return 请求描述，用 call() / stream() 收束
 		 */
 		public SolonCodeRequestDesc prompt(String prompt) {
-			return new DefaultSolonCodeRequestDesc(prompt, options -> build());
+			return new DefaultSolonCodeRequestDesc(prompt, this::buildForRequest);
+		}
+
+		SolonCodeSyncClient buildForRequest(QueryOptions requestOptions) {
+			CLIOptions effectiveOptions = requestOptions == null ? options : requestOptions.mergeInto(options);
+			Path effectiveDirectory = workingDirectory;
+			Duration effectiveTimeout = timeout;
+			if (requestOptions != null) {
+				if (requestOptions.isExplicit("workingDirectory")) {
+					effectiveDirectory = requestOptions.workingDirectory();
+				}
+				if (requestOptions.isExplicit("timeout")) {
+					effectiveTimeout = requestOptions.timeout();
+				}
+			}
+			TransportSpec effectiveTransport = transportSpec;
+			if (transportSpec.isHttp()) {
+				if (effectiveDirectory != null) {
+					throw new IllegalArgumentException(
+							"workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					effectiveTransport = effectiveTransport.withHttpCredentials(authToken, httpWorkspace);
+				}
+				if (httpOptions != null) {
+					effectiveTransport = effectiveTransport.withHttpOptions(httpOptions);
+				}
+			}
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				if (effectiveDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
+			}
+			return new DefaultSolonCodeSyncClient(effectiveDirectory, effectiveOptions, effectiveTimeout,
+					effectiveTransport, hookRegistry);
 		}
 
 		/**
@@ -886,7 +914,7 @@ public interface SolonCodeClient extends AutoCloseable {
 	 *
 	 * <h2>Example</h2> <pre>{@code
 	 * SolonCodeAsyncClient client = SolonCodeClient.async()
-	 *     .workingDirectory(Path.of("."))
+	 *     .workingDirectory(java.nio.file.Paths.get("."))
 	 *     .model("sonnet")
 	 *     .systemPrompt("You are a helpful assistant")
 	 *     .timeout(Duration.ofMinutes(5))
@@ -1163,7 +1191,7 @@ public interface SolonCodeClient extends AutoCloseable {
 	 *     .build();
 	 *
 	 * SolonCodeAsyncClient client = SolonCodeClient.async(options)
-	 *     .workingDirectory(Path.of("."))
+	 *     .workingDirectory(java.nio.file.Paths.get("."))
 	 *     .timeout(Duration.ofMinutes(5))
 	 *     .build();
 	 * }</pre>

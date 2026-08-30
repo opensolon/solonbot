@@ -67,7 +67,7 @@ class HttpTransportHeaderTest {
 		server.createContext("/web/run/interrupt", exchange -> {
 			interruptHeaders.add(snapshot(exchange));
 			drain(exchange);
-			exchange.sendResponseHeaders(200, -1);
+			exchange.sendResponseHeaders(202, -1);
 			exchange.close();
 			interruptHit.countDown();
 		});

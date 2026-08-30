@@ -26,9 +26,14 @@ import org.noear.soloncode.sdk.util.SdkCollections;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Simplified configuration options for one-shot queries. This class provides a minimal
@@ -95,10 +100,22 @@ public final class QueryOptions {
 
 	private final boolean bare;
 
+	/** Fields explicitly supplied through the builder; defaults are not request overrides. */
+	private final Set<String> explicitFields;
+
 	public QueryOptions(String model, String systemPrompt, String appendSystemPrompt, Duration timeout,
 			List<String> allowedTools, List<String> disallowedTools, Integer maxTurns, Double maxBudgetUsd,
 			Path workingDirectory, Integer maxTokens, Integer maxThinkingTokens, String fallbackModel,
 			Map<String, Object> jsonSchema, String sessionId, boolean bare) {
+		this(model, systemPrompt, appendSystemPrompt, timeout, allowedTools, disallowedTools, maxTurns, maxBudgetUsd,
+				workingDirectory, maxTokens, maxThinkingTokens, fallbackModel, jsonSchema, sessionId, bare,
+				allFieldNames());
+	}
+
+	private QueryOptions(String model, String systemPrompt, String appendSystemPrompt, Duration timeout,
+			List<String> allowedTools, List<String> disallowedTools, Integer maxTurns, Double maxBudgetUsd,
+			Path workingDirectory, Integer maxTokens, Integer maxThinkingTokens, String fallbackModel,
+			Map<String, Object> jsonSchema, String sessionId, boolean bare, Set<String> explicitFields) {
 		if (timeout == null) {
 			timeout = DEFAULT_TIMEOUT;
 		}
@@ -115,17 +132,18 @@ public final class QueryOptions {
 		this.systemPrompt = systemPrompt;
 		this.appendSystemPrompt = appendSystemPrompt;
 		this.timeout = timeout;
-		this.allowedTools = allowedTools;
-		this.disallowedTools = disallowedTools;
+		this.allowedTools = SdkCollections.copyList(allowedTools);
+		this.disallowedTools = SdkCollections.copyList(disallowedTools);
 		this.maxTurns = maxTurns;
 		this.maxBudgetUsd = maxBudgetUsd;
 		this.workingDirectory = workingDirectory;
 		this.maxTokens = maxTokens;
 		this.maxThinkingTokens = maxThinkingTokens;
 		this.fallbackModel = fallbackModel;
-		this.jsonSchema = jsonSchema;
+		this.jsonSchema = immutableJsonMap(jsonSchema);
 		this.sessionId = sessionId;
 		this.bare = bare;
+		this.explicitFields = Collections.unmodifiableSet(new LinkedHashSet<>(explicitFields));
 	}
 
 	public String model() {
@@ -188,6 +206,14 @@ public final class QueryOptions {
 		return bare;
 	}
 
+	boolean isExplicit(String field) {
+		return explicitFields.contains(field);
+	}
+
+	Set<String> explicitFields() {
+		return explicitFields;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -210,6 +236,7 @@ public final class QueryOptions {
 				&& Objects.equals(maxThinkingTokens, that.maxThinkingTokens)
 				&& Objects.equals(fallbackModel, that.fallbackModel)
 				&& Objects.equals(jsonSchema, that.jsonSchema) && Objects.equals(sessionId, that.sessionId)
+				&& Objects.equals(explicitFields, that.explicitFields)
 			&& bare == that.bare;
 	}
 
@@ -217,7 +244,7 @@ public final class QueryOptions {
 	public int hashCode() {
 		return Objects.hash(model, systemPrompt, appendSystemPrompt, timeout, allowedTools, disallowedTools,
 				maxTurns, maxBudgetUsd, workingDirectory, maxTokens, maxThinkingTokens, fallbackModel, jsonSchema,
-				sessionId, bare);
+				sessionId, bare, explicitFields);
 	}
 
 	@Override
@@ -234,8 +261,7 @@ public final class QueryOptions {
 	 * Returns default options suitable for most queries.
 	 */
 	public static QueryOptions defaults() {
-		return new QueryOptions(null, null, null, DEFAULT_TIMEOUT, SdkCollections.list(), SdkCollections.list(),
-				null, null, DEFAULT_WORKING_DIRECTORY, null, null, null, null, null, false);
+		return builder().build();
 	}
 
 	/**
@@ -297,6 +323,94 @@ public final class QueryOptions {
 		return builder.build();
 	}
 
+	/** Applies only explicitly configured request fields to the supplied client defaults. */
+	CLIOptions mergeInto(CLIOptions base) {
+		Objects.requireNonNull(base, "base");
+		CLIOptions.Builder builder = copyOf(base);
+		if (isExplicit("model")) {
+			builder.model(model);
+		}
+		if (isExplicit("systemPrompt")) {
+			builder.systemPrompt(systemPrompt);
+		}
+		if (isExplicit("appendSystemPrompt")) {
+			builder.appendSystemPrompt(appendSystemPrompt);
+		}
+		if (isExplicit("timeout")) {
+			builder.timeout(timeout);
+		}
+		if (isExplicit("allowedTools")) {
+			builder.allowedTools(allowedTools);
+		}
+		if (isExplicit("disallowedTools")) {
+			builder.disallowedTools(disallowedTools);
+		}
+		if (isExplicit("maxTurns")) {
+			builder.maxTurns(maxTurns);
+		}
+		if (isExplicit("maxBudgetUsd")) {
+			builder.maxBudgetUsd(maxBudgetUsd);
+		}
+		if (isExplicit("maxTokens")) {
+			builder.maxTokens(maxTokens);
+		}
+		if (isExplicit("maxThinkingTokens")) {
+			builder.maxThinkingTokens(maxThinkingTokens);
+		}
+		if (isExplicit("fallbackModel")) {
+			builder.fallbackModel(fallbackModel);
+		}
+		if (isExplicit("jsonSchema")) {
+			builder.jsonSchema(jsonSchema);
+		}
+		if (isExplicit("sessionId")) {
+			builder.sessionId(sessionId);
+		}
+		if (isExplicit("bare")) {
+			builder.bare(bare);
+		}
+		return builder.build();
+	}
+
+	private static CLIOptions.Builder copyOf(CLIOptions base) {
+		return CLIOptions.builder()
+				.model(base.model())
+				.systemPrompt(base.systemPrompt())
+				.maxTokens(base.maxTokens())
+				.maxThinkingTokens(base.maxThinkingTokens())
+				.timeout(base.timeout())
+				.tools(base.tools())
+				.allowedTools(base.allowedTools())
+				.disallowedTools(base.disallowedTools())
+				.permissionMode(base.permissionMode())
+				.interactive(base.interactive())
+				.outputFormat(base.outputFormat())
+				.settingSources(base.settingSources())
+				.agents(base.agents())
+				.forkSession(base.forkSession())
+				.includePartialMessages(base.includePartialMessages())
+				.jsonSchema(base.jsonSchema())
+				.mcpServers(base.mcpServers())
+				.maxTurns(base.maxTurns())
+				.maxBudgetUsd(base.maxBudgetUsd())
+				.fallbackModel(base.fallbackModel())
+				.appendSystemPrompt(base.appendSystemPrompt())
+				.continueConversation(base.continueConversation())
+				.resume(base.resume())
+				.addDirs(base.addDirs())
+				.settings(base.settings())
+				.permissionPromptToolName(base.permissionPromptToolName())
+				.extraArgs(base.extraArgs())
+				.plugins(base.plugins())
+				.env(base.env())
+				.maxBufferSize(base.maxBufferSize())
+				.user(base.user())
+				.sessionId(base.sessionId())
+				.bare(base.bare())
+				.stderrHandler(base.stderrHandler())
+				.toolPermissionCallback(base.toolPermissionCallback());
+	}
+
 	public static class Builder {
 
 		private String model;
@@ -330,6 +444,8 @@ public final class QueryOptions {
 
 		private boolean bare = false;
 
+		private final Set<String> explicitFields = new LinkedHashSet<>();
+
 		/**
 		 * Sets the model to use. Accepts a model name or alias registered in the
 		 * soloncode workspace configuration (commonly "sonnet", "opus", "haiku").
@@ -339,6 +455,7 @@ public final class QueryOptions {
 		 */
 		public Builder model(String model) {
 			this.model = model;
+			this.explicitFields.add("model");
 			return this;
 		}
 
@@ -347,6 +464,7 @@ public final class QueryOptions {
 		 */
 		public Builder systemPrompt(String systemPrompt) {
 			this.systemPrompt = systemPrompt;
+			this.explicitFields.add("systemPrompt");
 			return this;
 		}
 
@@ -355,6 +473,7 @@ public final class QueryOptions {
 		 */
 		public Builder appendSystemPrompt(String appendSystemPrompt) {
 			this.appendSystemPrompt = appendSystemPrompt;
+			this.explicitFields.add("appendSystemPrompt");
 			return this;
 		}
 
@@ -363,6 +482,7 @@ public final class QueryOptions {
 		 */
 		public Builder timeout(Duration timeout) {
 			this.timeout = timeout;
+			this.explicitFields.add("timeout");
 			return this;
 		}
 
@@ -371,6 +491,7 @@ public final class QueryOptions {
 		 */
 		public Builder allowedTools(List<String> allowedTools) {
 			this.allowedTools = allowedTools != null ? SdkCollections.copyList(allowedTools) : SdkCollections.list();
+			this.explicitFields.add("allowedTools");
 			return this;
 		}
 
@@ -379,6 +500,7 @@ public final class QueryOptions {
 		 */
 		public Builder disallowedTools(List<String> disallowedTools) {
 			this.disallowedTools = disallowedTools != null ? SdkCollections.copyList(disallowedTools) : SdkCollections.list();
+			this.explicitFields.add("disallowedTools");
 			return this;
 		}
 
@@ -387,6 +509,7 @@ public final class QueryOptions {
 		 */
 		public Builder maxTurns(Integer maxTurns) {
 			this.maxTurns = maxTurns;
+			this.explicitFields.add("maxTurns");
 			return this;
 		}
 
@@ -395,6 +518,7 @@ public final class QueryOptions {
 		 */
 		public Builder maxBudgetUsd(Double maxBudgetUsd) {
 			this.maxBudgetUsd = maxBudgetUsd;
+			this.explicitFields.add("maxBudgetUsd");
 			return this;
 		}
 
@@ -403,6 +527,7 @@ public final class QueryOptions {
 		 */
 		public Builder workingDirectory(Path workingDirectory) {
 			this.workingDirectory = workingDirectory;
+			this.explicitFields.add("workingDirectory");
 			return this;
 		}
 
@@ -411,6 +536,7 @@ public final class QueryOptions {
 		 */
 		public Builder maxTokens(Integer maxTokens) {
 			this.maxTokens = maxTokens;
+			this.explicitFields.add("maxTokens");
 			return this;
 		}
 
@@ -419,6 +545,7 @@ public final class QueryOptions {
 		 */
 		public Builder maxThinkingTokens(Integer maxThinkingTokens) {
 			this.maxThinkingTokens = maxThinkingTokens;
+			this.explicitFields.add("maxThinkingTokens");
 			return this;
 		}
 
@@ -427,6 +554,7 @@ public final class QueryOptions {
 		 */
 		public Builder fallbackModel(String fallbackModel) {
 			this.fallbackModel = fallbackModel;
+			this.explicitFields.add("fallbackModel");
 			return this;
 		}
 
@@ -434,7 +562,8 @@ public final class QueryOptions {
 		 * Sets the JSON schema for structured output.
 		 */
 		public Builder jsonSchema(Map<String, Object> jsonSchema) {
-			this.jsonSchema = jsonSchema;
+			this.jsonSchema = immutableJsonMap(jsonSchema);
+			this.explicitFields.add("jsonSchema");
 			return this;
 		}
 
@@ -443,6 +572,7 @@ public final class QueryOptions {
 		 */
 		public Builder sessionId(String sessionId) {
 			this.sessionId = sessionId;
+			this.explicitFields.add("sessionId");
 			return this;
 		}
 
@@ -451,15 +581,51 @@ public final class QueryOptions {
 		 */
 		public Builder bare(boolean bare) {
 			this.bare = bare;
+			this.explicitFields.add("bare");
 			return this;
 		}
 
 		public QueryOptions build() {
 			return new QueryOptions(model, systemPrompt, appendSystemPrompt, timeout, allowedTools, disallowedTools,
 					maxTurns, maxBudgetUsd, workingDirectory, maxTokens, maxThinkingTokens, fallbackModel, jsonSchema,
-				sessionId, bare);
+					sessionId, bare, explicitFields);
 		}
 
+	}
+
+	private static Set<String> allFieldNames() {
+		Set<String> fields = new LinkedHashSet<>();
+		Collections.addAll(fields, "model", "systemPrompt", "appendSystemPrompt", "timeout", "allowedTools",
+				"disallowedTools", "maxTurns", "maxBudgetUsd", "workingDirectory", "maxTokens",
+				"maxThinkingTokens", "fallbackModel", "jsonSchema", "sessionId", "bare");
+		return fields;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> immutableJsonMap(Map<String, Object> source) {
+		if (source == null) {
+			return null;
+		}
+		Map<String, Object> copy = new LinkedHashMap<>();
+		for (Map.Entry<String, Object> entry : source.entrySet()) {
+			copy.put(Objects.requireNonNull(entry.getKey()), immutableJsonValue(entry.getValue()));
+		}
+		return Collections.unmodifiableMap(copy);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Object immutableJsonValue(Object value) {
+		if (value instanceof Map) {
+			return immutableJsonMap((Map<String, Object>) value);
+		}
+		if (value instanceof List) {
+			List<Object> copy = new ArrayList<>();
+			for (Object item : (List<?>) value) {
+				copy.add(immutableJsonValue(item));
+			}
+			return Collections.unmodifiableList(copy);
+		}
+		return value;
 	}
 
 }

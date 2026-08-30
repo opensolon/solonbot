@@ -33,6 +33,7 @@ import org.noear.soloncode.sdk.util.SdkCollections;
 import org.noear.soloncode.sdk.types.AssistantMessage;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.ResultMessage;
+import org.noear.soloncode.sdk.types.SystemMessage;
 import org.noear.soloncode.sdk.types.control.ControlRequest;
 import org.noear.soloncode.sdk.types.control.ControlResponse;
 import org.noear.soloncode.sdk.types.control.HookEvent;
@@ -113,6 +114,11 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	/** 是否已经跑过至少一轮。 */
 	private final AtomicBoolean turnStarted = new AtomicBoolean(false);
 
+	/** Whether the current turn has delivered its required terminal result message. */
+	private final AtomicBoolean turnResultReceived = new AtomicBoolean(false);
+
+	private final AtomicBoolean activeTurn = new AtomicBoolean(false);
+
 	// Runtime state tracking
 	private final AtomicReference<String> currentModel = new AtomicReference<>();
 
@@ -190,8 +196,11 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 		// 会话 ID：优先用调用方指定的 --session-id，否则自生成（用于多轮 --resume 串接）
 		String explicitSessionId = this.options.getSessionId();
+		String resumeSessionId = this.options.getResume();
 		this.sdkSessionId = (explicitSessionId != null && !explicitSessionId.trim().isEmpty()) ? explicitSessionId
-				: "sdk-" + UUID.randomUUID().toString().substring(0, 8);
+				: (resumeSessionId != null && !resumeSessionId.trim().isEmpty() ? resumeSessionId
+						: "sdk-" + UUID.randomUUID().toString().substring(0, 8));
+		this.currentSessionId.set(this.sdkSessionId);
 
 		// Initialize runtime state from options
 		if (this.options.model() != null) {
@@ -247,6 +256,11 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			}
 			if (connected.get()) {
 				sink.error(new TransportException("Client is already connected"));
+				return;
+			}
+			if (hookRegistry.hasHooks()) {
+				sink.error(new UnsupportedOperationException(
+						"SolonCode CLI stream does not currently support hook initialize/callback control frames"));
 				return;
 			}
 
@@ -328,35 +342,47 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 		if (prompt == null || prompt.isEmpty()) {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
+		if (!activeTurn.compareAndSet(false, true)) {
+			throw new IllegalStateException(
+					"A response is still active; consume or cancel it before starting another turn");
+		}
+		turnResultReceived.set(false);
 
-		if (transportSpec.isPersistent()) {
-			Transport current = transportRef.get();
-			if (current == null) {
-				turnStarted.set(true);
-				current = transportSpec.create(workingDirectory, timeout);
-				current.setTurnSession(sdkSessionId, null);
-				transportRef.set(current);
-				current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-						this::handleControlResponse);
+		try {
+			String turnSessionId = currentSessionId.get();
+			if (transportSpec.isPersistent()) {
+				Transport current = transportRef.get();
+				if (current == null) {
+					turnStarted.set(true);
+					current = transportSpec.create(workingDirectory, timeout);
+					current.setTurnSession(turnSessionId, null);
+					transportRef.set(current);
+					current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+							this::handleControlResponse);
+				}
+				else {
+					current.sendUserMessage(prompt, turnSessionId);
+				}
 			}
 			else {
-				current.sendUserMessage(prompt, sdkSessionId);
-			}
-		}
-		else {
-			Transport previous = transportRef.getAndSet(null);
-			if (previous != null) {
-				previous.close();
-			}
+				Transport previous = transportRef.getAndSet(null);
+				if (previous != null) {
+					previous.close();
+				}
 
-			boolean firstTurn = !turnStarted.getAndSet(true);
-			Transport transport = transportSpec.create(workingDirectory, timeout);
-			transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
-			transportRef.set(transport);
-			transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-					this::handleControlResponse);
+				boolean firstTurn = !turnStarted.getAndSet(true);
+				Transport transport = transportSpec.create(workingDirectory, timeout);
+				transport.setTurnSession(turnSessionId, firstTurn ? null : turnSessionId);
+				transportRef.set(transport);
+				transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+						this::handleControlResponse);
+			}
+			currentSessionId.set(turnSessionId);
 		}
-		currentSessionId.set(sdkSessionId);
+		catch (Throwable e) {
+			activeTurn.set(false);
+			throw e;
+		}
 	}
 
 	@Override
@@ -414,16 +440,38 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 	private Sinks.Many<Message> installTurnSink() {
 		Sinks.Many<Message> turnSink = Sinks.many().unicast().onBackpressureBuffer();
-		Sinks.Many<Message> previous = currentTurnSink.getAndSet(turnSink);
-		if (previous != null) {
-			previous.tryEmitComplete();
+		if (!currentTurnSink.compareAndSet(null, turnSink)) {
+			throw new IllegalStateException(
+					"A response subscriber is still active; consume or cancel it before starting another turn");
 		}
 		return turnSink;
 	}
 
 	private Flux<Message> turnFlux(Sinks.Many<Message> turnSink) {
 		return turnSink.asFlux()
-				.doFinally(signal -> currentTurnSink.compareAndSet(turnSink, null));
+				.doOnCancel(this::cancelCurrentTurn)
+				.timeout(timeout, Flux.error(new TransportException("Response timed out after " + timeout)))
+				.doOnComplete(() -> {
+					currentTurnSink.compareAndSet(turnSink, null);
+					activeTurn.set(false);
+				})
+				.doFinally(signal -> {
+					currentTurnSink.compareAndSet(turnSink, null);
+					activeTurn.set(false);
+				});
+	}
+
+	private void cancelCurrentTurn() {
+		activeTurn.set(false);
+		Transport transport = transportRef.get();
+		if (transport != null) {
+			try {
+				transport.interrupt();
+			}
+			catch (Throwable e) {
+				logger.debug("Failed to interrupt cancelled turn", e);
+			}
+		}
 	}
 
 	/** 在发送前安装轮次 sink，消除常驻进程快速响应导致的消息丢失窗口。 */
@@ -449,6 +497,7 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 				return;
 			}
 			try {
+				activeTurn.set(false);
 				// 常驻 stdio 发送控制帧并保留进程；其它 transport 保持原有中断语义。
 				Transport transport = transportRef.get();
 				if (transport != null) {
@@ -561,6 +610,10 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	 * @return this client for chaining
 	 */
 	public DefaultSolonCodeAsyncClient registerHook(HookEvent event, String toolPattern, HookCallback callback) {
+		if (connected.get()) {
+			throw new UnsupportedOperationException(
+					"The current SolonCode CLI protocol does not support hook registration");
+		}
 		hookRegistry.register(event, toolPattern, callback);
 		return this;
 	}
@@ -622,9 +675,41 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			rawMessageSink.tryEmitNext(message);
 		}
 
+		if (message instanceof ParsedMessage.EndOfStream) {
+			activeTurn.set(false);
+			Throwable failure = null;
+			Transport transport = transportRef.get();
+			if (transport != null) {
+				failure = transport.getSessionError();
+			}
+			if (failure == null && !turnResultReceived.get() && !closed.get()) {
+				failure = new TransportException("Response stream ended before result event");
+			}
+			Sinks.Many<Message> sink = currentTurnSink.get();
+			if (sink != null) {
+				if (failure == null) {
+					sink.tryEmitComplete();
+				}
+				else {
+					sink.tryEmitError(failure);
+				}
+			}
+			return;
+		}
+
 		// Route regular messages to handlers and turn sink
 		if (message.isRegularMessage()) {
 			Message msg = message.asMessage();
+			if (msg instanceof SystemMessage) {
+				SystemMessage system = (SystemMessage) msg;
+				Object sid = system.data().get("session_id");
+				if ("error".equalsIgnoreCase(system.subtype())) {
+					turnResultReceived.set(true);
+				}
+				if (sid != null && !String.valueOf(sid).isEmpty()) {
+					currentSessionId.set(String.valueOf(sid));
+				}
+			}
 
 			// Notify cross-turn handlers (session-scoped) before turn sink
 			for (Consumer<Message> handler : messageHandlers) {
@@ -638,7 +723,11 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 
 			// Notify result handlers specifically for ResultMessage
 			if (msg instanceof ResultMessage) {
+				turnResultReceived.set(true);
 				ResultMessage resultMsg = (ResultMessage) msg;
+				if (resultMsg.sessionId() != null && !resultMsg.sessionId().isEmpty()) {
+					currentSessionId.set(resultMsg.sessionId());
+				}
 				for (Consumer<ResultMessage> handler : resultHandlers) {
 					try {
 						handler.accept(resultMsg);
@@ -843,21 +932,36 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	}
 
 	private void sendControlRequest(Map<String, Object> request) throws SolonCodeSDKException {
+		Transport transport = transportRef.get();
+		if (transport == null) {
+			throw new TransportException("No active transport for control request: " + request.get("subtype"));
+		}
+		String requestId = sessionPrefix + "-" + requestCounter.getAndIncrement();
 		try {
-			String requestId = sessionPrefix + "_" + requestCounter.incrementAndGet();
-
-			Map<String, Object> fullRequest = new LinkedHashMap<>();
-			fullRequest.put("type", "control");
-			fullRequest.put("request_id", requestId);
-			fullRequest.putAll(request);
-
-			String json = SdkJson.toJsonWithNulls(fullRequest);
-			transportRef.get().sendMessage(json);
-
-			logger.debug("Sent control request: id={}, subtype={}", requestId, request.get("subtype"));
+			Mono.<Map<String, Object>>create(sink -> {
+				pendingResponses.put(requestId, sink);
+				try {
+					Map<String, Object> envelope = new LinkedHashMap<>();
+					envelope.put("type", "control_request");
+					envelope.put("request_id", requestId);
+					envelope.put("request", request);
+					transport.sendMessage(SdkJson.toJsonWithNulls(envelope));
+				}
+				catch (Throwable e) {
+					pendingResponses.remove(requestId);
+					sink.error(e);
+				}
+			})
+					.timeout(timeout)
+					.doFinally(signal -> pendingResponses.remove(requestId))
+					.block();
+			logger.debug("Control request confirmed: id={}, subtype={}", requestId, request.get("subtype"));
 		}
 		catch (Exception e) {
-			throw new TransportException("Failed to send control request", e);
+			if (e instanceof SolonCodeSDKException) {
+				throw (SolonCodeSDKException) e;
+			}
+			throw new TransportException("Control request failed: " + request.get("subtype"), e);
 		}
 	}
 
@@ -884,6 +988,8 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 			rawMessageSink = null;
 		}
 
+		pendingResponses.forEach((id, sink) ->
+				sink.error(new SolonCodeSDKException("Client closed while control request was pending")));
 		pendingResponses.clear();
 	}
 
@@ -895,8 +1001,8 @@ public class DefaultSolonCodeAsyncClient implements SolonCodeAsyncClient {
 	 * Default implementation of {@link TurnSpec} providing lazy response handling.
 	 *
 	 * <p>
-	 * Inspired by Spring WebClient's ResponseSpec pattern. All operations are lazy - the
-	 * actual send (connect/query) is triggered when you subscribe to a terminal operation
+ * All operations are lazy: the actual connect/query starts when a subscriber subscribes to
+ * a terminal operation.
 	 * ({@link #text()}, {@link #textStream()}, or {@link #messages()}).
 	 * </p>
 	 */

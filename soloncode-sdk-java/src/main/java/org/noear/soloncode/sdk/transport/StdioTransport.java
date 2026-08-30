@@ -190,6 +190,8 @@ public class StdioTransport implements Transport {
 	 */
 	private volatile boolean resultReceived = false;
 
+	private volatile java.util.concurrent.CountDownLatch inboundDone = new java.util.concurrent.CountDownLatch(1);
+
 	// ============================================================
 	// Constructors
 	// ============================================================
@@ -372,6 +374,12 @@ public class StdioTransport implements Transport {
 		}
 
 		try {
+			if (options.getMaxTokens() != null) {
+				throw new UnsupportedOperationException(
+						"maxTokens is not supported by the current SolonCode CLI protocol");
+			}
+			resultReceived = false;
+			inboundDone = new java.util.concurrent.CountDownLatch(1);
 			// Create parser with buffer size from options (buffer overflow protection)
 			this.parser = new ControlMessageParser(options.getEffectiveMaxBufferSize());
 
@@ -862,6 +870,22 @@ public class StdioTransport implements Transport {
 				// Emit to sink for reactive consumers
 				if (parsed.isResultMessage()) {
 					resultReceived = true;
+					String sid = ((org.noear.soloncode.sdk.types.ResultMessage) parsed.asMessage()).sessionId();
+					if (sid != null && !sid.isEmpty()) {
+						sessionId.set(sid);
+					}
+				}
+				else if (parsed.isRegularMessage()
+						&& parsed.asMessage() instanceof org.noear.soloncode.sdk.types.SystemMessage) {
+					org.noear.soloncode.sdk.types.SystemMessage system =
+							(org.noear.soloncode.sdk.types.SystemMessage) parsed.asMessage();
+					if ("error".equalsIgnoreCase(system.subtype())) {
+						resultReceived = true;
+					}
+					Object sid = system.data().get("session_id");
+					if (sid != null && !String.valueOf(sid).isEmpty()) {
+						sessionId.set(String.valueOf(sid));
+					}
 				}
 				Sinks.EmitResult emitResult = inboundSink.tryEmitNext(parsed);
 					if (!emitResult.isSuccess()) {
@@ -902,9 +926,11 @@ public class StdioTransport implements Transport {
 				}
 				catch (Exception e) {
 					if (!isClosing) {
-						logger.error("Failed to process message (continuing): {}",
+						sessionError.compareAndSet(null, e);
+						logger.error("Failed to process protocol message: {}",
 								line.substring(0, Math.min(200, line.length())), e);
 					}
+					break;
 				}
 			}
 
@@ -926,6 +952,12 @@ public class StdioTransport implements Transport {
 			}
 		}
 		finally {
+			boolean closingByCaller = isClosing;
+			if (!closingByCaller && !resultReceived && sessionError.get() == null) {
+				sessionError.compareAndSet(null,
+						new TransportException("stdio stream ended before result event"));
+			}
+			inboundDone.countDown();
 			logger.debug("processInboundMessages finally block, setting isClosing=true");
 			isClosing = true;
 			inboundSink.tryEmitComplete();
@@ -998,6 +1030,7 @@ public class StdioTransport implements Transport {
 	public void sendUserMessage(String content, String sid) throws SolonCodeSDKException {
 		assertConnected();
 		if (persistent) {
+			resultReceived = false;
 			sendPersistentUserMessage(content);
 		}
 		else {
@@ -1212,9 +1245,14 @@ public class StdioTransport implements Transport {
 		}
 
 		try {
+			long deadlineNanos = System.nanoTime() + timeout.toNanos();
 			boolean completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
 			if (completed) {
+				long remainingNanos = deadlineNanos - System.nanoTime();
+				if (remainingNanos > 0L) {
+					inboundDone.await(remainingNanos, TimeUnit.NANOSECONDS);
+				}
 				int exitCode = process.exitValue();
 				// SolonCode CLI exit codes: 2 max turns exceeded, 3 no prompt, 4 budget exceeded。
 				// 注意：实测 CLI 在成功完成时也可能返回退出码 1，

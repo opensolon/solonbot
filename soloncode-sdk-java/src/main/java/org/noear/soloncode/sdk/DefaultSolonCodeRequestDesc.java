@@ -27,6 +27,8 @@ import reactor.core.scheduler.Schedulers;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * {@link SolonCodeRequestDesc} 默认实现：把「客户端怎么建」交给工厂，自己只负责
@@ -92,34 +94,82 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 	public Flux<Message> stream() {
 		// 冷流：每次订阅起一轮新执行；阻塞迭代放到 boundedElastic，不占调用方线程
 		return Flux.<Message>create(sink -> {
+			AtomicReference<SolonCodeSyncClient> clientRef = new AtomicReference<>();
+			AtomicBoolean cancellationRequested = new AtomicBoolean(false);
+			AtomicBoolean terminated = new AtomicBoolean(false);
+			AtomicBoolean interruptSent = new AtomicBoolean(false);
+			AtomicBoolean closeSent = new AtomicBoolean(false);
+
+			Runnable close = () -> {
+				SolonCodeSyncClient client = clientRef.get();
+				if (client != null && closeSent.compareAndSet(false, true)) {
+					closeQuietly(client);
+				}
+			};
+			Runnable interruptAndClose = () -> {
+				SolonCodeSyncClient client = clientRef.get();
+				if (client != null && interruptSent.compareAndSet(false, true)) {
+					try {
+						client.interrupt();
+					}
+					catch (Throwable ignored) {
+						// 取消路径不覆盖下游原有的取消信号，随后仍要释放客户端。
+					}
+				}
+				close.run();
+			};
+
+			// 不能只在 hasNext() 返回后检查 isCancelled()：真实 HTTP/stdio 迭代器
+			// 可能一直阻塞等待下一条消息。取消必须主动 interrupt 并关闭底层通道。
+			sink.onCancel(() -> {
+				cancellationRequested.set(true);
+				if (terminated.compareAndSet(false, true)) {
+					interruptAndClose.run();
+				}
+			});
+
 			SolonCodeSyncClient client = null;
 			try {
 				client = clientFactory.create(options);
+				clientRef.set(client);
+				// 取消可能发生在 factory.create() 期间；客户端发布后补发中断。
+				if (cancellationRequested.get()) {
+					interruptAndClose.run();
+					return;
+				}
+
 				client.connect(prompt);
+				if (cancellationRequested.get()) {
+					interruptAndClose.run();
+					return;
+				}
 
 				Iterator<ParsedMessage> response = client.receiveResponse();
-				while (response.hasNext()) {
-					// 下游取消后立刻停手，不再拉取剩余消息
-					if (sink.isCancelled()) {
-						break;
-					}
+				while (!cancellationRequested.get() && !sink.isCancelled() && response.hasNext()) {
 					ParsedMessage parsed = response.next();
 					if (parsed.isRegularMessage()) {
 						sink.next(parsed.asMessage());
 					}
 				}
-				sink.complete();
-				closeQuietly(client);
-				client = null;
+
+				if (!cancellationRequested.get() && !sink.isCancelled()
+						&& terminated.compareAndSet(false, true)) {
+					close.run();
+					sink.complete();
+				}
+				else {
+					close.run();
+				}
 			}
 			catch (Throwable e) {
-				closeQuietly(client);
-				client = null;
-				sink.error(e instanceof SolonCodeSDKException ? e
-						: new SolonCodeSDKException("Failed to stream request", e));
+				close.run();
+				if (!sink.isCancelled()) {
+					sink.error(e instanceof SolonCodeSDKException ? e
+							: new SolonCodeSDKException("Failed to stream request", e));
+				}
 			}
 			finally {
-				closeQuietly(client);
+				close.run();
 			}
 		}).subscribeOn(Schedulers.boundedElastic());
 	}

@@ -21,21 +21,20 @@ import org.slf4j.LoggerFactory;
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.exceptions.TransportException;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
+import org.noear.soloncode.sdk.types.ResultMessage;
 
+import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Blocking implementation of {@link MessageReceiver} following the Spring RestClient
- * streaming POC pattern.
+ * Blocking queue-based implementation of {@link MessageReceiver}.
  *
  * <p>
- * This implementation uses a simple blocking queue with no timeout-based polling. The
- * {@link #next()} method blocks indefinitely until a message is available or the stream
- * ends. This design avoids the race conditions inherent in the two-phase hasNext()/next()
- * pattern.
+ * The bounded queue is polled while checking the configured per-receiver deadline.
+ * {@link #next()} returns at normal end-of-stream and propagates timeout or producer errors.
  * </p>
  *
  * <p>
@@ -56,15 +55,25 @@ public class BlockingMessageReceiver implements MessageReceiver {
 
 	private final BlockingQueue<ParsedMessage> queue;
 
+	private final AtomicBoolean completed = new AtomicBoolean(false);
+
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
 	private final AtomicReference<Throwable> error = new AtomicReference<>();
+
+	private final long deadlineNanos;
+
+	private final Runnable timeoutAction;
+
+	private final Runnable terminalMessageAction;
+
+	private final AtomicBoolean timeoutTriggered = new AtomicBoolean(false);
 
 	/**
 	 * Creates a receiver with default queue capacity (1000 messages).
 	 */
 	public BlockingMessageReceiver() {
-		this(1000);
+		this(1000, null, null, null);
 	}
 
 	/**
@@ -72,7 +81,19 @@ public class BlockingMessageReceiver implements MessageReceiver {
 	 * @param queueCapacity maximum number of buffered messages
 	 */
 	public BlockingMessageReceiver(int queueCapacity) {
+		this(queueCapacity, null, null, null);
+	}
+
+	public BlockingMessageReceiver(int queueCapacity, Duration timeout, Runnable timeoutAction) {
+		this(queueCapacity, timeout, timeoutAction, null);
+	}
+
+	public BlockingMessageReceiver(int queueCapacity, Duration timeout, Runnable timeoutAction,
+			Runnable terminalMessageAction) {
 		this.queue = new LinkedBlockingQueue<>(queueCapacity);
+		this.deadlineNanos = timeout == null ? Long.MAX_VALUE : System.nanoTime() + timeout.toNanos();
+		this.timeoutAction = timeoutAction;
+		this.terminalMessageAction = terminalMessageAction;
 	}
 
 	/**
@@ -81,19 +102,22 @@ public class BlockingMessageReceiver implements MessageReceiver {
 	 * @return true if accepted, false if queue is full or receiver is closed
 	 */
 	public boolean offer(ParsedMessage message) {
-		if (closed.get()) {
+		if (closed.get() || completed.get()) {
 			return false;
 		}
-		return queue.offer(message);
+		boolean accepted = queue.offer(message);
+		if (!accepted) {
+			completeWithError(new TransportException("Message receiver buffer is full"));
+		}
+		return accepted;
 	}
 
 	/**
 	 * Signals that the stream has completed normally. No more messages will be offered.
 	 */
 	public void complete() {
-		if (!closed.get()) {
+		if (!closed.get() && completed.compareAndSet(false, true)) {
 			logger.debug("Stream completed");
-			queue.offer(END_OF_STREAM);
 		}
 	}
 
@@ -104,8 +128,8 @@ public class BlockingMessageReceiver implements MessageReceiver {
 	public void completeWithError(Throwable throwable) {
 		if (!closed.get()) {
 			logger.debug("Stream completed with error: {}", throwable.getMessage());
-			error.set(throwable);
-			queue.offer(END_OF_STREAM);
+			error.compareAndSet(null, throwable);
+			completed.set(true);
 		}
 	}
 
@@ -115,24 +139,33 @@ public class BlockingMessageReceiver implements MessageReceiver {
 			return null;
 		}
 
-		// Block indefinitely until a message is available
-		ParsedMessage message = queue.take();
-
-		// Check for end-of-stream sentinel
-		if (message == END_OF_STREAM) {
-			// Check for error
-			Throwable err = error.get();
-			if (err != null) {
-				if (err instanceof SolonCodeSDKException) {
-					SolonCodeSDKException sdkException = (SolonCodeSDKException) err;
-					throw sdkException;
+		while (!closed.get()) {
+			if (System.nanoTime() >= deadlineNanos && timeoutTriggered.compareAndSet(false, true)) {
+				if (timeoutAction != null) {
+					timeoutAction.run();
 				}
-				throw new TransportException("Stream failed", err);
+				completeWithError(new TransportException("Response timed out"));
 			}
-			return null;
+			ParsedMessage message = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+			if (message != null && message != END_OF_STREAM) {
+				if (message.isRegularMessage() && message.asMessage() instanceof ResultMessage
+						&& terminalMessageAction != null) {
+					terminalMessageAction.run();
+				}
+				return message;
+			}
+			if (completed.get() && queue.isEmpty()) {
+				Throwable err = error.get();
+				if (err != null) {
+					if (err instanceof SolonCodeSDKException) {
+						throw (SolonCodeSDKException) err;
+					}
+					throw new TransportException("Stream failed", err);
+				}
+				return null;
+			}
 		}
-
-		return message;
+		return null;
 	}
 
 	@Override

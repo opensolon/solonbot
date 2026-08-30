@@ -282,13 +282,24 @@ public class HttpTransport implements Transport {
 
 	private static KeyStore loadKeyStore(Path path, char[] password) throws Exception {
 		if (!Files.isReadable(path)) {
-				throw new TransportException("key/trust store not readable: " + path);
+			throw new TransportException("key/trust store not readable: " + path);
 		}
-		try (InputStream in = Files.newInputStream(path)) {
-				KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-				ks.load(in, password);
-				return ks;
+		String lowerName = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+		String[] types = lowerName.endsWith(".jks")
+				? new String[] { "JKS", "PKCS12" }
+				: new String[] { "PKCS12", "JKS" };
+		Exception failure = null;
+		for (String type : types) {
+			try (InputStream in = Files.newInputStream(path)) {
+				KeyStore keyStore = KeyStore.getInstance(type);
+				keyStore.load(in, password);
+				return keyStore;
 			}
+			catch (Exception e) {
+				failure = e;
+			}
+		}
+		throw new TransportException("Unsupported or invalid key/trust store: " + path, failure);
 	}
 
 	/** 按网络层选项构建代理；未配置代理返回 null（系统默认路由）。 */
@@ -352,6 +363,10 @@ public class HttpTransport implements Transport {
 		}
 
 		try {
+			if (options != null && options.getMaxTokens() != null) {
+				throw new UnsupportedOperationException(
+						"maxTokens is not supported by the current /web/run protocol");
+			}
 			String body = buildRequestBody(prompt, options);
 			// 与 StdioTransport 同一红线：完整请求体可能携带 json-schema、工具清单，
 			// prompt 本身常含敏感内容 —— INFO 只记录长度。
@@ -361,9 +376,10 @@ public class HttpTransport implements Transport {
 			HttpURLConnection conn = openConnection(baseUrl);
 			conn.setRequestMethod("POST");
 			conn.setDoOutput(true);
-			conn.setConnectTimeout((int) Math.min(defaultTimeout.toMillis(), Integer.MAX_VALUE));
-			// 读超时：SSE 长连接不设读超时（事件可能间隔较长），完成等待由 waitForCompletion 承担
-			conn.setReadTimeout(0);
+			int turnTimeoutMillis = (int) Math.max(1L, Math.min(defaultTimeout.toMillis(), Integer.MAX_VALUE));
+			conn.setConnectTimeout(turnTimeoutMillis);
+			// Bound both response-header wait and SSE inactivity; client receivers enforce the same turn deadline.
+			conn.setReadTimeout(turnTimeoutMillis);
 			conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 			conn.setRequestProperty("Accept", "text/event-stream");
 
@@ -431,6 +447,14 @@ public class HttpTransport implements Transport {
 						}
 					}
 					else if (parsed.isRegularMessage()
+							&& parsed.asMessage() instanceof org.noear.soloncode.sdk.types.SystemMessage) {
+						Object sid = ((org.noear.soloncode.sdk.types.SystemMessage) parsed.asMessage()).data()
+								.get("session_id");
+						if (sid != null && !String.valueOf(sid).isEmpty()) {
+							sessionId.set(String.valueOf(sid));
+						}
+					}
+					if (parsed.isRegularMessage()
 							&& payload.matches("(?s).*\\\"type\\\"\\s*:\\s*\\\"error\\\".*")) {
 						// error 事件本身是一次完整的终态，不要求再伪造 result。
 						terminalErrorReceived = true;
@@ -617,8 +641,7 @@ public class HttpTransport implements Transport {
 		String sid = turnResume != null ? turnResume
 				: (turnSessionId != null ? turnSessionId : sessionId.get());
 		if (sid == null || sid.trim().isEmpty()) {
-			logger.warn("interrupt() over HTTP requires a session id (session_id/resume); nothing to interrupt");
-			return;
+			throw new TransportException("interrupt() over HTTP requires a session id");
 		}
 		try {
 			String interruptUrl = baseUrl.endsWith("/") ? baseUrl + "interrupt" : baseUrl + "/interrupt";
@@ -627,10 +650,10 @@ public class HttpTransport implements Transport {
 			conn.setConnectTimeout(10_000);
 			conn.setReadTimeout(10_000);
 			conn.setDoOutput(true);
-			conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-			String form = "session_id=" + java.net.URLEncoder.encode(sid, "UTF-8");
+			conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+			String body = "{\"session_id\":\"" + escapeJson(sid) + "\"}";
 			try (OutputStream os = conn.getOutputStream()) {
-				os.write(form.getBytes(StandardCharsets.UTF_8));
+				os.write(body.getBytes(StandardCharsets.UTF_8));
 			}
 			int status = conn.getResponseCode();
 			if (status == 202) {
@@ -640,15 +663,20 @@ public class HttpTransport implements Transport {
 				logger.info("Interrupt requested for session {} (202)", sid);
 			}
 			else if (status == 404) {
-				logger.warn("No active run for session {} on server (404)", sid);
+				// Idempotent cancellation: the run has already ended or was already removed.
+				logger.debug("No active run for session {} on server (404)", sid);
 			}
 			else {
-				logger.warn("Interrupt for session {} returned unexpected status {}", sid, status);
+				String errorBody = readStream(conn.getErrorStream());
+				throw httpStatusException(status, errorBody);
 			}
 			conn.disconnect();
 		}
+		catch (SolonCodeSDKException e) {
+			throw e;
+		}
 		catch (Exception e) {
-			logger.warn("Failed to interrupt session {} over HTTP: {}", sid, e.getMessage());
+			throw new TransportException("Failed to interrupt session " + sid + " over HTTP", e);
 		}
 	}
 
@@ -802,6 +830,11 @@ public class HttpTransport implements Transport {
 				return TransportException.withExitCode("/web/run request failed with HTTP " + status + ": " + detail,
 						status);
 		}
+	}
+
+	private static String escapeJson(String value) {
+		return value.replace("\\", "\\\\").replace("\"", "\\\"")
+				.replace("\r", "\\r").replace("\n", "\\n");
 	}
 
 	private static String readStream(InputStream in) {

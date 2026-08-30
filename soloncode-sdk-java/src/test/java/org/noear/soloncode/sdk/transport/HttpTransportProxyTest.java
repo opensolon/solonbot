@@ -81,6 +81,11 @@ class HttpTransportProxyTest {
 			proxyRequestLines.add(exchange.getRequestMethod() + " " + exchange.getRequestURI());
 			proxyAuthHeaders.add(exchange.getRequestHeaders().getFirst("Proxy-Authorization"));
 			readBody(exchange);
+			if (exchange.getRequestURI().getPath().endsWith("/interrupt")) {
+				exchange.sendResponseHeaders(202, -1);
+				exchange.close();
+				return;
+			}
 			exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
 			exchange.sendResponseHeaders(200, 0);
 			try (OutputStream os = exchange.getResponseBody()) {

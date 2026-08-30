@@ -48,7 +48,7 @@ import java.util.Optional;
  *
  * <h2>Basic Usage - Stream Text</h2> <pre>{@code
  * SolonCodeAsyncClient client = SolonCodeClient.async()
- *     .workingDirectory(Path.of("."))
+ *     .workingDirectory(java.nio.file.Paths.get("."))
  *     .model("sonnet")
  *     .build();
  *
@@ -70,9 +70,11 @@ import java.util.Optional;
  * <h2>Full Message Access (20% Use Case)</h2> <pre>{@code
  * client.query("List files").messages()
  *     .doOnNext(msg -> {
- *         if (msg instanceof AssistantMessage am) {
+ *         if (msg instanceof AssistantMessage) {
+ *         AssistantMessage am = (AssistantMessage) msg;
  *             System.out.println("Text: " + am.text());
- *         } else if (msg instanceof ResultMessage rm) {
+ *         } else if (msg instanceof ResultMessage) {
+ *         ResultMessage rm = (ResultMessage) msg;
  *             System.out.printf("Cost: $%.6f%n", rm.totalCostUsd());
  *         }
  *     })
@@ -92,8 +94,8 @@ public interface SolonCodeAsyncClient {
 	 * Specification for handling responses from a single conversation turn.
 	 *
 	 * <p>
-	 * Inspired by Spring WebClient's ResponseSpec pattern, TurnSpec provides terminal
-	 * operations for different use cases:
+ * TurnSpec provides lazy terminal operations for collecting text, streaming text, or
+ * consuming all messages from one conversation turn:
 	 * </p>
 	 * <ul>
 	 * <li>{@link #text()} - Collected text as Mono (for flatMap chaining)</li>
@@ -149,7 +151,8 @@ public interface SolonCodeAsyncClient {
 		 * <pre>{@code
 		 * client.query("List files").messages()
 		 *     .doOnNext(msg -> {
-		 *         if (msg instanceof ResultMessage rm) {
+		 *         if (msg instanceof ResultMessage) {
+ *             ResultMessage rm = (ResultMessage) msg;
 		 *             System.out.println("Cost: $" + rm.totalCostUsd());
 		 *         }
 		 *     })

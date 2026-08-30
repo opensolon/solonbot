@@ -19,7 +19,9 @@ package org.noear.soloncode.sdk.streaming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
+import org.noear.soloncode.sdk.types.ResultMessage;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
@@ -74,13 +76,21 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 
 	private final AtomicReference<Throwable> error = new AtomicReference<>();
 
+	private final long deadlineNanos;
+
+	private final Runnable timeoutAction;
+
+	private final Runnable terminalMessageAction;
+
+	private final AtomicBoolean timeoutTriggered = new AtomicBoolean(false);
+
 	private ParsedMessage nextMessage;
 
 	/**
 	 * Creates an iterator with default settings.
 	 */
 	public MessageStreamIterator() {
-		this(1000, 100);
+		this(1000, 100, null, null, null);
 	}
 
 	/**
@@ -89,8 +99,20 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 	 * @param pollTimeoutMs timeout in milliseconds for blocking poll
 	 */
 	public MessageStreamIterator(int queueCapacity, long pollTimeoutMs) {
+		this(queueCapacity, pollTimeoutMs, null, null, null);
+	}
+
+	public MessageStreamIterator(int queueCapacity, long pollTimeoutMs, Duration timeout, Runnable timeoutAction) {
+		this(queueCapacity, pollTimeoutMs, timeout, timeoutAction, null);
+	}
+
+	public MessageStreamIterator(int queueCapacity, long pollTimeoutMs, Duration timeout, Runnable timeoutAction,
+			Runnable terminalMessageAction) {
 		this.queue = new LinkedBlockingQueue<>(queueCapacity);
 		this.pollTimeoutMs = pollTimeoutMs;
+		this.deadlineNanos = timeout == null ? Long.MAX_VALUE : System.nanoTime() + timeout.toNanos();
+		this.timeoutAction = timeoutAction;
+		this.terminalMessageAction = terminalMessageAction;
 	}
 
 	/**
@@ -104,10 +126,15 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 		}
 
 		try {
-			return queue.offer(message, pollTimeoutMs, TimeUnit.MILLISECONDS);
+			boolean accepted = queue.offer(message, pollTimeoutMs, TimeUnit.MILLISECONDS);
+			if (!accepted) {
+				completeWithError(new IllegalStateException("Message iterator buffer is full"));
+			}
+			return accepted;
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
+			completeWithError(e);
 			return false;
 		}
 	}
@@ -118,12 +145,6 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 	public void complete() {
 		if (completed.compareAndSet(false, true)) {
 			logger.debug("Stream completed");
-			try {
-				queue.offer(END_OF_STREAM, pollTimeoutMs, TimeUnit.MILLISECONDS);
-			}
-			catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
 		}
 	}
 
@@ -132,16 +153,9 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 	 * @param throwable the error that caused the failure
 	 */
 	public void completeWithError(Throwable throwable) {
-		if (completed.compareAndSet(false, true)) {
-			logger.debug("Stream completed with error: {}", throwable.getMessage());
-			error.set(throwable);
-			try {
-				queue.offer(END_OF_STREAM, pollTimeoutMs, TimeUnit.MILLISECONDS);
-			}
-			catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
+		logger.debug("Stream completed with error: {}", throwable.getMessage());
+		error.compareAndSet(null, throwable);
+		completed.set(true);
 	}
 
 	@Override
@@ -154,32 +168,29 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 			return true;
 		}
 
-		// Try to fetch next message
-		// We rely solely on END_OF_STREAM sentinel for termination to avoid race
-		// conditions.
-		// The complete() method always adds END_OF_STREAM to the queue.
+		// Drain buffered messages first, then observe the independently stored terminal state.
 		try {
 			while (!closed.get()) {
+				if (System.nanoTime() >= deadlineNanos && timeoutTriggered.compareAndSet(false, true)) {
+					if (timeoutAction != null) {
+						timeoutAction.run();
+					}
+					completeWithError(new IllegalStateException("Response timed out"));
+				}
 				nextMessage = queue.poll(pollTimeoutMs, TimeUnit.MILLISECONDS);
 
-				if (nextMessage == END_OF_STREAM) {
+				if (nextMessage != null && nextMessage != END_OF_STREAM) {
+					return true;
+				}
+
+				if (completed.get() && queue.isEmpty()) {
 					nextMessage = null;
-					// Check for error
 					Throwable err = error.get();
 					if (err != null) {
 						throw new StreamException("Stream failed", err);
 					}
 					return false;
 				}
-
-				if (nextMessage != null) {
-					return true;
-				}
-
-				// Timeout - continue polling until closed or END_OF_STREAM received.
-				// Note: We don't check completed.get() && queue.isEmpty() here because
-				// there's a race condition: completed can be set before END_OF_STREAM
-				// is added to the queue, causing premature termination.
 			}
 		}
 		catch (InterruptedException e) {
@@ -200,6 +211,10 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 
 		ParsedMessage message = nextMessage;
 		nextMessage = null;
+		if (message.isRegularMessage() && message.asMessage() instanceof ResultMessage
+				&& terminalMessageAction != null) {
+			terminalMessageAction.run();
+		}
 		return message;
 	}
 

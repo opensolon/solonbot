@@ -416,8 +416,8 @@ class StdioTransportFakeCliTest {
 		}
 
 		@Test
-		@DisplayName("unrecognized and malformed stdout lines are skipped (forward compatibility)")
-		void garbageLinesSkipped() throws Exception {
+		@DisplayName("malformed stdout is a protocol failure; unknown JSON types remain forward-compatible")
+		void garbageLinesFailTheSession() throws Exception {
 			String cli = writeFakeCli("not-json-at-all\n"
 					+ "{\"type\":\"totally_unknown_type\"}\n"
 					+ "\n"
@@ -426,13 +426,14 @@ class StdioTransportFakeCliTest {
 			Collector collector = new Collector();
 			StdioTransport t = newTransport(cli);
 			t.startSession("hi", CLIOptions.builder().build(), collector, null, null);
-			assertThat(t.waitForCompletion(Duration.ofSeconds(15))).isTrue();
+			assertThatThrownBy(() -> t.waitForCompletion(Duration.ofSeconds(15)))
+					.hasMessageContaining("Session error");
 			awaitEndOfStream(collector.eos);
 			t.close();
 
-			// 只有 result 事件被投递（垃圾行与未知类型不产生消息）
-			assertThat(collector.messages).hasSize(1);
-			assertThat(collector.messages.get(0).isResultMessage()).isTrue();
+			// Malformed protocol input terminates the stream before the later result can be trusted.
+			assertThat(collector.messages).isEmpty();
+			assertThat(t.getSessionError()).isNotNull();
 		}
 
 		@Test
@@ -476,7 +477,8 @@ class StdioTransportFakeCliTest {
 					eos.add(m);
 				}
 			}, null, null);
-			t.waitForCompletion(Duration.ofSeconds(15));
+			assertThatThrownBy(() -> t.waitForCompletion(Duration.ofSeconds(15)))
+					.hasMessageContaining("Session error");
 
 			long deadline = System.currentTimeMillis() + 5_000;
 			while (eos.isEmpty() && System.currentTimeMillis() < deadline) {

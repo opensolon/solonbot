@@ -41,11 +41,16 @@ class RunTokenAndRegistryTest {
         assertNotNull(h1);
         assertNull(reg.tryRegister(sid)); // 二次登记被拒 → 409
 
+        // 旧句柄完成时不得移除随后登记的新一轮任务。
+        RunSessionRegistry.RunHandle stale = new RunSessionRegistry.RunHandle(sid);
+        reg.unregister(sid, stale);
         assertTrue(reg.isActive(sid));
-        reg.unregister(sid);
+
+        reg.unregister(sid, h1);
         assertFalse(reg.isActive(sid));
-        assertNotNull(reg.tryRegister(sid)); // 注销后可再登记
-        reg.unregister(sid);
+        RunSessionRegistry.RunHandle h2 = reg.tryRegister(sid);
+        assertNotNull(h2); // 注销后可再登记
+        reg.unregister(sid, h2);
     }
 
     @Test
@@ -71,7 +76,7 @@ class RunTokenAndRegistryTest {
         };
         h.attach(fake); // 不应抛异常；真实进程场景下会立即 destroy
 
-        reg.unregister(sid);
+        reg.unregister(sid, h);
     }
 
     @Test

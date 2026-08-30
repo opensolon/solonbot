@@ -64,6 +64,14 @@ class HttpOptionsTest {
 	}
 
 	@Test
+	void socksProxyAuthIsRejectedToPreventOriginCredentialLeak() {
+		assertThatThrownBy(() -> HttpOptions.proxy("proxy.corp", 1080, HttpOptions.ProxyType.SOCKS)
+				.proxyAuth("user", "pass"))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("only supported for HTTP proxies");
+	}
+
+	@Test
 	void proxyAuthBuildsBasicHeader() {
 		HttpOptions opts = HttpOptions.proxy("proxy.corp", 3128).proxyAuth("user", "pass");
 		String expected = "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes());

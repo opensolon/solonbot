@@ -23,10 +23,9 @@ import org.noear.soloncode.sdk.parsing.ParsedMessage;
  * Receiver for streaming messages from the SolonCode CLI.
  *
  * <p>
- * This interface follows the pattern from Spring's RestClient streaming POC, where
- * {@link #next()} returns null at end-of-stream rather than using a two-phase
- * hasNext()/next() pattern. This design avoids race conditions that can occur when the
- * producer and consumer are on different threads.
+ * This receiver exposes a single blocking {@link #next()} operation. It returns null at a
+ * normal end-of-stream, avoiding a separate hasNext()/next() protocol between producer and
+ * consumer threads.
  * </p>
  *
  * <p>

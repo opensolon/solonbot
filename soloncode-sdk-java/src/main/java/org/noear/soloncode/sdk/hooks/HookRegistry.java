@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
  * // Register a PreToolUse hook for Bash commands
  * registry.register(HookRegistration.preToolUse("bash_guard", "Bash",
  *     input -> {
- *         var preToolUse = (HookInput.PreToolUseInput) input;
+ *         HookInput.PreToolUseInput preToolUse = (HookInput.PreToolUseInput) input;
  *         String cmd = preToolUse.getArgument("command", String.class).orElse("");
  *         if (cmd.contains("rm -rf")) {
  *             return HookOutput.block("Dangerous command blocked");

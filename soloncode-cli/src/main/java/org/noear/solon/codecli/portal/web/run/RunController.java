@@ -7,7 +7,7 @@ import org.noear.solon.codecli.config.AgentFlags;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Context;
 import org.noear.solon.core.handle.Result;
-import org.noear.solon.core.util.RunUtil;
+
 import org.noear.solon.web.sse.SseEmitter;
 import org.noear.solon.web.sse.SseEvent;
 import org.slf4j.Logger;
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 
 /**
  * /web/run 控制器 —— soloncode run 的 HTTP/SSE 远程执行入口。
@@ -52,16 +51,30 @@ public class RunController {
     private static final Logger AUDIT = LoggerFactory.getLogger("run.audit");
 
     /** 子进程执行线程池（IO 密集，独立于 HTTP 线程） */
-    private final ExecutorService runExecutor = Executors.newCachedThreadPool();
+    private final ExecutorService runExecutor = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "soloncode-web-run");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final WorkspaceManager workspaceManager;
     private final RunRequestService requestService;
     private final RunTokenService tokenService;
+    private final ProcessStarter processStarter;
 
     public RunController(WorkspaceManager workspaceManager) {
+        this(workspaceManager, new RunRequestService(workspaceManager),
+                RunTokenService.getInstance(), RunController::startSubprocess);
+    }
+
+    RunController(WorkspaceManager workspaceManager,
+                  RunRequestService requestService,
+                  RunTokenService tokenService,
+                  ProcessStarter processStarter) {
         this.workspaceManager = workspaceManager;
-        this.requestService = new RunRequestService(workspaceManager);
-        this.tokenService = RunTokenService.getInstance();
+        this.requestService = requestService;
+        this.tokenService = tokenService;
+        this.processStarter = processStarter;
     }
 
     /**
@@ -125,11 +138,11 @@ public class RunController {
                 try {
                     return runBlocking(ctx, req, runHandle, lockSessionId);
                 } finally {
-                    unregister(lockSessionId);
+                    unregister(lockSessionId, runHandle);
                 }
             }
         } catch (RuntimeException e) {
-            unregister(lockSessionId);
+            unregister(lockSessionId, runHandle);
             throw e;
         }
     }
@@ -224,20 +237,21 @@ public class RunController {
                     if (handle != null) {
                         handle.cancel();
                     }
-                    unregister(lockSessionId);
+                    unregister(lockSessionId, handle);
                     LOG.debug("[web/run] SSE completed");
                 });
 
+        final String clientIp = safeRealIp(ctx);
         runExecutor.submit(() -> {
             String lastSessionId = null;
             int exitCode = -1;
             try {
                 emitterReady.await();
                 ProcessAndOutput result = execSubprocess(req, handle, line -> {
-                    if (line.trim().isEmpty()) return;
-                    RunUtil.runAndTry(() -> {
+                    if (!line.trim().isEmpty()) {
+                        // send 失败（通常意味着客户端断开）必须向上传播，让读取循环立即销毁子进程。
                         emitter.send(new SseEvent().name("message").data(line));
-                    });
+                    }
                 });
                 exitCode = result.exitCode;
                 lastSessionId = result.lastSessionId;
@@ -263,8 +277,8 @@ public class RunController {
                 } catch (Exception ignored) {
                 }
             } finally {
-                audit("run-stream", ctx, req, lastSessionId, lockSessionId, exitCode);
-                unregister(lockSessionId);
+                audit("run-stream", clientIp, req, lastSessionId, lockSessionId, exitCode);
+                unregister(lockSessionId, handle);
                 emitter.complete();
             }
         });
@@ -274,7 +288,7 @@ public class RunController {
 
     // ========== 子进程 ==========
 
-    private static class ProcessAndOutput {
+    static class ProcessAndOutput {
         int exitCode = -1;
         String stdout = "";
         List<String> lines = new ArrayList<>();
@@ -298,19 +312,37 @@ public class RunController {
         return out;
     }
 
+    @FunctionalInterface
+    interface LineConsumer {
+        void accept(String line) throws Exception;
+    }
     private ProcessAndOutput execSubprocess(RunRequestService.NormalizedRequest req,
-                                             RunSessionRegistry.RunHandle handle,
-                                             Consumer<String> lineConsumer) throws Exception {
+                                              RunSessionRegistry.RunHandle handle,
+                                              LineConsumer lineConsumer) throws Exception {
         ProcessAndOutput out = new ProcessAndOutput();
         execSubprocess(req, handle, lineConsumer, out, new StringBuilder());
         return out;
     }
 
+    @FunctionalInterface
+    interface ProcessStarter {
+        Process start(RunRequestService.NormalizedRequest req) throws Exception;
+    }
+
+    /**
+     * 启动子进程：java -cp <classpath> App run <prompt> [flags]，cwd=工作区路径。
+     * stdout 逐行读取（stream-json 每行一个事件；text/json 即最终载荷）。
+     */
     private void execSubprocess(RunRequestService.NormalizedRequest req,
                                 RunSessionRegistry.RunHandle handle,
-                                Consumer<String> lineConsumer,
+                                LineConsumer lineConsumer,
                                 ProcessAndOutput out,
                                 StringBuilder stdout) throws Exception {
+        Process process = processStarter.start(req);
+        consumeProcess(process, handle, lineConsumer, out, stdout);
+    }
+
+    private static Process startSubprocess(RunRequestService.NormalizedRequest req) throws Exception {
         List<String> command = new ArrayList<>();
         command.add(javaBin());
         // fat jar 部署（BOOT-INF/classes）下 -cp 找不到主类，须走 -jar；
@@ -341,8 +373,18 @@ public class RunController {
         pb.redirectErrorStream(false);
         // 继承 HOME（token/配置解析依赖）等关键环境
         pb.environment().putIfAbsent("SOLONCODE_ENTRYPOINT", "web-run");
+        return pb.start();
+    }
 
-        Process process = pb.start();
+    /**
+     * 逐行消费子进程输出。回调失败代表下游 SSE 已不可写，必须立刻销毁子进程，
+     * 不能继续把无人接收的任务跑到自然结束。
+     */
+    static void consumeProcess(Process process,
+                               RunSessionRegistry.RunHandle handle,
+                               LineConsumer lineConsumer,
+                               ProcessAndOutput out,
+                               StringBuilder stdout) throws Exception {
         // stderr must be drained independently; otherwise a verbose child can block
         // after filling the OS error pipe while stdout is being streamed.
         Thread errorDrainer = new Thread(() -> drain(process.getErrorStream()), "soloncode-web-run-stderr");
@@ -367,6 +409,9 @@ public class RunController {
                 }
                 lineConsumer.accept(line);
             }
+        } catch (Exception e) {
+            process.destroy();
+            throw e;
         } finally {
             out.stdout = stdout.toString();
             out.exitCode = process.waitFor();
@@ -387,9 +432,9 @@ public class RunController {
         }
     }
 
-    private static void unregister(String sessionId) {
-        if (sessionId != null) {
-            RunSessionRegistry.getInstance().unregister(sessionId);
+    private static void unregister(String sessionId, RunSessionRegistry.RunHandle handle) {
+        if (sessionId != null && handle != null) {
+            RunSessionRegistry.getInstance().unregister(sessionId, handle);
         }
     }
     static class PrintModeExitCodes {
@@ -482,8 +527,12 @@ public class RunController {
 
     private void audit(String action, Context ctx, RunRequestService.NormalizedRequest req,
                        String resultSessionId, String lockSessionId, int exitCode) {
+        audit(action, safeRealIp(ctx), req, resultSessionId, lockSessionId, exitCode);
+    }
+
+    private void audit(String action, String ip, RunRequestService.NormalizedRequest req,
+                       String resultSessionId, String lockSessionId, int exitCode) {
         try {
-            String ip = ctx.realIp() != null ? ctx.realIp() : "-";
             String ws = req != null ? req.workspaceName : "-";
             int promptLen = req != null && req.prompt != null ? req.prompt.length() : 0;
             String sid = resultSessionId != null ? resultSessionId
@@ -492,6 +541,15 @@ public class RunController {
                     action, ip, ws, promptLen, sid, exitCode);
         } catch (Exception e) {
             LOG.debug("audit failed: {}", e.getMessage());
+        }
+    }
+
+    private static String safeRealIp(Context ctx) {
+        try {
+            String ip = ctx == null ? null : ctx.realIp();
+            return ip == null ? "-" : ip;
+        } catch (Exception e) {
+            return "-";
         }
     }
 }

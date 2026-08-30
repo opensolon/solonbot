@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ResponseBoundedReceiver implements MessageReceiver {
 
-	private final BlockingMessageReceiver delegate;
+	private final MessageReceiver delegate;
 
 	private final AtomicBoolean resultReceived = new AtomicBoolean(false);
 
@@ -49,7 +49,7 @@ public class ResponseBoundedReceiver implements MessageReceiver {
 	 * Creates a response-bounded receiver.
 	 * @param delegate the underlying receiver to wrap
 	 */
-	public ResponseBoundedReceiver(BlockingMessageReceiver delegate) {
+	public ResponseBoundedReceiver(MessageReceiver delegate) {
 		this.delegate = delegate;
 	}
 

@@ -172,6 +172,11 @@ soloncode CLI 的 `stream` 子命令支持 stdin JSON 双向协议；`run` 和 H
 | `--add-dir` 多目录、`--bare`、`--session-id`、`--fallback-model` | 支持（客户端 Spec 一级方法） |
 | `toolPermissionCallback` / `permissionPromptToolName`（stdin 审批回调） | **不支持**，配置后仅告警忽略 |
 | `systemPrompt` / `appendSystemPrompt` / `agents` / `forkSession` / `mcpServers` / `settings` / `plugins` / `tools` / `maxThinkingTokens` | **不支持**，配置后仅告警忽略 |
+| `maxTokens` | **不支持**，执行启动时明确抛出 `UnsupportedOperationException` |
+| Hook / permission / SDK MCP 回调、动态 `setModel` / `setPermissionMode` | **不支持**；当前 stream 控制面仅支持 `interrupt`，不会静默假装成功 |
+
+同一客户端只允许一个活动轮次；当前轮的响应必须消费完成或取消后才能开始下一轮。客户端 `timeout`
+是每轮从启动到终态的响应期限，超时会中断当前执行并向调用方传播错误。
 
 ## one-shot 提示词投递通道
 

@@ -40,7 +40,7 @@ import java.util.Map;
  * </p>
  * <pre>{@code
  * try (SolonCodeSyncClient client = SolonCodeClient.sync()
- *         .workingDirectory(Path.of("."))
+ *         .workingDirectory(java.nio.file.Paths.get("."))
  *         .build()) {
  *
  *     client.connect("My favorite color is blue. Remember this.");

@@ -477,6 +477,32 @@ function steerMessage(sess, text) {
     });
 }
 
+/** 在运行中插话落到时间线前，结束当前流片段的思考块。
+ *
+ * steer_applied 可能紧跟 thought.delta 到达，后面既没有正文也没有工具事件，
+ * 因而常规的 appendContentChunk / appendActionStartChunk 无机会调用
+ * finishThinkingBlock，思考 header 会一直保留 streaming/spinner 状态。
+ * 只收尾当前 segment，不能遍历全局 reasonGroups，否则 multitask 并行时会截断
+ * 其它子代理仍在输出的思考流。
+ */
+function finishThinkingBeforeSteer(sess) {
+    if (!sess) return;
+    var segment = sess.currentStreamSegment;
+    if (segment && segment.reasonEntries) {
+        var reasonIds = Object.keys(segment.reasonEntries);
+        for (var i = 0; i < reasonIds.length; i++) {
+            var reasonId = reasonIds[i];
+            var entry = segment.reasonEntries[reasonId];
+            if (entry && entry.thinkingBlockEl) {
+                finishThinkingBlock(sess, streamReasonKey(segment, reasonId));
+            }
+        }
+        return;
+    }
+    // 兼容没有 streamSegment 的旧式思考块。
+    if (sess.thinkingBlockEl) finishThinkingBlock(sess);
+}
+
 /** 后端 steer_applied / steer_dropped 事件处理 */
 function handleSteerEvent(sess, event, p) {
     if (!sess) return;
@@ -484,6 +510,9 @@ function handleSteerEvent(sess, event, p) {
     if (!texts.length) return;
 
     if (event === 'system.steer_applied') {
+        // 插话可能是思考后的下一个事件，没有正文/工具来触发常规收尾；
+        // 先停掉当前 segment 的思考 spinner，再把插话追加到时间线。
+        finishThinkingBeforeSteer(sess);
         // 注入已生效：从待生效列表移除匹配项，气泡落主时间线（延迟上屏）
         if (sess.steerPending) {
             for (var i = 0; i < texts.length; i++) {

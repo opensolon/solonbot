@@ -22,6 +22,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.noear.soloncode.sdk.config.PermissionMode;
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.exceptions.TransportException;
@@ -33,6 +34,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,6 +61,9 @@ class HttpTransportTest {
 
 	private String baseUrl;
 
+	@TempDir
+	Path tempDir;
+
 	/** 服务端收到的请求记录（JSON 根节点） */
 	private final List<ONode> receivedRequests = new CopyOnWriteArrayList<>();
 
@@ -65,6 +72,9 @@ class HttpTransportTest {
 
 	/** interrupt 请求收到的 session_id */
 	private final List<String> interruptRequests = new CopyOnWriteArrayList<>();
+
+	/** interrupt 请求收到的 Content-Type */
+	private final List<String> interruptContentTypes = new CopyOnWriteArrayList<>();
 
 	@BeforeEach
 	void startServer() throws IOException {
@@ -75,11 +85,20 @@ class HttpTransportTest {
         server.createContext("/web/run/interrupt", exchange -> {
             receivedAuthHeaders.add(exchange.getRequestHeaders().getFirst("Authorization"));
             String body = readBody(exchange);
-			for (String pair : body.split("&")) {
-				if (pair.startsWith("session_id=")) {
-					interruptRequests.add(java.net.URLDecoder.decode(pair.substring(11), "UTF-8"));
-				}
-			}
+            interruptContentTypes.add(exchange.getRequestHeaders().getFirst("Content-Type"));
+            try {
+                String sid = ONode.ofJson(body).get("session_id").getString();
+                if (sid != null) {
+                    interruptRequests.add(sid);
+                }
+            }
+            catch (Exception ignored) {
+                for (String pair : body.split("&")) {
+                    if (pair.startsWith("session_id=")) {
+                        interruptRequests.add(java.net.URLDecoder.decode(pair.substring(11), "UTF-8"));
+                    }
+                }
+            }
 			respond(exchange, 202, "{\"code\":0,\"data\":\"ok\"}");
 		});
 
@@ -594,9 +613,19 @@ class HttpTransportTest {
 	}
 
 	@Test
-	void interruptWithoutSessionIdIsNoop() {
+	void interruptUsesJsonRequestContract() {
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
-		transport.interrupt(); // 无 session 标识 → 仅 warn，不抛
+		transport.setTurnSession("session/with-quote\"", null);
+		transport.interrupt();
+		assertThat(interruptRequests).containsExactly("session/with-quote\"");
+		assertThat(interruptContentTypes.get(0)).startsWith("application/json");
+		transport.close();
+	}
+
+	@Test
+	void interruptWithoutSessionIdFailsFast() {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		assertThatThrownBy(transport::interrupt).hasMessageContaining("requires a session id");
 		assertThat(transport.isRunning()).isFalse();
 		transport.close();
 	}
@@ -615,11 +644,11 @@ class HttpTransportTest {
 	}
 
 	@Test
-	void interruptToUnreachableUrlDoesNotThrow() {
+	void interruptToUnreachableUrlPropagatesFailure() {
 		HttpTransport transport = new HttpTransport("http://127.0.0.1:1/web/run", null, null,
 				Duration.ofMinutes(10));
 		transport.setTurnSession("s1", null);
-		transport.interrupt(); // 连接失败 → warn 不抛
+		assertThatThrownBy(transport::interrupt).hasMessageContaining("Failed to interrupt session");
 		transport.close();
 	}
 
@@ -652,15 +681,60 @@ class HttpTransportTest {
 	}
 
 	@Test
-	void resultWithoutSessionIdKeepsExisting() throws Exception {
-		// result 事件缺 session_id → 不覆盖（也保持 null）
+	void resultWithoutSessionIdKeepsInitSessionId() throws Exception {
+		// init 事件会尽早发布 session_id；缺少 session_id 的 result 不应清空它。
 		registerSseHandler(
 				"{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"init-1\"}",
 				"{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\"}");
 		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
 		runToCompletion(transport, "hi");
 		transport.close();
-		assertThat(transport.getSessionId()).isNull();
+		assertThat(transport.getSessionId()).isEqualTo("init-1");
+	}
+
+	@Test
+	void responseHeaderWaitHonorsTurnTimeout() {
+		server.createContext("/web/run", exchange -> {
+			try {
+				readBody(exchange);
+				Thread.sleep(1_000L);
+				respond(exchange, 200, "");
+			}
+			catch (Exception ignored) {
+			}
+		});
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMillis(100));
+		long started = System.nanoTime();
+		assertThatThrownBy(() -> transport.startSession("hi", CLIOptions.builder().build(), m -> {
+		}, null, null)).hasMessageContaining("Failed to start HTTP session");
+		assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)).isLessThan(900L);
+		transport.close();
+	}
+
+	@Test
+	void loadsBothPkcs12AndJksStoresIndependentOfJvmDefault() throws Exception {
+		for (String type : new String[] { "PKCS12", "JKS" }) {
+			String extension = "PKCS12".equals(type) ? ".p12" : ".jks";
+			Path path = tempDir.resolve("trust" + extension);
+			KeyStore store = KeyStore.getInstance(type);
+			store.load(null, "pw".toCharArray());
+			try (OutputStream output = Files.newOutputStream(path)) {
+				store.store(output, "pw".toCharArray());
+			}
+			HttpOptions httpOptions = HttpOptions.tls().trustStore(path, "pw");
+			HttpTransport transport = new HttpTransport(baseUrl, null, null, httpOptions, Duration.ofSeconds(1));
+			transport.close();
+		}
+	}
+
+	@Test
+	void maxTokensIsRejectedInsteadOfSilentlyIgnored() {
+		HttpTransport transport = new HttpTransport(baseUrl, null, null, Duration.ofMinutes(10));
+		assertThatThrownBy(() -> transport.startSession("hi", CLIOptions.builder().maxTokens(10).build(), m -> {
+		}, null, null))
+				.hasMessageContaining("Failed to start HTTP session")
+				.hasRootCauseMessage("maxTokens is not supported by the current /web/run protocol");
+		transport.close();
 	}
 
 	@Test

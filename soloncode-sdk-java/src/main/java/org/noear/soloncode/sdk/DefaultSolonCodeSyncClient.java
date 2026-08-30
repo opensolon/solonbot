@@ -26,7 +26,7 @@ import org.noear.soloncode.sdk.hooks.HookRegistry;
 import org.noear.soloncode.sdk.mcp.McpMessageHandler;
 import org.noear.soloncode.sdk.mcp.McpServerConfig;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
-import org.noear.soloncode.sdk.streaming.BlockingMessageReceiver;
+
 import org.noear.soloncode.sdk.streaming.MessageReceiver;
 import org.noear.soloncode.sdk.streaming.MessageStreamIterator;
 import org.noear.soloncode.sdk.streaming.ResponseBoundedReceiver;
@@ -37,6 +37,7 @@ import org.noear.soloncode.sdk.util.SdkCollections;
 import org.noear.soloncode.sdk.types.AssistantMessage;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.ResultMessage;
+import org.noear.soloncode.sdk.types.SystemMessage;
 import org.noear.soloncode.sdk.types.control.ControlRequest;
 import org.noear.soloncode.sdk.types.control.ControlResponse;
 import org.noear.soloncode.sdk.types.control.HookEvent;
@@ -111,6 +112,13 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	/** 是否已经跑过至少一轮（用于判定首轮/续接）。 */
 	private final AtomicBoolean turnStarted = new AtomicBoolean(false);
 
+	/** Whether the current turn has delivered its required terminal result message. */
+	private final AtomicBoolean turnResultReceived = new AtomicBoolean(false);
+
+	private final AtomicBoolean activeTurn = new AtomicBoolean(false);
+
+	private final AtomicBoolean turnTimeoutTriggered = new AtomicBoolean(false);
+
 	// Runtime state tracking
 	private final AtomicReference<String> currentModel = new AtomicReference<>();
 
@@ -124,7 +132,6 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 
 	private volatile MessageStreamIterator messageIterator;
 
-	private volatile BlockingMessageReceiver blockingReceiver;
 
 	// Control request handling (MCP SDK pattern using MonoSink for correlation)
 	private final AtomicInteger requestCounter = new AtomicInteger(0);
@@ -152,8 +159,11 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 
 		// 会话 ID：优先用调用方指定的 --session-id，否则自生成（用于多轮 --resume 串接）
 		String explicitSessionId = this.options.getSessionId();
+		String resumeSessionId = this.options.getResume();
 		this.sdkSessionId = (explicitSessionId != null && !explicitSessionId.trim().isEmpty()) ? explicitSessionId
-				: "sdk-" + UUID.randomUUID().toString().substring(0, 8);
+				: (resumeSessionId != null && !resumeSessionId.trim().isEmpty() ? resumeSessionId
+						: "sdk-" + UUID.randomUUID().toString().substring(0, 8));
+		this.currentSessionId.set(this.sdkSessionId);
 
 		// Initialize runtime state from options
 		if (this.options.model() != null) {
@@ -199,6 +209,10 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 		}
 		if (connected.get()) {
 			throw new TransportException("Client is already connected");
+		}
+		if (hookRegistry.hasHooks()) {
+			throw new UnsupportedOperationException(
+					"SolonCode CLI stream does not currently support hook initialize/callback control frames");
 		}
 
 		try {
@@ -252,10 +266,7 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 
 		// 一次性执行模型：每轮提问都是一个新的 soloncode run 进程，
 		// 首轮 --session-id，后续轮 --resume 自动续接上下文。
-		startTurn(prompt);
-		if (sessionId != null && !sessionId.isEmpty()) {
-			currentSessionId.set(sessionId);
-		}
+		startTurn(prompt, sessionId);
 		logger.debug("Sent query in session {}: {}", currentSessionId.get(),
 				prompt.substring(0, Math.min(50, prompt.length())));
 	}
@@ -266,12 +277,29 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 			messageIterator.complete();
 			messageIterator.close();
 		}
-		if (blockingReceiver != null) {
-			blockingReceiver.complete();
-			blockingReceiver.close();
+		messageIterator = new MessageStreamIterator(1000, 100, timeout, this::timeoutCurrentTurn,
+				() -> activeTurn.set(false));
+		turnTimeoutTriggered.set(false);
+	}
+
+	private void timeoutCurrentTurn() {
+		if (!turnTimeoutTriggered.compareAndSet(false, true)) {
+			return;
 		}
-		messageIterator = new MessageStreamIterator();
-		blockingReceiver = new BlockingMessageReceiver();
+		TransportException failure = new TransportException("Response timed out after " + timeout);
+		activeTurn.set(false);
+		if (messageIterator != null) {
+			messageIterator.completeWithError(failure);
+		}
+		Transport current = transport;
+		if (current != null) {
+			try {
+				current.interrupt();
+			}
+			catch (Throwable e) {
+				logger.debug("Failed to interrupt timed out turn", e);
+			}
+		}
 	}
 
 	/**
@@ -279,39 +307,61 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	 * HTTP 与显式 stdioOneShot 继续每轮创建一次性 transport。
 	 */
 	private synchronized void startTurn(String prompt) throws SolonCodeSDKException {
+		startTurn(prompt, null);
+	}
+
+	private synchronized void startTurn(String prompt, String requestedSessionId) throws SolonCodeSDKException {
 		if (prompt == null || prompt.isEmpty()) {
 			throw new TransportException("prompt 不能为空：soloncode run 无提示词时以退出码 3 终止");
 		}
+		if (transportSpec.isPersistent() && requestedSessionId != null && !requestedSessionId.trim().isEmpty()
+				&& !requestedSessionId.equals(currentSessionId.get())) {
+			throw new UnsupportedOperationException(
+					"A persistent stdio client cannot switch session_id; create a new client for that session");
+		}
+		if (!activeTurn.compareAndSet(false, true)) {
+			throw new IllegalStateException(
+					"A response is still active; consume or cancel it before starting another turn");
+		}
 
-		prepareReceivers();
+		try {
+			String turnSessionId = requestedSessionId != null && !requestedSessionId.trim().isEmpty()
+					? requestedSessionId : currentSessionId.get();
+			prepareReceivers();
+			turnResultReceived.set(false);
 
-		if (transportSpec.isPersistent()) {
-			Transport current = transport;
-			if (current == null) {
-				turnStarted.set(true);
-				current = transportSpec.create(workingDirectory, timeout);
-				current.setTurnSession(sdkSessionId, null);
-				transport = current;
-				current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-						this::handleControlResponse);
+			if (transportSpec.isPersistent()) {
+				Transport current = transport;
+				if (current == null) {
+					turnStarted.set(true);
+					current = transportSpec.create(workingDirectory, timeout);
+					current.setTurnSession(turnSessionId, null);
+					transport = current;
+					current.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+							this::handleControlResponse);
+				}
+				else {
+					current.sendUserMessage(prompt, turnSessionId);
+				}
 			}
 			else {
-				current.sendUserMessage(prompt, sdkSessionId);
-			}
-		}
-		else {
-			Transport previous = transport;
-			if (previous != null) {
-				previous.close();
-			}
+				Transport previous = transport;
+				if (previous != null) {
+					previous.close();
+				}
 
-			boolean firstTurn = !turnStarted.getAndSet(true);
-			transport = transportSpec.create(workingDirectory, timeout);
-			transport.setTurnSession(sdkSessionId, firstTurn ? null : sdkSessionId);
-			transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
-					this::handleControlResponse);
+				boolean firstTurn = !turnStarted.getAndSet(true);
+				transport = transportSpec.create(workingDirectory, timeout);
+				transport.setTurnSession(turnSessionId, firstTurn ? null : turnSessionId);
+				transport.startSession(prompt, options, this::handleMessage, this::handleControlRequest,
+						this::handleControlResponse);
+			}
+			currentSessionId.set(turnSessionId);
 		}
-		currentSessionId.set(sdkSessionId);
+		catch (Throwable e) {
+			activeTurn.set(false);
+			throw e;
+		}
 	}
 
 	@Override
@@ -375,18 +425,35 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	@Override
 	public MessageReceiver messageReceiver() {
 		ensureConnected();
-		return blockingReceiver;
+		return iteratorReceiver();
+	}
+
+	private MessageReceiver iteratorReceiver() {
+		final MessageStreamIterator iterator = messageIterator;
+		return new MessageReceiver() {
+			@Override
+			public ParsedMessage next() {
+				return iterator.hasNext() ? iterator.next() : null;
+			}
+
+			@Override
+			public void close() {
+				iterator.close();
+				activeTurn.set(false);
+			}
+		};
 	}
 
 	@Override
 	public MessageReceiver responseReceiver() {
 		ensureConnected();
-		return new ResponseBoundedReceiver(blockingReceiver);
+		return new ResponseBoundedReceiver(iteratorReceiver());
 	}
 
 	@Override
 	public void interrupt() throws SolonCodeSDKException {
 		ensureConnected();
+		activeTurn.set(false);
 		// 常驻 stdio 发送 interrupt 控制帧并保留进程；one-shot/http 由各 transport 处理。
 		if (transport != null) {
 			transport.interrupt();
@@ -470,6 +537,10 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	 * @return this client for chaining
 	 */
 	public DefaultSolonCodeSyncClient registerHook(HookEvent event, String toolPattern, HookCallback callback) {
+		if (connected.get()) {
+			throw new UnsupportedOperationException(
+					"The current SolonCode CLI protocol does not support hook registration");
+		}
 		hookRegistry.register(event, toolPattern, callback);
 		return this;
 	}
@@ -485,19 +556,45 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	private void handleMessage(ParsedMessage message) {
 		// Detect session-end signal from transport (process exited, stream closed)
 		if (message instanceof ParsedMessage.EndOfStream) {
+			activeTurn.set(false);
+			Throwable failure = transport == null ? null : transport.getSessionError();
+			if (failure == null && !turnResultReceived.get() && !closed.get()) {
+				failure = new TransportException("Response stream ended before result event");
+			}
 			logger.debug("Session ended — completing message receivers");
 			if (messageIterator != null) {
-				messageIterator.complete();
-			}
-			if (blockingReceiver != null) {
-				blockingReceiver.complete();
+				if (failure == null) {
+					messageIterator.complete();
+				}
+				else {
+					messageIterator.completeWithError(failure);
+				}
 			}
 			return;
 		}
 		// Forward regular messages to both receivers
 		if (message.isRegularMessage()) {
-			messageIterator.offer(message);
-			blockingReceiver.offer(message);
+			Message regular = message.asMessage();
+			if (regular instanceof SystemMessage) {
+				SystemMessage system = (SystemMessage) regular;
+				Object sid = system.data().get("session_id");
+				if ("error".equalsIgnoreCase(system.subtype())) {
+					turnResultReceived.set(true);
+				}
+				if (sid != null && !String.valueOf(sid).isEmpty()) {
+					currentSessionId.set(String.valueOf(sid));
+				}
+			}
+			if (regular instanceof ResultMessage) {
+				ResultMessage result = (ResultMessage) regular;
+				turnResultReceived.set(true);
+				if (result.sessionId() != null && !result.sessionId().isEmpty()) {
+					currentSessionId.set(result.sessionId());
+				}
+			}
+			if (!messageIterator.offer(message)) {
+				messageIterator.completeWithError(new TransportException("Response buffer is full"));
+			}
 		}
 	}
 
@@ -746,10 +843,6 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 		if (messageIterator != null) {
 			messageIterator.complete();
 			messageIterator.close();
-		}
-		if (blockingReceiver != null) {
-			blockingReceiver.complete();
-			blockingReceiver.close();
 		}
 		if (transport != null) {
 			transport.close();

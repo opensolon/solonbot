@@ -65,7 +65,7 @@ class MessageParserTest {
 		@Test
 		@DisplayName("should parse ALL fields in ResultMessage (field parity test)")
 		void shouldParseAllResultMessageFields() throws Exception {
-			String json = "{ \"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"duration_ms\": 1234, \"duration_api_ms\": 5678, \"num_turns\": 3, \"session_id\": \"sess-abc123\", \"total_cost_usd\": 0.0456, \"usage\": { \"input_tokens\": 100, \"output_tokens\": 200 }, \"result\": \"final result text\", \"structured_output\": {\"key\": \"value\"} }";
+			String json = "{ \"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"duration_ms\": 1234, \"duration_api_ms\": 5678, \"num_turns\": 3, \"session_id\": \"sess-abc123\", \"total_cost_usd\": 0.0456, \"budget_limit_usd\": 1.5, \"budget_exceeded\": true, \"usage\": { \"input_tokens\": 100, \"output_tokens\": 200 }, \"result\": \"final result text\", \"structured_output\": {\"key\": \"value\"} }";
 
 			Message message = parser.parseMessage(json);
 			assertThat(message).isInstanceOf(ResultMessage.class);
@@ -84,6 +84,8 @@ class MessageParserTest {
 			assertThat(result.result()).isEqualTo("final result text");
 			assertThat(result.structuredOutput()).isNotNull();
 			assertThat(result.getStructuredOutputAsMap()).containsEntry("key", "value");
+			assertThat(result.budgetLimitUsd()).isEqualTo(1.5);
+			assertThat(result.isBudgetExceeded()).isTrue();
 		}
 
 		@Test
@@ -145,6 +147,14 @@ class MessageParserTest {
 
 			assertThat(result.hasStructuredOutput()).isFalse();
 			assertThat(result.getStructuredOutputAsMap()).isNull();
+		}
+
+		@Test
+		void shouldMapSolonCodeMetricTokenNamesToMetadataUsage() throws Exception {
+			ResultMessage result = (ResultMessage) parser.parseMessage(
+					"{\"type\":\"result\",\"is_error\":false,\"metrics\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}");
+			assertThat(result.toMetadata("test").usage().inputTokens()).isEqualTo(12);
+			assertThat(result.toMetadata("test").usage().outputTokens()).isEqualTo(7);
 		}
 
 	}

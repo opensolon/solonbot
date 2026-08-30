@@ -185,6 +185,9 @@ public class MessageParser {
 			.usage(usage)
 			.result(getStringField(node, "result"))
 			.structuredOutput(parseStructuredOutput(SdkJson.getField(node, "structured_output")))
+			.budgetLimitUsd(getDoubleField(node, "budget_limit_usd"))
+			.budgetExceeded(SdkJson.hasField(node, "budget_exceeded")
+					? getBooleanField(node, "budget_exceeded", false) : null)
 			.build();
 	}
 
