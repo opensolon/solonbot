@@ -12,6 +12,8 @@ import org.noear.solon.codecli.config.entity.ProviderDo;
 import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
+import org.noear.solon.codecli.config.models.ModelsFetchException;
+import org.noear.solon.codecli.config.models.ModelsFetchReason;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.core.handle.Result;
 import org.noear.solon.core.util.Assert;
@@ -519,10 +521,24 @@ public class LlmSettingController extends BaseSettingsController {
             modelList.sort((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(String.valueOf(a.get("id")), String.valueOf(b.get("id"))));
 
             return Result.succeed(modelList);
+        } catch (ModelsFetchException e) {
+            // 失败原因需要透出：404 表示供应商没有模型列表接口，与“拉取失败”应给出不同处置建议
+            LOG.warn("[Settings] Failed to fetch models: reason={}, status={}", e.getReason(), e.getStatus());
+            return Result.failure("fetch models failed: " + e.getReason().name(), fetchErrorData(e.getReason().name(), e.getStatus()));
         } catch (Exception e) {
             LOG.warn("[Settings] Failed to fetch models");
-            return Result.failure("拉取模型列表失败，请检查 API 地址、密钥和网络连接");
+            return Result.failure("fetch models failed: UNKNOWN", fetchErrorData(ModelsFetchReason.UNKNOWN.name(), 0));
         }
+    }
+
+    /**
+     * 拉取失败的结构化信息，前端按 reason 决定提示文案与后续引导
+     */
+    private Map<String, Object> fetchErrorData(String reason, int status) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("reason", reason);
+        data.put("status", status);
+        return data;
     }
 
     /**

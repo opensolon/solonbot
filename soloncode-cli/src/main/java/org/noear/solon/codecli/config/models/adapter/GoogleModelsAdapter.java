@@ -7,6 +7,8 @@ import org.noear.solon.codecli.config.models.ModelApiUrl;
 import org.noear.solon.codecli.config.models.ModelInfo;
 import org.noear.solon.codecli.config.models.ModelsAdapter;
 import org.noear.solon.codecli.config.models.ModelsFetchException;
+import org.noear.solon.codecli.config.models.ModelsFetchReason;
+import org.noear.solon.codecli.config.models.ModelsHttp;
 import org.noear.solon.net.http.HttpUtils;
 
 import java.util.ArrayList;
@@ -72,37 +74,43 @@ public class GoogleModelsAdapter implements ModelsAdapter {
                 http.header("x-goog-api-key", apiKey);
             }
 
-            String body = http.get();
+            String body = ModelsHttp.getBody(http, "Google");
 
-            ONode root = ONode.ofJson(body);
+            ONode root = ModelsHttp.parseJson(body, "Google");
             ONode models = root.get("models");
-            if (models.isArray()) {
-                for (int i = 0; i < models.size(); i++) {
-                    ONode item = models.get(i);
-                    String name = item.get("name").getString();
-                    if (name != null && name.startsWith("models/")) {
-                        name = name.substring("models/".length());
-                    }
-                    String displayName = item.get("displayName").getString();
-                    long inputLimit = item.get("inputTokenLimit").getLong();
-                    long outputLimit = item.get("outputTokenLimit").getLong();
-
-                    ModelInfo modelInfo = ModelInfo.builder()
-                            .id(name)
-                            .object("model")
-                            .created(System.currentTimeMillis() / 1000)
-                            .ownedBy("google")
-                            .type("chat")
-                            .displayName(displayName)
-                            .maxInputTokens(inputLimit > 0 ? inputLimit : null)
-                            .maxTokens(outputLimit > 0 ? outputLimit : null)
-                            .build();
-                    result.add(modelInfo);
-                }
+            if (!models.isArray()) {
+                // 状态码正常但结构不是模型列表，多为地址或协议选错
+                throw new ModelsFetchException("Google model list response has no models array",
+                        ModelsFetchReason.INVALID_RESPONSE, 200, null);
             }
+            for (int i = 0; i < models.size(); i++) {
+                ONode item = models.get(i);
+                String name = item.get("name").getString();
+                if (name != null && name.startsWith("models/")) {
+                    name = name.substring("models/".length());
+                }
+                String displayName = item.get("displayName").getString();
+                long inputLimit = item.get("inputTokenLimit").getLong();
+                long outputLimit = item.get("outputTokenLimit").getLong();
+
+                ModelInfo modelInfo = ModelInfo.builder()
+                        .id(name)
+                        .object("model")
+                        .created(System.currentTimeMillis() / 1000)
+                        .ownedBy("google")
+                        .type("chat")
+                        .displayName(displayName)
+                        .maxInputTokens(inputLimit > 0 ? inputLimit : null)
+                        .maxTokens(outputLimit > 0 ? outputLimit : null)
+                        .build();
+                result.add(modelInfo);
+            }
+        } catch (ModelsFetchException e) {
+            log.warn("[Google] Failed to fetch model list: reason={}, status={}", e.getReason(), e.getStatus());
+            throw e;
         } catch (Exception e) {
             log.warn("[Google] Failed to fetch model list");
-            throw new ModelsFetchException("Google model list request failed", e);
+            throw new ModelsFetchException("Google model list request failed", ModelsFetchReason.UNKNOWN, e);
         }
 
         return result;

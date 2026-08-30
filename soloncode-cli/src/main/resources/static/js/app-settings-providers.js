@@ -366,11 +366,53 @@
         }
     }
 
+    // 后端拉取失败原因 -> 提示文案：404 类“不支持列表接口”与“拉取失败”处置方式不同，不能共用一句提示
+    var FETCH_REASON_TIPS = {
+        NOT_SUPPORTED: { key: 'provider.fetchNotSupported', icon: 0, time: 5000 },
+        AUTH_FAILED: { key: 'provider.fetchAuthFailed', icon: 2, time: 4000 },
+        RATE_LIMITED: { key: 'provider.fetchRateLimited', icon: 0, time: 4000 },
+        UPSTREAM_ERROR: { key: 'provider.fetchUpstreamError', icon: 2, time: 4000 },
+        BAD_STATUS: { key: 'provider.fetchBadStatus', icon: 2, time: 4500 },
+        TIMEOUT: { key: 'provider.fetchTimeout', icon: 2, time: 4000 },
+        NETWORK_ERROR: { key: 'provider.fetchNetworkError', icon: 2, time: 4500 },
+        INVALID_RESPONSE: { key: 'provider.fetchInvalidResponse', icon: 2, time: 4500 },
+        UNKNOWN: { key: 'provider.fetchListFailedKeepExisting', icon: 2, time: 4000 }
+    };
+
+    // 从业务失败响应中取出失败原因（后端不输出面向用户的文案，文案统一由前端 i18n 提供）
+    function getFetchFailureTip(res) {
+        var data = res && res.data;
+        if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch (e) { data = null; }
+        }
+
+        var reason = data && data.reason;
+        var tip = reason && FETCH_REASON_TIPS[reason];
+        if (!tip) {
+            // Result 序列化字段为 description，兼容 msg 以防接口差异
+            var raw = res && (res.description || res.msg);
+            return {
+                text: raw || I18n.t('provider.fetchListFailedKeepExisting'),
+                icon: 2,
+                time: 4000
+            };
+        }
+
+        var status = (data && data.status) || 0;
+        return {
+            text: I18n.t(tip.key, { status: status }),
+            icon: tip.icon,
+            time: tip.time
+        };
+    }
+
     function getFetchErrorMessage(xhr, textStatus) {
         if (textStatus === 'timeout' || xhr.status === 408 || xhr.status === 504) return I18n.t('provider.fetchTimeout');
         if (xhr.status === 401 || xhr.status === 403) return I18n.t('provider.fetchAuthFailed');
         if (xhr.status === 404) return I18n.t('provider.fetchEndpointNotFound');
-        if (xhr.responseJSON && xhr.responseJSON.msg) return xhr.responseJSON.msg;
+        if (xhr.responseJSON && (xhr.responseJSON.description || xhr.responseJSON.msg)) {
+            return xhr.responseJSON.description || xhr.responseJSON.msg;
+        }
         return I18n.t('provider.fetchListFailedKeepExisting');
     }
 
@@ -473,7 +515,8 @@
                         layui.layer.msg(I18n.t('provider.fetchParseFailed'), { icon: 2, time: 3000, offset: '120px' });
                     }
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('provider.fetchFailed'), { icon: 2, time: 3000, offset: '120px' });
+                    var tip = getFetchFailureTip(res);
+                    layui.layer.msg(tip.text, { icon: tip.icon, time: tip.time, offset: '120px' });
                 }
             },
             error: function (xhr, textStatus) {
@@ -634,7 +677,7 @@
                 if (res.code === 200) {
                     showForm(res.data);
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('provider.loadDetailFailed'), { icon: 2, time: 3000, offset: '120px' });
+                    layui.layer.msg((res.description || res.msg) || I18n.t('provider.loadDetailFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
             error: function () {
@@ -708,7 +751,7 @@
                     syncModelsToLlm(data);
                     showList();
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('toast.saveFailed'), { icon: 2, time: 3000, offset: '120px' });
+                    layui.layer.msg((res.description || res.msg) || I18n.t('toast.saveFailed'), { icon: 2, time: 3000, offset: '120px' });
                 }
             },
             error: function () {
@@ -768,7 +811,7 @@
                             window.reloadModels();
                         }
                     } else {
-                        layui.layer.msg(res.msg || I18n.t('provider.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
+                        layui.layer.msg((res.description || res.msg) || I18n.t('provider.deleteFailed'), { icon: 2, time: 3000, offset: '120px' });
                     }
                 },
                 error: function () {
@@ -797,7 +840,7 @@
                         window.reloadModels();
                     }
                 } else {
-                    layui.layer.msg(res.msg || I18n.t('toast.operateFailed'), { icon: 2, time: 3000, offset: '120px' });
+                    layui.layer.msg((res.description || res.msg) || I18n.t('toast.operateFailed'), { icon: 2, time: 3000, offset: '120px' });
                     loadProvidersList();
                 }
             },
