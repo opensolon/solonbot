@@ -7,23 +7,28 @@ import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.QueryResult;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 
 /**
- * Unified request-oriented facade. It owns one blocking session implementation and
+ * Unified request-oriented facade. It owns one internal session implementation and
  * exposes execution mode only on {@link Request}: {@code call()} or {@code stream()}.
- * The legacy sync/async facades remain available during the migration period.
  */
 final class DefaultSolonCodeClient implements SolonCodeClient {
+    private static final long NO_DEMAND_PARK_NANOS = 1_000_000L;
+
     private SolonCodeSession delegate;
     private final Function<QueryOptions, SolonCodeSession> sessionFactory;
     private final Object turnLock = new Object();
+    private final AtomicBoolean activeTurn = new AtomicBoolean(false);
     private boolean started;
     private boolean closed;
 
@@ -113,6 +118,7 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                 return;
             }
             closed = true;
+            activeTurn.set(false);
             if (delegate != null) {
                 delegate.close();
             }
@@ -120,17 +126,70 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
     }
 
     private void start(String prompt) {
+        SolonCodeSession current = session(null);
+        if (started) {
+            current.query(prompt);
+        }
+        else {
+            current.connect(prompt);
+            started = true;
+        }
+    }
+
+    private SolonCodeSession beginTurn(String prompt, QueryOptions requestOptions) {
         synchronized (turnLock) {
             if (closed) {
                 throw new SolonCodeSDKException("SolonCodeClient is closed");
             }
-            SolonCodeSession current = session(null);
-            if (started) {
-                current.query(prompt);
-            } else {
-                current.connect(prompt);
-                started = true;
+            if (!activeTurn.compareAndSet(false, true)) {
+                throw new IllegalStateException(
+                        "A response is still active; consume or cancel it before starting another turn");
             }
+            try {
+                applyRequestOptions(requestOptions);
+                start(prompt);
+                return delegate;
+            }
+            catch (Throwable e) {
+                activeTurn.set(false);
+                throw e;
+            }
+        }
+    }
+
+    private void endTurn() {
+        activeTurn.set(false);
+    }
+
+    private void applyRequestOptions(QueryOptions requestOptions) {
+        if (requestOptions == null) {
+            return;
+        }
+        // Model and permission mode are the only options that can be changed on an
+        // already-created persistent session. Transport, workspace and process-level
+        // options remain client-scoped; silently ignoring them would be misleading.
+        CLIOptions base = session(requestOptions).getOptions();
+        CLIOptions requested = requestOptions.toCLIOptions();
+        if (!started) {
+            return;
+        }
+        if (requested.model() != null && !requested.model().equals(base == null ? null : base.model())) {
+            session(requestOptions).setModel(requested.model());
+        }
+        if (requestOptions.systemPrompt() != null
+                || requestOptions.appendSystemPrompt() != null
+                || !requestOptions.allowedTools().isEmpty()
+                || !requestOptions.disallowedTools().isEmpty()
+                || requestOptions.maxTurns() != null
+                || requestOptions.maxBudgetUsd() != null
+                || requestOptions.maxTokens() != null
+                || requestOptions.maxThinkingTokens() != null
+                || requestOptions.fallbackModel() != null
+                || requestOptions.jsonSchema() != null
+                || requestOptions.sessionId() != null
+                || requestOptions.bare()) {
+            throw new IllegalArgumentException(
+                    "Only model can be overridden per request; configure process and transport options on the client builder");
         }
     }
 
@@ -158,59 +217,25 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
             }
         }
 
-        private void applyRequestOptions() {
-            if (requestOptions == null) {
-                return;
-            }
-            // Model and permission mode are the only options that can be changed on an
-            // already-created persistent session. Transport, workspace and process-level
-            // options remain client-scoped; silently ignoring them would be misleading.
-            CLIOptions base = session(requestOptions).getOptions();
-            CLIOptions requested = requestOptions.toCLIOptions();
-            // The first request created the session with the complete request options.
-            // From the second turn onward, only protocol-supported dynamic settings may change.
-            if (!started) {
-                return;
-            }
-            if (requested.model() != null && !requested.model().equals(base == null ? null : base.model())) {
-                session(requestOptions).setModel(requested.model());
-            }
-            // Process/transport options cannot be changed after the client is built. Do
-            // not silently ignore them: callers get a deterministic explanation instead.
-            if (requestOptions.systemPrompt() != null
-                    || requestOptions.appendSystemPrompt() != null
-                    || !requestOptions.allowedTools().isEmpty()
-                    || !requestOptions.disallowedTools().isEmpty()
-                    || requestOptions.maxTurns() != null
-                    || requestOptions.maxBudgetUsd() != null
-                    || requestOptions.maxTokens() != null
-                    || requestOptions.maxThinkingTokens() != null
-                    || requestOptions.fallbackModel() != null
-                    || requestOptions.jsonSchema() != null
-                    || requestOptions.sessionId() != null
-                    || requestOptions.bare()) {
-                throw new IllegalArgumentException(
-                        "Only model can be overridden per request; configure process and transport options on the client builder");
-            }
-        }
-
         @Override
         public QueryResult call() throws SolonCodeSDKException {
             ensureSingleUse();
-            synchronized (turnLock) {
-                applyRequestOptions();
-                start(prompt);
+            SolonCodeSession current = beginTurn(prompt, requestOptions);
+            try {
                 List<Message> messages = new ArrayList<>();
-                Iterator<ParsedMessage> it = delegate.receiveResponse();
+                Iterator<ParsedMessage> it = current.receiveResponse();
                 while (it.hasNext()) {
                     ParsedMessage parsed = it.next();
                     if (parsed.isRegularMessage()) {
                         messages.add(parsed.asMessage());
                     }
                 }
-                CLIOptions effective = delegate.getOptions();
+                CLIOptions effective = current.getOptions();
                 return Query.buildQueryResult(messages,
                         effective == null ? CLIOptions.builder().build() : effective);
+            }
+            finally {
+                endTurn();
             }
         }
 
@@ -220,36 +245,74 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                 return Flux.error(new IllegalStateException("request can only be executed once"));
             }
             return Flux.<Message>create(sink -> {
-                final SolonCodeSession current = session(requestOptions);
+                AtomicBoolean cancelled = new AtomicBoolean(false);
+                AtomicReference<SolonCodeSession> currentRef = new AtomicReference<>();
+                AtomicReference<Thread> workerRef = new AtomicReference<>();
+
                 sink.onCancel(() -> {
-                    try {
-                        current.interrupt();
-                    } catch (Throwable ignored) {
-                        // 取消路径不覆盖下游原有的取消信号。
+                    cancelled.set(true);
+                    Thread worker = workerRef.get();
+                    if (worker != null) {
+                        LockSupport.unpark(worker);
                     }
-                });
-                try {
-                    ensureSingleUse();
-                    synchronized (turnLock) {
-                        applyRequestOptions();
-                        start(prompt);
-                        Iterator<ParsedMessage> it = current.receiveResponse();
-                        while (!sink.isCancelled() && it.hasNext()) {
-                            ParsedMessage parsed = it.next();
-                            if (parsed.isRegularMessage()) {
-                                sink.next(parsed.asMessage());
-                            }
+                    SolonCodeSession current = currentRef.get();
+                    if (current != null) {
+                        try {
+                            current.interrupt();
+                        }
+                        catch (Throwable ignored) {
+                            // Cancellation must not replace the downstream cancel signal.
                         }
                     }
-                    if (!sink.isCancelled()) {
-                        sink.complete();
+                });
+
+                try {
+                    workerRef.set(Thread.currentThread());
+                    ensureSingleUse();
+                    SolonCodeSession current = beginTurn(prompt, requestOptions);
+                    currentRef.set(current);
+                    if (cancelled.get() || sink.isCancelled()) {
+                        try {
+                            current.interrupt();
+                        }
+                        catch (Throwable ignored) {
+                            // Best-effort cancellation after a race with turn startup.
+                        }
+                        return;
                     }
-                } catch (Throwable e) {
-                    if (!sink.isCancelled()) {
+
+                    Iterator<ParsedMessage> it = current.receiveResponse();
+                    while (!cancelled.get() && !sink.isCancelled()) {
+                        // Probe at most one source element ahead so completion can be
+                        // observed without additional downstream demand. The iterator's
+                        // own queue remains bounded, so this is a one-element prefetch.
+                        if (!it.hasNext()) {
+                            sink.complete();
+                            break;
+                        }
+                        while (!cancelled.get() && !sink.isCancelled()
+                                && sink.requestedFromDownstream() <= 0) {
+                            LockSupport.parkNanos(NO_DEMAND_PARK_NANOS);
+                        }
+                        if (cancelled.get() || sink.isCancelled()) {
+                            break;
+                        }
+                        ParsedMessage parsed = it.next();
+                        if (parsed.isRegularMessage()) {
+                            sink.next(parsed.asMessage());
+                        }
+                    }
+                }
+                catch (Throwable e) {
+                    if (!cancelled.get() && !sink.isCancelled()) {
                         sink.error(e);
                     }
                 }
-            }).subscribeOn(Schedulers.boundedElastic());
+                finally {
+                    workerRef.set(null);
+                    endTurn();
+                }
+            }, FluxSink.OverflowStrategy.ERROR).subscribeOn(Schedulers.boundedElastic(), false);
         }
 
         @Override
