@@ -3,10 +3,11 @@
 
 * 添加 soloncode web 输入超大提示（100K）
 * 优化 soloncode web 供应商拉取失败的提示
+* 优化 soloncode llm 方言适配
 * 优化 soloncode-sdk-java 模块
 * 细节优化
 
-### v2026.8.30
+### v2026.8.29
 
 * 新增 soloncode-sdk-java 模块
 * 修复 soloncode web 子代理任务显示描述丢失问题
