@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -99,5 +100,46 @@ class UnifiedSolonCodeClientTest {
         assertThatThrownBy(request::call)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("only be executed once");
+    }
+
+    @Test
+    void firstTurnOptionsAreAppliedBeforeSessionCreation() {
+        AtomicReference<QueryOptions> captured = new AtomicReference<>();
+        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        when(delegate.getOptions()).thenReturn(org.noear.soloncode.sdk.transport.CLIOptions.builder()
+                .model("request-model").systemPrompt("request-system").build());
+        when(delegate.receiveResponse()).thenReturn(Arrays.asList(result()).iterator());
+        SolonCodeClient client = new DefaultSolonCodeClient(options -> {
+            captured.set(options);
+            return delegate;
+        });
+        QueryOptions options = QueryOptions.builder()
+                .model("request-model")
+                .systemPrompt("request-system")
+                .maxTurns(3)
+                .build();
+
+        client.prompt("hello").options(options).call();
+
+        assertThat(captured.get()).isSameAs(options);
+        verify(delegate).connect("hello");
+    }
+
+    @Test
+    void streamResultAggregatesMessagesAndTerminalMetadata() {
+        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        when(delegate.getOptions()).thenReturn(org.noear.soloncode.sdk.transport.CLIOptions.builder()
+                .model("sonnet").build());
+        when(delegate.receiveResponse()).thenReturn(Arrays.asList(assistant("one"), result()).iterator());
+        SolonCodeClient client = new DefaultSolonCodeClient(delegate);
+
+        StepVerifier.create(client.prompt("hello").streamResult())
+                .assertNext(queryResult -> {
+                    assertThat(queryResult.messages()).hasSize(2);
+                    assertThat(queryResult.text()).contains("one");
+                    assertThat(queryResult.metadata().model()).isEqualTo("sonnet");
+                    assertThat(queryResult.isSuccessful()).isTrue();
+                })
+                .verifyComplete();
     }
 }

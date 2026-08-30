@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 /**
  * Unified request-oriented facade. It owns one blocking session implementation and
@@ -20,13 +21,31 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The legacy sync/async facades remain available during the migration period.
  */
 final class DefaultSolonCodeClient implements SolonCodeClient {
-    private final SolonCodeSession delegate;
+    private SolonCodeSession delegate;
+    private final Function<QueryOptions, SolonCodeSession> sessionFactory;
     private final Object turnLock = new Object();
     private boolean started;
     private boolean closed;
 
     DefaultSolonCodeClient(SolonCodeSession delegate) {
         this.delegate = delegate;
+        this.sessionFactory = ignored -> delegate;
+    }
+
+    DefaultSolonCodeClient(Function<QueryOptions, SolonCodeSession> sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
+
+    private SolonCodeSession session(QueryOptions firstTurnOptions) {
+        synchronized (turnLock) {
+            if (delegate == null) {
+                if (closed) {
+                    throw new SolonCodeSDKException("SolonCodeClient is closed");
+                }
+                delegate = sessionFactory.apply(firstTurnOptions);
+            }
+            return delegate;
+        }
     }
 
     @Override
@@ -39,52 +58,52 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
 
     @Override
     public void interrupt() throws SolonCodeSDKException {
-        delegate.interrupt();
+        session(null).interrupt();
     }
 
     @Override
     public void setModel(String model) throws SolonCodeSDKException {
-        delegate.setModel(model);
+        session(null).setModel(model);
     }
 
     @Override
     public void setPermissionMode(String mode) throws SolonCodeSDKException {
-        delegate.setPermissionMode(mode);
+        session(null).setPermissionMode(mode);
     }
 
     @Override
     public CLIOptions getOptions() {
-        return delegate.getOptions();
+        return session(null).getOptions();
     }
 
     @Override
     public String getCurrentModel() {
-        return delegate.getCurrentModel();
+        return session(null).getCurrentModel();
     }
 
     @Override
     public String getCurrentPermissionMode() {
-        return delegate.getCurrentPermissionMode();
+        return session(null).getCurrentPermissionMode();
     }
 
     @Override
     public java.util.Map<String, Object> getServerInfo() {
-        return delegate.getServerInfo();
+        return session(null).getServerInfo();
     }
 
     @Override
     public boolean isConnected() {
-        return delegate.isConnected();
+        return delegate != null && delegate.isConnected();
     }
 
     @Override
     public void setToolPermissionCallback(ToolPermissionCallback callback) {
-        delegate.setToolPermissionCallback(callback);
+        session(null).setToolPermissionCallback(callback);
     }
 
     @Override
     public ToolPermissionCallback getToolPermissionCallback() {
-        return delegate.getToolPermissionCallback();
+        return session(null).getToolPermissionCallback();
     }
 
     @Override
@@ -94,7 +113,9 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                 return;
             }
             closed = true;
-            delegate.close();
+            if (delegate != null) {
+                delegate.close();
+            }
         }
     }
 
@@ -103,10 +124,11 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
             if (closed) {
                 throw new SolonCodeSDKException("SolonCodeClient is closed");
             }
+            SolonCodeSession current = session(null);
             if (started) {
-                delegate.query(prompt);
+                current.query(prompt);
             } else {
-                delegate.connect(prompt);
+                current.connect(prompt);
                 started = true;
             }
         }
@@ -115,9 +137,19 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
     private final class RequestImpl implements SolonCodeClient.Request {
         private final String prompt;
         private final AtomicBoolean executed = new AtomicBoolean();
+        private QueryOptions requestOptions;
 
         private RequestImpl(String prompt) {
             this.prompt = prompt;
+        }
+
+        @Override
+        public SolonCodeClient.Request options(QueryOptions options) {
+            if (executed.get()) {
+                throw new IllegalStateException("request options must be set before execution");
+            }
+            this.requestOptions = options == null ? QueryOptions.defaults() : options;
+            return this;
         }
 
         private void ensureSingleUse() {
@@ -126,10 +158,47 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
             }
         }
 
+        private void applyRequestOptions() {
+            if (requestOptions == null) {
+                return;
+            }
+            // Model and permission mode are the only options that can be changed on an
+            // already-created persistent session. Transport, workspace and process-level
+            // options remain client-scoped; silently ignoring them would be misleading.
+            CLIOptions base = session(requestOptions).getOptions();
+            CLIOptions requested = requestOptions.toCLIOptions();
+            // The first request created the session with the complete request options.
+            // From the second turn onward, only protocol-supported dynamic settings may change.
+            if (!started) {
+                return;
+            }
+            if (requested.model() != null && !requested.model().equals(base == null ? null : base.model())) {
+                session(requestOptions).setModel(requested.model());
+            }
+            // Process/transport options cannot be changed after the client is built. Do
+            // not silently ignore them: callers get a deterministic explanation instead.
+            if (requestOptions.systemPrompt() != null
+                    || requestOptions.appendSystemPrompt() != null
+                    || !requestOptions.allowedTools().isEmpty()
+                    || !requestOptions.disallowedTools().isEmpty()
+                    || requestOptions.maxTurns() != null
+                    || requestOptions.maxBudgetUsd() != null
+                    || requestOptions.maxTokens() != null
+                    || requestOptions.maxThinkingTokens() != null
+                    || requestOptions.fallbackModel() != null
+                    || requestOptions.jsonSchema() != null
+                    || requestOptions.sessionId() != null
+                    || requestOptions.bare()) {
+                throw new IllegalArgumentException(
+                        "Only model can be overridden per request; configure process and transport options on the client builder");
+            }
+        }
+
         @Override
         public QueryResult call() throws SolonCodeSDKException {
             ensureSingleUse();
             synchronized (turnLock) {
+                applyRequestOptions();
                 start(prompt);
                 List<Message> messages = new ArrayList<>();
                 Iterator<ParsedMessage> it = delegate.receiveResponse();
@@ -151,9 +220,10 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                 return Flux.error(new IllegalStateException("request can only be executed once"));
             }
             return Flux.<Message>create(sink -> {
+                final SolonCodeSession current = session(requestOptions);
                 sink.onCancel(() -> {
                     try {
-                        delegate.interrupt();
+                        current.interrupt();
                     } catch (Throwable ignored) {
                         // 取消路径不覆盖下游原有的取消信号。
                     }
@@ -161,8 +231,9 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                 try {
                     ensureSingleUse();
                     synchronized (turnLock) {
+                        applyRequestOptions();
                         start(prompt);
-                        Iterator<ParsedMessage> it = delegate.receiveResponse();
+                        Iterator<ParsedMessage> it = current.receiveResponse();
                         while (!sink.isCancelled() && it.hasNext()) {
                             ParsedMessage parsed = it.next();
                             if (parsed.isRegularMessage()) {
@@ -179,6 +250,15 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                     }
                 }
             }).subscribeOn(Schedulers.boundedElastic());
+        }
+
+        @Override
+        public reactor.core.publisher.Mono<QueryResult> streamResult() {
+            return stream().collectList().map(messages -> {
+                CLIOptions effective = session(requestOptions).getOptions();
+                return Query.buildQueryResult(messages,
+                        effective == null ? CLIOptions.builder().build() : effective);
+            });
         }
     }
 }

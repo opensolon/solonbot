@@ -109,8 +109,12 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 					}
 				}
 				sink.complete();
+				closeQuietly(client);
+				client = null;
 			}
 			catch (Throwable e) {
+				closeQuietly(client);
+				client = null;
 				sink.error(e instanceof SolonCodeSDKException ? e
 						: new SolonCodeSDKException("Failed to stream request", e));
 			}

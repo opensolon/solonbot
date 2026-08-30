@@ -599,6 +599,37 @@ public interface SolonCodeClient extends AutoCloseable {
 			return new DefaultSolonCodeSyncClient(workingDirectory, options, timeout, transportSpec, hookRegistry);
 		}
 
+
+		/** Builds the unified client's first session with request-scoped options. */
+		SolonCodeSession buildForRequest(QueryOptions requestOptions) {
+			if (requestOptions == null) {
+				return (SolonCodeSession) build();
+			}
+			if (transportSpec.isHttp()) {
+				if (workingDirectory != null) {
+					throw new IllegalArgumentException("workingDirectory is not applicable to the http transport; use workspace(String) instead");
+				}
+				if (authToken != null || httpWorkspace != null) {
+					transportSpec = transportSpec.withHttpCredentials(authToken, httpWorkspace);
+				}
+				if (httpOptions != null) {
+					transportSpec = transportSpec.withHttpOptions(httpOptions);
+				}
+			}
+			else {
+				if (httpOptions != null) {
+					throw new IllegalArgumentException("httpOptions is only applicable to the http transport");
+				}
+				Path requestDirectory = workingDirectory != null ? workingDirectory : requestOptions.workingDirectory();
+				if (requestDirectory == null) {
+					throw new IllegalArgumentException("workingDirectory is required");
+				}
+				return new DefaultSolonCodeSyncClient(requestDirectory, requestOptions.toCLIOptions(),
+						timeout, transportSpec, hookRegistry);
+			}
+			return new DefaultSolonCodeSyncClient(null, requestOptions.toCLIOptions(),
+					timeout, transportSpec, hookRegistry);
+		}
 	}
 
 	/**
@@ -1255,9 +1286,16 @@ public interface SolonCodeClient extends AutoCloseable {
 	}
 
 	/** Request-oriented client API shared by blocking and streaming callers. */
-	interface Request {
+	public interface Request {
+		/**
+		 * Overrides the model for this turn. Process and transport options must be set on
+		 * the client builder because a persistent client owns one session.
+		 */
+		Request options(QueryOptions options);
 		org.noear.soloncode.sdk.types.QueryResult call() throws org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 		reactor.core.publisher.Flux<org.noear.soloncode.sdk.types.Message> stream();
+		/** Executes this turn as a stream and emits the aggregated terminal result when complete. */
+		reactor.core.publisher.Mono<org.noear.soloncode.sdk.types.QueryResult> streamResult();
 	}
 
 	/** Unified builder. Successive requests on the built client are successive turns. */
@@ -1290,9 +1328,7 @@ public interface SolonCodeClient extends AutoCloseable {
 		public Builder mcpServer(String name, McpServerConfig v) { delegate.mcpServer(name, v); return this; }
 		public Builder mcpServers(Map<String, McpServerConfig> v) { delegate.mcpServers(v); return this; }
 		public SolonCodeClient build() {
-            // The legacy builder still declares SolonCodeSyncClient for now; its concrete
-            // implementation also supplies the internal session contract used here.
-            return new DefaultSolonCodeClient((SolonCodeSession) delegate.build());
+            return new DefaultSolonCodeClient(options -> (SolonCodeSession) delegate.buildForRequest(options));
         }
 	}
 
