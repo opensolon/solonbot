@@ -1495,6 +1495,15 @@ public class WebController {
         return withGitWorkspace(wsId, () -> gitService().fileContent(path, ref));
     }
 
+    @Get
+    @Mapping("/web/chat/git/history")
+    public Result<Map> gitHistory(@Param(value = "mount", required = false) String mount,
+                                  @Param(value = "limit", required = false) Integer limit) throws Exception {
+        String wsId = (mount != null && !mount.isEmpty()) ? mount : null;
+        final int count = limit == null ? 20 : Math.max(1, Math.min(limit, 50));
+        return withGitWorkspace(wsId, () -> gitService().history(count));
+    }
+
     @Post
     @Mapping("/web/chat/git/commit")
     public Result<Map> gitCommit(@Body String body,

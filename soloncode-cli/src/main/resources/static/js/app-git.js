@@ -1569,7 +1569,96 @@
 
     // ---- AI 生成变更摘要（专用 HTTP 接口）----
     var gitSummaryBtn = document.getElementById('gitSummaryBtn');
+    var gitCommitHistory = document.getElementById('gitCommitHistory');
+    var gitCommitHistoryItems = [];
+    var gitCommitHistoryIndex = -1;
+    var gitCommitHistoryLoaded = false;
+    var gitCommitHistoryLoading = false;
     var isGeneratingSummary = false;
+
+    function hideGitCommitHistory() {
+        if (gitCommitHistory) gitCommitHistory.style.display = 'none';
+        gitCommitHistoryIndex = -1;
+    }
+
+    function resizeGitCommitMsg() {
+        if (!gitCommitMsg) return;
+        gitCommitMsg.style.height = 'auto';
+        gitCommitMsg.style.height = Math.min(gitCommitMsg.scrollHeight, 80) + 'px';
+    }
+
+    function renderGitCommitHistory() {
+        if (!gitCommitHistory) return;
+        if (!gitCommitHistoryItems.length) {
+            gitCommitHistory.innerHTML = '<div class="git-commit-history-empty">暂无提交摘要</div>';
+        } else {
+            gitCommitHistory.innerHTML = gitCommitHistoryItems.map(function(message, index) {
+                return '<button type="button" class="git-commit-history-item' + (index === gitCommitHistoryIndex ? ' active' : '')
+                    + '" role="option" aria-selected="' + (index === gitCommitHistoryIndex) + '" data-history-index="' + index + '">' + escapeHtml(message) + '</button>';
+            }).join('');
+        }
+        gitCommitHistory.style.display = '';
+    }
+
+    function loadGitCommitHistory() {
+        if (gitCommitHistoryLoaded || gitCommitHistoryLoading) {
+            renderGitCommitHistory();
+            return;
+        }
+        gitCommitHistoryLoading = true;
+        if (gitCommitHistory) {
+            gitCommitHistory.innerHTML = '<div class="git-commit-history-loading">加载提交历史...</div>';
+            gitCommitHistory.style.display = '';
+        }
+        fetch(gitUrl('/web/chat/git/history', 'limit=20'))
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                gitCommitHistoryItems = (res && res.data && res.data.commits) || [];
+                gitCommitHistoryLoaded = true;
+                renderGitCommitHistory();
+            })
+            .catch(function() {
+                gitCommitHistoryItems = [];
+                gitCommitHistoryLoaded = true;
+                hideGitCommitHistory();
+            })
+            .finally(function() { gitCommitHistoryLoading = false; });
+    }
+
+    if (gitCommitHistory) {
+        gitCommitHistory.addEventListener('mousedown', function(e) {
+            var item = e.target.closest('.git-commit-history-item');
+            if (!item) return;
+            e.preventDefault();
+            gitCommitHistoryIndex = parseInt(item.getAttribute('data-history-index'), 10);
+            gitCommitMsg.value = gitCommitHistoryItems[gitCommitHistoryIndex] || '';
+            resizeGitCommitMsg();
+            hideGitCommitHistory();
+        });
+    }
+
+    if (gitCommitMsg) {
+        gitCommitMsg.addEventListener('keydown', function(e) {
+            if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !gitCommitMsg.value.trim()) {
+                e.preventDefault();
+                loadGitCommitHistory();
+                if (!gitCommitHistoryItems.length) return;
+                if (e.key === 'ArrowUp') {
+                    gitCommitHistoryIndex = gitCommitHistoryIndex <= 0 ? gitCommitHistoryItems.length - 1 : gitCommitHistoryIndex - 1;
+                } else {
+                    gitCommitHistoryIndex = gitCommitHistoryIndex >= gitCommitHistoryItems.length - 1 ? 0 : gitCommitHistoryIndex + 1;
+                }
+                renderGitCommitHistory();
+            }
+            if (e.key === 'Escape') hideGitCommitHistory();
+        });
+        gitCommitMsg.addEventListener('input', function() {
+            if (this.value.trim()) hideGitCommitHistory();
+        });
+        gitCommitMsg.addEventListener('blur', function() {
+            setTimeout(hideGitCommitHistory, 120);
+        });
+    }
 
     if (gitSummaryBtn) {
         gitSummaryBtn.addEventListener('click', function() {
