@@ -147,6 +147,11 @@ public final class ResultMessage implements Message {
 	}
 
 	@Override
+	public boolean isTerminal() {
+		return true;
+	}
+
+	@Override
 	public String toString() {
 		String cost = totalCostUsd != null ? String.format("$%.6f", totalCostUsd) : "n/a";
 		return String.format("[Result: cost=%s, turns=%d, session=%s]", cost, numTurns, sessionId);

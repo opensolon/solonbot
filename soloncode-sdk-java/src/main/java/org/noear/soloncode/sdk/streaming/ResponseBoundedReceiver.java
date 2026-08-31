@@ -68,7 +68,7 @@ public class ResponseBoundedReceiver implements MessageReceiver {
 		// Check if this is a ResultMessage
 		if (message.isRegularMessage()) {
 			Message msg = message.asMessage();
-			if (msg instanceof ResultMessage) {
+			if (msg.isTerminal()) {
 				resultReceived.set(true);
 			}
 		}

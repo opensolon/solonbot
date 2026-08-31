@@ -754,7 +754,7 @@ final class DefaultSolonCodeSession implements SolonCodeSession {
 				next = delegate.next();
 				if (next.isRegularMessage()) {
 					Message msg = next.asMessage();
-					if (msg instanceof ResultMessage) {
+					if (msg.isTerminal()) {
 						resultReceived = true;
 					}
 				}

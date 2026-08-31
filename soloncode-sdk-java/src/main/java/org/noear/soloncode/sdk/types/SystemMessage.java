@@ -53,6 +53,11 @@ public final class SystemMessage implements Message {
 	}
 
 	@Override
+	public boolean isTerminal() {
+		return "error".equalsIgnoreCase(subtype);
+	}
+
+	@Override
 	public String toString() {
 		return String.format("[System: %s]", subtype != null ? subtype : "unknown");
 	}

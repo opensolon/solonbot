@@ -50,7 +50,7 @@ class PersistentStdioClientTest {
                 + "    printf '{\"type\":\"control_response\",\"response\":{\"subtype\":\"error\",\"request_id\":\"%s\",\"error\":\"unsupported control\"}}\\n' \"$id\"\n"
                 + "    continue\n"
                 + "  fi\n"
-                + "  case \"$line\" in *timeout*) sleep 5; continue ;; *slow*) sleep 1 ;; esac\n"
+                + "  case \"$line\" in *error-only*) printf '%s\\n' '{\"type\":\"system\",\"subtype\":\"error\",\"data\":{\"message\":\"turn failed\"}}'; continue ;; *timeout*) sleep 5; continue ;; *slow*) sleep 1 ;; esac\n"
                 + "  printf '%s\\n' '{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}}'\n"
                 + "  printf '%s\\n' '{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"ok\",\"session_id\":\"client-stream\"}'\n"
                 + "done\n";
@@ -131,6 +131,19 @@ class PersistentStdioClientTest {
             finally {
                 first.dispose();
             }
+        }
+    }
+
+    @Test
+    void topLevelErrorTerminatesPersistentStreamWithoutResultOrEof() {
+        try (SolonCodeClient client = newClient()) {
+            org.noear.soloncode.sdk.types.QueryResult result = client.prompt("error-only").call();
+            assertThat(result.status()).isEqualTo(org.noear.soloncode.sdk.types.ResultStatus.ERROR);
+            assertThat(result.messages()).hasSize(2);
+            assertThat(result.messages()).anyMatch(message ->
+                    message instanceof org.noear.soloncode.sdk.types.SystemMessage
+                            && "error".equalsIgnoreCase(
+                            ((org.noear.soloncode.sdk.types.SystemMessage) message).subtype()));
         }
     }
 

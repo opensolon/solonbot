@@ -257,12 +257,15 @@ final class DefaultSolonCodeClient implements SolonCodeClient {
                     }
                     SolonCodeSession current = currentRef.get();
                     if (current != null) {
-                        try {
-                            current.interrupt();
-                        }
-                        catch (Throwable ignored) {
-                            // Cancellation must not replace the downstream cancel signal.
-                        }
+                        // HTTP interrupt 等待网络响应，不能阻塞 Reactor 的取消线程。
+                        Schedulers.boundedElastic().schedule(() -> {
+                            try {
+                                current.interrupt();
+                            }
+                            catch (Throwable ignored) {
+                                // Cancellation must not replace the downstream cancel signal.
+                            }
+                        });
                     }
                 });
 

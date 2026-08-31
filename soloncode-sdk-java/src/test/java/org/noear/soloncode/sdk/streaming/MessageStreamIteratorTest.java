@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.types.AssistantMessage;
+import org.noear.soloncode.sdk.types.SystemMessage;
 import org.noear.soloncode.sdk.types.TextBlock;
 import org.noear.soloncode.sdk.types.UserMessage;
 import org.noear.soloncode.sdk.util.SdkCollections;
@@ -34,6 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -171,6 +173,24 @@ class MessageStreamIteratorTest {
 			assertThatThrownBy(() -> iterator.hasNext()).isInstanceOf(MessageStreamIterator.StreamException.class)
 				.hasMessageContaining("Stream failed")
 				.hasCauseInstanceOf(RuntimeException.class);
+		}
+
+		@Test
+		@DisplayName("Top-level error should trigger terminal action")
+		void topLevelErrorTriggersTerminalAction() {
+			AtomicBoolean terminal = new AtomicBoolean();
+			MessageStreamIterator terminalIterator = new MessageStreamIterator(10, 10, null, null,
+					() -> terminal.set(true));
+			try {
+				terminalIterator.offer(ParsedMessage.RegularMessage.of(
+						SystemMessage.of("error", SdkCollections.map("message", "turn failed"))));
+				assertThat(terminalIterator.hasNext()).isTrue();
+				assertThat(terminalIterator.next().asMessage().isTerminal()).isTrue();
+				assertThat(terminal).isTrue();
+			}
+			finally {
+				terminalIterator.close();
+			}
 		}
 
 		@Test

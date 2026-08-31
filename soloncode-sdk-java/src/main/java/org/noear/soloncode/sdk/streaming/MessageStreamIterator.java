@@ -211,7 +211,7 @@ public class MessageStreamIterator implements Iterator<ParsedMessage>, Iterable<
 
 		ParsedMessage message = nextMessage;
 		nextMessage = null;
-		if (message.isRegularMessage() && message.asMessage() instanceof ResultMessage
+		if (message.isRegularMessage() && message.asMessage().isTerminal()
 				&& terminalMessageAction != null) {
 			terminalMessageAction.run();
 		}

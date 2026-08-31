@@ -148,7 +148,7 @@ public class BlockingMessageReceiver implements MessageReceiver {
 			}
 			ParsedMessage message = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
 			if (message != null && message != END_OF_STREAM) {
-				if (message.isRegularMessage() && message.asMessage() instanceof ResultMessage
+				if (message.isRegularMessage() && message.asMessage().isTerminal()
 						&& terminalMessageAction != null) {
 					terminalMessageAction.run();
 				}

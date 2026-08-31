@@ -112,12 +112,14 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 			Runnable interruptAndClose = () -> {
 				SolonCodeSession client = clientRef.get();
 				if (client != null && interruptSent.compareAndSet(false, true)) {
-					try {
-						client.interrupt();
-					}
-					catch (Throwable ignored) {
-						// 取消路径不覆盖下游原有的取消信号，随后仍要释放客户端。
-					}
+					Schedulers.boundedElastic().schedule(() -> {
+						try {
+							client.interrupt();
+						}
+						catch (Throwable ignored) {
+							// 取消不覆盖下游取消信号；关闭仍由 worker/finally 负责。
+						}
+					});
 				}
 				close.run();
 			};
