@@ -30,4 +30,16 @@ public interface Message {
 	 */
 	String getType();
 
+	/**
+	 * Returns whether this message terminates the current response turn.
+	 *
+	 * <p>A normal/error {@code result} message is terminal. A top-level protocol
+	 * error represented as {@link SystemMessage} with subtype {@code error} is
+	 * terminal as well, even when a persistent transport remains connected.</p>
+	 * @return true when no more messages belong to the current turn
+	 */
+	default boolean isTerminal() {
+		return false;
+	}
+
 }
