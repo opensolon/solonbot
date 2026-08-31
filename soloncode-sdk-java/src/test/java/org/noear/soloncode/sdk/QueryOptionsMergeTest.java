@@ -65,47 +65,17 @@ class QueryOptionsMergeTest {
 	}
 
 	@Test
-	void unifiedBuilderUsesRequestDirectoryTimeoutAndMergedOptions() {
-		SolonCodeClient.SyncSpec spec = SolonCodeClient.sync()
+	void unifiedBuilderExposesConfiguredDefaults() {
+		try (SolonCodeClient client = SolonCodeClient.builder()
+				.workingDirectory(tempDir)
 				.model("base-model")
 				.systemPrompt("base-system")
 				.permissionMode(PermissionMode.DEFAULT)
-				.timeout(Duration.ofMinutes(9));
-
-		SolonCodeSession session = spec.buildForRequest(QueryOptions.builder()
-				.workingDirectory(tempDir)
-				.timeout(Duration.ofSeconds(7))
-				.model("request-model")
-				.build());
-		try {
-			assertThat(session.getOptions().model()).isEqualTo("request-model");
-			assertThat(session.getOptions().systemPrompt()).isEqualTo("base-system");
-			assertThat(session.getOptions().permissionMode()).isEqualTo(PermissionMode.DEFAULT);
-			assertThat(session.getOptions().timeout()).isEqualTo(Duration.ofSeconds(7));
-		}
-		finally {
-			session.close();
-		}
-	}
-
-	@Test
-	void prebuiltOptionsPromptPathAlsoMergesRequestPatch() {
-		CLIOptions base = CLIOptions.builder()
-				.model("base")
-				.systemPrompt("keep")
-				.permissionMode(PermissionMode.DEFAULT)
-				.build();
-		SolonCodeClient.SyncSpecWithOptions spec = SolonCodeClient.sync(base)
-				.workingDirectory(tempDir);
-
-		SolonCodeSyncClient client = spec.buildForRequest(QueryOptions.builder().model("override").build());
-		try {
-			assertThat(client.getOptions().model()).isEqualTo("override");
-			assertThat(client.getOptions().systemPrompt()).isEqualTo("keep");
+				.timeout(Duration.ofMinutes(9))
+				.build()) {
+			assertThat(client.getOptions().model()).isEqualTo("base-model");
+			assertThat(client.getOptions().systemPrompt()).isEqualTo("base-system");
 			assertThat(client.getOptions().permissionMode()).isEqualTo(PermissionMode.DEFAULT);
-		}
-		finally {
-			client.close();
 		}
 	}
 

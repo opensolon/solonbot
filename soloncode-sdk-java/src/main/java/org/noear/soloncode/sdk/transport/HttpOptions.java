@@ -85,7 +85,7 @@ import java.util.TreeMap;
  *
  * <h2>组合</h2>
  * <pre>{@code
- * SolonCodeClient.sync()
+ * SolonCodeClient.builder()
  *     .http("https://run.internal.example/web/run")
  *     .authToken(token)
  *     .httpOptions(HttpOptions.proxy("proxy.corp.example", 3128)
@@ -96,7 +96,7 @@ import java.util.TreeMap;
  * }</pre>
  *
  * @see TransportSpec#http(String, String, String, HttpOptions)
- * @see org.noear.soloncode.sdk.SolonCodeClient.SyncSpec#httpOptions(HttpOptions)
+ * @see org.noear.soloncode.sdk.SolonCodeClient.Builder#httpOptions(HttpOptions)
  */
 public final class HttpOptions {
 

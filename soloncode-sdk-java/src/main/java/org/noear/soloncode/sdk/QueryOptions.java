@@ -39,9 +39,8 @@ import java.util.Set;
  * Simplified configuration options for one-shot queries. This class provides a minimal
  * set of options needed for typical query use cases.
  *
- * <p>
- * For advanced features like hooks, MCP servers, or multi-turn sessions, use
- * {@link SolonCodeSyncClient} or {@link SolonCodeAsyncClient} instead.
+ * <p>For reusable multi-turn sessions, configure a {@link SolonCodeClient} once and
+ * choose {@code call()} or {@code stream()} on each request.</p>
  *
  * <p>
  * Example usage:

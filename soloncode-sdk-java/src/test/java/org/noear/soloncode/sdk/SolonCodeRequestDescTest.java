@@ -68,8 +68,8 @@ class SolonCodeRequestDescTest {
 	}
 
 	/** 建一个返回给定消息序列的 mock 客户端 */
-	private static SolonCodeSyncClient clientOf(List<ParsedMessage> messages) throws Exception {
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+	private static SolonCodeSession clientOf(List<ParsedMessage> messages) throws Exception {
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		when(client.receiveResponse()).thenReturn(messages.iterator());
 		return client;
 	}
@@ -78,7 +78,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void callAggregatesMessagesIntoQueryResult() throws Exception {
-		SolonCodeSyncClient client = clientOf(
+		SolonCodeSession client = clientOf(
 				Arrays.asList(assistant("思考中"), assistant("答案是 4"), result("答案是 4")));
 
 		QueryResult qr = new DefaultSolonCodeRequestDesc("2+2=?", options -> client).call();
@@ -90,7 +90,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void callSendsPromptAndClosesClient() throws Exception {
-		SolonCodeSyncClient client = clientOf(Arrays.asList(result("ok")));
+		SolonCodeSession client = clientOf(Arrays.asList(result("ok")));
 
 		new DefaultSolonCodeRequestDesc("hello", options -> client).call();
 
@@ -100,7 +100,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void callPassesOptionsToClientFactory() throws Exception {
-		SolonCodeSyncClient client = clientOf(Arrays.asList(result("ok")));
+		SolonCodeSession client = clientOf(Arrays.asList(result("ok")));
 		List<QueryOptions> seen = new ArrayList<>();
 		QueryOptions custom = QueryOptions.builder().model("sonnet").build();
 
@@ -114,7 +114,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void nullOptionsFallsBackToDefaults() throws Exception {
-		SolonCodeSyncClient client = clientOf(Arrays.asList(result("ok")));
+		SolonCodeSession client = clientOf(Arrays.asList(result("ok")));
 		List<QueryOptions> seen = new ArrayList<>();
 
 		new DefaultSolonCodeRequestDesc("hi", options -> {
@@ -127,7 +127,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void callWrapsUnexpectedExceptionAndStillClosesClient() throws Exception {
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		doThrow(new RuntimeException("boom")).when(client).connect(anyString());
 
 		assertThatThrownBy(() -> new DefaultSolonCodeRequestDesc("hi", options -> client).call())
@@ -140,7 +140,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void callPropagatesSdkExceptionUnwrapped() throws Exception {
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		doThrow(new SolonCodeSDKException("cli not found")).when(client).connect(anyString());
 
 		assertThatThrownBy(() -> new DefaultSolonCodeRequestDesc("hi", options -> client).call())
@@ -152,7 +152,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void streamEmitsMessagesInOrderThenCompletes() throws Exception {
-		SolonCodeSyncClient client = clientOf(Arrays.asList(assistant("a"), assistant("b"), result("done")));
+		SolonCodeSession client = clientOf(Arrays.asList(assistant("a"), assistant("b"), result("done")));
 
 		Flux<Message> flux = new DefaultSolonCodeRequestDesc("hi", options -> client).stream();
 
@@ -191,7 +191,7 @@ class SolonCodeRequestDescTest {
 			}
 		};
 
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		when(client.receiveResponse()).thenReturn(lazy);
 
 		List<Message> received = new CopyOnWriteArrayList<>();
@@ -223,7 +223,7 @@ class SolonCodeRequestDescTest {
 			}
 		};
 
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		when(client.receiveResponse()).thenReturn(endless);
 
 		CountDownLatch got = new CountDownLatch(1);
@@ -278,7 +278,7 @@ class SolonCodeRequestDescTest {
 			}
 		};
 
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		when(client.receiveResponse()).thenReturn(blocked);
 		doAnswer(invocation -> {
 			releaseHasNext.countDown();
@@ -305,7 +305,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void streamSurfacesErrorAsFluxErrorAndClosesClient() throws Exception {
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		doThrow(new RuntimeException("stream boom")).when(client).connect(anyString());
 
 		StepVerifier.create(new DefaultSolonCodeRequestDesc("hi", options -> client).stream())
@@ -339,7 +339,7 @@ class SolonCodeRequestDescTest {
 
 	@Test
 	void streamCloseFailureDoesNotMaskCompletion() throws Exception {
-		SolonCodeSyncClient client = mock(SolonCodeSyncClient.class);
+		SolonCodeSession client = mock(SolonCodeSession.class);
 		when(client.receiveResponse()).thenReturn(Arrays.asList(result("ok")).iterator());
 		doThrow(new RuntimeException("close failed")).when(client).close();
 
@@ -364,9 +364,11 @@ class SolonCodeRequestDescTest {
 	@Test
 	void facadeAndBuilderEntriesReturnRequestDesc() {
 		assertThat(SolonCode.prompt("hi")).isInstanceOf(SolonCodeRequestDesc.class);
-		assertThat(SolonCodeClient.sync().prompt("hi")).isInstanceOf(SolonCodeRequestDesc.class);
-		assertThat(SolonCodeClient.sync(org.noear.soloncode.sdk.transport.CLIOptions.builder().build())
-			.prompt("hi")).isInstanceOf(SolonCodeRequestDesc.class);
+		try (SolonCodeClient client = SolonCodeClient.builder()
+				.workingDirectory(java.nio.file.Paths.get(System.getProperty("user.dir")))
+				.build()) {
+			assertThat(client.prompt("hi")).isInstanceOf(SolonCodeClient.Request.class);
+		}
 	}
 
 	@Test

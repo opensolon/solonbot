@@ -195,14 +195,16 @@ SDK 已完成传输层抽象（`soloncode-sdk-java`）：
 服务端 `/web/run` 落地后，SDK 侧新增 `HttpTransport`：
 
 ```java
-SolonCodeClient.sync()
-    .http("http://x.x.x:18080/web/run")      // 通道切换，其余 API 不变
-    .authToken("...")                         // Bearer token
-    .workspace("my-project")                  // 服务端工作区标识
-    .build();
+try (SolonCodeClient client = SolonCodeClient.builder()
+        .http("http://x.x.x:18080/web/run")
+        .authToken("...")
+        .workspace("my-project")
+        .build()) {
+    client.prompt("分析代码质量").stream().subscribe(System.out::println);
+}
 ```
 
-> **已落地（2026-08-29）**：`HttpTransport`、`HttpSpec`、四个 builder 的 `http(url)`/
+> **已落地（2026-08-29）**：`HttpTransport`、`HttpSpec` 与统一 builder 的 `http(url)`/
 > `authToken()`/`workspace()` 均已实现。补充两条实现时的关键决策：
 >
 > 1. **permission_mode 前置回落**：`CLIOptions.builder()` 默认值是

@@ -22,6 +22,7 @@ import org.noear.soloncode.sdk.transport.CLIOptions;
 import org.noear.soloncode.sdk.types.Message;
 import org.noear.soloncode.sdk.types.QueryResult;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * {@link SolonCodeRequestDesc} 默认实现：把「客户端怎么建」交给工厂，自己只负责
@@ -39,7 +41,7 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 	/** 客户端工厂：由入口决定通道（stdio / http）与选项 */
 	interface ClientFactory {
 
-		SolonCodeSyncClient create(QueryOptions options) throws SolonCodeSDKException;
+		SolonCodeSession create(QueryOptions options) throws SolonCodeSDKException;
 
 	}
 
@@ -65,7 +67,7 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 
 	@Override
 	public QueryResult call() throws SolonCodeSDKException {
-		try (SolonCodeSyncClient client = clientFactory.create(options)) {
+		try (SolonCodeSession client = clientFactory.create(options)) {
 			client.connect(prompt);
 
 			List<Message> messages = new ArrayList<>();
@@ -94,20 +96,21 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 	public Flux<Message> stream() {
 		// 冷流：每次订阅起一轮新执行；阻塞迭代放到 boundedElastic，不占调用方线程
 		return Flux.<Message>create(sink -> {
-			AtomicReference<SolonCodeSyncClient> clientRef = new AtomicReference<>();
+			AtomicReference<SolonCodeSession> clientRef = new AtomicReference<>();
+			AtomicReference<Thread> workerRef = new AtomicReference<>();
 			AtomicBoolean cancellationRequested = new AtomicBoolean(false);
 			AtomicBoolean terminated = new AtomicBoolean(false);
 			AtomicBoolean interruptSent = new AtomicBoolean(false);
 			AtomicBoolean closeSent = new AtomicBoolean(false);
 
 			Runnable close = () -> {
-				SolonCodeSyncClient client = clientRef.get();
+				SolonCodeSession client = clientRef.get();
 				if (client != null && closeSent.compareAndSet(false, true)) {
 					closeQuietly(client);
 				}
 			};
 			Runnable interruptAndClose = () -> {
-				SolonCodeSyncClient client = clientRef.get();
+				SolonCodeSession client = clientRef.get();
 				if (client != null && interruptSent.compareAndSet(false, true)) {
 					try {
 						client.interrupt();
@@ -123,12 +126,17 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 			// 可能一直阻塞等待下一条消息。取消必须主动 interrupt 并关闭底层通道。
 			sink.onCancel(() -> {
 				cancellationRequested.set(true);
+				Thread worker = workerRef.get();
+				if (worker != null) {
+					LockSupport.unpark(worker);
+				}
 				if (terminated.compareAndSet(false, true)) {
 					interruptAndClose.run();
 				}
 			});
 
-			SolonCodeSyncClient client = null;
+			SolonCodeSession client = null;
+			workerRef.set(Thread.currentThread());
 			try {
 				client = clientFactory.create(options);
 				clientRef.set(client);
@@ -145,7 +153,19 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 				}
 
 				Iterator<ParsedMessage> response = client.receiveResponse();
-				while (!cancellationRequested.get() && !sink.isCancelled() && response.hasNext()) {
+				while (!cancellationRequested.get() && !sink.isCancelled()) {
+					// At most one message is prefetched by hasNext(); this lets completion
+					// propagate without requiring another downstream request.
+					if (!response.hasNext()) {
+						break;
+					}
+					while (!cancellationRequested.get() && !sink.isCancelled()
+							&& sink.requestedFromDownstream() <= 0) {
+						LockSupport.parkNanos(1_000_000L);
+					}
+					if (cancellationRequested.get() || sink.isCancelled()) {
+						break;
+					}
 					ParsedMessage parsed = response.next();
 					if (parsed.isRegularMessage()) {
 						sink.next(parsed.asMessage());
@@ -169,12 +189,13 @@ class DefaultSolonCodeRequestDesc implements SolonCodeRequestDesc {
 				}
 			}
 			finally {
+				workerRef.set(null);
 				close.run();
 			}
-		}).subscribeOn(Schedulers.boundedElastic());
+		}, FluxSink.OverflowStrategy.ERROR).subscribeOn(Schedulers.boundedElastic(), false);
 	}
 
-	private static void closeQuietly(SolonCodeSyncClient client) {
+	private static void closeQuietly(SolonCodeSession client) {
 		if (client == null) {
 			return;
 		}

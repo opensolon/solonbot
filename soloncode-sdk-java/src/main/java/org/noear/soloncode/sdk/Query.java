@@ -23,6 +23,7 @@ import org.noear.soloncode.sdk.config.SolonCodeCliDiscovery;
 import org.noear.soloncode.sdk.exceptions.SolonCodeSDKException;
 import org.noear.soloncode.sdk.parsing.ParsedMessage;
 import org.noear.soloncode.sdk.transport.CLIOptions;
+import org.noear.soloncode.sdk.transport.TransportSpec;
 import org.noear.soloncode.sdk.types.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +42,8 @@ import java.util.stream.Stream;
  *
  * <p>
  * This class corresponds to the {@code query()} function in the Python SDK. For
- * multi-turn conversations, hooks, or MCP integration, use {@link SolonCodeSyncClient} or
- * {@link SolonCodeAsyncClient} instead.
+ * reusable multi-turn conversations, use {@link SolonCodeClient#builder()} and select
+ * {@code call()} or {@code stream()} on each request.
  *
  * <h2>Quick Start</h2>
  *
@@ -76,8 +77,7 @@ import java.util.stream.Stream;
  *
  * @see QueryOptions
  * @see QueryResult
- * @see SolonCodeSyncClient
- * @see SolonCodeAsyncClient
+ * @see SolonCodeClient
  */
 public class Query {
 
@@ -223,28 +223,19 @@ public class Query {
 
 	/**
 	 * Executes a synchronous query with specified options and working directory.
-	 *
-	 * <p>
-	 * This method uses {@link SolonCodeSyncClient} internally, providing unified transport
-	 * layer handling across all SDK APIs.
-	 * </p>
 	 */
 	public static QueryResult execute(String prompt, CLIOptions options, Path workingDirectory)
 			throws SolonCodeSDKException {
 
 		logger.info("Executing query with prompt length: {}", prompt.length());
 
-		try (SolonCodeSyncClient client = SolonCodeClient.sync(options)
-			.workingDirectory(workingDirectory)
-			.timeout(options.getTimeout())
-			.build()) {
+		try (SolonCodeSession session = new DefaultSolonCodeSession(workingDirectory, options,
+				options.getTimeout(), TransportSpec.stdio(), null)) {
 
-			// Connect with prompt
-			client.connect(prompt);
+			session.connect(prompt);
 
-			// Collect all messages from response
 			List<Message> messages = new ArrayList<>();
-			Iterator<ParsedMessage> response = client.receiveResponse();
+			Iterator<ParsedMessage> response = session.receiveResponse();
 			while (response.hasNext()) {
 				ParsedMessage parsed = response.next();
 				if (parsed.isRegularMessage()) {

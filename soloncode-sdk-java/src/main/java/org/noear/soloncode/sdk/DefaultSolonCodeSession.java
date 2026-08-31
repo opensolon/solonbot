@@ -59,13 +59,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Internal session implementation used by the unified client. The legacy sync facade is
- * still implemented here temporarily, but is no longer part of the unified client's contract.
+ * Internal session implementation used by the unified request-oriented client.
  *
- * <p>
- * This implementation maintains a persistent connection to the SolonCode CLI, allowing
- * multi-turn conversations where context is preserved across queries.
- * </p>
+ * <p>This implementation maintains a persistent connection to the SolonCode CLI, allowing
+ * multi-turn conversations where context is preserved across queries.</p>
  *
  * <p>
  * Thread-safety: This class is thread-safe. Multiple threads can call query() and consume
@@ -73,13 +70,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * responses.
  * </p>
  *
- * @see SolonCodeSyncClient
  * @see SolonCodeClient
  * @see Transport
  */
-public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCodeSession {
+final class DefaultSolonCodeSession implements SolonCodeSession {
 
-	private static final Logger logger = LoggerFactory.getLogger(DefaultSolonCodeSyncClient.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultSolonCodeSession.class);
 
 	private static final String DEFAULT_SESSION_ID = "default";
 
@@ -141,14 +137,9 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	private final ConcurrentHashMap<String, MonoSink<Map<String, Object>>> pendingResponses = new ConcurrentHashMap<>();
 
 	/**
-	 * Creates a new DefaultSolonCodeSyncClient with the specified configuration.
-	 * @param workingDirectory the working directory for SolonCode CLI
-	 * @param options CLI options
-	 * @param timeout default operation timeout
-	 * @param transportSpec 通讯通道声明（null 表示默认的本机 stdio 通道）
-	 * @param hookRegistry optional hook registry
+	 * Creates a session with the specified configuration.
 	 */
-	public DefaultSolonCodeSyncClient(Path workingDirectory, CLIOptions options, Duration timeout,
+	DefaultSolonCodeSession(Path workingDirectory, CLIOptions options, Duration timeout,
 			TransportSpec transportSpec, HookRegistry hookRegistry) {
 		this.workingDirectory = workingDirectory;
 		this.options = options != null ? options : CLIOptions.builder().build();
@@ -195,11 +186,6 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 				}
 			}
 		}
-	}
-
-	@Override
-	public void connect() throws SolonCodeSDKException {
-		connect(null);
 	}
 
 	@Override
@@ -257,16 +243,8 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 
 	@Override
 	public void query(String prompt) throws SolonCodeSDKException {
-		query(prompt, currentSessionId.get());
-	}
-
-	@Override
-	public void query(String prompt, String sessionId) throws SolonCodeSDKException {
 		ensureConnected();
-
-		// 一次性执行模型：每轮提问都是一个新的 soloncode run 进程，
-		// 首轮 --session-id，后续轮 --resume 自动续接上下文。
-		startTurn(prompt, sessionId);
+		startTurn(prompt, currentSessionId.get());
 		logger.debug("Sent query in session {}: {}", currentSessionId.get(),
 				prompt.substring(0, Math.min(50, prompt.length())));
 	}
@@ -365,89 +343,9 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	}
 
 	@Override
-	public Iterator<ParsedMessage> receiveMessages() {
-		ensureConnected();
-		return messageIterator;
-	}
-
-	@Override
 	public Iterator<ParsedMessage> receiveResponse() {
 		ensureConnected();
 		return new ResponseBoundedIterator(messageIterator);
-	}
-
-	// ========== Convenience Methods for Elegant Multi-Turn ==========
-
-	@Override
-	public Iterable<Message> messages() {
-		ensureConnected();
-		return new MessageIterable(receiveResponse());
-	}
-
-	@Override
-	public Iterable<Message> connectAndReceive(String prompt) {
-		connect(prompt);
-		return messages();
-	}
-
-	@Override
-	public Iterable<Message> queryAndReceive(String prompt) {
-		query(prompt);
-		return messages();
-	}
-
-	// ========== Text-Only Convenience Methods (80% Use Case) ==========
-
-	@Override
-	public String connectText(String prompt) {
-		StringBuilder text = new StringBuilder();
-		for (Message msg : connectAndReceive(prompt)) {
-			if (msg instanceof AssistantMessage) {
-				AssistantMessage am = (AssistantMessage) msg;
-				text.append(am.text());
-			}
-		}
-		return text.toString();
-	}
-
-	@Override
-	public String queryText(String prompt) {
-		StringBuilder text = new StringBuilder();
-		for (Message msg : queryAndReceive(prompt)) {
-			if (msg instanceof AssistantMessage) {
-				AssistantMessage am = (AssistantMessage) msg;
-				text.append(am.text());
-			}
-		}
-		return text.toString();
-	}
-
-	@Override
-	public MessageReceiver messageReceiver() {
-		ensureConnected();
-		return iteratorReceiver();
-	}
-
-	private MessageReceiver iteratorReceiver() {
-		final MessageStreamIterator iterator = messageIterator;
-		return new MessageReceiver() {
-			@Override
-			public ParsedMessage next() {
-				return iterator.hasNext() ? iterator.next() : null;
-			}
-
-			@Override
-			public void close() {
-				iterator.close();
-				activeTurn.set(false);
-			}
-		};
-	}
-
-	@Override
-	public MessageReceiver responseReceiver() {
-		ensureConnected();
-		return new ResponseBoundedReceiver(iteratorReceiver());
 	}
 
 	@Override
@@ -516,41 +414,12 @@ public class DefaultSolonCodeSyncClient implements SolonCodeSyncClient, SolonCod
 	}
 
 	@Override
-	public void disconnect() {
-		close();
-	}
-
-	@Override
 	public void close() {
 		if (closed.compareAndSet(false, true)) {
 			connected.set(false);
 			cleanup();
 			logger.info("Client closed");
 		}
-	}
-
-	/**
-	 * Registers a hook callback for a specific event and tool pattern.
-	 * @param event the hook event type
-	 * @param toolPattern regex pattern for tool names, or null for all tools
-	 * @param callback the callback to execute
-	 * @return this client for chaining
-	 */
-	public DefaultSolonCodeSyncClient registerHook(HookEvent event, String toolPattern, HookCallback callback) {
-		if (connected.get()) {
-			throw new UnsupportedOperationException(
-					"The current SolonCode CLI protocol does not support hook registration");
-		}
-		hookRegistry.register(event, toolPattern, callback);
-		return this;
-	}
-
-	/**
-	 * Gets the current session ID.
-	 * @return the current session ID
-	 */
-	public String getCurrentSessionId() {
-		return currentSessionId.get();
 	}
 
 	private void handleMessage(ParsedMessage message) {

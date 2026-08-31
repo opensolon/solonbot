@@ -151,7 +151,7 @@ public class HttpTransport implements Transport {
 	/** 本轮执行要固定的会话 ID（首轮）。 */
 	private volatile String turnSessionId;
 
-	private final Sinks.Many<ParsedMessage> inboundSink = Sinks.many().replay().all();
+	private final Sinks.Many<ParsedMessage> inboundSink = Sinks.many().replay().limit(1000);
 
 	/** 已收到 result 事件（区分「执行结论」与「请求故障」）。 */
 	private volatile boolean resultReceived = false;

@@ -245,7 +245,7 @@ public class StdioTransport implements Transport {
 		// conversations
 		// This ensures messages aren't lost between turns when there's no active
 		// subscriber
-		this.inboundSink = Sinks.many().replay().all();
+		this.inboundSink = Sinks.many().replay().limit(1000);
 		this.outboundSink = Sinks.many().unicast().onBackpressureBuffer();
 		this.serverInfoSink = Sinks.one();
 	}

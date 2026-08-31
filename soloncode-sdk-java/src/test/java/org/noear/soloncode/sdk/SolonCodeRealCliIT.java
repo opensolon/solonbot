@@ -118,7 +118,7 @@ class SolonCodeRealCliIT extends SolonCodeCliTestBase {
 	void multiTurnReusesSessionViaResume() throws Exception {
 		List<String> initSessionIds = new ArrayList<>();
 
-		try (SolonCodeSyncClient client = SolonCodeClient.sync()
+		try (SolonCodeClient client = SolonCodeClient.builder()
 			.workingDirectory(itWorkDir())
 			.stdio(getSolonCodeCliPath())
 			.timeout(CLI_TIMEOUT)
@@ -126,11 +126,8 @@ class SolonCodeRealCliIT extends SolonCodeCliTestBase {
 			.maxTurns(1)
 			.build()) {
 
-			client.connect();
-
 			for (String prompt : new String[] { "记住数字 7", "刚才的数字是几？" }) {
-				client.query(prompt);
-				for (Message message : client.messages()) {
+				for (Message message : client.prompt(prompt).call().messages()) {
 					if (message instanceof SystemMessage && "init".equals(((SystemMessage) message).subtype())) {
 						Object sid = ((SystemMessage) message).data().get("session_id");
 						if (sid != null) {

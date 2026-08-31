@@ -44,10 +44,11 @@ import reactor.core.publisher.Flux;
  *     .call();
  *
  * // 走 http 通道（通道由 client builder 配）
- * SolonCodeClient.sync()
- *     .http(url).authToken(token).workspace(ws)
- *     .prompt("分析这个模块")
- *     .call();
+ * try (SolonCodeClient client = SolonCodeClient.builder()
+ *         .http(url).authToken(token).workspace(ws)
+ *         .build()) {
+ *     client.prompt("分析这个模块").call();
+ * }
  * }</pre>
  *
  * <p>与 {@link Query#stream(String)} 的区别：后者是「先跑完再把列表转成 Stream」的伪
@@ -76,7 +77,9 @@ public interface SolonCodeRequestDesc {
 	 * 真流式执行：订阅后开始跑，消息逐条下发，本轮 result 事件到达即 complete。
 	 *
 	 * <p>冷流——每次订阅都会发起一次新的执行。取消订阅会中断本轮并释放通道资源。
-	 * 执行发生在 {@code Schedulers.boundedElastic()} 上，不会占用调用方线程。</p>
+	 * 只有下游存在 demand 时才继续从响应迭代器拉取，SDK 缓冲有明确上限；慢消费者
+	 * 超过上限会收到错误而不是触发无界内存增长。执行发生在
+	 * {@code Schedulers.boundedElastic()} 上，不会占用调用方线程。</p>
 	 * @return 消息流
 	 */
 	Flux<Message> stream();

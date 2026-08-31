@@ -16,6 +16,8 @@
 
 package org.noear.soloncode.sdk;
 
+import org.noear.soloncode.sdk.transport.TransportSpec;
+
 /**
  * SDK 的 prompt 风格入口，与 solon-ai 的 {@code ChatModel.prompt(...)} 对齐。
  *
@@ -27,8 +29,8 @@ package org.noear.soloncode.sdk;
  * SolonCode.prompt("解释递归").stream().subscribe(System.out::println);
  * }</pre>
  *
- * <p>默认走 stdio 子进程通道。要走 http 远端通道，从 client builder 起：
- * {@code SolonCodeClient.sync().http(url).authToken(t).prompt("...").call()}。</p>
+ * <p>默认走 stdio 子进程通道。要走 http 远端通道，从统一 client builder 起：
+ * {@code SolonCodeClient.builder().http(url).authToken(t).build().prompt("...").call()}。</p>
  *
  * @see SolonCodeRequestDesc
  * @see Query
@@ -44,10 +46,9 @@ public final class SolonCode {
 	 * @return 请求描述，用 call() / stream() 收束
 	 */
 	public static SolonCodeRequestDesc prompt(String prompt) {
-		return new DefaultSolonCodeRequestDesc(prompt, options -> SolonCodeClient.sync(options.toCLIOptions())
-			.workingDirectory(options.workingDirectory())
-			.timeout(options.timeout())
-			.build());
+		return new DefaultSolonCodeRequestDesc(prompt, options -> new DefaultSolonCodeSession(
+				options.workingDirectory(), options.toCLIOptions(), options.timeout(),
+				TransportSpec.stdio(), null));
 	}
 
 }

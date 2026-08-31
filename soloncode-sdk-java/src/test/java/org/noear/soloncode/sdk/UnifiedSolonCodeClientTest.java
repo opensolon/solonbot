@@ -11,6 +11,8 @@ import reactor.test.StepVerifier;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,7 +37,7 @@ class UnifiedSolonCodeClientTest {
 
     @Test
     void callAndStreamShareOneMultiTurnClient() {
-        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
         when(delegate.receiveResponse())
                 .thenReturn(Arrays.asList(assistant("one"), result()).iterator())
                 .thenReturn(Arrays.asList(assistant("two"), result()).iterator());
@@ -54,7 +56,7 @@ class UnifiedSolonCodeClientTest {
 
     @Test
     void streamCancellationInterruptsRunningTurn() {
-        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
         AtomicBoolean interrupted = new AtomicBoolean();
         doAnswer(invocation -> {
             interrupted.set(true);
@@ -91,7 +93,7 @@ class UnifiedSolonCodeClientTest {
     }
     @Test
     void requestCanOnlyBeExecutedOnce() {
-        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
         when(delegate.receiveResponse()).thenReturn(Arrays.asList(result()).iterator());
         SolonCodeClient client = new DefaultSolonCodeClient(delegate);
         SolonCodeClient.Request request = client.prompt("hello");
@@ -105,7 +107,7 @@ class UnifiedSolonCodeClientTest {
     @Test
     void firstTurnOptionsAreAppliedBeforeSessionCreation() {
         AtomicReference<QueryOptions> captured = new AtomicReference<>();
-        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
         when(delegate.getOptions()).thenReturn(org.noear.soloncode.sdk.transport.CLIOptions.builder()
                 .model("request-model").systemPrompt("request-system").build());
         when(delegate.receiveResponse()).thenReturn(Arrays.asList(result()).iterator());
@@ -126,8 +128,99 @@ class UnifiedSolonCodeClientTest {
     }
 
     @Test
+    void streamHonorsDownstreamDemandBeforePullingNextMessage() throws Exception {
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
+        CountDownLatch firstPulled = new CountDownLatch(1);
+        CountDownLatch secondDelivered = new CountDownLatch(1);
+        Iterator<ParsedMessage> iterator = new Iterator<ParsedMessage>() {
+            private int index;
+
+            @Override
+            public boolean hasNext() {
+                if (index == 0) {
+                    firstPulled.countDown();
+                }
+                else if (index == 1) {
+                    // hasNext may prefetch one item so completion can be observed without demand.
+                }
+                return index < 2;
+            }
+
+            @Override
+            public ParsedMessage next() {
+                if (index == 1) {
+                    secondDelivered.countDown();
+                }
+                return index++ == 0 ? assistant("one") : result();
+            }
+        };
+        when(delegate.receiveResponse()).thenReturn(iterator);
+        SolonCodeClient client = new DefaultSolonCodeClient(delegate);
+
+        StepVerifier.create(client.prompt("slow").stream(), 0)
+                .thenRequest(1)
+                .assertNext(message -> assertThat(message).isInstanceOf(AssistantMessage.class))
+                .then(() -> {
+                    assertThat(firstPulled.getCount()).isZero();
+                    assertThat(secondDelivered.getCount()).isEqualTo(1L);
+                })
+                .thenRequest(1)
+                .assertNext(message -> assertThat(message).isInstanceOf(ResultMessage.class))
+                .verifyComplete();
+
+        assertThat(secondDelivered.await(1, TimeUnit.SECONDS)).isTrue();
+        client.close();
+    }
+
+    @Test
+    void overlappingCallsAreRejectedInsteadOfSerializedBehindTheFirstTurn() throws Exception {
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(delegate.receiveResponse()).thenReturn(new Iterator<ParsedMessage>() {
+            @Override
+            public boolean hasNext() {
+                entered.countDown();
+                try {
+                    release.await(2, TimeUnit.SECONDS);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return false;
+            }
+
+            @Override
+            public ParsedMessage next() {
+                throw new NoSuchElementException();
+            }
+        });
+        SolonCodeClient client = new DefaultSolonCodeClient(delegate);
+        AtomicReference<Throwable> firstFailure = new AtomicReference<>();
+        Thread first = new Thread(() -> {
+            try {
+                client.prompt("first").call();
+            }
+            catch (Throwable e) {
+                firstFailure.set(e);
+            }
+        });
+        first.start();
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+
+        assertThatThrownBy(() -> client.prompt("second").call())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("response is still active");
+
+        release.countDown();
+        first.join(1000L);
+        assertThat(firstFailure.get()).isNull();
+        client.close();
+    }
+
+    @Test
     void streamResultAggregatesMessagesAndTerminalMetadata() {
-        SolonCodeSyncClient delegate = mock(SolonCodeSyncClient.class);
+        SolonCodeSession delegate = mock(SolonCodeSession.class);
         when(delegate.getOptions()).thenReturn(org.noear.soloncode.sdk.transport.CLIOptions.builder()
                 .model("sonnet").build());
         when(delegate.receiveResponse()).thenReturn(Arrays.asList(assistant("one"), result()).iterator());

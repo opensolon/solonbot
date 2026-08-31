@@ -39,9 +39,7 @@ try (SolonCodeClient client = SolonCodeClient.builder()
 }
 ```
 
-旧的 `SolonCodeClient.sync()` / `SolonCodeClient.async()` 工厂及其客户端类型暂时保留，
-用于迁移已有代码；新代码应优先使用上面的统一 request-oriented API。`call()` 是阻塞聚合，
-`stream()` 返回 Reactor `Flux`，两者共享同一套 prompt 语义。
+`call()` 是阻塞聚合，`stream()` 返回 Reactor `Flux`；两者共享同一套 prompt、终态、超时与取消语义。
 
 ## call() / stream()：prompt 风格入口
 
@@ -58,29 +56,40 @@ SolonCode.prompt("解释递归")
     .stream()
     .subscribe(System.out::println);
 
-// 走 http 通道：通道与凭证由 client builder 配，末尾接 prompt(...)
-SolonCodeClient.sync()
-    .http("http://127.0.0.1:18080/web/run").authToken(token).workspace("my-project")
-    .prompt("分析这个模块")
-    .stream()
-    .subscribe(System.out::println);
+// 走 http 通道：通道与凭证由统一 client builder 配
+try (SolonCodeClient client = SolonCodeClient.builder()
+        .http("http://127.0.0.1:18080/web/run")
+        .authToken(token)
+        .workspace("my-project")
+        .build()) {
+    client.prompt("分析这个模块")
+        .stream()
+        .subscribe(System.out::println);
+}
 ```
 
 语义要点：
 
-- `SolonCodeClient.builder().prompt(...).stream()` 使用已构建 client 的会话，客户端由调用方负责关闭；正常结束、异常或取消不会自动关闭 client。
+- 已构建客户端的 `prompt(...).stream()` 使用该 client 的会话，客户端由调用方负责关闭；正常结束、异常或取消不会自动关闭 client。
 - `SolonCode.prompt(...).stream()` 是兼容的单轮冷流，每次订阅发起一次新执行并在结束时释放临时客户端。
 - 旧的 `Query.stream(prompt)` 是「先跑完再把列表转成 Stream」的**伪流式**，为兼容保留；新代码用统一入口的 `stream()`。
+
+语义要点：
+
+- `stream()` 在下游有 demand 时才从阻塞响应迭代器继续拉取，取消会主动 interrupt；Reactor 桥接层使用 `ERROR` 溢出策略，不做无界预取。
+- 同步接收器的每轮缓冲上限为 1000 条；慢消费者超过上限会收到明确错误并中断当前轮，不会无限占用内存。
+- transport 的迟订阅回放窗口限制为最近 1000 条，不再永久保留常驻会话的全部历史。
+- 这属于 SDK 边界的 demand-aware、有界背压；CLI 子进程或远端 SSE 已经写入操作系统管道/网络缓冲的数据无法反向撤回。
 
 ## 两条通讯通道
 
 通道是必选项（有默认值），builder 层一级方法选择：
 
 ```java
-SolonCodeClient.sync().stdio()                                 // 默认：本机常驻 stream，自动发现 CLI
-SolonCodeClient.sync().stdio("/usr/local/bin/soloncode")       // 常驻 stream，指定可执行文件
-SolonCodeClient.sync().stdioOneShot("/usr/local/bin/soloncode") // 兼容：每轮 run + resume
-SolonCodeClient.sync().http("http://127.0.0.1:18080/web/run")  // 服务端通道
+SolonCodeClient.builder().stdio()                                 // 默认：本机常驻 stream，自动发现 CLI
+SolonCodeClient.builder().stdio("/usr/local/bin/soloncode")       // 常驻 stream，指定可执行文件
+SolonCodeClient.builder().stdioOneShot("/usr/local/bin/soloncode") // 兼容：每轮 run + resume
+SolonCodeClient.builder().http("http://127.0.0.1:18080/web/run")  // 服务端通道
 ```
 
 | 维度 | stdio（默认） | http |
@@ -101,7 +110,7 @@ HTTP 通道下 MCP 注册、权限审批回调等在服务端配置，客户端�
 
 ```java
 // HTTP 正向代理（含 HTTPS CONNECT 隧道），带 Basic 认证
-SolonCodeClient.sync()
+SolonCodeClient.builder()
     .http("https://run.internal.example/web/run")
     .authToken(token)
     .httpOptions(HttpOptions.proxy("proxy.corp.example", 3128).proxyAuth("user", "pass"))
@@ -133,7 +142,7 @@ HttpOptions.proxy("proxy.corp.example", 3128)
 
 要点：
 
-- 所有选项经 `httpOptions(...)` 构建器传入（stdio 通道设置会在 build 时报错）；`HttpOptions` 不可变，wither 返回新实例。
+- 所有选项经 `httpOptions(...)` 构建器传入（stdio 通道设置会在首次创建会话时报错）；`HttpOptions` 不可变，wither 返回新实例。
 - 代理认证走 `Proxy-Authorization` 头，`/web/run` 与 `/web/run/interrupt` 每个连接都带；SOCKS 认证需调用方自行 `Authenticator.setDefault`（SDK 不改 JVM 全局状态）。
 - trustStore/keyStore 支持 JKS 与 PKCS12（按文件内容自动识别）；密码字段不参与 equals/toString，防泄漏。
 - trustAll 与 trustStore 互斥；SSL 初始化失败（文件不存在/密码错/格式不对）在传输实例创建时立即抛 `TransportException`，不留到首次请求。
@@ -146,7 +155,8 @@ HttpOptions.proxy("proxy.corp.example", 3128)
 
 `soloncode stream` 在 stdin/stdout 上使用 JSONL：进程和 AgentSession 保持到 stdin EOF；每个 user
 信封启动一轮，每个 `result` 是轮次边界。SDK 默认 stdio 使用这条路径，因此多轮不再重复支付 JVM 与引擎
-冷启动成本，`interrupt()` 也只取消当前轮。`connect()` 仍保持惰性：首个 query 才启动进程。
+冷启动成本，`interrupt()` 也只取消当前轮。构建客户端不会启动进程，首次执行
+`prompt(...).call()/stream()` 时才建立 transport。
 
 需要旧 CLI 兼容或进程级隔离时，使用 `stdioOneShot(path)`。该模式继续执行每轮
 `soloncode run`，首轮 `--session-id`、后续 `--resume`，并在中断时终止该轮进程。HTTP `/web/run`
@@ -164,12 +174,12 @@ soloncode CLI 的 `stream` 子命令支持 stdin JSON 双向协议；`run` 和 H
 
 | 能力 | 状态 |
 |------|------|
-| 同步/异步 Query、stream-json 事件流解析 | 支持 |
+| `call()` / `stream()`、stream-json 事件流解析 | 支持 |
 | 会话管理（`--resume` / `--continue`） | 支持 |
 | 权限模式预设（default/dontAsk/plan/acceptEdits/bypassPermissions） | 支持 |
 | `--allowedTools` / `--disallowedTools`（含 `Tool(pattern)` 规则） | 支持 |
 | `--json-schema` 结构化输出、`--max-budget-usd`、`--max-turns`、`--fallback-model` | 支持 |
-| `--add-dir` 多目录、`--bare`、`--session-id`、`--fallback-model` | 支持（客户端 Spec 一级方法） |
+| `--add-dir` 多目录、`--bare`、`--session-id`、`--fallback-model` | 支持（统一 Builder 一级方法） |
 | `toolPermissionCallback` / `permissionPromptToolName`（stdin 审批回调） | **不支持**，配置后仅告警忽略 |
 | `systemPrompt` / `appendSystemPrompt` / `agents` / `forkSession` / `mcpServers` / `settings` / `plugins` / `tools` / `maxThinkingTokens` | **不支持**，配置后仅告警忽略 |
 | `maxTokens` | **不支持**，执行启动时明确抛出 `UnsupportedOperationException` |

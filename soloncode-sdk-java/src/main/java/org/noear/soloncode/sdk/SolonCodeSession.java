@@ -12,9 +12,8 @@ import java.util.Map;
 /**
  * Internal session contract used by the unified request-oriented client.
  *
- * <p>This deliberately does not expose the legacy connect/query facade. The concrete
- * implementation may still implement that facade while the new API is migrated, but
- * the unified client depends only on session execution primitives.</p>
+ * <p>The public client depends on this package-private abstraction so transport and
+ * lifecycle details do not leak into the SDK API.</p>
  */
 interface SolonCodeSession extends AutoCloseable {
     void connect(String initialPrompt) throws SolonCodeSDKException;
