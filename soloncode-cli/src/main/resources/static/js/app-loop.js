@@ -314,7 +314,7 @@
         // 底部信息
         var lastInfo = '';
         if (t.lastExecutedAt) {
-            lastInfo += '<span class="loop-item-meta">' + I18n.t('loop.lastRun') + formatTimeAgo(t.lastExecutedAt) + '</span>';
+            lastInfo += '<span class="loop-item-meta">' + I18n.t('loop.lastRun', {time: formatTimeAgo(t.lastExecutedAt)}) + '</span>';
         }
         if (t.currentIteration > 0) {
             lastInfo += '<span class="loop-item-meta">' + I18n.t('loop.iteration', {n: t.currentIteration}) + '</span>';
