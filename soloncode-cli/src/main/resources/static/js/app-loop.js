@@ -221,10 +221,12 @@
         closeMoreMenus();
         var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
         if (!input) return;
-        input.value = I18n.t('toolbar.organizeMemory');
+        input.value = '/memory';
         if (typeof autoResize === 'function') autoResize(input);
         input.focus();
     }
+    // 供记忆面板等模块调用（填入 /memory 命令）
+    window.fillMemoryText = fillMemoryText;
     $('#newChatMemoryBtn').on('click', function(e) {
         e.stopPropagation();
         fillMemoryText();

@@ -229,7 +229,7 @@ public class WebEventMapper {
 
     private WebEvent<?> onReasonDeltaEvent(ReasonDeltaEvent chunk, String taskAgentName) {
         if (chunk.isThinking()) {
-            return WebEvent.ofReason(chunk.getReasonId(), chunk.getThinking());
+            return WebEvent.ofReason(chunk.getReasonId(), chunk.getText());
         } else {
             // 正文必须携带 reasonId，前端据此将同一轮正文分组；
             // 丢失后多轮正文会塔缩到同一 __default__ 分组，导致最终消息错接到前一组。
@@ -285,7 +285,7 @@ public class WebEventMapper {
                 .callId(event.getCallId())
                 .name(toolName)
                 .title(toolTitle)
-                .result(event.getContent())
+                .result(event.getText())
                 .isError(false)
                 .args(event.getArgs())
                 .build());
@@ -294,7 +294,7 @@ public class WebEventMapper {
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
         ReActTrace trace = event.getTrace();
         String sessionId = session.getSessionId();
-        String resultContent = event.getAssistantMessage().getText();
+        String resultContent = event.getText();
 
         if (Assert.isNotEmpty(resultContent)) {
             // 向所有已绑定的 IM 通道回复

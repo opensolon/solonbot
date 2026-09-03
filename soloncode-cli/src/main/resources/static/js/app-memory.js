@@ -49,11 +49,13 @@
         var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
         var _memNewBtn = document.getElementById('gitViewerMemNew');
         var _memClearBtn = document.getElementById('gitViewerMemClear');
+        var _memOrganizeBtn = document.getElementById('gitViewerMemOrganize');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = '';
         if (_memClearBtn) _memClearBtn.style.display = '';
+        if (_memOrganizeBtn) _memOrganizeBtn.style.display = '';
 
         // 清理 git 模块可能残留的操作栏
         var oldActions = gitViewer.querySelector('.git-viewer-actions');
@@ -406,6 +408,20 @@
     var gitViewerMemNew = document.getElementById('gitViewerMemNew');
     if (gitViewerMemNew) {
         gitViewerMemNew.addEventListener('click', function () { startCreate(); });
+    }
+
+    // header 「整理记忆」按钮：关闭面板并填入 /memory 命令，交由 Agent 执行整理
+    var gitViewerMemOrganize = document.getElementById('gitViewerMemOrganize');
+    if (gitViewerMemOrganize) {
+        gitViewerMemOrganize.addEventListener('click', function () {
+            closeOverlay();
+            if (typeof window.fillMemoryText === 'function') {
+                window.fillMemoryText();
+            } else {
+                var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
+                if (input) { input.value = '/memory'; input.focus(); }
+            }
+        });
     }
 
     // header 「清空记忆」按钮：确认后调用后端 clear 接口

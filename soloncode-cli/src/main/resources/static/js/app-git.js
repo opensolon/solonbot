@@ -637,6 +637,10 @@
         if (_fullscreen) _fullscreen.style.display = 'none';
         var _memNew = document.getElementById('gitViewerMemNew');
         if (_memNew) _memNew.style.display = 'none';
+        var _memClearHide = document.getElementById('gitViewerMemClear');
+        if (_memClearHide) _memClearHide.style.display = 'none';
+        var _memOrganizeHide = document.getElementById('gitViewerMemOrganize');
+        if (_memOrganizeHide) _memOrganizeHide.style.display = 'none';
         var _addToChatMedia = document.getElementById('gitViewerAddToChat');
         if (_addToChatMedia) _addToChatMedia.style.display = 'none';
 
@@ -723,6 +727,10 @@
         // 隐藏记忆面板专用的「新建」按钮
         var _memNewReset = document.getElementById('gitViewerMemNew');
         if (_memNewReset) _memNewReset.style.display = 'none';
+        var _memClearReset = document.getElementById('gitViewerMemClear');
+        if (_memClearReset) _memClearReset.style.display = 'none';
+        var _memOrganizeReset = document.getElementById('gitViewerMemOrganize');
+        if (_memOrganizeReset) _memOrganizeReset.style.display = 'none';
 
         // 显示「加入对话内容」按钮（文件视图可用）
         var _addToChat = document.getElementById('gitViewerAddToChat');
@@ -1169,14 +1177,15 @@
         diffViewerActive = true;
 
         // 审查详情模式：隐藏"视图"和"复制"按钮（全屏按钮保留）
-        var _mdToggle = document.getElementById('gitViewerMdToggle');
-        var _copyBtn = document.getElementById('gitViewerCopyBtn');
-        var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
         var _memNewBtn = document.getElementById('gitViewerMemNew');
+        var _memClearBtn = document.getElementById('gitViewerMemClear');
+        var _memOrganizeBtn = document.getElementById('gitViewerMemOrganize');
         if (_mdToggle) _mdToggle.style.display = 'none';
         if (_copyBtn) _copyBtn.style.display = 'none';
         if (_fullscreenBtn) _fullscreenBtn.style.display = '';
         if (_memNewBtn) _memNewBtn.style.display = 'none';
+        if (_memClearBtn) _memClearBtn.style.display = 'none';
+        if (_memOrganizeBtn) _memOrganizeBtn.style.display = 'none';
         // Diff 视图显示「加入对话内容」按钮（支持行号选择）
         var _addToChatDiff = document.getElementById('gitViewerAddToChat');
         if (_addToChatDiff) _addToChatDiff.style.display = '';

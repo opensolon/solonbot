@@ -18,8 +18,8 @@ package org.noear.solon.codecli.portal.printmode;
 import org.noear.snack4.ONode;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
-import org.noear.solon.ai.agent.react.ReActChunk;
 import org.noear.solon.ai.agent.react.ReActTrace;
+import org.noear.solon.ai.agent.react.RunEndEvent;
 import org.noear.solon.ai.agent.react.task.*;
 import org.noear.solon.ai.agent.trace.Metrics;
 import org.noear.solon.ai.chat.ChatModel;
@@ -84,28 +84,48 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PrintMode {
     private static final Logger LOG = LoggerFactory.getLogger(PrintMode.class);
 
-    /** 退出码：成功 */
+    /**
+     * 退出码：成功
+     */
     public static final int EXIT_SUCCESS = 0;
-    /** 退出码：运行出错 */
+    /**
+     * 退出码：运行出错
+     */
     public static final int EXIT_ERROR = 1;
-    /** 退出码：超过最大轮次 */
+    /**
+     * 退出码：超过最大轮次
+     */
     public static final int EXIT_MAX_TURNS = 2;
-    /** 退出码：提示词为空 */
+    /**
+     * 退出码：提示词为空
+     */
     public static final int EXIT_NO_PROMPT = 3;
-    /** 退出码：超过费用预算 */
+    /**
+     * 退出码：超过费用预算
+     */
     public static final int EXIT_BUDGET_EXCEEDED = 4;
-    /** 退出码：收到 SIGTERM（= 128 + 15，与 Unix 惯例一致） */
+    /**
+     * 退出码：收到 SIGTERM（= 128 + 15，与 Unix 惯例一致）
+     */
     public static final int EXIT_SIGTERM = 143;
 
-    /** 写入类工具集合（plan 模式下会被 DENY） */
+    /**
+     * 写入类工具集合（plan 模式下会被 DENY）
+     */
     private static final String[] WRITE_TOOLS = {"Write", "Edit", "Bash"};
 
-    /** 文件编辑类工具集合（acceptEdits 模式下会被 ALLOW） */
+    /**
+     * 文件编辑类工具集合（acceptEdits 模式下会被 ALLOW）
+     */
     private static final String[] EDIT_TOOLS = {"Write", "Edit", "Read", "Glob", "Grep"};
 
-    /** 默认费用估算：每 1K 输入 token $0.003 */
+    /**
+     * 默认费用估算：每 1K 输入 token $0.003
+     */
     static final double COST_PER_1K_INPUT_TOKENS = 0.003;
-    /** 默认费用估算：每 1K 输出 token $0.015 */
+    /**
+     * 默认费用估算：每 1K 输出 token $0.015
+     */
     static final double COST_PER_1K_OUTPUT_TOKENS = 0.015;
 
     private final HarnessEngine engine;
@@ -121,13 +141,19 @@ public class PrintMode {
      */
     private final AtomicReference<Disposable> currentTurn = new AtomicReference<>();
 
-    /** 保护“轮次已开始但订阅句柄尚未就绪”的短暂窗口 */
+    /**
+     * 保护“轮次已开始但订阅句柄尚未就绪”的短暂窗口
+     */
     private final Object turnStateLock = new Object();
 
-    /** 当前是否存在可中断的轮次；必须与 currentTurn 在 turnStateLock 下更新 */
+    /**
+     * 当前是否存在可中断的轮次；必须与 currentTurn 在 turnStateLock 下更新
+     */
     private boolean turnRunning;
 
-    /** 当前轮次是否被显式中断（每轮开始时重置） */
+    /**
+     * 当前轮次是否被显式中断（每轮开始时重置）
+     */
     private final AtomicBoolean turnInterrupted = new AtomicBoolean(false);
 
     public PrintMode(HarnessEngine engine, AgentSettings agentSettings, PrintModeOptions options) {
@@ -282,7 +308,9 @@ public class PrintMode {
         return prompt;
     }
 
-    /** stdin 输入上限：10MB（对齐官方 v2.1.128+ 规范） */
+    /**
+     * stdin 输入上限：10MB（对齐官方 v2.1.128+ 规范）
+     */
     private static final int STDIN_MAX_BYTES = 10 * 1024 * 1024;
 
     /**
@@ -598,32 +626,30 @@ public class PrintMode {
      * 处理流式事件块
      */
     private void handleChunk(AgentSession session, Object chunk, PrintResult result) {
-        if (chunk instanceof ReasonChunk) {
-            ReasonChunk reason = (ReasonChunk) chunk;
-            if (!reason.isToolCalls() && reason.hasContent()) {
-                if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON && options.isVerbose()) {
-                    String text = clearThink(reason.getContent());
-                    if (Assert.isNotEmpty(text)) {
-                        emitStreamEvent(buildAssistantTextEvent(text, reason.isThinking()));
-                    }
+        if (chunk instanceof ReasonDeltaEvent) {
+            ReasonDeltaEvent reason = (ReasonDeltaEvent) chunk;
+            if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON && options.isVerbose()) {
+                String text = clearThink(reason.getText());
+                if (Assert.isNotEmpty(text)) {
+                    emitStreamEvent(buildAssistantTextEvent(text, reason.isThinking()));
                 }
             }
-        } else if (chunk instanceof ThoughtChunk) {
-            ThoughtChunk thought = (ThoughtChunk) chunk;
+        } else if (chunk instanceof ReasonEndEvent) {
+            ReasonEndEvent thought = (ReasonEndEvent) chunk;
             if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON && options.isVerbose()) {
                 if (thought.isToolCalls()) {
                     emitStreamEvent(buildToolUseEvent(thought));
                 }
             }
-        } else if (chunk instanceof ObservationChunk) {
-            ObservationChunk obs = (ObservationChunk) chunk;
+        } else if (chunk instanceof ToolCallEndEvent) {
+            ToolCallEndEvent obs = (ToolCallEndEvent) chunk;
             if (options.getOutputFormat() == PrintModeOptions.OutputFormat.STREAM_JSON && options.isVerbose()) {
                 emitStreamEvent(buildToolResultEvent(obs));
             }
-        } else if (chunk instanceof ReActChunk) {
-            ReActChunk react = (ReActChunk) chunk;
+        } else if (chunk instanceof RunEndEvent) {
+            RunEndEvent react = (RunEndEvent) chunk;
             result.trace = react.getTrace();
-            result.answer = clearThink(react.getContent());
+            result.answer = clearThink(react.getText());
             result.metrics = react.getMetrics();
             result.sessionId = session.getSessionId();
             // result 是轮次终止符，必须等 reactive 流完整结束、error/max-turns/interrupted
@@ -803,7 +829,7 @@ public class PrintMode {
      * {"type":"assistant","message":{"content":[{"type":"tool_use","id":"...","name":"...","input":{...}}]}}
      * </pre>
      */
-    private ONode buildToolUseEvent(ThoughtChunk thought) {
+    private ONode buildToolUseEvent(ReasonEndEvent thought) {
         ONode node = new ONode();
         node.set("type", "assistant");
 
@@ -832,7 +858,7 @@ public class PrintMode {
      * {"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"...","content":"...","is_error":false}]}}
      * </pre>
      */
-    private ONode buildToolResultEvent(ObservationChunk obs) {
+    private ONode buildToolResultEvent(ToolCallEndEvent obs) {
         ONode node = new ONode();
         node.set("type", "user");
 
@@ -845,8 +871,8 @@ public class PrintMode {
         contentBlock.set("is_error", obs.getError() != null);
         if (obs.getError() != null) {
             contentBlock.set("content", obs.getError().getMessage());
-        } else if (Assert.isNotEmpty(obs.getContent())) {
-            contentBlock.set("content", obs.getContent());
+        } else if (Assert.isNotEmpty(obs.getText())) {
+            contentBlock.set("content", obs.getText());
         } else {
             contentBlock.set("content", "");
         }
@@ -965,7 +991,7 @@ public class PrintMode {
             String extracted = extractJsonBlock(text);
             if (extracted != null) {
                 try {
-                return ONode.ofJson(extracted);
+                    return ONode.ofJson(extracted);
                 } catch (Exception e2) {
                     return null;
                 }
@@ -1051,9 +1077,13 @@ public class PrintMode {
         double estimatedCostUsd;
         Double budgetLimitUsd;
         boolean budgetExceeded;
-        /** result 事件是否已在流中发出；为 true 时 outputResult 不再补发 error 事件 */
+        /**
+         * result 事件是否已在流中发出；为 true 时 outputResult 不再补发 error 事件
+         */
         boolean resultEventEmitted;
-        /** 本轮是否被 {@code control_request/interrupt} 取消 */
+        /**
+         * 本轮是否被 {@code control_request/interrupt} 取消
+         */
         boolean interrupted;
     }
 }
