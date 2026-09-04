@@ -503,6 +503,26 @@ function finishThinkingBeforeSteer(sess) {
     if (sess.thinkingBlockEl) finishThinkingBlock(sess);
 }
 
+/** thought.done 专用：结束指定 segment 内某个 reasonId 的思考块（停转转）。
+ *
+ * 后端 THINKING_END 帧（思考流闭合）转发为 thought.done，事件本身携带 reasonId。
+ * 只收尾匹配的那一组，不能遍历 segment.reasonEntries 全量：multitask 并行时多个
+ * task-group 的思考流交错到达，全量收尾会截断其它子任务仍在流式输出的思考块。
+ * 匹配不到（该轮无思考块，如纯文本轮）时静默跳过；segment 缺失时兑底旧式单槽。
+ */
+function finishThinkingForReason(sess, segment, reasonId) {
+    if (!sess) return;
+    if (segment && segment.reasonEntries) {
+        var entry = segment.reasonEntries[reasonId || '__default__'];
+        if (entry && entry.thinkingBlockEl) {
+            finishThinkingBlock(sess, streamReasonKey(segment, reasonId));
+        }
+        return;
+    }
+    // 兼容没有 streamSegment 的旧式思考块。
+    if (sess.thinkingBlockEl) finishThinkingBlock(sess);
+}
+
 /** 后端 steer_applied / steer_dropped 事件处理 */
 function handleSteerEvent(sess, event, p) {
     if (!sess) return;
@@ -1268,6 +1288,19 @@ function processWebEventNow(sess, webEvt) {
 
             case 'thought.delta':
                 sourceEl = appendReasonChunk(sess, segment, p.delta || '', reasonId, agentName);
+                break;
+
+            case 'thought.done':
+                /* 思考流闭合：立即结束该 reasonId 的思考块（停转转）。
+                 * 兼容尾部残余 delta（END 帧可能携带最后一段文本，正常为空）。
+                 * 此前只能靠后续 message.delta / tool.start（换 reasonId 或同组追内容）或
+                 * system.done 兕底才停，若思考后同轮再无事件（steer 截断、仅思考轮次），
+                 * spinner 会空转到整轮结束。
+                 * 注：本事件非 isVisualEvent，segment 需从 taskSegments/currentStreamSegment 解析；
+                 * 只定位已有分组，不新建（纯收尾信号，不该产生空段）。 */
+                var doneSeg = segment || (taskId && sess.taskSegments[taskId]) || sess.currentStreamSegment;
+                if (p && p.delta) appendReasonChunk(sess, doneSeg, p.delta, reasonId, agentName);
+                finishThinkingForReason(sess, doneSeg, reasonId);
                 break;
 
             case 'tool.start':

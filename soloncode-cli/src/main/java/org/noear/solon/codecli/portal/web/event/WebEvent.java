@@ -107,6 +107,16 @@ public class WebEvent<T> implements Serializable {
         return ofReason(null, text);
     }
 
+    /** 思考流闭合信号：前端收到后立即结束该 reasonId 的思考块（停转转），
+     * 不必等待后续正文/工具事件或 system.done 兜底。
+     * delta 携带 END 帧的残余文本（正常为空，防御性透传）。 */
+    public static WebEvent<ThoughtPayload> ofThoughtDone(String reasonId, String text) {
+        WebEvent<ThoughtPayload> evt = of(WebEventNames.THOUGHT_DONE, ThoughtPayload.builder()
+                .delta(text == null ? "" : text).build());
+        evt.setReasonId(reasonId);
+        return evt;
+    }
+
     public static WebEvent<ToolStartPayload> ofToolCallStart(String toolName, String toolTitle, Map<String, Object> args) {
         return of(WebEventNames.TOOL_START, ToolStartPayload.builder()
                 .name(toolName)

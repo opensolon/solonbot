@@ -11,6 +11,7 @@ import org.noear.solon.ai.agent.react.intercept.HITLTask;
 import org.noear.solon.ai.agent.react.task.*;
 import org.noear.solon.ai.agent.trace.Metrics;
 import org.noear.solon.ai.chat.ChatModel;
+import org.noear.solon.ai.chat.event.ChatEventType;
 import org.noear.solon.ai.harness.agent.TaskTalent;
 import org.noear.solon.ai.harness.agent.TaskWrapEvent;
 import org.noear.solon.ai.talents.memory.MemoryTalent;
@@ -199,50 +200,62 @@ public class WebEventMapper {
         }
     }
 
-    private WebEvent<?> onContextSizeEvent(ChatModel chatModel, ContextSizeEvent chunk) {
+    private WebEvent<?> onContextSizeEvent(ChatModel chatModel, ContextSizeEvent event) {
         long limit = 0;
         if (chatModel != null && chatModel.getConfig() != null) {
             limit = chatModel.getConfig().getContextLength();
         }
         if (limit <= 0) {
-            limit = chunk.getContextLength(); // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
+            limit = event.getContextLength(); // 默认上下文窗口，避免前端展示 "/ 0 (0%)"
         }
         if (limit <= 0) {
             limit = 128_000L;
         }
 
         Double cacheRate = null;
-        if (chunk.getTrace() != null && chunk.getTrace().getMetrics() != null) {
-            double cr = chunk.getTrace().getMetrics().getCacheRate();
+        if (event.getTrace() != null && event.getTrace().getMetrics() != null) {
+            double cr = event.getTrace().getMetrics().getCacheRate();
             if (cr > 0) {
                 cacheRate = cr;
             }
         }
 
         return WebEvent.of(WebEventNames.SYSTEM_CONTEXT, SystemContextPayload.builder()
-                .tokens(chunk.getTokenCount())
-                .count(chunk.getMessageCount())
+                .tokens(event.getTokenCount())
+                .count(event.getMessageCount())
                 .contextLimit(limit)
                 .cacheRate(cacheRate)
                 .build());
     }
 
-    private WebEvent<?> onReasonDeltaEvent(ReasonDeltaEvent chunk, String taskAgentName) {
-        if (chunk.isThinking()) {
-            return WebEvent.ofReason(chunk.getReasonId(), chunk.getText());
+    private WebEvent<?> onReasonDeltaEvent(ReasonDeltaEvent event, String taskAgentName) {
+        if (event.getChatEvent() != null) {
+            if (event.getChatEvent().is(ChatEventType.THINKING_END)) {
+                //思考结束：外发 thought.done，前端据此立即结束该 reasonId 的思考块（停转转）。
+                //思考之后同轮可能再无正文/工具事件（如 steer 截断、仅思考的轮次），
+                //此前只能等 system.done 兑底收尾，spinner 会空转到整轮结束。
+                return WebEvent.ofThoughtDone(event.getReasonId(), event.getText());
+            } else if (event.getChatEvent().is(ChatEventType.TEXT_END)) {
+                //文本结束
+                //WebEventNames.MESSAGE_DONE;
+            }
+        }
+
+        if (event.isThinking()) {
+            return WebEvent.ofReason(event.getReasonId(), event.getText());
         } else {
             // 正文必须携带 reasonId，前端据此将同一轮正文分组；
             // 丢失后多轮正文会塔缩到同一 __default__ 分组，导致最终消息错接到前一组。
-            return WebEvent.ofText(chunk.getReasonId(), chunk.getText());
+            return WebEvent.ofText(event.getReasonId(), event.getText());
         }
     }
 
-    private List<WebEvent<?>> onHITLPendingEvent(AgentSession session, HITLPendingEvent chunk) {
+    private List<WebEvent<?>> onHITLPendingEvent(AgentSession session, HITLPendingEvent event) {
         List<WebEvent<?>> result = new ArrayList<>();
-        if (chunk == null || chunk.getPendingTasks() == null || chunk.getPendingTasks().isEmpty()) {
+        if (event == null || event.getPendingTasks() == null || event.getPendingTasks().isEmpty()) {
             return result;
         }
-        for (HITLTask task : chunk.getPendingTasks()) {
+        for (HITLTask task : event.getPendingTasks()) {
             if (task == null) continue;
             result.add(buildHitlEvent(session, task));
         }
@@ -379,5 +392,4 @@ public class WebEventMapper {
 
         return WebEvent.ofTrace(model, totalTokens, elapsedSeconds, finalAnswer);
     }
-
 }
