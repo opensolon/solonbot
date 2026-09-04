@@ -8,6 +8,7 @@ import org.noear.solon.ai.chat.ChatModel;
 import org.noear.solon.ai.chat.prompt.Prompt;
 import org.noear.solon.ai.harness.HarnessEngine;
 import org.noear.solon.codecli.channel.Channel;
+import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.codecli.portal.web.event.WebEvent;
 import org.noear.solon.codecli.portal.web.pipeline.SessionMetricsRecorder;
 import org.noear.solon.ai.talents.lsp.LspCheckState;
@@ -95,8 +96,12 @@ public class WebStreamBuilder {
 
         session.attrs().put("_agent_selected_tmp", agent.name());
 
-        String sessionEffort = ReasoningSupportUtil.getSessionEffort(session);
-        String sessionThinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
+        GeneralGroupDo general = wsContext.getSettings() == null ? null : wsContext.getSettings().getGeneral();
+        String globalThinking = general == null ? null : general.getDefaultThinkingMode();
+        String globalEffort = general == null ? null : general.getDefaultReasoningEffort();
+
+        //会话显式（含手动选 auto）> 全局默认（设置→通用）> 模型 defaultOptions > 供应商
+        String sessionThinkingMode = ReasoningSupportUtil.resolveSessionThinkingOrDefault(session, globalThinking);
         ReasoningSupportUtil.ModelCapability cap = null;
         try {
             ChatConfig fullConfig = null;
@@ -130,8 +135,8 @@ public class WebStreamBuilder {
             }
         } catch (Throwable ignored) {
         }
-        final String effectiveEffort = ReasoningSupportUtil.resolveEffectiveEffort(
-                null, sessionEffort, cap, false);
+        final String effectiveEffort = ReasoningSupportUtil.resolveSessionEffortOrDefault(
+                session, globalEffort, cap);
         ReasoningSupportUtil.applyToPrompt(prompt, sessionThinkingMode, effectiveEffort);
 
         WebEventMapper mapper = new WebEventMapper(this, wsContext, session, chatModel);

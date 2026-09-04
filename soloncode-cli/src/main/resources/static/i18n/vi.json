@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Tỷ lệ ngữ cảnh kích hoạt nén (%)",
   "general.conversation.compressionPctPlaceholder": "75 (mặc định)",
   "general.conversation.desc": "Cửa sổ lịch sử kiểm soát số tin nhắn lịch sử được dùng khi có chỉ thị mới; chiến lược nén kiểm soát việc tự động nén ngữ cảnh hội thoại để tránh vượt giới hạn cửa sổ mô hình",
+  "general.chatDefaults.title": "Mặc định cho hội thoại mới",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Cường độ suy luận",
+  "general.chatDefaults.followModel": "Tự động (theo mô hình)",
+  "general.chatDefaults.thinkingOn": "Bật",
+  "general.chatDefaults.thinkingOff": "Tắt",
+  "general.chatDefaults.desc": "Chỉ áp dụng cho hội thoại mới. Hội thoại đã chọn mức sẽ giữ mức riêng. Mức không được hỗ trợ sẽ tự chuyển về mức gần nhất.",
   "general.conversation.historyWindowSize": "Kích thước cửa sổ lịch sử",
   "general.conversation.historyWindowSizePlaceholder": "8 (mặc định)",
   "general.conversation.title": "Chiến lược hội thoại",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Thêm cấu hình mô hình",
   "newchat.onboardingSkip": "Bỏ qua",
   "newchat.noModelHint": "Không có mô hình khả dụng. Vui lòng thêm mô hình trong Cài đặt trước",
-  "general.features.managerDesc": "Bật để cho phép AI thêm/quản lý động các mô hình LLM, máy chủ MCP, nguồn OpenAPI và tác vụ đã lên lịch; tắt để giảm tiêu thụ ngữ cảnh",
+  "general.features.managerDesc": "Bật để cho phép AI thêm/quản lý động các mô hình LLM, máy chủ MCP và nguồn OpenAPI; tắt để giảm tiêu thụ ngữ cảnh",
   "general.features.managerName": "Hỗ trợ công cụ Manage",
   "settings.group.users": "Quản lý người dùng",
   "settings.tab.users": "Người dùng",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Không thể tải danh sách sao lưu",
   "backup.parseFailed": "Không thể phân tích gói sao lưu",
   "backup.importFailed": "Không thể nhập sao lưu",
-  "backup.assetFiles": "{n} tệp (mới {added} / ghi đè {overwritten})"
+  "backup.assetFiles": "{n} tệp (mới {added} / ghi đè {overwritten})",
+  "general.features.loopName": "Hỗ trợ tác vụ Loop",
+  "general.features.loopDesc": "Bật để cho phép AI quản lý tác vụ đã lên lịch/lặp lại (xem danh sách, tạm dừng, dừng, chạy vào thời điểm cho trước); tắt để giảm tiêu thụ ngữ cảnh"
 }

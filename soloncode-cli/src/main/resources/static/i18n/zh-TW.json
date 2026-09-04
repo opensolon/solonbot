@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "壓縮觸發上下文佔比(%)",
   "general.conversation.compressionPctPlaceholder": "75（預設）",
   "general.conversation.desc": "歷史視窗控制新指令時使用幾條歷史訊息；壓縮策略控制對話上下文的自動壓縮，防止超出模型視窗限制",
+  "general.chatDefaults.title": "新建對話預設",
+  "general.chatDefaults.thinkingMode": "思考模式",
+  "general.chatDefaults.reasoningEffort": "推理強度",
+  "general.chatDefaults.followModel": "自動（跟隨模型）",
+  "general.chatDefaults.thinkingOn": "開啟",
+  "general.chatDefaults.thinkingOff": "關閉",
+  "general.chatDefaults.desc": "只影響新建對話；已在輸入框手選過的對話保持自己的檔位。超出模型支援範圍的檔位會自動回調到最近一檔",
   "general.conversation.historyWindowSize": "歷史視窗大小",
   "general.conversation.historyWindowSizePlaceholder": "8（預設）",
   "general.conversation.title": "對話策略",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "添加大語言模型配置",
   "newchat.onboardingSkip": "跳過",
   "newchat.noModelHint": "暫無可用模型，請先在設定中添加模型配置",
-  "general.features.managerDesc": "開啓後允許 AI 動態新增/管理 LLM 模型、MCP 服務、OpenAPI 來源與定時任務；關閉可減少上下文消耗",
+  "general.features.managerDesc": "開啓後允許 AI 動態新增/管理 LLM 模型、MCP 服務與 OpenAPI 來源；關閉可減少上下文消耗",
   "general.features.managerName": "Manage 工具支援",
   "settings.group.users": "使用者管理",
   "settings.tab.users": "使用者管理",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "載入備份清單失敗",
   "backup.parseFailed": "解析備份包失敗",
   "backup.importFailed": "匯入備份失敗",
-  "backup.assetFiles": "{n} 個檔案（新增 {added} / 覆寫 {overwritten}）"
+  "backup.assetFiles": "{n} 個檔案（新增 {added} / 覆寫 {overwritten}）",
+  "general.features.loopName": "Loop 定時任務支援",
+  "general.features.loopDesc": "開啓後允許 AI 管理定時/循環任務（查詢、暫停、停止、指定時刻執行等）；關閉可減少上下文消耗"
 }

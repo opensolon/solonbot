@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Komprimierungsauslöser (Kontext %)",
   "general.conversation.compressionPctPlaceholder": "75 (Standard)",
   "general.conversation.desc": "Das Verlaufsfenster legt fest, wie viele vergangene Nachrichten pro Anfrage verwendet werden; die Komprimierung verhindert ein Überlaufen des Kontexts",
+  "general.chatDefaults.title": "Standardwerte für neue Chats",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Argumentationsaufwand",
+  "general.chatDefaults.followModel": "Automatisch (Modell folgen)",
+  "general.chatDefaults.thinkingOn": "Ein",
+  "general.chatDefaults.thinkingOff": "Aus",
+  "general.chatDefaults.desc": "Gilt nur für neue Unterhaltungen. Unterhaltungen mit bereits gewählter Stufe behalten ihre eigene. Nicht unterstützte Stufen werden auf die nächstgelegene reduziert.",
   "general.conversation.historyWindowSize": "Verlaufsfenstergröße",
   "general.conversation.historyWindowSizePlaceholder": "8 (Standard)",
   "general.conversation.title": "Gesprächsstrategie",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Modellkonfiguration hinzufügen",
   "newchat.onboardingSkip": "Überspringen",
   "newchat.noModelHint": "Kein Modell verfügbar. Bitte fügen Sie zuerst ein Modell in den Einstellungen hinzu",
-  "general.features.managerDesc": "Ermöglicht der KI, LLM-Modelle, MCP-Server, OpenAPI-Quellen und geplante Aufgaben dynamisch hinzuzufügen/zu verwalten; deaktivieren, um Kontext zu sparen",
+  "general.features.managerDesc": "Ermöglicht der KI, LLM-Modelle, MCP-Server und OpenAPI-Quellen dynamisch hinzuzufügen/zu verwalten; deaktivieren, um Kontext zu sparen",
   "general.features.managerName": "Manage-Tool-Unterstützung",
   "settings.group.users": "Benutzerverwaltung",
   "settings.tab.users": "Benutzer",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Backup-Manifest konnte nicht geladen werden",
   "backup.parseFailed": "Backup-Paket konnte nicht analysiert werden",
   "backup.importFailed": "Backup-Import fehlgeschlagen",
-  "backup.assetFiles": "{n} Dateien ({added} neu / {overwritten} überschrieben)"
+  "backup.assetFiles": "{n} Dateien ({added} neu / {overwritten} überschrieben)",
+  "general.features.loopName": "Loop-Aufgaben-Unterstützung",
+  "general.features.loopDesc": "Ermöglicht der KI, geplante/Loop-Aufgaben zu verwalten (auflisten, pausieren, stoppen, zu fester Zeit ausführen); deaktivieren, um Kontext zu sparen"
 }

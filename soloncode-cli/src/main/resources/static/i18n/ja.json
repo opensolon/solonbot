@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "圧縮トリガーコンテキスト割合(%)",
   "general.conversation.compressionPctPlaceholder": "75（デフォルト）",
   "general.conversation.desc": "履歴ウィンドウは新しい指示で使用する過去メッセージの数を制御します。圧縮戦略は、モデルのウィンドウ制限を超えないよう会話コンテキストの自動圧縮を制御します",
+  "general.chatDefaults.title": "新規会話のデフォルト",
+  "general.chatDefaults.thinkingMode": "思考モード",
+  "general.chatDefaults.reasoningEffort": "推論強度",
+  "general.chatDefaults.followModel": "自動（モデルに従う）",
+  "general.chatDefaults.thinkingOn": "オン",
+  "general.chatDefaults.thinkingOff": "オフ",
+  "general.chatDefaults.desc": "新規会話にのみ適用されます。すでに手動で選択した会話は独自の設定を保持します。モデルがサポートしない強度は最も近い段階に自動調整されます",
   "general.conversation.historyWindowSize": "履歴ウィンドウサイズ",
   "general.conversation.historyWindowSizePlaceholder": "8（デフォルト）",
   "general.conversation.title": "会話戦略",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "モデル設定を追加",
   "newchat.onboardingSkip": "スキップ",
   "newchat.noModelHint": "利用可能なモデルがありません。先に設定でモデルを追加してください",
-  "general.features.managerDesc": "有効にすると AI が LLM モデル、MCP サーバー、OpenAPI ソース、スケジュール済みタスクを動的に追加・管理できます。無効にするとコンテキスト消費を削減できます",
+  "general.features.managerDesc": "有効にすると AI が LLM モデル、MCP サーバー、OpenAPI ソースを動的に追加・管理できます。無効にするとコンテキスト消費を削減できます",
   "general.features.managerName": "Manage ツールサポート",
   "settings.group.users": "ユーザー管理",
   "settings.tab.users": "ユーザー",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "バックアップ一覧の読み込みに失敗しました",
   "backup.parseFailed": "バックアップパッケージの解析に失敗しました",
   "backup.importFailed": "バックアップのインポートに失敗しました",
-  "backup.assetFiles": "{n} ファイル（新規 {added} / 上書き {overwritten}）"
+  "backup.assetFiles": "{n} ファイル（新規 {added} / 上書き {overwritten}）",
+  "general.features.loopName": "Loop タスクサポート",
+  "general.features.loopDesc": "有効にすると AI が定時/ループタスクを管理できます（一覧・一時停止・停止・指定時刻実行など）。無効にするとコンテキスト消費を削減できます"
 }

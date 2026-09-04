@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Відсоток контексту для запуску стиснення (%)",
   "general.conversation.compressionPctPlaceholder": "75 (за замовчуванням)",
   "general.conversation.desc": "Вікно історії визначає, скільки попередніх повідомлень використовується для нового запиту; політика стиснення керує автоматичним стисненням контексту, щоб не перевищити ліміт вікна моделі",
+  "general.chatDefaults.title": "Значення за замовчуванням для нових чатів",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Інтенсивність мислення",
+  "general.chatDefaults.followModel": "Авто (за моделлю)",
+  "general.chatDefaults.thinkingOn": "Увімк.",
+  "general.chatDefaults.thinkingOff": "Вимк.",
+  "general.chatDefaults.desc": "Застосовується лише до нових бесід. Бесіди з уже вибраним рівнем зберігають свій. Непідтримувані рівні знижуються до найближчого.",
   "general.conversation.historyWindowSize": "Розмір вікна історії",
   "general.conversation.historyWindowSizePlaceholder": "8 (за замовчуванням)",
   "general.conversation.title": "Стратегія діалогу",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Додати конфігурацію моделі",
   "newchat.onboardingSkip": "Пропустити",
   "newchat.noModelHint": "Немає доступних моделей. Спочатку додайте модель у налаштуваннях",
-  "general.features.managerDesc": "Дозволяє ШІ динамічно додавати/керувати моделями LLM, серверами MCP, джерелами OpenAPI та запланованими завданнями; вимкнення зменшує споживання контексту",
+  "general.features.managerDesc": "Дозволяє ШІ динамічно додавати/керувати моделями LLM, серверами MCP та джерелами OpenAPI; вимкнення зменшує споживання контексту",
   "general.features.managerName": "Підтримка інструменту Manage",
   "settings.group.users": "Керування користувачами",
   "settings.tab.users": "Користувачі",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Не вдалося завантажити список резервних копій",
   "backup.parseFailed": "Не вдалося розібрати пакет резервної копії",
   "backup.importFailed": "Не вдалося імпортувати резервну копію",
-  "backup.assetFiles": "{n} файлів (нових: {added} / перезаписано: {overwritten})"
+  "backup.assetFiles": "{n} файлів (нових: {added} / перезаписано: {overwritten})",
+  "general.features.loopName": "Підтримка завдань Loop",
+  "general.features.loopDesc": "Дозволяє ШІ керувати запланованими/циклічними завданнями (перегляд, призупинення, зупинка, запуск у заданий час); вимкнення зменшує споживання контексту"
 }

@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Komprimering utløses (kontekst %)",
   "general.conversation.compressionPctPlaceholder": "75 (standard)",
   "general.conversation.desc": "Historikkvinduet styrer hvor mange tidligere meldinger som brukes per forespørsel; komprimeringsstrategien styrer automatisk komprimering av samtalekonteksten for å hindre at modellens vindusgrense overskrides",
+  "general.chatDefaults.title": "Standard for nye samtaler",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Resonneringsinnsats",
+  "general.chatDefaults.followModel": "Automatisk (følg modell)",
+  "general.chatDefaults.thinkingOn": "På",
+  "general.chatDefaults.thinkingOff": "Av",
+  "general.chatDefaults.desc": "Gjelder bare nye samtaler. Samtaler med et allerede valgt nivå beholder sitt eget. Nivåer som ikke støttes, senkes til det nærmeste.",
   "general.conversation.historyWindowSize": "Historikkvindustørrelse",
   "general.conversation.historyWindowSizePlaceholder": "8 (standard)",
   "general.conversation.title": "Samtalestrategi",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Legg til modellkonfigurasjon",
   "newchat.onboardingSkip": "Hopp over",
   "newchat.noModelHint": "Ingen modell tilgjengelig. Legg til en modell i Innstillinger først",
-  "general.features.managerDesc": "Lar AI dynamisk legge til/administrere LLM-modeller, MCP-servere, OpenAPI-kilder og planlagte oppgaver; deaktiver for å redusere kontekstforbruk",
+  "general.features.managerDesc": "Lar AI dynamisk legge til/administrere LLM-modeller, MCP-servere og OpenAPI-kilder; deaktiver for å redusere kontekstforbruk",
   "general.features.managerName": "Manage-verktøystøtte",
   "settings.group.users": "Brukerhåndtering",
   "settings.tab.users": "Brukere",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Kunne ikke laste inn sikkerhetskopilisten",
   "backup.parseFailed": "Kunne ikke analysere sikkerhetskopipakken",
   "backup.importFailed": "Import av sikkerhetskopi mislyktes",
-  "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)"
+  "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)",
+  "general.features.loopName": "Loop-oppgavestøtte",
+  "general.features.loopDesc": "Lar AI administrere planlagte/gjentakende oppgaver (liste, pause, stopp, kjør til angitt tid); deaktiver for å redusere kontekstforbruk"
 }

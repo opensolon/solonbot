@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "压缩触发上下文占比(%)",
   "general.conversation.compressionPctPlaceholder": "75（默认）",
   "general.conversation.desc": "历史窗口控制新指令时使用几条历史消息；压缩策略控制对话上下文的自动压缩，防止超出模型窗口限制",
+  "general.chatDefaults.title": "新建对话默认",
+  "general.chatDefaults.thinkingMode": "思考模式",
+  "general.chatDefaults.reasoningEffort": "推理强度",
+  "general.chatDefaults.followModel": "自动（跟随模型）",
+  "general.chatDefaults.thinkingOn": "开启",
+  "general.chatDefaults.thinkingOff": "关闭",
+  "general.chatDefaults.desc": "只影响新建对话；已在输入框里手选过的对话保持自己的档位。超出模型支持范围的档位会自动回调到最近一档",
   "general.conversation.historyWindowSize": "历史窗口大小",
   "general.conversation.historyWindowSizePlaceholder": "8（默认）",
   "general.conversation.title": "对话策略",
@@ -1173,7 +1180,7 @@
   "newchat.onboardingAdd": "添加大语言模型配置",
   "newchat.onboardingSkip": "跳过",
   "newchat.noModelHint": "暂无可用模型，请先在设置中添加模型配置",
-  "general.features.managerDesc": "开启后允许 AI 动态添加/管理 LLM 模型、MCP 服务、OpenAPI 源与定时任务；关闭可减少上下文消耗",
+  "general.features.managerDesc": "开启后允许 AI 动态添加/管理 LLM 模型、MCP 服务与 OpenAPI 源；关闭可减少上下文消耗",
   "general.features.managerName": "Manage 工具支持",
   "settings.group.users": "用户管理",
   "settings.tab.users": "用户管理",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "加载备份清单失败",
   "backup.parseFailed": "解析备份包失败",
   "backup.importFailed": "导入备份失败",
-  "backup.assetFiles": "{n} 个文件（新增 {added} / 覆盖 {overwritten}）"
+  "backup.assetFiles": "{n} 个文件（新增 {added} / 覆盖 {overwritten}）",
+  "general.features.loopName": "Loop 定时任务支持",
+  "general.features.loopDesc": "开启后允许 AI 管理定时/循环任务（查询、暂停、停止、指定时刻执行等）；关闭可减少上下文消耗"
 }

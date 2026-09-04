@@ -36,6 +36,7 @@ import org.noear.solon.codecli.workspace.WorkspaceDataUtil;
 import org.noear.solon.codecli.workspace.WorkspaceManager;
 import org.noear.solon.codecli.workspace.WorkspaceContext;
 import org.noear.solon.codecli.config.AgentFlags;
+import org.noear.solon.codecli.config.entity.GeneralGroupDo;
 import org.noear.solon.codecli.command.builtin.*;
 import org.noear.solon.codecli.portal.web.service.FileService;
 import org.noear.solon.codecli.portal.web.service.GitService;
@@ -707,6 +708,13 @@ public class WebController {
         String reasoningEffort = null;
         String thinkingMode = null;
 
+        //全局默认（设置→通用）：新会话、以及未显式表态的老会话都回填到这一层，
+        //让 UI 的 pill 直接画成选中态（否则用户仍会看到 auto，觉得“没记住”）。
+        GeneralGroupDo general = currentContext().getSettings() == null
+                ? null : currentContext().getSettings().getGeneral();
+        String globalThinking = general == null ? null : general.getDefaultThinkingMode();
+        String globalEffort = general == null ? null : general.getDefaultReasoningEffort();
+
         if (Assert.isNotEmpty(list)) {
             if (Assert.isNotEmpty(sessionId)) {
                 AgentSession session = currentEngine.getSession(sessionId);
@@ -718,10 +726,16 @@ public class WebController {
                     selected = currentEngine.getModelOrDef(null).getNameOrModel();
                 }
 
-                reasoningEffort = ReasoningSupportUtil.getSessionEffort(session);
-                thinkingMode = ReasoningSupportUtil.getSessionThinkingMode(session);
+                reasoningEffort = ReasoningSupportUtil.hasExplicitEffort(session)
+                        ? ReasoningSupportUtil.getSessionEffort(session)
+                        : ReasoningSupportUtil.normalizeEffort(globalEffort);
+                thinkingMode = ReasoningSupportUtil.hasExplicitThinkingMode(session)
+                        ? ReasoningSupportUtil.getSessionThinkingMode(session)
+                        : ReasoningSupportUtil.normalizeThinkingMode(globalThinking);
             } else {
                 selected = currentEngine.getModelOrDef(null).getNameOrModel();
+                reasoningEffort = ReasoningSupportUtil.normalizeEffort(globalEffort);
+                thinkingMode = ReasoningSupportUtil.normalizeThinkingMode(globalThinking);
             }
 
             // 防御：默认模型可能被禁用（getModelOrDef 不校验 isEnabled），导致 selected
@@ -730,6 +744,9 @@ public class WebController {
             if (!containsModelName(list, selected)) {
                 selected = (String) list.get(0).get("name");
             }
+
+            //按选中模型能力 clamp：全局设 max 碰上只支持三档的模型时，不能把错档位发给 UI
+            reasoningEffort = ReasoningSupportUtil.clampEffort(reasoningEffort, capabilityOf(list, selected));
         }
 
         data.put("selected", selected);
@@ -750,6 +767,33 @@ public class WebController {
         data.put("selectedAgent", selectedAgent);
 
         return Result.succeed(data);
+    }
+
+    /**
+     * 从已组装的模型列表里取回指定模型的推理能力（避免二次 resolveCapability）。
+     */
+    @SuppressWarnings("unchecked")
+    private static ReasoningSupportUtil.ModelCapability capabilityOf(List<Map> list, String name) {
+        ReasoningSupportUtil.ModelCapability cap = new ReasoningSupportUtil.ModelCapability();
+        if (name == null || list == null) {
+            return cap;
+        }
+        for (Map item : list) {
+            if (name.equals(item.get("name"))) {
+                Object supports = item.get("supportsReasoning");
+                cap.supportsReasoning = supports instanceof Boolean && (Boolean) supports;
+                Object efforts = item.get("reasoningEfforts");
+                if (efforts instanceof List) {
+                    cap.reasoningEfforts = (List<String>) efforts;
+                }
+                Object def = item.get("defaultReasoningEffort");
+                if (def != null) {
+                    cap.defaultReasoningEffort = String.valueOf(def);
+                }
+                break;
+            }
+        }
+        return cap;
     }
 
     /**

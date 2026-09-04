@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Gatilho de Compactação (% do contexto)",
   "general.conversation.compressionPctPlaceholder": "75 (padrão)",
   "general.conversation.desc": "A janela de histórico controla quantas mensagens passadas são usadas por solicitação; a compactação evita estouro do contexto",
+  "general.chatDefaults.title": "Padrões de novas conversas",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Esforço de raciocínio",
+  "general.chatDefaults.followModel": "Automático (seguir o modelo)",
+  "general.chatDefaults.thinkingOn": "Ativado",
+  "general.chatDefaults.thinkingOff": "Desativado",
+  "general.chatDefaults.desc": "Aplica-se apenas a novas conversas. Conversas com nível já escolhido mantêm o seu. Níveis não suportados são ajustados para o mais próximo.",
   "general.conversation.historyWindowSize": "Tamanho da Janela de Histórico",
   "general.conversation.historyWindowSizePlaceholder": "8 (padrão)",
   "general.conversation.title": "Estratégia de Conversa",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Adicionar configuração de modelo",
   "newchat.onboardingSkip": "Pular",
   "newchat.noModelHint": "Nenhum modelo disponível. Adicione um modelo nas Configurações primeiro",
-  "general.features.managerDesc": "Permite que a IA adicione/gerencie dinamicamente modelos LLM, servidores MCP, fontes OpenAPI e tarefas agendadas; desative para reduzir o consumo de contexto",
+  "general.features.managerDesc": "Permite que a IA adicione/gerencie dinamicamente modelos LLM, servidores MCP e fontes OpenAPI; desative para reduzir o consumo de contexto",
   "general.features.managerName": "Suporte à ferramenta Manage",
   "settings.group.users": "Gerenciamento de usuários",
   "settings.tab.users": "Usuários",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "C'hwitet eo kargañ roll an adversarioù",
   "backup.parseFailed": "C'hwitet eo dezrannañ ar pakad adversariesañ",
   "backup.importFailed": "C'hwitet eo enporzhiañ an adversariesañ",
-  "backup.assetFiles": "{n} restr (nevez {added} / erlec'hiet {overwritten})"
+  "backup.assetFiles": "{n} restr (nevez {added} / erlec'hiet {overwritten})",
+  "general.features.loopName": "Suporte a tarefas Loop",
+  "general.features.loopDesc": "Permite que a IA gerencie tarefas agendadas/cíclicas (listar, pausar, parar, executar em horário definido); desative para reduzir o contexto"
 }

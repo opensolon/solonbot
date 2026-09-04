@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "สัดส่วนบริบทที่กระตุ้นการบีบอัด (%)",
   "general.conversation.compressionPctPlaceholder": "75 (ค่าเริ่มต้น)",
   "general.conversation.desc": "หน้าต่างประวัติควบคุมจำนวนข้อความประวัติที่ใช้ต่อคำสั่งใหม่; นโยบายการบีบอัดควบคุมการบีบอัดอัตโนมัติของบริบทการสนทนาเพื่อป้องกันการเกินขีดจำกัดหน้าต่างของโมเดล",
+  "general.chatDefaults.title": "ค่าเริ่มต้นสำหรับการสนทนาใหม่",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "ระดับการคิด",
+  "general.chatDefaults.followModel": "อัตโนมัติ (ตามโมเดล)",
+  "general.chatDefaults.thinkingOn": "เปิด",
+  "general.chatDefaults.thinkingOff": "ปิด",
+  "general.chatDefaults.desc": "ใช้กับการสนทนาใหม่เท่านั้น การสนทนาที่เลือกระดับไว้แล้วจะคงระดับของตัวเอง ระดับที่โมเดลไม่รองรับจะปรับลงเป็นระดับใกล้เคียงที่สุด",
   "general.conversation.historyWindowSize": "ขนาดหน้าต่างประวัติ",
   "general.conversation.historyWindowSizePlaceholder": "8 (ค่าเริ่มต้น)",
   "general.conversation.title": "นโยบายการสนทนา",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "เพิ่มการกำหนดค่าโมเดล",
   "newchat.onboardingSkip": "ข้าม",
   "newchat.noModelHint": "ไม่มีโมเดลที่ใช้งานได้ กรุณาเพิ่มโมเดลในการตั้งค่าก่อน",
-  "general.features.managerDesc": "เมื่อเปิดใช้งานจะอนุญาตให้ AI เพิ่ม/จัดการโมเดล LLM เซิร์ฟเวอร์ MCP แหล่งข้อมูล OpenAPI และงานตามกำหนดเวลาแบบไดนามิก; ปิดเพื่อลดการใช้บริบท",
+  "general.features.managerDesc": "เมื่อเปิดใช้งานจะอนุญาตให้ AI เพิ่ม/จัดการโมเดล LLM เซิร์ฟเวอร์ MCP และแหล่งข้อมูล OpenAPI แบบไดนามิก; ปิดเพื่อลดการใช้บริบท",
   "general.features.managerName": "รองรับเครื่องมือ Manage",
   "settings.group.users": "การจัดการผู้ใช้",
   "settings.tab.users": "ผู้ใช้",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "โหลดรายการสำรองข้อมูลไม่สำเร็จ",
   "backup.parseFailed": "แยกวิเคราะห์แพ็กเกจสำรองข้อมูลไม่สำเร็จ",
   "backup.importFailed": "นำเข้าข้อมูลสำรองไม่สำเร็จ",
-  "backup.assetFiles": "ไฟล์ {n} รายการ (ใหม่ {added} / เขียนทับ {overwritten})"
+  "backup.assetFiles": "ไฟล์ {n} รายการ (ใหม่ {added} / เขียนทับ {overwritten})",
+  "general.features.loopName": "รองรับงาน Loop",
+  "general.features.loopDesc": "เมื่อเปิดใช้งานจะอนุญาตให้ AI จัดการงานตามกำหนดเวลา/วนซ้ำ (ดูรายการ, หยุดชั่วคราว, หยุด, ดำเนินการตามเวลาที่กำหนด); ปิดเพื่อลดการใช้บริบท"
 }

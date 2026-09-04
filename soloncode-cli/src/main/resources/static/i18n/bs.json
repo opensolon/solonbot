@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Postotak konteksta za pokretanje kompresije (%)",
   "general.conversation.compressionPctPlaceholder": "75 (zadano)",
   "general.conversation.desc": "Prozor historije kontrolira koliko se prošlih poruka koristi za nove instrukcije; strategija kompresije kontrolira automatsku kompresiju konteksta razgovora kako bi se spriječilo prekoračenje ograničenja prozora modela",
+  "general.chatDefaults.title": "Zadane vrijednosti za nove razgovore",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Jačina zaključivanja",
+  "general.chatDefaults.followModel": "Automatski (prema modelu)",
+  "general.chatDefaults.thinkingOn": "Uključeno",
+  "general.chatDefaults.thinkingOff": "Isključeno",
+  "general.chatDefaults.desc": "Primjenjuje se samo na nove razgovore. Razgovori s već odabranim nivoom zadržavaju svoj. Nepodržani nivoi se snižavaju na najbliži.",
   "general.conversation.historyWindowSize": "Veličina prozora historije",
   "general.conversation.historyWindowSizePlaceholder": "8 (zadano)",
   "general.conversation.title": "Strategija razgovora",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Dodaj konfiguraciju modela",
   "newchat.onboardingSkip": "Preskoči",
   "newchat.noModelHint": "Nema dostupnih modela. Prvo dodajte model u Postavkama",
-  "general.features.managerDesc": "Kada je omogućeno, omogućava AI-ju dinamičko dodavanje/upravljanje LLM modelima, MCP serverima, OpenAPI izvorima i zakazanim zadacima; isključivanjem se smanjuje potrošnja konteksta",
+  "general.features.managerDesc": "Omogućava AI-ju dinamičko dodavanje/upravljanje LLM modelima, MCP serverima i OpenAPI izvorima; isključivanjem se smanjuje potrošnja konteksta",
   "general.features.managerName": "Podrška za Manage alat",
   "settings.group.users": "Upravljanje korisnicima",
   "settings.tab.users": "Korisnici",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Učitavanje liste sigurnosnih kopija nije uspjelo",
   "backup.parseFailed": "Raščlanjivanje paketa sigurnosne kopije nije uspjelo",
   "backup.importFailed": "Uvoz sigurnosne kopije nije uspio",
-  "backup.assetFiles": "{n} datoteka ({added} novih / {overwritten} prepisano)"
+  "backup.assetFiles": "{n} datoteka ({added} novih / {overwritten} prepisano)",
+  "general.features.loopName": "Podrška za Loop zadatke",
+  "general.features.loopDesc": "Omogućava AI-ju upravljanje zakazanim/cikličnim zadacima (prikaz, pauza, zaustavljanje, izvršavanje u zadato vrijeme); isključivanjem se smanjuje potrošnja konteksta"
 }

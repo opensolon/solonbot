@@ -584,7 +584,7 @@ public class LoopScheduler {
             if (!task.isEnabled()) {
                 return;
             }
-            onTrigger(sessionId, task);
+            onTrigger(sessionId, task, true);
         });
     }
 
@@ -612,17 +612,21 @@ public class LoopScheduler {
     }
 
     private void onTrigger(String sessionId, LoopTask task) {
+        onTrigger(sessionId, task, false);
+    }
+
+    private void onTrigger(String sessionId, LoopTask task, boolean fromSchedule) {
         // 调度线程（定时/手动触发/续行/重试）无工作区标记，统一在此打标：
         // 本方法内所有日志（守卫、预算、轮次、错误）随工作区分流，不落到启动工作区文件
         Object logScope = WorkspaceLogRouter.beginScope(engine.getWorkspace());
         try {
-            doTrigger(sessionId, task);
+            doTrigger(sessionId, task, fromSchedule);
         } finally {
             WorkspaceLogRouter.endScope(logScope);
         }
     }
 
-    private void doTrigger(String sessionId, LoopTask task) {
+    private void doTrigger(String sessionId, LoopTask task, boolean fromSchedule) {
         // ① 前置守卫（禁用/过期/取消 → 繁忙 → 预算/状态/最大迭代）
         if (!checkGuardConditions(sessionId, task)) {
             notifyGoalChanged(sessionId, task, false);
@@ -648,8 +652,22 @@ public class LoopScheduler {
         } catch (Exception e) {
             handleExecutionError(sessionId, task, e);
         } finally {
+            // ★ oneShot 一次性任务：调度触发执行完一轮后自动注销（手动 trigger 不消耗配额）
+            if (fromSchedule && task.isOneShot() && !task.isGoalMode()) {
+                unregisterOneShot(sessionId, task);
+            }
             task.finish();
             notifyGoalChanged(sessionId, task, false);
+        }
+    }
+
+    /** 一次性任务善后：注销 job + 移除任务行 + 持久化（异常也消耗，避免失败任务长期残留） */
+    private void unregisterOneShot(String sessionId, LoopTask task) {
+        try {
+            LOG.info("One-shot loop task '{}' executed, unregistering", task.getId());
+            remove(sessionId, task);
+        } catch (Exception e) {
+            LOG.warn("Failed to unregister one-shot task '{}': {}", task.getId(), e.getMessage());
         }
     }
 

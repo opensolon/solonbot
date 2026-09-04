@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Compression Trigger (context %)",
   "general.conversation.compressionPctPlaceholder": "75 (default)",
   "general.conversation.desc": "History window controls how many past messages are used per request; compression prevents context overflow",
+  "general.chatDefaults.title": "New Chat Defaults",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Reasoning effort",
+  "general.chatDefaults.followModel": "Auto (follow model)",
+  "general.chatDefaults.thinkingOn": "On",
+  "general.chatDefaults.thinkingOff": "Off",
+  "general.chatDefaults.desc": "Applies to new conversations only. Conversations where a level was already chosen keep their own. Levels beyond the model's range fall back to the nearest supported one.",
   "general.conversation.historyWindowSize": "History Window Size",
   "general.conversation.historyWindowSizePlaceholder": "8 (default)",
   "general.conversation.title": "Conversation Strategy",
@@ -1173,7 +1180,7 @@
   "newchat.onboardingAdd": "Add model config",
   "newchat.onboardingSkip": "Skip",
   "newchat.noModelHint": "No model available. Please add a model in Settings first",
-  "general.features.managerDesc": "Allow AI to dynamically add/manage LLM models, MCP servers, OpenAPI sources and loop tasks; disable to reduce context",
+  "general.features.managerDesc": "Allow AI to dynamically add/manage LLM models, MCP servers and OpenAPI sources; disable to reduce context",
   "general.features.managerName": "Manage Tools",
   "settings.group.users": "User Management",
   "settings.tab.users": "Users",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Failed to load backup manifest",
   "backup.parseFailed": "Failed to parse backup package",
   "backup.importFailed": "Failed to import backup",
-  "backup.assetFiles": "{n} files ({added} new / {overwritten} overwritten)"
+  "backup.assetFiles": "{n} files ({added} new / {overwritten} overwritten)",
+  "general.features.loopName": "Loop Tasks",
+  "general.features.loopDesc": "Allow AI to manage loop/scheduled tasks (list, pause, stop, run at a given time); disable to reduce context"
 }

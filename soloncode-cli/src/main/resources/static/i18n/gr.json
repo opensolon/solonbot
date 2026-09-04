@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Ποσοστό περιβάλλοντος ενεργοποίησης συμπίεσης (%)",
   "general.conversation.compressionPctPlaceholder": "75 (προεπιλογή)",
   "general.conversation.desc": "Το παράθυρο ιστορικού καθορίζει πόσα προηγούμενα μηνύματα χρησιμοποιούνται ανά εντολή· η πολιτική συμπίεσης ελέγχει την αυτόματη συμπίεση του περιβάλλοντος διαλόγου για την αποφυγή υπέρβασης του ορίου του μοντέλου",
+  "general.chatDefaults.title": "Προεπιλογές νέων συνομιλιών",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Ένταση συλλογισμού",
+  "general.chatDefaults.followModel": "Αυτόματο (σύμφωνα με το μοντέλο)",
+  "general.chatDefaults.thinkingOn": "Ενεργό",
+  "general.chatDefaults.thinkingOff": "Ανενεργό",
+  "general.chatDefaults.desc": "Ισχύει μόνο για νέες συνομιλίες. Οι συνομιλίες με ήδη επιλεγμένο επίπεδο διατηρούν το δικό τους. Τα μη υποστηριζόμενα επίπεδα μειώνονται στο πλησιέστερο.",
   "general.conversation.historyWindowSize": "Μέγεθος παραθύρου ιστορικού",
   "general.conversation.historyWindowSizePlaceholder": "8 (προεπιλογή)",
   "general.conversation.title": "Στρατηγική διαλόγου",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Προσθήκη διαμόρφωσης μοντέλου",
   "newchat.onboardingSkip": "Παράβλεψη",
   "newchat.noModelHint": "Δεν υπάρχει διαθέσιμο μοντέλο. Προσθέστε πρώτα ένα μοντέλο στις Ρυθμίσεις",
-  "general.features.managerDesc": "Επιτρέπει στην AI να προσθέτει/διαχειρίζεται δυναμικά μοντέλα LLM, διακομιστές MCP, πηγές OpenAPI και προγραμματισμένες εργασίες· η απενεργοποίηση μειώνει την κατανάλωση περιβάλλοντος",
+  "general.features.managerDesc": "Επιτρέπει στην AI να προσθέτει/διαχειρίζεται δυναμικά μοντέλα LLM, διακομιστές MCP και πηγές OpenAPI· η απενεργοποίηση μειώνει την κατανάλωση περιβάλλοντος",
   "general.features.managerName": "Υποστήριξη εργαλείου Manage",
   "settings.group.users": "Διαχείριση χρηστών",
   "settings.tab.users": "Χρήστες",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Αποτυχία φόρτωσης της λίστας αντιγράφων ασφαλείας",
   "backup.parseFailed": "Αποτυχία ανάλυσης του πακέτου αντιγράφων ασφαλείας",
   "backup.importFailed": "Αποτυχία εισαγωγής του αντιγράφου ασφαλείας",
-  "backup.assetFiles": "{n} αρχεία ({added} νέα / {overwritten} αντικαταστάθηκαν)"
+  "backup.assetFiles": "{n} αρχεία ({added} νέα / {overwritten} αντικαταστάθηκαν)",
+  "general.features.loopName": "Υποστήριξη εργασιών Loop",
+  "general.features.loopDesc": "Επιτρέπει στην AI να διαχειρίζεται προγραμματισμένες/κυκλικές εργασίες (προβολή, παύση, διακοπή, εκτέλεση σε δεδομένη ώρα)· η απενεργοποίηση μειώνει την κατανάλωση περιβάλλοντος"
 }

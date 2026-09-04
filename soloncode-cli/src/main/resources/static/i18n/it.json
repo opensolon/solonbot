@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Percentuale contesto trigger compressione (%)",
   "general.conversation.compressionPctPlaceholder": "75 (predefinito)",
   "general.conversation.desc": "La finestra cronologica controlla quante cronologie messaggi usare per le nuove istruzioni; la strategia di compressione controlla la compressione automatica del contesto della conversazione per evitare di superare i limiti della finestra del modello",
+  "general.chatDefaults.title": "Impostazioni predefinite nuove conversazioni",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Intensità di ragionamento",
+  "general.chatDefaults.followModel": "Automatico (segui il modello)",
+  "general.chatDefaults.thinkingOn": "Attivo",
+  "general.chatDefaults.thinkingOff": "Disattivo",
+  "general.chatDefaults.desc": "Si applica solo alle nuove conversazioni. Le conversazioni con un livello già scelto mantengono il proprio. I livelli non supportati vengono ridotti al più vicino.",
   "general.conversation.historyWindowSize": "Dimensione finestra cronologia",
   "general.conversation.historyWindowSizePlaceholder": "8 (predefinito)",
   "general.conversation.title": "Strategia conversazione",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Aggiungi configurazione modello",
   "newchat.onboardingSkip": "Salta",
   "newchat.noModelHint": "Nessun modello disponibile. Aggiungi prima un modello nelle Impostazioni",
-  "general.features.managerDesc": "Consente all'AI di aggiungere/gestire dinamicamente modelli LLM, server MCP, sorgenti OpenAPI e attività pianificate; disattivarlo riduce il consumo di contesto",
+  "general.features.managerDesc": "Consente all'AI di aggiungere/gestire dinamicamente modelli LLM, server MCP e sorgenti OpenAPI; disattivarlo riduce il consumo di contesto",
   "general.features.managerName": "Supporto strumento Manage",
   "settings.group.users": "Gestione utenti",
   "settings.tab.users": "Utenti",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Impossibile caricare l'elenco dei backup",
   "backup.parseFailed": "Impossibile analizzare il pacchetto di backup",
   "backup.importFailed": "Importazione del backup non riuscita",
-  "backup.assetFiles": "{n} file ({added} nuovi / {overwritten} sovrascritti)"
+  "backup.assetFiles": "{n} file ({added} nuovi / {overwritten} sovrascritti)",
+  "general.features.loopName": "Supporto attività Loop",
+  "general.features.loopDesc": "Consente all'AI di gestire attività pianificate/ricorrenti (elencare, mettere in pausa, fermare, eseguire a un'ora specifica); disattivarlo riduce il consumo di contesto"
 }

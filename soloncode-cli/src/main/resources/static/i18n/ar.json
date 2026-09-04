@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "نسبة السياق لبدء الضغط (%)",
   "general.conversation.compressionPctPlaceholder": "75 (الافتراضي)",
   "general.conversation.desc": "تتحكم نافذة السجل في عدد رسائل التاريخ المستخدمة عند إصدار أمر جديد؛ وتتحكم استراتيجية الضغط في الضغط التلقائي لسياق المحادثة لمنع تجاوز حد نافذة النموذج",
+  "general.chatDefaults.title": "الإعدادات الافتراضية للمحادثات الجديدة",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "شدة الاستدلال",
+  "general.chatDefaults.followModel": "تلقائي (حسب النموذج)",
+  "general.chatDefaults.thinkingOn": "مُفعّل",
+  "general.chatDefaults.thinkingOff": "مُعطّل",
+  "general.chatDefaults.desc": "ينطبق على المحادثات الجديدة فقط. تحافظ المحادثات التي تم اختيار مستوى لها على مستواها. تُخفَّض المستويات غير المدعومة إلى أقرب مستوى.",
   "general.conversation.historyWindowSize": "حجم نافذة السجل",
   "general.conversation.historyWindowSizePlaceholder": "8 (الافتراضي)",
   "general.conversation.title": "استراتيجية المحادثة",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "إضافة تكوين نموذج لغوي كبير",
   "newchat.onboardingSkip": "تخطي",
   "newchat.noModelHint": "لا توجد نماذج متاحة. يرجى إضافة نموذج في الإعدادات أولاً",
-  "general.features.managerDesc": "عند التفعيل يسمح للذكاء الاصطناعي بإضافة/إدارة نماذج LLM وخوادم MCP ومصادر OpenAPI والمهام المجدولة ديناميكيًا؛ الإيقاف يقلل استهلاك السياق",
+  "general.features.managerDesc": "عند التفعيل يسمح للذكاء الاصطناعي بإضافة/إدارة نماذج LLM وخوادم MCP ومصادر OpenAPI ديناميكيًا؛ الإيقاف يقلل استهلاك السياق",
   "general.features.managerName": "دعم أداة Manage",
   "settings.group.users": "إدارة المستخدمين",
   "settings.tab.users": "المستخدمون",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "فشل تحميل قائمة النسخ الاحتياطي",
   "backup.parseFailed": "فشل تحليل حزمة النسخ الاحتياطي",
   "backup.importFailed": "فشل استيراد النسخة الاحتياطية",
-  "backup.assetFiles": "{n} ملفات ({added} جديدة / {overwritten} مكتوبة فوقها)"
+  "backup.assetFiles": "{n} ملفات ({added} جديدة / {overwritten} مكتوبة فوقها)",
+  "general.features.loopName": "دعم مهام Loop",
+  "general.features.loopDesc": "عند التفعيل يسمح للذكاء الاصطناعي بإدارة المهام المجدولة/الدورية (عرض، إيقاف مؤقت، إيقاف، تنفيذ في وقت محدد)؛ الإيقاف يقلل استهلاك السياق"
 }

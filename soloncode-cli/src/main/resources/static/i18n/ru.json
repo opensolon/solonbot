@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Порог сжатия (% контекста)",
   "general.conversation.compressionPctPlaceholder": "75 (по умолчанию)",
   "general.conversation.desc": "Окно истории определяет, сколько прошлых сообщений используется на запрос; стратегия сжатия автоматически сжимает контекст диалога, предотвращая переполнение окна модели",
+  "general.chatDefaults.title": "Значения по умолчанию для новых чатов",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Интенсивность рассуждений",
+  "general.chatDefaults.followModel": "Авто (по модели)",
+  "general.chatDefaults.thinkingOn": "Вкл.",
+  "general.chatDefaults.thinkingOff": "Выкл.",
+  "general.chatDefaults.desc": "Применяется только к новым беседам. Беседы с уже выбранным уровнем сохраняют свой. Неподдерживаемые уровни снижаются до ближайшего.",
   "general.conversation.historyWindowSize": "Размер окна истории",
   "general.conversation.historyWindowSizePlaceholder": "8 (по умолчанию)",
   "general.conversation.title": "Стратегия диалога",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Добавить конфигурацию модели",
   "newchat.onboardingSkip": "Пропустить",
   "newchat.noModelHint": "Нет доступных моделей. Сначала добавьте модель в настройках",
-  "general.features.managerDesc": "Позволяет ИИ динамически добавлять/управлять моделями LLM, серверами MCP, источниками OpenAPI и запланированными задачами; отключение снижает расход контекста",
+  "general.features.managerDesc": "Позволяет ИИ динамически добавлять/управлять моделями LLM, серверами MCP и источниками OpenAPI; отключение снижает расход контекста",
   "general.features.managerName": "Поддержка инструмента Manage",
   "settings.group.users": "Управление пользователями",
   "settings.tab.users": "Пользователи",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Не удалось загрузить список резервных копий",
   "backup.parseFailed": "Не удалось разобрать пакет резервной копии",
   "backup.importFailed": "Не удалось импортировать резервную копию",
-  "backup.assetFiles": "{n} файлов (новых: {added} / заменено: {overwritten})"
+  "backup.assetFiles": "{n} файлов (новых: {added} / заменено: {overwritten})",
+  "general.features.loopName": "Поддержка задач Loop",
+  "general.features.loopDesc": "Позволяет ИИ управлять запланированными/циклическими задачами (просмотр, приостановка, остановка, запуск в заданное время); отключение снижает расход контекста"
 }

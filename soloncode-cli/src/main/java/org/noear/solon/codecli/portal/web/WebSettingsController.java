@@ -38,6 +38,7 @@ import org.noear.solon.codecli.config.entity.ModelDo;
 import org.noear.solon.codecli.config.entity.MountDo;
 import org.noear.solon.codecli.util.LogDirUtil;
 import org.noear.solon.codecli.util.OsOpenUtil;
+import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceLogRouter;
 import org.noear.solon.Solon;
 import org.noear.solon.codecli.market.Market;
@@ -331,6 +332,8 @@ public class WebSettingsController extends BaseSettingsController {
             } catch (Exception e) {
                 warnings.add("goalsEnabled apply failed: " + e.getMessage());
             }
+
+            // loopsEnabled：由 LoopTalent.isEnabled() 实时读取（同 ManagerTalent 模式），无需热更新
 
             if (g.getLogLevel() != null && !g.getLogLevel().isEmpty()) {
                 ch.qos.logback.classic.Level level = ch.qos.logback.classic.Level.toLevel(g.getLogLevel(), null);
@@ -672,6 +675,16 @@ public class WebSettingsController extends BaseSettingsController {
             if (tmp.hasKey("uiFontScale") && tmp.get("uiFontScale").isNull()) {
                 g.setUiFontScale(null);
             }
+
+            // 新建对话默认思考模式/推理强度：服务端归一（非法值落回 null）+ 清空处理
+            g.setDefaultThinkingMode(normalizeDefaultThinkingMode(g.getDefaultThinkingMode()));
+            g.setDefaultReasoningEffort(normalizeDefaultEffort(g.getDefaultReasoningEffort()));
+            if (tmp.hasKey("defaultThinkingMode") && tmp.get("defaultThinkingMode").isNull()) {
+                g.setDefaultThinkingMode(null);
+            }
+            if (tmp.hasKey("defaultReasoningEffort") && tmp.get("defaultReasoningEffort").isNull()) {
+                g.setDefaultReasoningEffort(null);
+            }
         }
 
         // 更新 HTTP 代理配置（热生效）
@@ -725,6 +738,21 @@ public class WebSettingsController extends BaseSettingsController {
         }
         n = Math.round(n * 100D) / 100D;
         return n == 1.0D ? null : n;
+    }
+
+    /** 新建对话默认思考模式归一：仅 on|off 有效；auto/空/非法 → null（不干预） */
+    private static String normalizeDefaultThinkingMode(String v) {
+        return ReasoningSupportUtil.normalizeThinkingMode(v);
+    }
+
+    /**
+     * 新建对话默认推理强度归一：仅 low|medium|high|max 有效；auto/空/非法 → null。
+     * <p>显式拒绝 "none"：那是旧前端把「关闭思考」编码进 effort 的历史做法，
+     * 全局默认不应再承载这个语义 —— 要关思考请用 defaultThinkingMode=off。</p>
+     */
+    private static String normalizeDefaultEffort(String v) {
+        String e = ReasoningSupportUtil.normalizeEffort(v);
+        return "none".equals(e) ? null : e;
     }
 
     // ==================== 设置：皮肤 Skin ====================

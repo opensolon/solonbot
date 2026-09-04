@@ -625,7 +625,8 @@ public class WorkspaceManager {
         engine.getCommandRegistry().register(loopCommand);
         engine.getCommandRegistry().register(new GoalCommand(loopCommand));
 
-        engine.addExtension(new ManagerExtension(engine, wsSettings, loopScheduler));
+        engine.addExtension(new LoopExtension(loopScheduler, wsSettings));
+        engine.addExtension(new ManagerExtension(engine, wsSettings));
 
         // 注入 HarnessExtension 扩展
         Solon.context().subBeansOfType(HarnessExtension.class, extension -> {

@@ -688,6 +688,38 @@
                                 </div>
                             </div>
 
+                            <!-- 新建对话默认 -->
+                            <div class="general-card">
+                                <div class="general-card-header">
+                                    <div class="general-card-text">
+                                        <div class="general-card-title" data-i18n="general.chatDefaults.title">新建对话默认</div>
+                                    </div>
+                                </div>
+                                <div class="general-card-body">
+                                    <div class="general-field-row">
+                                        <div class="general-field">
+                                            <label class="general-field-label" data-i18n="general.chatDefaults.thinkingMode">思考模式</label>
+                                            <select class="general-input form-select-custom" id="generalDefaultThinkingMode">
+                                                <option value="" data-i18n="general.chatDefaults.followModel">自动（跟随模型）</option>
+                                                <option value="on" data-i18n="general.chatDefaults.thinkingOn">开启</option>
+                                                <option value="off" data-i18n="general.chatDefaults.thinkingOff">关闭</option>
+                                            </select>
+                                        </div>
+                                        <div class="general-field">
+                                            <label class="general-field-label" data-i18n="general.chatDefaults.reasoningEffort">推理强度</label>
+                                            <select class="general-input form-select-custom" id="generalDefaultReasoningEffort">
+                                                <option value="" data-i18n="general.chatDefaults.followModel">自动（跟随模型）</option>
+                                                <option value="low" data-i18n="history.effortLabelLow">低</option>
+                                                <option value="medium" data-i18n="history.effortLabelMedium">中</option>
+                                                <option value="high" data-i18n="history.effortLabelHigh">高</option>
+                                                <option value="max" data-i18n="history.effortLabelMax">极高</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="general-toggle-desc settings-gap-top-sm" data-i18n="general.chatDefaults.desc">只影响新建对话；已在输入框里手选过的对话保持自己的档位。超出模型支持范围的档位会自动回调到最近一档</div>
+                                </div>
+                            </div>
+
                             <!-- 沙盒模式 -->
                             <div class="general-card">
                                 <div class="general-card-header">
@@ -912,10 +944,20 @@
                                     <div class="general-toggle-row settings-gap-top-md">
                                         <div class="general-toggle-info">
                                             <span class="general-toggle-name" data-i18n="general.features.managerName">Manage 工具支持</span>
-                                             <span class="general-toggle-desc" data-i18n="general.features.managerDesc">开启后允许 AI 动态添加/管理 LLM 模型、MCP 服务、OpenAPI 源与定时任务；关闭可减少上下文消耗</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.managerDesc">开启后允许 AI 动态添加/管理 LLM 模型、MCP 服务与 OpenAPI 源；关闭可减少上下文消耗</span>
                                         </div>
                                         <label class="toggle-switch">
                                             <input type="checkbox" id="generalManagerEnabled"/>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="general-toggle-row settings-gap-top-md">
+                                        <div class="general-toggle-info">
+                                            <span class="general-toggle-name" data-i18n="general.features.loopName">Loop 定时任务支持</span>
+                                             <span class="general-toggle-desc" data-i18n="general.features.loopDesc">开启后允许 AI 管理定时/循环任务（查询、暂停、停止、指定时刻执行等）；关闭可减少上下文消耗</span>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="generalLoopEnabled"/>
                                             <span class="toggle-slider"></span>
                                         </label>
                                     </div>

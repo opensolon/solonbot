@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Komprimering udløses ved (kontekst %)",
   "general.conversation.compressionPctPlaceholder": "75 (standard)",
   "general.conversation.desc": "Historievinduet styrer, hvor mange tidligere beskeder der bruges pr. anmodning; komprimeringsstrategien forhindrer kontekstoverløb og holder samtalen inden for modelvinduets grænser",
+  "general.chatDefaults.title": "Standard for nye samtaler",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Ræsonneringsintensitet",
+  "general.chatDefaults.followModel": "Automatisk (følg model)",
+  "general.chatDefaults.thinkingOn": "Til",
+  "general.chatDefaults.thinkingOff": "Fra",
+  "general.chatDefaults.desc": "Gælder kun nye samtaler. Samtaler med et allerede valgt niveau beholder deres eget. Ikke-understøttede niveauer sænkes til det nærmeste.",
   "general.conversation.historyWindowSize": "Historievinduets størrelse",
   "general.conversation.historyWindowSizePlaceholder": "8 (standard)",
   "general.conversation.title": "Samtalestrategi",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Tilføj modelkonfiguration",
   "newchat.onboardingSkip": "Spring over",
   "newchat.noModelHint": "Ingen model tilgængelig. Tilføj venligst en model i Indstillinger først",
-  "general.features.managerDesc": "Giver AI mulighed for dynamisk at tilføje/styre LLM-modeller, MCP-servere, OpenAPI-kilder og planlagte opgaver; deaktiver for at reducere kontekstforbrug",
+  "general.features.managerDesc": "Giver AI mulighed for dynamisk at tilføje/styre LLM-modeller, MCP-servere og OpenAPI-kilder; deaktiver for at reducere kontekstforbrug",
   "general.features.managerName": "Manage-værktøjssupport",
   "settings.group.users": "Brugerstyring",
   "settings.tab.users": "Brugere",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Kunne ikke indlæse backup-listen",
   "backup.parseFailed": "Kunne ikke analysere backup-pakken",
   "backup.importFailed": "Backup-import mislykkedes",
-  "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)"
+  "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)",
+  "general.features.loopName": "Loop-opgavestøtte",
+  "general.features.loopDesc": "Giver AI mulighed for at styre planlagte/cykliske opgaver (liste, sæt på pause, stop, kør på angivet tidspunkt); deaktiver for at reducere kontekstforbrug"
 }

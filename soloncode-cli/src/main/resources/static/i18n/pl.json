@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Próg kompresji kontekstu (%)",
   "general.conversation.compressionPctPlaceholder": "75 (domyślnie)",
   "general.conversation.desc": "Okno historii kontroluje, ile wiadomości historii jest używanych w nowych poleceniach; strategia kompresji automatycznie kompresuje kontekst rozmowy, aby nie przekroczyć limitu okna modelu",
+  "general.chatDefaults.title": "Domyślne dla nowych rozmów",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Siła rozumowania",
+  "general.chatDefaults.followModel": "Automatycznie (zgodnie z modelem)",
+  "general.chatDefaults.thinkingOn": "Włączone",
+  "general.chatDefaults.thinkingOff": "Wyłączone",
+  "general.chatDefaults.desc": "Dotyczy tylko nowych rozmów. Rozmowy z już wybranym poziomem zachowują swój. Nieobsługiwane poziomy są obniżane do najbliższego.",
   "general.conversation.historyWindowSize": "Rozmiar okna historii",
   "general.conversation.historyWindowSizePlaceholder": "8 (domyślnie)",
   "general.conversation.title": "Strategia rozmowy",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Dodaj konfigurację modelu",
   "newchat.onboardingSkip": "Pomiń",
   "newchat.noModelHint": "Brak dostępnego modelu. Najpierw dodaj model w Ustawieniach",
-  "general.features.managerDesc": "Pozwala AI dynamicznie dodawać/zarządzać modelami LLM, serwerami MCP, źródłami OpenAPI i zaplanowanymi zadaniami; wyłączenie zmniejsza zużycie kontekstu",
+  "general.features.managerDesc": "Pozwala AI dynamicznie dodawać/zarządzać modelami LLM, serwerami MCP i źródłami OpenAPI; wyłączenie zmniejsza zużycie kontekstu",
   "general.features.managerName": "Obsługa narzędzia Manage",
   "settings.group.users": "Zarządzanie użytkownikami",
   "settings.tab.users": "Użytkownicy",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Nie udało się wczytać listy kopii zapasowych",
   "backup.parseFailed": "Nie udało się przeanalizować pakietu kopii zapasowych",
   "backup.importFailed": "Nie udało się zaimportować kopii zapasowej",
-  "backup.assetFiles": "Plików: {n} (nowe: {added} / nadpisane: {overwritten})"
+  "backup.assetFiles": "Plików: {n} (nowe: {added} / nadpisane: {overwritten})",
+  "general.features.loopName": "Obsługa zadań Loop",
+  "general.features.loopDesc": "Pozwala AI zarządzać zaplanowanymi/cyklicznymi zadaniami (przegląd, wstrzymanie, zatrzymanie, uruchomienie o danej godzinie); wyłączenie zmniejsza zużycie kontekstu"
 }

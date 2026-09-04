@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "কম্প্রেশন ট্রিগার কনটেক্সট অনুপাত(%)",
   "general.conversation.compressionPctPlaceholder": "75 (ডিফল্ট)",
   "general.conversation.desc": "ইতিহাস উইন্ডো নতুন নির্দেশে কয়টি পুরনো বার্তা ব্যবহার হবে তা নিয়ন্ত্রণ করে; কম্প্রেশন নীতি মডেল উইন্ডো সীমা অতিক্রম রোধে সংলাপ কনটেক্সট স্বয়ংক্রিয়ভাবে সংকুচিত করে",
+  "general.chatDefaults.title": "নতুন কথোপকথনের ডিফল্ট",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "রিজনিং ইনটেনসিটি",
+  "general.chatDefaults.followModel": "স্বয়ংক্রিয় (মডেল অনুসরণ)",
+  "general.chatDefaults.thinkingOn": "চালু",
+  "general.chatDefaults.thinkingOff": "বন্ধ",
+  "general.chatDefaults.desc": "শুধুমাত্র নতুন কথোপকথনে প্রযোজ্য। যেসব কথোপকথনে স্তর ইতিমধ্যে বেছে নেওয়া হয়েছে সেগুলি নিজের স্তর ধরে রাখে। অসমর্থিত স্তর নিকটতম স্তরে নেমে আসে।",
   "general.conversation.historyWindowSize": "ইতিহাস উইন্ডোর আকার",
   "general.conversation.historyWindowSizePlaceholder": "8 (ডিফল্ট)",
   "general.conversation.title": "সংলাপ কৌশল",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "LLM কনফিগারেশন যোগ করুন",
   "newchat.onboardingSkip": "এড়িয়ে যান",
   "newchat.noModelHint": "কোনো মডেল উপলব্ধ নেই। অনুগ্রহ করে আগে সেটিংসে একটি মডেল যোগ করুন",
-  "general.features.managerDesc": "সক্রিয় করলে AI-কে LLM মডেল, MCP সার্ভার, OpenAPI উৎস এবং নির্ধারিত কাজ গতিশীলভাবে যোগ/পরিচালনা করার অনুমতি দেয়; বন্ধ করলে কনটেক্সট খরচ কমবে",
+  "general.features.managerDesc": "সক্রিয় করলে AI-কে LLM মডেল, MCP সার্ভার ও OpenAPI উৎস গতিশীলভাবে যোগ/পরিচালনা করার অনুমতি দেয়; বন্ধ করলে কনটেক্সট খরচ কমবে",
   "general.features.managerName": "Manage টুল সাপোর্ট",
   "settings.group.users": "ব্যবহারকারী ব্যবস্থাপনা",
   "settings.tab.users": "ব্যবহারকারী",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "ব্যাকআপ তালিকা লোড করতে ব্যর্থ",
   "backup.parseFailed": "ব্যাকআপ প্যাকেজ পার্স করতে ব্যর্থ",
   "backup.importFailed": "ব্যাকআপ ইমপোর্ট করতে ব্যর্থ",
-  "backup.assetFiles": "{n}টি ফাইল (নতুন {added} / প্রতিস্থাপিত {overwritten})"
+  "backup.assetFiles": "{n}টি ফাইল (নতুন {added} / প্রতিস্থাপিত {overwritten})",
+  "general.features.loopName": "Loop টাস্ক সাপোর্ট",
+  "general.features.loopDesc": "সক্রিয় করলে AI নির্ধারিত/লুপ কাজ পরিচালনা করতে পারে (তালিকা, বিরতি, বন্ধ, নির্দিষ্ট সময়ে সম্পাদন); বন্ধ করলে কনটেক্সট খরচ কমবে"
 }

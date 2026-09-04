@@ -125,6 +125,13 @@
   "general.conversation.compressionPct": "Porcentaje de contexto que activa la compresión (%)",
   "general.conversation.compressionPctPlaceholder": "75 (predeterminado)",
   "general.conversation.desc": "La ventana de historial controla cuántos mensajes anteriores se usan en cada instrucción; la política de compresión controla la compresión automática del contexto para evitar superar el límite de la ventana del modelo",
+  "general.chatDefaults.title": "Valores predeterminados de nuevas conversaciones",
+  "general.chatDefaults.thinkingMode": "Thinking Mode",
+  "general.chatDefaults.reasoningEffort": "Intensidad de razonamiento",
+  "general.chatDefaults.followModel": "Automático (según el modelo)",
+  "general.chatDefaults.thinkingOn": "Activado",
+  "general.chatDefaults.thinkingOff": "Desactivado",
+  "general.chatDefaults.desc": "Solo se aplica a las conversaciones nuevas. Las conversaciones con un nivel ya elegido conservan el suyo. Los niveles no admitidos se ajustan al más cercano.",
   "general.conversation.historyWindowSize": "Tamaño de la ventana de historial",
   "general.conversation.historyWindowSizePlaceholder": "8 (predeterminado)",
   "general.conversation.title": "Política de conversación",
@@ -1174,7 +1181,7 @@
   "newchat.onboardingAdd": "Añadir configuración de modelo",
   "newchat.onboardingSkip": "Omitir",
   "newchat.noModelHint": "No hay ningún modelo disponible. Añade un modelo en Ajustes primero",
-  "general.features.managerDesc": "Permite que la IA añada/gestione dinámicamente modelos LLM, servidores MCP, fuentes OpenAPI y tareas programadas; desactivarlo reduce el consumo de contexto",
+  "general.features.managerDesc": "Permite a la IA añadir/gestionar dinámicamente modelos LLM, servidores MCP y fuentes OpenAPI; desactivarlo reduce el consumo de contexto",
   "general.features.managerName": "Compatibilidad con la herramienta Manage",
   "settings.group.users": "Gestión de usuarios",
   "settings.tab.users": "Usuarios",
@@ -1261,5 +1268,7 @@
   "backup.loadManifestFailed": "Error al cargar la lista de copias de seguridad",
   "backup.parseFailed": "Error al analizar el paquete de copia de seguridad",
   "backup.importFailed": "Error al importar la copia de seguridad",
-  "backup.assetFiles": "{n} archivos ({added} nuevos / {overwritten} sobrescritos)"
+  "backup.assetFiles": "{n} archivos ({added} nuevos / {overwritten} sobrescritos)",
+  "general.features.loopName": "Compatibilidad con tareas Loop",
+  "general.features.loopDesc": "Permite a la IA gestionar tareas programadas/cíclicas (listar, pausar, detener, ejecutar a una hora dada); desactivar para reducir el contexto"
 }
