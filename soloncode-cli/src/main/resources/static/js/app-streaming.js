@@ -2437,23 +2437,12 @@ function showWechatModal() {
                 return;
             }
             var $qrWrap = $('#wechatQrWrap');
-            $qrWrap.html('');
             var qrContent = resp.data.qrcode_img_content || resp.data.qrcode;
-            if (qrContent) {
-                var renderQr = function(err) {
-                    if (err || typeof QRCode === 'undefined') {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px">' + escapeHtml(qrContent) + '</span>');
-                        return;
-                    }
-                    try {
-                        new QRCode($qrWrap[0], { text: qrContent, width: 180, height: 180 });
-                    } catch(e) {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px">' + escapeHtml(qrContent) + '</span>');
-                    }
-                };
-                if (typeof ensureQrcode === 'function') ensureQrcode(renderQr);
-                else renderQr(null);
-            }
+            renderQrcodeInto($qrWrap, qrContent, function(reason) {
+                if (reason === 'lib') {
+                    $('#wechatQrStatus').text(I18n.t('im.qrcodeLibFailed')).addClass('error');
+                }
+            });
             // Start polling
             startWechatPoll(resp.data.qrcode, activeSessionId);
         } catch(e) {
@@ -2723,23 +2712,14 @@ function showFeishuModal() {
                 return;
             }
             var qrUrl = resp.data.qrUrl;
-            $qrWrap.html('');
             if (qrUrl) {
-                var renderFeishuQr = function(err) {
-                    if (err || typeof QRCode === 'undefined') {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
+                // 先给出扫码提示，失败回调再覆盖，避免同步失败时提示被反向覆盖
+                $qrStatus.text(I18n.t('im.feishuScanQr')).removeClass('error scanned');
+                renderQrcodeInto($qrWrap, qrUrl, function(reason) {
+                    if (reason === 'lib') {
                         $qrStatus.text(I18n.t('im.qrcodeLibFailed')).addClass('error');
-                        return;
                     }
-                    try {
-                        new QRCode($qrWrap[0], { text: qrUrl, width: 180, height: 180 });
-                        $qrStatus.text(I18n.t('im.feishuScanQr')).removeClass('error scanned');
-                    } catch(e) {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
-                    }
-                };
-                if (typeof ensureQrcode === 'function') ensureQrcode(renderFeishuQr);
-                else renderFeishuQr(null);
+                });
             }
             // 开始轮询扫码状态
             startFeishuQrPoll();
@@ -3068,23 +3048,14 @@ function showDingTalkModal() {
                 return;
             }
             var qrUrl = resp.data.qrUrl;
-            $qrWrap.html('');
             if (qrUrl) {
-                var renderDingtalkQr = function(err) {
-                    if (err || typeof QRCode === 'undefined') {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
+                // 先给出扫码提示，失败回调再覆盖，避免同步失败时提示被反向覆盖
+                $qrStatus.text(I18n.t('im.dingtalkScanQr')).removeClass('error scanned');
+                renderQrcodeInto($qrWrap, qrUrl, function(reason) {
+                    if (reason === 'lib') {
                         $qrStatus.text(I18n.t('im.qrcodeLibFailed')).addClass('error');
-                        return;
                     }
-                    try {
-                        new QRCode($qrWrap[0], { text: qrUrl, width: 180, height: 180 });
-                        $qrStatus.text(I18n.t('im.dingtalkScanQr')).removeClass('error scanned');
-                    } catch(e) {
-                        $qrWrap.html('<span style="font-size:12px;color:#666;padding:10px;word-break:break-all">' + escapeHtml(qrUrl) + '</span>');
-                    }
-                };
-                if (typeof ensureQrcode === 'function') ensureQrcode(renderDingtalkQr);
-                else renderDingtalkQr(null);
+                });
             }
             // 开始轮询扫码状态
             startDingtalkQrPoll();

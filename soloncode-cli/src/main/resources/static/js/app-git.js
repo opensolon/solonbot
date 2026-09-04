@@ -1177,6 +1177,9 @@
         diffViewerActive = true;
 
         // 审查详情模式：隐藏"视图"和"复制"按钮（全屏按钮保留）
+        var _mdToggle = document.getElementById('gitViewerMdToggle');
+        var _copyBtn = document.getElementById('gitViewerCopyBtn');
+        var _fullscreenBtn = document.getElementById('gitViewerFullscreen');
         var _memNewBtn = document.getElementById('gitViewerMemNew');
         var _memClearBtn = document.getElementById('gitViewerMemClear');
         var _memOrganizeBtn = document.getElementById('gitViewerMemOrganize');

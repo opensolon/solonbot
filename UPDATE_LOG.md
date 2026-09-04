@@ -5,6 +5,7 @@
 * 添加 soloncode web 设置「配置备份」
 * 添加 soloncode web loop llm 自动管理支持
 * 修复 soloncode web IM 通道会收到 delta 数据
+* 修复 soloncode web IM 通道（微信、钉钉、飞书）二维码显示失败
 * 细节优化 
 
 ### v2026.8.30

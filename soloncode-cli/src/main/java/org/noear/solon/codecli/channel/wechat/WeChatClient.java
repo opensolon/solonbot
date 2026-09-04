@@ -23,6 +23,7 @@ import org.noear.solon.net.http.HttpUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -44,21 +45,28 @@ public class WeChatClient {
     private static final String HEADER_UIN = "X-WECHAT-UIN";
 
     /**
+     * 失败结果的原因键。{@link #fetchQRCode()} 失败时以该键返回具体原因，
+     * 供上层直接展示，避免笼统的"请检查网络"掩盖真实错误（代理、证书、风控等）。
+     */
+    public static final String KEY_ERROR = "error";
+
+    /**
      * 获取 Bot 登录二维码
      *
-     * @return {qrcode, qrcode_img_url} 或 null
+     * @return 成功返回 {qrcode, qrcode_img_content}；失败返回仅含 {@link #KEY_ERROR} 的 Map
      */
     public static Map<String, String> fetchQRCode() {
         try {
             String url = BASE_URL + "/ilink/bot/get_bot_qrcode?bot_type=3";
             String resp = httpGet(url);
-            if (resp == null) return null;
 
             ONode root = ONode.ofJson(resp);
             int ret = root.get("ret").getInt();
             if (ret != 0) {
-                LOG.warn("fetchQRCode failed: ret={}, msg={}", ret, root.get("msg").getString());
-                return null;
+                String msg = root.get("msg").getString();
+                LOG.warn("fetchQRCode failed: ret={}, msg={}", ret, msg);
+                return errorOf("接口返回 ret=" + ret
+                        + (msg == null || msg.isEmpty() ? "" : ", msg=" + msg));
             }
 
             Map<String, String> result = new LinkedHashMap<>();
@@ -66,9 +74,30 @@ public class WeChatClient {
             result.put("qrcode_img_content", root.get("qrcode_img_content").getString());
             return result;
         } catch (Exception e) {
-            LOG.error("fetchQRCode error: {}", e.getMessage());
-            return null;
+            LOG.error("fetchQRCode error", e);
+            return errorOf(describe(e));
         }
+    }
+
+    /**
+     * 构造仅含失败原因的结果
+     */
+    private static Map<String, String> errorOf(String reason) {
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put(KEY_ERROR, reason);
+        return result;
+    }
+
+    /**
+     * 生成异常摘要。
+     *
+     * <p>超时、TLS 握手失败等异常的 {@code getMessage()} 常为空或无指向性，
+     * 只打印 message 会丢掉最关键的异常类型信息，因此这里带上类名。</p>
+     */
+    private static String describe(Throwable e) {
+        String type = e.getClass().getSimpleName();
+        String msg = e.getMessage();
+        return (msg == null || msg.isEmpty()) ? type : type + ": " + msg;
     }
 
     /**
@@ -311,7 +340,9 @@ public class WeChatClient {
             int code = resp.code();
             if (code != 200) {
                 LOG.warn("HTTP GET {} returned {}", urlStr, code);
-                return null;
+                // 抛出而非返回 null：让调用方能拿到状态码，区分网关拦截与业务失败。
+                // 只带 endpoint 不带 query，避免 qrcode 令牌进入日志与前端提示
+                throw new IOException("HTTP " + code + " from " + endpointOf(urlStr));
             }
             return resp.bodyAsString();
         }
@@ -343,6 +374,14 @@ public class WeChatClient {
     private static String generateUin() {
         return Base64.getEncoder().encodeToString(
                 String.valueOf(new Random().nextInt(Integer.MAX_VALUE)).getBytes());
+    }
+
+    /**
+     * 截去 query 部分，只保留接口地址（避免令牌等敏感参数外泄）
+     */
+    private static String endpointOf(String urlStr) {
+        int idx = urlStr.indexOf('?');
+        return idx > 0 ? urlStr.substring(0, idx) : urlStr;
     }
 
     private static String encodeURIComponent(String s) {
