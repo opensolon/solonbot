@@ -2,7 +2,8 @@
 
 ### v2026.9.5
 
-* 新增 soloncode web 设置「配置备份」：可勾选导出设置（模型/MCP/供应商等）与资产（技能/子代理/命令/心智记忆/皮肤）为 zip 备份，支持从备份包预览并导入还原（密钥默认脱敏，导入不覆盖本机现有密钥；导入前自动备份 settings.json）
+* 添加 soloncode web 设置「配置备份」
+* 添加 soloncode web loop llm 自动管理支持
 * 修复 soloncode web IM 通道会收到 delta 数据
 * 细节优化 
 
