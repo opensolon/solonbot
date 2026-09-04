@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Atla",
   "newchat.noModelHint": "Kullanılabilir model yok. Lütfen önce Ayarlar'dan bir model ekleyin",
   "general.features.managerDesc": "Yapay zekanın LLM modellerini, MCP sunucularını ve OpenAPI kaynaklarını dinamik olarak eklemesine/yönetmesine olanak tanır; kapatmak bağlam tüketimini azaltır",
-  "general.features.managerName": "Manage aracı desteği",
+  "general.features.managerName": "Manage yapılandırma yönetimi",
   "settings.group.users": "Kullanıcı Yönetimi",
   "settings.tab.users": "Kullanıcılar",
   "users.title": "Kullanıcı Yönetimi",

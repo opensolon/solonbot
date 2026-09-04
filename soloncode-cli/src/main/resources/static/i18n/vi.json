@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Bỏ qua",
   "newchat.noModelHint": "Không có mô hình khả dụng. Vui lòng thêm mô hình trong Cài đặt trước",
   "general.features.managerDesc": "Bật để cho phép AI thêm/quản lý động các mô hình LLM, máy chủ MCP và nguồn OpenAPI; tắt để giảm tiêu thụ ngữ cảnh",
-  "general.features.managerName": "Hỗ trợ công cụ Manage",
+  "general.features.managerName": "Hỗ trợ quản lý cấu hình Manage",
   "settings.group.users": "Quản lý người dùng",
   "settings.tab.users": "Người dùng",
   "users.title": "Quản lý người dùng",

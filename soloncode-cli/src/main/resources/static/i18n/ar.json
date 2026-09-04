@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "تخطي",
   "newchat.noModelHint": "لا توجد نماذج متاحة. يرجى إضافة نموذج في الإعدادات أولاً",
   "general.features.managerDesc": "عند التفعيل يسمح للذكاء الاصطناعي بإضافة/إدارة نماذج LLM وخوادم MCP ومصادر OpenAPI ديناميكيًا؛ الإيقاف يقلل استهلاك السياق",
-  "general.features.managerName": "دعم أداة Manage",
+  "general.features.managerName": "إدارة تكوين Manage",
   "settings.group.users": "إدارة المستخدمين",
   "settings.tab.users": "المستخدمون",
   "users.title": "إدارة المستخدمين",

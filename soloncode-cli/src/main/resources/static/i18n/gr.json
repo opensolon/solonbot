@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Παράβλεψη",
   "newchat.noModelHint": "Δεν υπάρχει διαθέσιμο μοντέλο. Προσθέστε πρώτα ένα μοντέλο στις Ρυθμίσεις",
   "general.features.managerDesc": "Επιτρέπει στην AI να προσθέτει/διαχειρίζεται δυναμικά μοντέλα LLM, διακομιστές MCP και πηγές OpenAPI· η απενεργοποίηση μειώνει την κατανάλωση περιβάλλοντος",
-  "general.features.managerName": "Υποστήριξη εργαλείου Manage",
+  "general.features.managerName": "Υποστήριξη διαχείρισης ρυθμίσεων Manage",
   "settings.group.users": "Διαχείριση χρηστών",
   "settings.tab.users": "Χρήστες",
   "users.title": "Διαχείριση χρηστών",

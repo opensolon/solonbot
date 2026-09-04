@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Preskoči",
   "newchat.noModelHint": "Nema dostupnih modela. Prvo dodajte model u Postavkama",
   "general.features.managerDesc": "Omogućava AI-ju dinamičko dodavanje/upravljanje LLM modelima, MCP serverima i OpenAPI izvorima; isključivanjem se smanjuje potrošnja konteksta",
-  "general.features.managerName": "Podrška za Manage alat",
+  "general.features.managerName": "Podrška za upravljanje konfiguracijom Manage",
   "settings.group.users": "Upravljanje korisnicima",
   "settings.tab.users": "Korisnici",
   "users.title": "Upravljanje korisnicima",

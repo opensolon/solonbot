@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Пропустити",
   "newchat.noModelHint": "Немає доступних моделей. Спочатку додайте модель у налаштуваннях",
   "general.features.managerDesc": "Дозволяє ШІ динамічно додавати/керувати моделями LLM, серверами MCP та джерелами OpenAPI; вимкнення зменшує споживання контексту",
-  "general.features.managerName": "Підтримка інструменту Manage",
+  "general.features.managerName": "Управління конфігурацією Manage",
   "settings.group.users": "Керування користувачами",
   "settings.tab.users": "Користувачі",
   "users.title": "Керування користувачами",

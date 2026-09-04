@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Spring over",
   "newchat.noModelHint": "Ingen model tilgængelig. Tilføj venligst en model i Indstillinger først",
   "general.features.managerDesc": "Giver AI mulighed for dynamisk at tilføje/styre LLM-modeller, MCP-servere og OpenAPI-kilder; deaktiver for at reducere kontekstforbrug",
-  "general.features.managerName": "Manage-værktøjssupport",
+  "general.features.managerName": "Manage-konfigurationsstyring",
   "settings.group.users": "Brugerstyring",
   "settings.tab.users": "Brugere",
   "users.title": "Brugerstyring",

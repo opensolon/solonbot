@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "ข้าม",
   "newchat.noModelHint": "ไม่มีโมเดลที่ใช้งานได้ กรุณาเพิ่มโมเดลในการตั้งค่าก่อน",
   "general.features.managerDesc": "เมื่อเปิดใช้งานจะอนุญาตให้ AI เพิ่ม/จัดการโมเดล LLM เซิร์ฟเวอร์ MCP และแหล่งข้อมูล OpenAPI แบบไดนามิก; ปิดเพื่อลดการใช้บริบท",
-  "general.features.managerName": "รองรับเครื่องมือ Manage",
+  "general.features.managerName": "รองรับการจัดการการตั้งค่า Manage",
   "settings.group.users": "การจัดการผู้ใช้",
   "settings.tab.users": "ผู้ใช้",
   "users.title": "การจัดการผู้ใช้",

@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Hopp over",
   "newchat.noModelHint": "Ingen modell tilgjengelig. Legg til en modell i Innstillinger først",
   "general.features.managerDesc": "Lar AI dynamisk legge til/administrere LLM-modeller, MCP-servere og OpenAPI-kilder; deaktiver for å redusere kontekstforbruk",
-  "general.features.managerName": "Manage-verktøystøtte",
+  "general.features.managerName": "Manage-konfigurasjonsstøtte",
   "settings.group.users": "Brukerhåndtering",
   "settings.tab.users": "Brukere",
   "users.title": "Brukerhåndtering",

@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Omitir",
   "newchat.noModelHint": "No hay ningún modelo disponible. Añade un modelo en Ajustes primero",
   "general.features.managerDesc": "Permite a la IA añadir/gestionar dinámicamente modelos LLM, servidores MCP y fuentes OpenAPI; desactivarlo reduce el consumo de contexto",
-  "general.features.managerName": "Compatibilidad con la herramienta Manage",
+  "general.features.managerName": "Gestión de configuración de Manage",
   "settings.group.users": "Gestión de usuarios",
   "settings.tab.users": "Usuarios",
   "users.title": "Gestión de usuarios",

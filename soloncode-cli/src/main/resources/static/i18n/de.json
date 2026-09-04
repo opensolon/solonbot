@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "Überspringen",
   "newchat.noModelHint": "Kein Modell verfügbar. Bitte fügen Sie zuerst ein Modell in den Einstellungen hinzu",
   "general.features.managerDesc": "Ermöglicht der KI, LLM-Modelle, MCP-Server und OpenAPI-Quellen dynamisch hinzuzufügen/zu verwalten; deaktivieren, um Kontext zu sparen",
-  "general.features.managerName": "Manage-Tool-Unterstützung",
+  "general.features.managerName": "Manage-Konfigurationsverwaltung",
   "settings.group.users": "Benutzerverwaltung",
   "settings.tab.users": "Benutzer",
   "users.title": "Benutzerverwaltung",

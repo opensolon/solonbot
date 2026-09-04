@@ -1181,7 +1181,7 @@
   "newchat.onboardingSkip": "跳过",
   "newchat.noModelHint": "暂无可用模型，请先在设置中添加模型配置",
   "general.features.managerDesc": "开启后允许 AI 动态添加/管理 LLM 模型、MCP 服务与 OpenAPI 源；关闭可减少上下文消耗",
-  "general.features.managerName": "Manage 工具支持",
+  "general.features.managerName": "Manage 配置管理支持",
   "settings.group.users": "用户管理",
   "settings.tab.users": "用户管理",
   "users.title": "用户管理",

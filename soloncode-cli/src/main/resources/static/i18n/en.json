@@ -1181,7 +1181,7 @@
   "newchat.onboardingSkip": "Skip",
   "newchat.noModelHint": "No model available. Please add a model in Settings first",
   "general.features.managerDesc": "Allow AI to dynamically add/manage LLM models, MCP servers and OpenAPI sources; disable to reduce context",
-  "general.features.managerName": "Manage Tools",
+  "general.features.managerName": "Manage Config Support",
   "settings.group.users": "User Management",
   "settings.tab.users": "Users",
   "users.title": "User Management",

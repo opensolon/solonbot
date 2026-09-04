@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "এড়িয়ে যান",
   "newchat.noModelHint": "কোনো মডেল উপলব্ধ নেই। অনুগ্রহ করে আগে সেটিংসে একটি মডেল যোগ করুন",
   "general.features.managerDesc": "সক্রিয় করলে AI-কে LLM মডেল, MCP সার্ভার ও OpenAPI উৎস গতিশীলভাবে যোগ/পরিচালনা করার অনুমতি দেয়; বন্ধ করলে কনটেক্সট খরচ কমবে",
-  "general.features.managerName": "Manage টুল সাপোর্ট",
+  "general.features.managerName": "Manage কনফিগারেশন ব্যবস্থাপনা সমর্থন",
   "settings.group.users": "ব্যবহারকারী ব্যবস্থাপনা",
   "settings.tab.users": "ব্যবহারকারী",
   "users.title": "ব্যবহারকারী ব্যবস্থাপনা",

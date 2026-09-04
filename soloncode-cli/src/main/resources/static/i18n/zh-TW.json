@@ -1182,7 +1182,7 @@
   "newchat.onboardingSkip": "跳過",
   "newchat.noModelHint": "暫無可用模型，請先在設定中添加模型配置",
   "general.features.managerDesc": "開啓後允許 AI 動態新增/管理 LLM 模型、MCP 服務與 OpenAPI 來源；關閉可減少上下文消耗",
-  "general.features.managerName": "Manage 工具支援",
+  "general.features.managerName": "Manage 配置管理支援",
   "settings.group.users": "使用者管理",
   "settings.tab.users": "使用者管理",
   "users.title": "使用者管理",
