@@ -1277,6 +1277,33 @@ body {
     background: var(--bg-hover);
     opacity: 1;
 }
+/* 文件树手动刷新（与审查/任务面板刷新按钮同风格，常驻显示） */
+.file-refresh-btn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
+}
+.file-refresh-btn:hover {
+    background: var(--bg-hover);
+    opacity: 1;
+}
+.file-refresh-btn.spinning {
+    opacity: 1;
+    cursor: default;
+}
+.file-refresh-btn.spinning svg {
+    animation: blob-spin 0.8s linear infinite;
+}
 /* ===== 搜索结果列表 ===== */
 .file-search-results {
     display: none;

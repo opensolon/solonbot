@@ -1750,7 +1750,10 @@ window.finishStream = finishStream;
 var webGateSocket = null;
 var webGateReconnectAttempts = 0;
 var webGateHeartbeatTimer = null;
+var webGateReconnectTimer = null;
+/* 快速退避（1s→30s 指数）次数；超过后不再放弃，转为固定慢频率长期重试 */
 var WEBGATE_MAX_RECONNECT = 10;
+var WEBGATE_SLOW_RECONNECT_DELAY = 30000;
 var WEBGATE_PENDING_CHUNK_MAX = 300;
 
 /* 历史消息加载期间先缓存流式 chunk，加载完再回放，避免被 DOM 重建冲掉 */
@@ -2247,7 +2250,26 @@ function handleWebGateChunk(raw) {
 }
 
 function connectWebGate() {
-    if (webGateSocket && webGateSocket.readyState === WebSocket.OPEN) return;
+    // CONNECTING 也要挡住，否则可见性/网络恢复触发时会并发建多条连接
+    if (webGateSocket &&
+        (webGateSocket.readyState === WebSocket.OPEN || webGateSocket.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
+    // 残留的旧连接（CLOSING/CLOSED）先解绑，避免它的 onclose 再排一次重连造成风暴
+    if (webGateSocket) {
+        try {
+            webGateSocket.onopen = null;
+            webGateSocket.onmessage = null;
+            webGateSocket.onclose = null;
+            webGateSocket.onerror = null;
+            webGateSocket.close();
+        } catch (e) {}
+        webGateSocket = null;
+    }
+    if (webGateReconnectTimer) {
+        clearTimeout(webGateReconnectTimer);
+        webGateReconnectTimer = null;
+    }
     try {
         var protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/web/gate?_t=1' + window.wsAndSuffix();
@@ -2311,26 +2333,59 @@ function stopWebGateHeartbeat() {
 }
 
 function scheduleWebGateReconnect() {
-    if (webGateReconnectAttempts >= WEBGATE_MAX_RECONNECT) {
-        console.warn('[WebGate] max reconnect attempts reached');
-        return;
-    }
-    var delay = Math.min(1000 * Math.pow(2, webGateReconnectAttempts), 30000);
+    if (webGateReconnectTimer) return; // 已排队，避免多个 onclose 叠加出连接风暴
+
+    var fastPhase = webGateReconnectAttempts < WEBGATE_MAX_RECONNECT;
+    // 快速退避次数用尽后不再放弃：转固定慢频率长期重试。
+    // 否则休眠/切网/后台节流一旦烧完配额，本页 WS 将永久死亡——文件树、审查徽标、
+    // 流式消息全部静默，用户只能刷新浏览器才能恢复。
+    var delay = fastPhase
+        ? Math.min(1000 * Math.pow(2, webGateReconnectAttempts), 30000)
+        : WEBGATE_SLOW_RECONNECT_DELAY;
     webGateReconnectAttempts++;
     console.log('[WebGate] reconnecting in ' + delay + 'ms (attempt ' + webGateReconnectAttempts + ')');
-    showNetworkBar('reconnecting', I18n.t('streaming.wsReconnecting', {attempt: webGateReconnectAttempts, max: WEBGATE_MAX_RECONNECT}));
-    setTimeout(function() {
+    if (fastPhase) {
+        showNetworkBar('reconnecting', I18n.t('streaming.wsReconnecting', {attempt: webGateReconnectAttempts, max: WEBGATE_MAX_RECONNECT}));
+    } else {
+        showNetworkBar('disconnected', I18n.t('streaming.wsDisconnected'));
+    }
+    webGateReconnectTimer = setTimeout(function() {
+        webGateReconnectTimer = null;
         connectWebGate();
     }, delay);
 }
 
-// 页面可见性控制心跳
+/** 连接不可用时立即重连（用户回到页面 / 网络恢复，属于明确的重试信号，不必等退避） */
+function reconnectWebGateNow() {
+    if (webGateSocket &&
+        (webGateSocket.readyState === WebSocket.OPEN || webGateSocket.readyState === WebSocket.CONNECTING)) {
+        return false;
+    }
+    webGateReconnectAttempts = 0;
+    connectWebGate();
+    return true;
+}
+
+// 页面可见性：控制心跳，并在回到前台时补做连接与数据对账
 $(document).on('visibilitychange', function() {
     if (document.hidden) {
         stopWebGateHeartbeat();
-    } else {
-        startWebGateHeartbeat();
+        return;
     }
+    startWebGateHeartbeat();
+    // 后台期间连接可能已被系统掐断（休眠、切网、标签页节流），
+    // 且推送在断开窗口内是丢失的，故：断了就立刻重连（onopen 会刷新文件树），
+    // 没断也对一次账，避免面板停在旧状态。
+    if (!reconnectWebGateNow() && typeof window.reconcileFilerTree === 'function') {
+        // 对账已在 filer 侧节流，并且仅在面板真正可见时拉取（不可见先标脏）：
+        // 否则每次切回标签页都是 1 + 展开目录数 个请求，而用户可能正在聊天页。
+        window.reconcileFilerTree();
+    }
+});
+
+// 网络恢复：立即重连，不等退避计时
+window.addEventListener('online', function() {
+    reconnectWebGateNow();
 });
 
 // 页面加载后自动建立 WebSocket 连接

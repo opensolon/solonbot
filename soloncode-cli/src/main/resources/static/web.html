@@ -376,7 +376,7 @@
         <div class="todo-panel">
             <div class="todo-header">
                 <div class="todo-title" data-i18n-partial><span data-i18n="workspace.currentTask">当前任务</span> <span class="todo-stats-count" id="todoStats" style="display:none"></span></div>
-                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新" data-i18n-title="common.refresh" data-i18n-title="workspace.refreshBtn">
+                <button class="todo-refresh-btn" id="todoRefreshBtn" title="刷新" data-i18n-title="workspace.refreshBtn">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
             </div>
@@ -419,8 +419,11 @@
         <div class="file-search-bar">
             <svg class="file-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" class="file-search-input" id="fileSearchInput" placeholder="搜索文件..." data-i18n-placeholder="workspace.searchFiles" />
-            <button class="file-search-clear" id="fileSearchClear" title="清除" data-i18n-title="workspace.clearSearch" style="display:none">
+            <button class="file-search-clear" id="fileSearchClear" title="清除" data-i18n-title="workspace.clearSearch">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <button class="file-refresh-btn" id="fileRefreshBtn" title="刷新" data-i18n-title="workspace.refreshBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
         </div>
         <div class="file-panel-tree" id="fileTree"></div>

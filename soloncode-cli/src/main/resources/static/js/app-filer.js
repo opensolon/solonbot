@@ -11,6 +11,15 @@
     var FILER_MAX_WIDTH = 600;
     var FILER_DEFAULT_WIDTH = 280;
 
+    /* jQuery 默认不设超时，全仓也没有 $.ajaxSetup：连接已建立但服务端不回的请求会永远悬置，
+     * 回调链末端的收尾逻辑（转圈停止、重入标记释放）随之永不执行。文件面板的请求统一走本封装。 */
+    var FILER_AJAX_TIMEOUT_MS = 20000;
+
+    /** 带超时的 GET（语义等同 jQuery 的 get(url, done)，仍可链 .fail()） */
+    function filerGet(url, done) {
+        return $.ajax({ url: url, timeout: FILER_AJAX_TIMEOUT_MS, success: done });
+    }
+
     /** 当前活动工作区（用于搜索/文件查看器） */
     window.activeFilerWorkspace = 'workspace';
 
@@ -26,13 +35,11 @@
      */
     var wsPathCache = { loaded: false, launchPath: '', mountRealPaths: {} };
 
-    var wsPathCache = { loaded: false, launchPath: '', mountRealPaths: {} };
-
     function loadWsPathCache(callback) {
         // 多工作区：URL 带 workspaceId 时缓存需按工作区失效（切换工作区后重取）
         var curWsId = (window.wsId && window.wsId()) || '';
         if (wsPathCache.loaded && wsPathCache.forWsId === curWsId) { if (callback) callback(); return; }
-        $.get('/web/workspace/list', function(res) {
+        filerGet('/web/workspace/list', function(res) {
             if (res && res.data) {
                 // 当前工作区的根路径：优先按 URL 的 workspaceId 在历史工作区列表中匹配；
                 // 匹配不到（默认/启动工作区）才回落 launch.path（启动目录）
@@ -432,7 +439,7 @@
             url += '&mount=' + encodeURIComponent(wsId);
         }
 
-        $.get(url, function(res) {
+        filerGet(url, function(res) {
             var subData = (res && res.data) ? res.data : [];
             renderTree(subData, $childrenEl, indent + 1);
             restoreExpandedPathsSequential($scope, paths, wsId, index + 1, done);
@@ -442,14 +449,18 @@
         });
     }
 
-    /** 加载工作区列表作为树的根节点；若树已存在则走智能刷新以保留展开状态 */
-    function loadTree() {
+    /**
+     * 加载工作区列表作为树的根节点；若树已存在则走智能刷新以保留展开状态
+     *
+     * @param done 可选，整棵树（含展开态恢复）加载完毕后回调，用于刷新按钮结束转圈
+     */
+    function loadTree(done) {
         if ($treeEl.length && $treeEl.children().length) {
-            smartRefreshRoot();
+            smartRefreshRoot(done);
             return;
         }
 
-        $.get('/web/chat/filer/workspaces', function(res) {
+        filerGet('/web/chat/filer/workspaces', function(res) {
             var wsList = (res && res.data) ? res.data : [];
             function doRender() {
                 if ($treeEl.length) {
@@ -467,12 +478,16 @@
                     doRender();
                 });
             }
+            if (done) done();
         }).fail(function(jqXHR, textStatus, error) {
             console.error('[filer] workspaces load error', error);
             // fallback：直接用当前工作区文件树
-            $.get('/web/chat/filer/tree?depth=1', function(res) {
+            filerGet('/web/chat/filer/tree?depth=1', function(res) {
                 var data = (res && res.data) ? res.data : [];
                 if ($treeEl.length) renderTree(data, $treeEl, 0);
+                if (done) done();
+            }).fail(function() {
+                if (done) done();
             });
         });
     }
@@ -536,7 +551,7 @@
                         if (wsId !== 'workspace') {
                             url += '&mount=' + encodeURIComponent(wsId);
                         }
-                        $.get(url, function(res) {
+                        filerGet(url, function(res) {
                             var data = (res && res.data) ? res.data : [];
                             renderTree(data, $childrenEl, indent + 1);
                             autoExpandSingleDir($childrenEl, data, indent + 1, wsId, 0);
@@ -601,7 +616,7 @@
             url += '&mount=' + encodeURIComponent(wsId);
         }
 
-        $.get(url, function(res) {
+        filerGet(url, function(res) {
             var subData = (res && res.data) ? res.data : [];
             renderTree(subData, $cEl, indent + 1);
             autoExpandSingleDir($cEl, subData, indent + 1, wsId, (depth || 0) + 1);
@@ -698,7 +713,7 @@
                             if (wsId !== 'workspace') {
                                 url += '&mount=' + encodeURIComponent(wsId);
                             }
-                            $.get(url, function(res) {
+                            filerGet(url, function(res) {
                                 var subData = (res && res.data) ? res.data : [];
                                 renderTree(subData, $cEl, indent + 1);
                                 autoExpandSingleDir($cEl, subData, indent + 1, wsId, 0);
@@ -763,7 +778,21 @@
     function onFilerChange(chunk) {
         if (!chunk || !chunk.changes || chunk.changes.length === 0) return;
 
-        if (!$treeEl.length || !$treeEl.children().length) {
+        // 后端要求整树对账（事件溢出、监听重建等无法枚举具体路径的场景）
+        var needResync = false;
+        var structuralChange = false;
+        for (var i = 0; i < chunk.changes.length; i++) {
+            var c = chunk.changes[i];
+            if (!c) continue;
+            if (c.kind === 'resync') needResync = true;
+            if (c.kind === 'create' || c.kind === 'delete') structuralChange = true;
+        }
+
+        /* 整树刷新正在飞：本批增量打在旧 DOM 上，会被换入的离屏树覆盖，
+         * 而离屏数据可能早于本批变更，标记一下让它结束后再对账一次。 */
+        if (structuralChange && refreshInFlight) filerChangedDuringRefresh = true;
+
+        if (needResync || !$treeEl.length || !$treeEl.children().length) {
             smartRefreshRoot();
             showFilerChangeIndicator();
             return;
@@ -804,6 +833,12 @@
         if (!change) return;
         var wsId = change.wsId || 'workspace';
         var relPath = change.path || '';
+
+        // 后端要求整树对账（正常由 onFilerChange 整批拦下，此处仅作兜底）
+        if (change.kind === 'resync') {
+            smartRefreshRoot();
+            return;
+        }
         if (!relPath) return;
 
         var kind = change.kind || 'modify';
@@ -875,16 +910,114 @@
             return;
         }
 
-        // 节点未渲染：若父目录已展开则无需处理；未展开则标脏，下次展开重拉
-        var parentDir = getParentDir(relPath);
-        if (!parentDir) return;
-        var $parentNode = findNodeInWorkspace($wsRoot, parentDir);
-        if ($parentNode.length) {
-            var $children = $parentNode.children('.file-node-children');
-            if ($children.length && !$children.hasClass('open')) {
-                $parentNode.attr('data-dirty', '1');
+        // 节点未渲染：说明 DOM 与磁盘已不一致（此前漏过它的 create）。
+        // 交给兜底——折叠态祖先标脏，展开态祖先做一次局部重载。
+        markDirtyOrResync(wsId, relPath);
+    }
+
+    /**
+     * 增量事件无法精确落到 DOM 时的兜底：从最近一个「已渲染」的祖先目录开始收敛。
+     *
+     * <p>折叠态祖先只标 data-dirty（下次展开自然重拉）；已展开的祖先安排一次局部重载。
+     * 若一路上溯到未展开的工作区根，则无需处理（展开时会重新拉一级列表）。</p>
+     */
+    function markDirtyOrResync(wsId, relPath) {
+        var $wsRoot = getWorkspaceRoot(wsId);
+        if (!$wsRoot.length) return;
+
+        var dir = getParentDir(relPath);
+        // 逐级上溯，最多走到工作区根（dir === ''）
+        for (var guard = 0; guard < 128; guard++) {
+            if (!dir) {
+                if ($wsRoot.is($treeEl)) return; // 扁平树：无根节点可收敛
+                var $wsChildren = $wsRoot.children('.file-node-children');
+                if (!$wsChildren.length || !$wsChildren.hasClass('open')) return;
+                scheduleDirResync(wsId, '');
+                return;
             }
+            var $node = findNodeInWorkspace($wsRoot, dir);
+            if ($node.length) {
+                var $children = $node.children('.file-node-children');
+                if (!$children.length) return;
+                if (!$children.hasClass('open')) {
+                    $node.attr('data-dirty', '1');
+                    return;
+                }
+                scheduleDirResync(wsId, dir);
+                return;
+            }
+            dir = getParentDir(dir);
         }
+    }
+
+    /** 待局部重载的目录：{ wsId: { dirPath: true } }，防抖合并后统一执行 */
+    var pendingResyncDirs = {};
+    var pendingResyncTimer = null;
+
+    function scheduleDirResync(wsId, dirPath) {
+        if (!pendingResyncDirs[wsId]) pendingResyncDirs[wsId] = {};
+        pendingResyncDirs[wsId][dirPath] = true;
+        if (pendingResyncTimer) return;
+        pendingResyncTimer = setTimeout(function() {
+            pendingResyncTimer = null;
+            var batch = pendingResyncDirs;
+            pendingResyncDirs = {};
+            Object.keys(batch).forEach(function(wid) {
+                var dirs = Object.keys(batch[wid]);
+                // 父目录已覆盖子目录时丢弃子目录，避免重复请求
+                dirs.filter(function(d) {
+                    for (var i = 0; i < dirs.length; i++) {
+                        var other = dirs[i];
+                        if (other === d) continue;
+                        if (other === '' || d.indexOf(other + '/') === 0) return false;
+                    }
+                    return true;
+                }).forEach(function(d) {
+                    refreshDirNode(wid, d);
+                });
+            });
+        }, 300);
+    }
+
+    /** 局部重载某个已展开目录的子列表，保留其内部已展开的层级（dirPath 为空表示工作区根） */
+    function refreshDirNode(wsId, dirPath) {
+        var $wsRoot = getWorkspaceRoot(wsId);
+        if (!$wsRoot.length) return;
+
+        var $scope, $children, indent;
+        if (!dirPath) {
+            if ($wsRoot.is($treeEl)) return;
+            $scope = $wsRoot;
+            $children = $wsRoot.children('.file-node-children');
+            indent = 1;
+        } else {
+            $scope = findNodeInWorkspace($wsRoot, dirPath);
+            if (!$scope.length) return;
+            $children = $scope.children('.file-node-children');
+            indent = parseInt($scope.attr('data-indent') || '0', 10) + 1;
+        }
+        if (!$children.length || !$children.hasClass('open')) return;
+
+        var expandedDirs = collectExpandedDirsUnder($scope);
+        var url = dirPath
+            ? '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1'
+            : '/web/chat/filer/tree?depth=1';
+        if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
+            url += '&mount=' + encodeURIComponent(wsId);
+        }
+
+        filerGet(url, function(res) {
+            var data = (res && res.data) ? res.data : [];
+            // 同整树刷新：离屏建好再一次性换入，否则这棵子树会先塌掉再逐级弹出
+            var $staging = $('<div>').addClass('file-node-children open');
+            renderTree(data, $staging, indent);
+            restoreExpandedPathsSequential($staging, expandedDirs, wsId, 0, function() {
+                commitStaging($children, $staging);
+                $scope.removeAttr('data-dirty');
+            });
+        }).fail(function() {
+            console.error('[filer] resync dir error', wsId, dirPath);
+        });
     }
 
     function ensureTreeNode(wsId, relPath, nodeType) {
@@ -903,19 +1036,18 @@
 
         var parentDir = getParentDir(relPath);
         var $childrenEl = getChildrenContainer($wsRoot, parentDir);
-        if (!$childrenEl.length) return;
+        if (!$childrenEl.length) {
+            // 父目录不在 DOM（中间层未加载，或漏了它的 create）：向上兜底收敛
+            markDirtyOrResync(wsId, relPath);
+            return;
+        }
 
         // 父目录未展开：只标脏，下次展开再拉真实列表
         if (parentDir) {
             var $parentNode = findNodeInWorkspace($wsRoot, parentDir);
-            if ($parentNode.length) {
-                var $pc = $parentNode.children('.file-node-children');
-                if ($pc.length && !$pc.hasClass('open')) {
-                    $parentNode.attr('data-dirty', '1');
-                    return;
-                }
-            } else {
-                // 父节点不在 DOM：无法插入
+            var $pc = $parentNode.children('.file-node-children');
+            if ($pc.length && !$pc.hasClass('open')) {
+                $parentNode.attr('data-dirty', '1');
                 return;
             }
         } else if (!$childrenEl.hasClass('open') && !$wsRoot.is($treeEl)) {
@@ -955,7 +1087,7 @@
         if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
             url += (url.indexOf('?') >= 0 ? '&' : '?') + 'mount=' + encodeURIComponent(wsId);
         }
-        $.get(url, function(res) {
+        filerGet(url, function(res) {
             var data = (res && res.data) ? res.data : [];
             // 仅当容器仍为空时填充，避免覆盖用户后续展开
             if (!$childrenEl.children().length) {
@@ -1014,7 +1146,10 @@
         var dirMap = {};
         if (!$scope || !$scope.length) return expandedDirs;
         $scope.find('.file-node > .file-node-children.open').each(function() {
-            var dataPath = $(this).parent().attr('data-path');
+            var $parent = $(this).parent();
+            // 排除 $scope 自身：工作区根的 data-path 是显示名而非相对路径，回填会请求到错误路径
+            if ($parent[0] === $scope[0]) return;
+            var dataPath = $parent.attr('data-path');
             if (dataPath && !dirMap[dataPath]) {
                 dirMap[dataPath] = true;
                 expandedDirs.push(dataPath);
@@ -1023,23 +1158,135 @@
         return sortPathsByDepth(expandedDirs);
     }
 
-    function smartRefreshRoot() {
+    /* ---- 无闪烁提交：离屏构建 + 一次性换入 ----
+     * 刷新一棵树需要 1 + 工作区数 + 展开目录数 次请求。过去是先把 $treeEl 清空、
+     * 再逐级串行回填，于是整个过程全程可见：面板瞬间空白 → 根节点出现 → 一级列表出现
+     * → 展开目录一个个弹出，内容高度归零还会丢掉滚动位置 —— 这就是点一下「一闪」。
+     * 现在改为在离屏容器里把新树整棵建好，最后在同一个任务里换入（浏览器只重绘一次）；
+     * 结构与当前完全一致时（手动刷新最常见的情况）直接丢弃离屏结果，一个 DOM 都不动。 */
+
+    /** 结构指纹：顺序 + 路径 + 类型 + 缩进 + 展开态，一致即视觉一致（树不展示文件内容） */
+    function treeSignature($scope) {
+        if (!$scope || !$scope.length) return '';
+        var parts = [];
+        $scope.find('.file-node').each(function() {
+            parts.push([
+                this.getAttribute('data-workspace-id') || '',
+                this.getAttribute('data-path') || '',
+                this.getAttribute('data-type') || '',
+                this.getAttribute('data-indent') || '',
+                $(this).children('.file-node-children').hasClass('open') ? '1' : '0'
+            ].join('\u0001'));
+        });
+        return parts.join('\u0002');
+    }
+
+    /**
+     * 把离屏容器的内容换入目标容器；结构未变则不动 DOM
+     *
+     * @return 是否真的替换了 DOM
+     */
+    function commitStaging($target, $staging) {
+        if (!$target || !$target.length) return false;
+        if (treeSignature($staging) === treeSignature($target)) return false;
+
+        // 滚动容器是 #fileTree 自身（overflow-y:auto）；替换会使内容高度短暂归零而丢失位置
+        var host = $treeEl.length ? $treeEl[0] : null;
+        var top = host ? host.scrollTop : 0;
+        var left = host ? host.scrollLeft : 0;
+        // jQuery 的 append 是移动节点，已绑定的事件处理器随节点一起过去
+        $target.empty().append($staging.children());
+        if (host) { host.scrollTop = top; host.scrollLeft = left; }
+        return true;
+    }
+
+    /* 整树刷新的重入保护：进行中的重复请求合并为「结束后再跑一次」，
+     * 避免多路并发（WS 事件 / 手动刷新 / 重连对账）的串行恢复互相覆盖。 */
+    var refreshInFlight = false;
+    var refreshQueued = false;
+    var refreshQueuedDones = [];
+
+    /* 离屏刷新期间到达的增量事件打在旧 DOM 上，换入离屏树时会被丢掉，
+     * 而离屏树的数据可能早于这些变更 —— 记一笔，提交后补跑一轮对账。 */
+    var filerChangedDuringRefresh = false;
+
+    /** 整树刷新的兜底上限：超过则强制释放重入标记，不让面板陷入永久不可刷新 */
+    var REFRESH_WATCHDOG_MS = 30000;
+
+    /**
+     * 整树智能刷新：保留展开状态重新拉取
+     *
+     * @param done 可选，刷新（含展开态恢复）全部完成后回调
+     */
+    function smartRefreshRoot(done) {
+        if (refreshInFlight) {
+            refreshQueued = true;
+            if (done) refreshQueuedDones.push(done);
+            return;
+        }
+        refreshInFlight = true;
+
+        var finished = false;
+        /* 看门狗：finish() 只在 ajax 回调链末端触发。尽管请求已统一加了超时，
+         * 但恢复链路很长（工作区数 × 展开目录数），任何一环出现意外异常都会让
+         * refreshInFlight 永久为 true，之后所有刷新（WS 对账 / 可见性对账 / 手动按钮）
+         * 只进队列不执行 —— 正是本次要消灭的「永久死状态」。这里强制兜底。 */
+        var watchdog = setTimeout(function() {
+            if (finished) return;
+            console.warn('[filer] smart refresh watchdog fired, force release');
+            finish();
+        }, REFRESH_WATCHDOG_MS);
+
+        function finish() {
+            if (finished) return;
+            finished = true;
+            clearTimeout(watchdog);
+            refreshInFlight = false;
+            if (filerChangedDuringRefresh) {
+                // 本轮离屏数据可能已过期：补一轮，避免丢掉刷新窗口内的增量
+                filerChangedDuringRefresh = false;
+                refreshQueued = true;
+            }
+            if (done) {
+                try { done(); } catch (e) { console.error('[filer] refresh callback error', e); }
+            }
+            if (refreshQueued) {
+                refreshQueued = false;
+                var dones = refreshQueuedDones;
+                refreshQueuedDones = [];
+                smartRefreshRoot(function() {
+                    dones.forEach(function(cb) {
+                        try { cb(); } catch (e) { console.error('[filer] refresh callback error', e); }
+                    });
+                });
+            }
+        }
+
         var expandedState = collectExpandedState();
 
-        // 重新加载工作区列表（可能有新增/删除的挂载）
-        $.get('/web/chat/filer/workspaces', function(res) {
-            var wsList = (res && res.data) ? res.data : [];
-            if (!$treeEl.length) return;
+        /* 离屏容器：新树先在这里整棵建好（含展开态恢复），期间旧树保持可见；
+         * 只有跑到成功终点才 commitStaging 换入。看门狗超时或任一环报错时直接弃置，
+         * 旧树原样保留 —— 比过去「清空后半途失败留下一棵残树」更安全。 */
+        var $staging = $('<div>');
 
-            $treeEl.html('');
+        // 重新加载工作区列表（可能有新增/删除的挂载）
+        filerGet('/web/chat/filer/workspaces', function(res) {
+            var wsList = (res && res.data) ? res.data : [];
+            if (!$treeEl.length) { finish(); return; }
+
+            $staging.empty();
             wsList.forEach(function(ws) {
-                appendWorkspaceNode(ws, $treeEl, 0);
+                appendWorkspaceNode(ws, $staging, 0);
             });
 
             // 串行恢复每个已展开工作区及其深层目录，避免并发重绘互相覆盖
             var wsIndex = 0;
             function restoreNextWorkspace() {
-                if (wsIndex >= wsList.length) return;
+                if (wsIndex >= wsList.length) {
+                    commitStaging($treeEl, $staging);
+                    finish();
+                    return;
+                }
                 var ws = wsList[wsIndex++];
                 var entry = expandedState[ws.id];
                 if (!entry || !entry.root) {
@@ -1047,7 +1294,7 @@
                     return;
                 }
 
-                var $wn = $treeEl.find('.file-node[data-workspace-id="' + CSS.escape(ws.id) + '"]').first();
+                var $wn = $staging.children('.file-node[data-workspace-id="' + CSS.escape(ws.id) + '"]').first();
                 if (!$wn.length) {
                     restoreNextWorkspace();
                     return;
@@ -1068,7 +1315,7 @@
                     url += '&mount=' + encodeURIComponent(ws.id);
                 }
 
-                $.get(url, function(res2) {
+                filerGet(url, function(res2) {
                     var data2 = (res2 && res2.data) ? res2.data : [];
                     renderTree(data2, $wc, 1);
                     var dirs = sortPathsByDepth(entry.dirs || []);
@@ -1095,10 +1342,10 @@
             });
             allDirs = sortPathsByDepth(allDirs);
 
-            $.get('/web/chat/filer/tree?depth=1', function(res) {
+            filerGet('/web/chat/filer/tree?depth=1', function(res) {
                 var newData = (res && res.data) ? res.data : [];
-                if (!$treeEl.length) return;
-                $treeEl.html('');
+                if (!$treeEl.length) { finish(); return; }
+                $staging.empty();
 
                 // 根级目录若在展开列表中，先标 expanded 以便 appendNode 打开容器
                 var rootExpanded = {};
@@ -1109,12 +1356,18 @@
                     if (node.type === 'directory' && rootExpanded[node.path]) {
                         node.expanded = true;
                     }
-                    appendNode(node, $treeEl, 0);
+                    appendNode(node, $staging, 0);
                 });
 
                 // 根级 expanded 只打开了容器，子节点需按 depth=1 拉数据；
                 // 统一走串行恢复（含根级与深层）
-                restoreExpandedPathsSequential($treeEl, allDirs, 'workspace', 0);
+                restoreExpandedPathsSequential($staging, allDirs, 'workspace', 0, function() {
+                    commitStaging($treeEl, $staging);
+                    finish();
+                });
+            }).fail(function() {
+                console.error('[filer] smart refresh fallback error');
+                finish();
             });
         });
     }
@@ -1164,8 +1417,50 @@
         $badge.text(label);
     }
     
+    /* ---- 对账入口（给可见性恢复 / 网络恢复等「可能漏了推送」的时机用）----
+     * 直接无条件 loadTree() 偏重：每次切回标签页都是 1 + 展开目录数 个请求，
+     * 而此时文件面板可能根本不可见（用户在聊天页）。因此：面板不可见时只标脏延后做，
+     * 可见时也做最小间隔节流。 */
+    var RECONCILE_THROTTLE_MS = 10000;
+    var lastReconcileAt = 0;
+    var reconcilePending = false;
+
+    /** 文件树是否真正展现给用户（面板展开 && 当前页签是文件） */
+    function isFilerTreeVisible() {
+        if (!$panel.length || $panel.hasClass('collapsed')) return false;
+        var $filesTab = $panel.find('.workspace-tab[data-tab="files"]');
+        return !$filesTab.length || $filesTab.hasClass('active');
+    }
+
+    /**
+     * 对账刷新：节流 + 仅在面板可见时真正拉取，不可见时先标脏，下次可见再补
+     */
+    function reconcileFilerTree() {
+        if (!isFilerTreeVisible()) {
+            reconcilePending = true;
+            return;
+        }
+
+        var now = Date.now();
+        if (now - lastReconcileAt < RECONCILE_THROTTLE_MS) {
+            reconcilePending = true;
+            return;
+        }
+        lastReconcileAt = now;
+        reconcilePending = false;
+        loadTree();
+    }
+
+    // 面板重新可见（展开面板 / 切回文件页签）时补做欠下的对账
+    $(document).on('click', '#workspaceToggleBtn, .workspace-tab[data-tab="files"]', function() {
+        setTimeout(function() {
+            if (reconcilePending) reconcileFilerTree();
+        }, 0);
+    });
+
     // ---- 暴露全局函数 ----
     window.loadTree = loadTree;
+    window.reconcileFilerTree = reconcileFilerTree;
     window.onFilerChange = onFilerChange;
     window.expandFilerPanel = expandFilerPanel;
     window.updateFilerQueueBadge = updateFilerQueueBadge;
@@ -1186,22 +1481,24 @@
         return $('<div>').text(text || '').html();
     }
 
-    function showSearchResults(keyword) {
-        if (!$treeEl.length || !keyword) return;
+    function showSearchResults(keyword, done) {
+        function finish() { if (done) done(); }
+        if (!$treeEl.length || !keyword) { finish(); return; }
         var kw = keyword.trim().toLowerCase();
-        if (!kw) { hideSearchResults(); return; }
+        if (!kw) { hideSearchResults(); finish(); return; }
 
         $treeEl.hide();
         ensureSearchResultsContainer();
         searchResultsEl.show();
         searchResultsEl.html('<div class="file-search-loading">' + I18n.t('common.loading') + '</div>');
 
-        $.get(filerUrl('/web/chat/filer/search', 'keyword=' + encodeURIComponent(kw)), function(res) {
+        filerGet(filerUrl('/web/chat/filer/search', 'keyword=' + encodeURIComponent(kw)), function(res) {
             var data = (res && res.data) ? res.data : [];
             searchResultsEl.html('');
 
             if (data.length === 0) {
                 searchResultsEl.html('<div class="file-search-empty">' + I18n.t('filer.noResults') + '</div>');
+                finish();
                 return;
             }
 
@@ -1276,9 +1573,11 @@
 
                 searchResultsEl.append($row);
             });
+            finish();
         }).fail(function(jqXHR, textStatus, error) {
             console.error('[filer] search error', error);
             searchResultsEl.html('<div class="file-search-empty">' + I18n.t('filer.searchFailed') + '</div>');
+            finish();
         });
     }
 
@@ -1312,6 +1611,33 @@
             }
             $searchClear.removeClass('visible');
             hideSearchResults();
+        });
+    }
+
+    // ---- 手动刷新（搜索框右侧） ----
+    // 文件树的自动刷新依赖 WS 推送，链路上任何一环丢事件都会让面板停在旧状态，
+    // 这里提供一个不依赖任何推送的自救入口（等价于刷新浏览器，但保留展开状态）。
+    var $refreshBtn = $('#fileRefreshBtn');
+    if ($refreshBtn.length) {
+        $refreshBtn.on('click', function() {
+            if ($refreshBtn.hasClass('spinning')) return; // 防连点
+            $refreshBtn.addClass('spinning');
+
+            // 请求卡住/异常时也要把图标转圈停下来（与整树刷新看门狗对齐，略留余量）
+            var spinGuard = setTimeout(function() { $refreshBtn.removeClass('spinning'); }, REFRESH_WATCHDOG_MS + 2000);
+            var done = function() {
+                clearTimeout(spinGuard);
+                $refreshBtn.removeClass('spinning');
+            };
+
+            var kw = $searchInput.length ? ($searchInput.val() || '').trim() : '';
+            if (kw) {
+                // 搜索态：重跑搜索（结果列表本身就是全量重建）
+                showSearchResults(kw, done);
+                return;
+            }
+            wsPathCache.loaded = false; // 右键菜单的真实路径缓存一并失效
+            loadTree(done);
         });
     }
 
