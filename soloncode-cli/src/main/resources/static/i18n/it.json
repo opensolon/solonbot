@@ -294,7 +294,7 @@
   "history.confirmDelete": "Conferma eliminazione",
   "history.conversationActions": "Azioni conversazione",
   "history.conversationInProgress": "Conversazione in corso...",
-  "history.copyConversation": "Copia conversazione",
+  "history.forkConversation": "Fork della conversazione",
   "history.defaultModel": "Modello predefinito",
   "history.defaultShort": "Predefinito",
   "history.deleteConfirmMessage": "Eliminare la conversazione \"{name}\"?",

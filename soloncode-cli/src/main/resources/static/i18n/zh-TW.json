@@ -294,7 +294,7 @@
   "history.confirmDelete": "確認刪除",
   "history.conversationActions": "對話操作",
   "history.conversationInProgress": "對話進行中...",
-  "history.copyConversation": "複製對話",
+  "history.forkConversation": "複刻對話",
   "history.defaultModel": "預設模型",
   "history.defaultShort": "預設",
   "history.deleteConfirmMessage": "確定刪除對話 \"{name}\"？",

@@ -294,7 +294,7 @@
   "history.confirmDelete": "Bekreft sletting",
   "history.conversationActions": "Samtalehandlinger",
   "history.conversationInProgress": "Samtale pågår...",
-  "history.copyConversation": "Kopier samtale",
+  "history.forkConversation": "Forgren samtalen",
   "history.defaultModel": "Standardmodell",
   "history.defaultShort": "Standard",
   "history.deleteConfirmMessage": "Vil du slette samtalen «{name}»?",

@@ -293,7 +293,7 @@
   "history.confirmDelete": "确认删除",
   "history.conversationActions": "对话操作",
   "history.conversationInProgress": "对话进行中...",
-  "history.copyConversation": "复制对话",
+  "history.forkConversation": "复刻对话",
   "history.defaultModel": "默认模型",
   "history.defaultShort": "默认",
   "history.deleteConfirmMessage": "确定删除对话 \"{name}\"？",

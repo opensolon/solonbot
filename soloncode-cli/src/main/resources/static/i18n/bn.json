@@ -294,7 +294,7 @@
   "history.confirmDelete": "মুছে ফেলার নিশ্চিতকরণ",
   "history.conversationActions": "সংলাপ অপারেশন",
   "history.conversationInProgress": "সংলাপ চলছে...",
-  "history.copyConversation": "সংলাপ কপি করুন",
+  "history.forkConversation": "সংলাপ ফোর্ক করুন",
   "history.defaultModel": "ডিফল্ট মডেল",
   "history.defaultShort": "ডিফল্ট",
   "history.deleteConfirmMessage": "সংলাপ \"{name}\" মুছবেন?",

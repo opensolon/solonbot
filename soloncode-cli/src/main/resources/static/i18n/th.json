@@ -294,7 +294,7 @@
   "history.confirmDelete": "ยืนยันการลบ",
   "history.conversationActions": "การดำเนินการบทสนทนา",
   "history.conversationInProgress": "บทสนทนากำลังดำเนินการ...",
-  "history.copyConversation": "คัดลอกบทสนทนา",
+  "history.forkConversation": "แตกสาขาบทสนทนา",
   "history.defaultModel": "โมเดลเริ่มต้น",
   "history.defaultShort": "ค่าเริ่มต้น",
   "history.deleteConfirmMessage": "ต้องการลบบทสนทนา “{name}” หรือไม่?",

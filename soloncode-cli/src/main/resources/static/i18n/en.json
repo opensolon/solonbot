@@ -293,7 +293,7 @@
   "history.confirmDelete": "Confirm delete",
   "history.conversationActions": "Conversation actions",
   "history.conversationInProgress": "Conversation in progress...",
-  "history.copyConversation": "Copy conversation",
+  "history.forkConversation": "Fork conversation",
   "history.defaultModel": "Default model",
   "history.defaultShort": "Default",
   "history.deleteConfirmMessage": "Are you sure you want to delete conversation \"{name}\"?",

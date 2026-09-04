@@ -294,7 +294,7 @@
   "history.confirmDelete": "Potwierdź usunięcie",
   "history.conversationActions": "Operacje na rozmowie",
   "history.conversationInProgress": "Rozmowa w toku...",
-  "history.copyConversation": "Kopiuj rozmowę",
+  "history.forkConversation": "Sforkuj rozmowę",
   "history.defaultModel": "Domyślny model",
   "history.defaultShort": "Domyślny",
   "history.deleteConfirmMessage": "Usunąć rozmowę „{name}”?",

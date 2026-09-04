@@ -294,7 +294,7 @@
   "history.confirmDelete": "Löschen bestätigen",
   "history.conversationActions": "Gesprächsaktionen",
   "history.conversationInProgress": "Gespräch läuft...",
-  "history.copyConversation": "Gespräch kopieren",
+  "history.forkConversation": "Gespräch forken",
   "history.defaultModel": "Standardmodell",
   "history.defaultShort": "Standard",
   "history.deleteConfirmMessage": "Möchten Sie das Gespräch „{name}“ wirklich löschen?",

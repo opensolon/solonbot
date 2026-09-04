@@ -294,7 +294,7 @@
   "history.confirmDelete": "Potvrdi brisanje",
   "history.conversationActions": "Radnje razgovora",
   "history.conversationInProgress": "Razgovor u tijeku...",
-  "history.copyConversation": "Kopiraj razgovor",
+  "history.forkConversation": "Forkuj razgovor",
   "history.defaultModel": "Zadani model",
   "history.defaultShort": "Zadano",
   "history.deleteConfirmMessage": "Želite li obrisati razgovor „{name}“?",

@@ -294,7 +294,7 @@
   "history.confirmDelete": "削除の確認",
   "history.conversationActions": "会話操作",
   "history.conversationInProgress": "会話実行中...",
-  "history.copyConversation": "会話をコピー",
+  "history.forkConversation": "会話をフォーク",
   "history.defaultModel": "デフォルトモデル",
   "history.defaultShort": "デフォルト",
   "history.deleteConfirmMessage": "会話「{name}」を削除しますか？",

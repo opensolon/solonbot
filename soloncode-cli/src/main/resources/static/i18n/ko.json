@@ -294,7 +294,7 @@
   "history.confirmDelete": "삭제 확인",
   "history.conversationActions": "대화 작업",
   "history.conversationInProgress": "대화 진행 중...",
-  "history.copyConversation": "대화 복사",
+  "history.forkConversation": "대화 포크",
   "history.defaultModel": "기본 모델",
   "history.defaultShort": "기본",
   "history.deleteConfirmMessage": "대화 \"{name}\"을(를) 삭제하시겠습니까?",

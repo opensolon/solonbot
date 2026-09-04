@@ -294,7 +294,7 @@
   "history.confirmDelete": "Xác nhận xóa",
   "history.conversationActions": "Thao tác hội thoại",
   "history.conversationInProgress": "Hội thoại đang diễn ra...",
-  "history.copyConversation": "Sao chép hội thoại",
+  "history.forkConversation": "Fork hội thoại",
   "history.defaultModel": "Mô hình mặc định",
   "history.defaultShort": "Mặc định",
   "history.deleteConfirmMessage": "Xác nhận xóa hội thoại “{name}”?",

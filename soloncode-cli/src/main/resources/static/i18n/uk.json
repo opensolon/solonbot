@@ -294,7 +294,7 @@
   "history.confirmDelete": "Підтвердити видалення",
   "history.conversationActions": "Дії з діалогом",
   "history.conversationInProgress": "Діалог триває...",
-  "history.copyConversation": "Копіювати діалог",
+  "history.forkConversation": "Розгалузити діалог",
   "history.defaultModel": "Модель за замовчуванням",
   "history.defaultShort": "За замовчуванням",
   "history.deleteConfirmMessage": "Видалити діалог \"{name}\"?",

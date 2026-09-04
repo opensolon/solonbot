@@ -294,7 +294,7 @@
   "history.confirmDelete": "تأكيد الحذف",
   "history.conversationActions": "إجراءات المحادثة",
   "history.conversationInProgress": "محادثة قيد التنفيذ...",
-  "history.copyConversation": "نسخ المحادثة",
+  "history.forkConversation": "تفريع المحادثة",
   "history.defaultModel": "النموذج الافتراضي",
   "history.defaultShort": "الافتراضي",
   "history.deleteConfirmMessage": "هل تريد حذف المحادثة \"{name}\"؟",

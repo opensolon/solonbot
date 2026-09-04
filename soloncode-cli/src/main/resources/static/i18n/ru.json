@@ -294,7 +294,7 @@
   "history.confirmDelete": "Подтверждение удаления",
   "history.conversationActions": "Действия с диалогом",
   "history.conversationInProgress": "Диалог выполняется...",
-  "history.copyConversation": "Копировать диалог",
+  "history.forkConversation": "Разветвить диалог",
   "history.defaultModel": "Модель по умолчанию",
   "history.defaultShort": "По умолчанию",
   "history.deleteConfirmMessage": "Удалить диалог «{name}»?",

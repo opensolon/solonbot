@@ -294,7 +294,7 @@
   "history.confirmDelete": "Silmeyi onayla",
   "history.conversationActions": "Sohbet işlemleri",
   "history.conversationInProgress": "Sohbet sürüyor...",
-  "history.copyConversation": "Sohbeti kopyala",
+  "history.forkConversation": "Sohbeti çatallandır",
   "history.defaultModel": "Varsayılan model",
   "history.defaultShort": "Varsayılan",
   "history.deleteConfirmMessage": "\"{name}\" sohbetini silmek istediğinizden emin misiniz?",

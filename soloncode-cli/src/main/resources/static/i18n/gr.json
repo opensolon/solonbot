@@ -294,7 +294,7 @@
   "history.confirmDelete": "Επιβεβαίωση διαγραφής",
   "history.conversationActions": "Ενέργειες διαλόγου",
   "history.conversationInProgress": "Διάλογος σε εξέλιξη...",
-  "history.copyConversation": "Αντιγραφή διαλόγου",
+  "history.forkConversation": "Διακλάδωση διαλόγου",
   "history.defaultModel": "Προεπιλεγμένο μοντέλο",
   "history.defaultShort": "Προεπιλογή",
   "history.deleteConfirmMessage": "Είστε βέβαιοι ότι θέλετε να διαγράψετε τον διάλογο «{name}»;",
