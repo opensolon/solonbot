@@ -32,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * LoopTalent（loop_ 工具族）单元测试
  */
 class LoopTalentTest {
+    private static final DateTimeFormatter AT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
     private StubLoopScheduler scheduler;
     private AgentSettings settings;
     private LoopTalent talent;
@@ -41,6 +43,13 @@ class LoopTalentTest {
         scheduler = new StubLoopScheduler();
         settings = new AgentSettings();
         talent = new LoopTalent(scheduler, settings);
+    }
+
+    /** 生成一个未来时刻的 7 位 cron（带年份，只命中一次），避免固定日期随时间腐烂 */
+    private static String futureOneShotCron(LocalDateTime time) {
+        return String.format("0 %d %d %d %d ? %d",
+                time.getMinute(), time.getHour(),
+                time.getDayOfMonth(), time.getMonthValue(), time.getYear());
     }
 
     // ==================== loop_add ====================
@@ -77,12 +86,13 @@ class LoopTalentTest {
         assertTrue(task.isRunNow());
         assertEquals(Long.valueOf(2000L), task.getMaxTokens());
         assertEquals(Long.valueOf(60000L), task.getMaxDurationMs());
+        assertTrue(result.contains("nextFireTime")); // cron 模式回写首次触发时刻
     }
 
     @Test
     void loopAddAtConvertsToCronAndForcesOneShot() {
         LocalDateTime future = LocalDateTime.now().plusHours(3).withSecond(0).withNano(0);
-        String at = future.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+        String at = future.format(AT_FORMAT);
 
         String result = talent.loopAdd(
                 "evening report", at, null, null, null, null, null, null, null,
@@ -92,17 +102,14 @@ class LoopTalentTest {
         assertNotNull(task);
         assertTrue(task.isOneShot());
         assertTrue(task.isCronMode());
-        String expectedCron = String.format("0 %d %d %d %d ? %d",
-                future.getMinute(), future.getHour(),
-                future.getDayOfMonth(), future.getMonthValue(), future.getYear());
-        assertEquals(expectedCron, task.getCron());
+        assertEquals(futureOneShotCron(future), task.getCron());
         assertTrue(result.contains("\"oneShot\": true"));
+        assertTrue(result.contains("nextFireTime"));
     }
 
     @Test
     void loopAddRejectsPastAt() {
-        String past = LocalDateTime.now().minusHours(1)
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+        String past = LocalDateTime.now().minusHours(1).format(AT_FORMAT);
 
         String result = talent.loopAdd(
                 "late task", past, null, null, null, null, null, null, null, "session-1");
@@ -112,9 +119,56 @@ class LoopTalentTest {
     }
 
     @Test
+    void loopAddRejectsMalformedAt() {
+        String result = talent.loopAdd(
+                "bad at", "2026/09/05 18:00", null, null, null, null, null, null, null, "session-1");
+
+        assertTrue(result.startsWith("ERROR:"));
+        assertNull(scheduler.lastScheduledTask);
+    }
+
+    @Test
+    void loopAddCronOneShot() {
+        LocalDateTime future = LocalDateTime.now().plusDays(1).withSecond(0).withNano(0);
+        String cron = futureOneShotCron(future);
+
+        String result = talent.loopAdd(
+                "evening report", null, null, cron, true, null, null, null, null,
+                "session-1");
+
+        LoopTask task = scheduler.lastScheduledTask;
+        assertNotNull(task);
+        assertTrue(task.isOneShot());
+        assertEquals(cron, task.getCron());
+        assertTrue(result.contains("\"oneShot\": true"));
+    }
+
+    @Test
+    void loopAddRejectsExpiredCron() {
+        // 语法正确但年份已过：底层会判为 expired 停掉 job，任务记录却永久残留
+        String result = talent.loopAdd(
+                "stale one-shot", null, null, "0 0 18 5 9 ? 2020", true, null, null, null, null,
+                "session-1");
+
+        assertTrue(result.startsWith("ERROR:"));
+        assertTrue(result.contains("无有效触发时刻"), result);
+        assertNull(scheduler.lastScheduledTask);
+    }
+
+    @Test
+    void loopAddRejectsUnparsableCron() {
+        String result = talent.loopAdd(
+                "bad cron", null, null, "every day at 6", null, null, null, null, null,
+                "session-1");
+
+        assertTrue(result.startsWith("ERROR:"));
+        assertTrue(result.contains("无法解析"), result);
+        assertNull(scheduler.lastScheduledTask);
+    }
+
+    @Test
     void loopAddRejectsOneShotWithGoalType() {
-        String future = LocalDateTime.now().plusDays(1)
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+        String future = LocalDateTime.now().plusDays(1).format(AT_FORMAT);
 
         String result = talent.loopAdd(
                 "one-shot goal", future, null, null, null, "goal", null, null, null, "session-1");
@@ -134,8 +188,7 @@ class LoopTalentTest {
 
     @Test
     void loopAddRejectsOneShotWithRunNow() {
-        String future = LocalDateTime.now().plusHours(2)
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+        String future = LocalDateTime.now().plusHours(2).format(AT_FORMAT);
 
         String result = talent.loopAdd(
                 "conflict", future, null, null, null, null, true, null, null, "session-1");

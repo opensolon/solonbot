@@ -27,6 +27,7 @@ import org.noear.solon.core.util.Assert;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -150,12 +151,13 @@ public class LoopTalent extends AbsTalent {
         if (Assert.isNotEmpty(at)) {
             LocalDateTime atTime;
             try {
-                atTime = LocalDateTime.parse(at, AT_FORMAT);
+                atTime = LocalDateTime.parse(at.trim(), AT_FORMAT);
             } catch (Exception e) {
                 return "ERROR: at 格式错误，应为 yyyy-MM-ddTHH:mm（如 2026-09-05T18:00）。";
             }
             if (!atTime.isAfter(LocalDateTime.now())) {
-                return "ERROR: at 时刻已过（当前服务器时间见 serverNow），请与用户确认改为未来的时刻。";
+                return "ERROR: at 时刻已过（服务器当前时间 " + LocalDateTime.now().format(NOW_FORMAT)
+                        + "），请与用户确认后改为未来的时刻。";
             }
             cronVal = String.format("0 %d %d %d %d ? %d",
                     atTime.getMinute(), atTime.getHour(),
@@ -173,6 +175,17 @@ public class LoopTalent extends AbsTalent {
             }
             if (runNow != null && runNow) {
                 return "ERROR: oneShot=true 与 runNow=true 互斥（一次性定时任务不应创建后立即执行）。";
+            }
+        }
+
+        // ---- cron 可触发校验：语法错误与「已无未来触发时刻」都在创建前拦下 ----
+        // 与 LoopScheduler.schedule() 同一套校验：此处先行是为了给模型更明确的错误反馈
+        Date nextFireTime = null;
+        if (Assert.isNotEmpty(cronVal)) {
+            try {
+                nextFireTime = LoopScheduler.requireNextFireTime(cronVal);
+            } catch (IllegalArgumentException e) {
+                return "ERROR: " + e.getMessage() + "。";
             }
         }
 
@@ -200,6 +213,10 @@ public class LoopTalent extends AbsTalent {
         ONode schedule = root.getOrNew("schedule");
         if (task.isCronMode()) {
             schedule.set("cron", task.getCron());
+            // 回写首次触发时刻，供模型核对自己写的 cron 是否真的是用户要的那个时间
+            schedule.set("nextFireTime", LocalDateTime
+                    .ofInstant(nextFireTime.toInstant(), ZoneId.systemDefault())
+                    .format(NOW_FORMAT));
         } else {
             schedule.set("intervalMinutes", task.getIntervalMinutes());
         }

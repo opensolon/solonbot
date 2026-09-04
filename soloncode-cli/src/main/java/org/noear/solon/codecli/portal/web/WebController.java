@@ -1785,7 +1785,7 @@ public class WebController {
 
         try {
             loopScheduler().schedule(sessionId, task);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.failure(400, e.getMessage());
         }
 
