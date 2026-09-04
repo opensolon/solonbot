@@ -597,6 +597,7 @@
                         </svg>
                     </button>
                 </div>
+                <div class="settings-tabs-scroll">
                 <button class="settings-tab active" data-tab="general"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="settings.tab.general">通用</span></button>
 
                 <button class="settings-tab" data-tab="agents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3v4M17 5h4"/></svg> <span data-i18n="settings.tab.agents">智能体</span></button>
@@ -612,10 +613,15 @@
                 <button class="settings-tab" data-tab="openapi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> <span data-i18n="settings.tab.openapi">OpenAPI 服务器</span></button>
                 <button class="settings-tab" data-tab="lsp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> <span data-i18n="settings.tab.lsp">LSP 服务器</span></button>
 
+                <div class="sidebar-title" style="padding:16px 16px 8px;font-size:var(--fs-xs);color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;" data-i18n="settings.group.backup">备份</div>
+                <button class="settings-tab" data-tab="backup"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12a9 3 0 0 1-18 0"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/></svg> <span data-i18n="settings.tab.backup">配置备份</span></button>
+
                 <!-- //暂时不启用
                 <div class="sidebar-title" style="padding:16px 16px 8px;font-size:var(--fs-xs);color:var(--text-secondary);font-weight:600;letter-spacing:1px;text-transform:uppercase;" data-i18n="settings.group.users">用户管理</div>
                 <button class="settings-tab" data-tab="users"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span data-i18n="settings.tab.users">用户管理</span></button>
                 -->
+                </div>
+
                 <div class="settings-tabs-footer">
                     <div class="settings-product-name">SolonCode</div>
                     <span id="appVersionLabel" class="settings-version"></span>
@@ -1781,6 +1787,35 @@
                         </div>
                     </div>
                 </div>
+                <!-- Backup Tab -->
+                <div class="settings-tab-content" id="settingsTabBackup">
+                    <div class="settings-section">
+                        <div class="settings-section-header">
+                            <div>
+                                <span class="settings-section-title" data-i18n="backup.title">配置备份</span>
+                                <div class="settings-section-desc" data-i18n="backup.desc">导出配置与资产为 zip 备份，或从备份包导入还原</div>
+                            </div>
+                            <div class="mcp-header-actions">
+                                <button class="settings-add-btn" id="backupExportBtn" data-i18n="backup.exportBtn">导出备份 (zip)</button>
+                                <button class="settings-add-btn" id="backupImportBtn" data-i18n="backup.importBtn">导入备份…</button>
+                            </div>
+                        </div>
+
+                        <label class="backup-item backup-item-secrets" for="backupIncludeSecrets">
+                            <span class="backup-item-checkbox">
+                                <input type="checkbox" id="backupIncludeSecrets"/>
+                                <span class="backup-item-checkmark"></span>
+                            </span>
+                            <span class="backup-item-info">
+                                <span class="backup-item-name" data-i18n="backup.includeSecrets">包含密钥（apiKey 等敏感字段明文写入包内）</span>
+                                <span class="backup-item-path" data-i18n="backup.includeSecretsPath">留空或不勾选时，导出包内密钥以 __MASKED__ 占位，导入时不会覆盖本机现有密钥</span>
+                            </span>
+                        </label>
+
+                        <div id="backupItemList" class="backup-item-list"></div>
+                        <input type="file" id="backupImportFileInput" accept=".zip" style="display:none;"/>
+                    </div>
+                </div>
                 <!-- Users Tab -->
                 <div class="settings-tab-content" id="settingsTabUsers">
                     <div class="settings-section">
@@ -2383,7 +2418,8 @@
             '/js/app-settings-providers.js',
             '/js/app-settings-users.js',
             '/js/app-settings-skill.js',
-            '/js/app-settings-skin.js'
+            '/js/app-settings-skin.js',
+            '/js/app-settings-profile.js'
         ];
         var settingsLoading = null;
         var realOpenSettingsTab = null;

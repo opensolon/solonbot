@@ -254,6 +254,7 @@ public class Configurator {
         addWebBean(new McpSettingsController(workspaceManager));
         addWebBean(new OpenapiSettingsController(workspaceManager));
         addWebBean(new LspSettingsController(workspaceManager));
+        addWebBean(new ProfileSettingsController(workspaceManager));
 
         addWebBean(new MemoryController(agentRuntime));
         

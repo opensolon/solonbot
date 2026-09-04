@@ -1097,6 +1097,17 @@ public class WebGate extends SimpleWebSocketListener {
      * @return true 表示输入已接受并进入处理流程；false 表示会话繁忙已跳过
      */
     public boolean safeChatInput(WorkspaceContext wsContext,String sessionId, String input, String source) {
+        return safeChatInput(wsContext, sessionId, input, source, null);
+    }
+
+    /**
+     * 安全聊天输入入口，并在输入确认受理、启动处理前执行回调。
+     *
+     * <p>回调适合发布与本次输入绑定的请求级上下文。它不会在会话繁忙时执行，
+     * 且发生在 {@link #onChatInput} 之前，避免异步任务已经产生输出后才发布上下文。</p>
+     */
+    public boolean safeChatInput(WorkspaceContext wsContext, String sessionId, String input, String source,
+                                 Runnable acceptedHook) {
         try {
             AgentSession session = wsContext.getEngine().getSession(sessionId);
             if (isSessionBusy(session)) {
@@ -1113,6 +1124,11 @@ public class WebGate extends SimpleWebSocketListener {
 
                 LOG.warn("[WebGate] {} event skipped for session {}: task in progress", source, sessionId);
                 return false;
+            }
+
+            // 必须在 onChatInput 之前发布：onChatInput 会异步调度任务，快速任务可能立即输出。
+            if (acceptedHook != null) {
+                acceptedHook.run();
             }
         } catch (Exception e) {
             LOG.warn("[WebGate] {} event check failed for session {}: {}", source, sessionId, e.getMessage());
