@@ -104,6 +104,10 @@ public class WebEventMapper {
             WebEvent<?> evt = onReasonDeltaEvent((ReasonDeltaEvent) event, taskAgentName);
             fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
+        } else if (event instanceof ReasonEndEvent) {
+            WebEvent<?> evt = onReasonEndEvent(session, (ReasonEndEvent) event, taskAgentName, isMultitask);
+            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
+            result.add(evt);
         } else if (event instanceof HITLPendingEvent) {
             List<WebEvent<?>> hitlEvents = onHITLPendingEvent(session, (HITLPendingEvent) event);
             for (WebEvent<?> evt : hitlEvents) {
@@ -116,10 +120,6 @@ public class WebEventMapper {
             result.add(evt);
         } else if (event instanceof ToolCallEndEvent) {
             WebEvent<?> evt = onToolCallEndEvent((ToolCallEndEvent) event, taskAgentName);
-            fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
-            result.add(evt);
-        } else if (event instanceof ReasonEndEvent) {
-            WebEvent<?> evt = onReasonEndEvent(session, (ReasonEndEvent) event, taskAgentName, isMultitask);
             fillMeta(evt, session, parentRunId, taskId, reasonId, taskAgentName, taskDescription, event.getRunId());
             result.add(evt);
         } else if (event instanceof RunStartEvent) {
@@ -305,31 +305,27 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
-        ReActTrace trace = event.getTrace();
         String sessionId = session.getSessionId();
         String resultContent = event.getText();
 
         if (Assert.isNotEmpty(resultContent)) {
-            // 向所有已绑定的 IM 通道回复
+            // 过程消息仍可同步到 IM；主代理最终答复统一由 RunEndEvent 分发。
+            // ReasonEndEvent 与 RunEndEvent 都携带最终正文，若两处都发送，异常收尾时
+            // 同一答案会在微信出现两次，而 Web 只能等 RunEndEvent 的 system.trace 才收尾。
             if (event.isToolCalls()) {
-                // 说明是过程
                 streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, false);
             } else {
-                // 说明是结果
                 String agentSelectedTmp = (String) session.attrs().get("_agent_selected_tmp");
+                String eventAgentName = event.getTrace() == null ? null : event.getTrace().getAgentName();
 
-                if (event.getTrace().getAgentName().equals(agentSelectedTmp)) {
-                    // 说明是源代理（说明是最终结果）
-                    //StringBuilder traceInfo = getTraceInfo(thought.getTrace());
-                    streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, true);//+ traceInfo, true);
-                } else {
-                    // 说明是次代理
+                if (eventAgentName == null || !eventAgentName.equals(agentSelectedTmp)) {
+                    // 次代理结果属于过程消息；源代理结果留给 RunEndEvent 统一广播。
                     streamBuilder.replyToBoundChannel(wsContext, sessionId, resultContent, false);
                 }
             }
         }
 
-
+//        ReActTrace trace = event.getTrace();
 //        Metrics metrics = trace.getMetrics();
 //        if (metrics != null) {
 //            double cacheRate = metrics.getCacheRate();
@@ -383,10 +379,14 @@ public class WebEventMapper {
             elapsedSeconds = (System.currentTimeMillis() - trace.getBeginTimeMs()) / 1000;
         }
 
-        String finalAnswer = (event.getTrace() != null) ? event.getTrace().getFinalAnswer() : null;
+        String finalAnswer = trace.getFinalAnswer();
+        if (Assert.isEmpty(finalAnswer)) {
+            finalAnswer = event.getText();
+        }
 
-        if (event.isAbnormal()) {
-            // 通知 IM 任务完成了
+        // RunEndEvent 是整轮唯一的最终答复出口：Web 的 system.trace 与所有 IM 通道
+        // 由同一个终态触发，避免 ReasonEnd 先发微信、RunEnd 异常收尾时再重复发送。
+        if (Assert.isNotEmpty(finalAnswer)) {
             streamBuilder.replyToBoundChannel(wsContext, session.getSessionId(), finalAnswer, true);
         }
 

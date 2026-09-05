@@ -110,15 +110,19 @@ public class WebChannel {
             return Result.succeed(errData);
         }
 
-        // 扫码确认后自动绑定：提取令牌与用户信息，关联到当前会话
+        // 扫码确认后自动绑定：提取令牌与用户信息，关联到当前会话。
+        // 前端 2s 轮询而本接口对 confirmed 幂等，这里通常会被并发触发多次，
+        // 由 bindSession 自身保证幂等（不可重置游标与 context_token）。
         if ("confirmed".equals(statusResult.get("status"))) {
             String botToken = statusResult.get("bot_token");
             String ilinkBotId = statusResult.get("ilink_bot_id");
             String ilinkUserId = statusResult.get("ilink_user_id");
+            String baseUrl = statusResult.get("baseurl");
 
             WorkspaceContext wsContext = workspaceManager.currentContext();
             if (wsContext != null) {
-                wsContext.getChannelHub().getWeChatLink().bindSession(sessionId, botToken, ilinkBotId, ilinkUserId);
+                wsContext.getChannelHub().getWeChatLink()
+                        .bindSession(sessionId, botToken, ilinkBotId, ilinkUserId, baseUrl);
             }
         }
 

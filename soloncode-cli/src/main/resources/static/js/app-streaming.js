@@ -2522,7 +2522,15 @@ function showWechatModal() {
 
 function startWechatPoll(qrcode, sessionId) {
     if (wechatPollTimer) clearInterval(wechatPollTimer);
+    // 在途请求去重 + 终态闭锁：
+    // get_qrcode_status 服务端会 hold 较长时间，而这里 2s 一跳，确认瞬间往往有多个
+    // 请求同时在途；该接口对 confirmed 又是幂等的，于是后端会被重复触发绑定。
+    // clearInterval 只能阻止后续调度，取消不了已发出的请求，必须在这里自行闭锁。
+    var inFlight = false;
+    var settled = false;
     wechatPollTimer = setInterval(function() {
+        if (inFlight || settled) return;
+        inFlight = true;
         $.get('/web/chat/wechat/qrcode/status?qrcode=' + encodeURIComponent(qrcode) + '&sessionId=' + encodeURIComponent(sessionId), function(resp) {
             try {
                 var data = resp.data || {};
@@ -2535,6 +2543,7 @@ function startWechatPoll(qrcode, sessionId) {
                 } else if (status === 'scaned') {
                     $statusEl.text(I18n.t('im.scannedConfirm')).removeClass('error').addClass('scanned');
                 } else if (status === 'confirmed') {
+                    settled = true;
                     $statusEl.text(I18n.t('im.connectSuccess')).removeClass('error').addClass('scanned');
                     clearInterval(wechatPollTimer);
                     wechatPollTimer = null;
@@ -2549,6 +2558,7 @@ function startWechatPoll(qrcode, sessionId) {
                         }
                     }, 1200);
                 } else if (status === 'expired') {
+                    settled = true;
                     $statusEl.text(I18n.t('im.qrcodeExpired')).removeClass('scanned').addClass('error');
                     clearInterval(wechatPollTimer);
                     wechatPollTimer = null;
@@ -2559,7 +2569,9 @@ function startWechatPoll(qrcode, sessionId) {
                     }
                 }
             } catch(e) {}
-        }, 'json');
+        }, 'json').always(function() {
+            inFlight = false;
+        });
     }, 2000);
 }
 
