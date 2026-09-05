@@ -373,12 +373,14 @@ public class WebController {
     @Post
     @Mapping("/web/workspace/remove")
     public Result<Void> removeWorkspace(String id) {
-        if (id == null || id.isEmpty()) {
+        if (id == null || id.trim().isEmpty()) {
             return Result.failure("Id is required");
         }
 
-        // "移除"语义必须同时删历史条目，否则重启后条目重新出现（closeWorkspace 由 removeFromHistory 内部负责，避免双重关闭）
-        workspaceManager.removeFromHistory(id);
+        // 只有历史文件确实完成持久化删除后才报告成功，避免前端刷新后条目又出现。
+        if (workspaceManager.removeFromHistory(id.trim()) == false) {
+            return Result.failure("Workspace not found or could not be removed");
+        }
         return Result.succeed();
     }
 

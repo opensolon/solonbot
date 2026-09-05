@@ -459,31 +459,43 @@ public class WorkspaceManager {
     }
 
     /**
-     * 从 workspaces.json 历史中彻底移除工作区条目（用于 /web/workspace/remove）
+     * 从 workspaces.json 历史中彻底移除工作区条目（用于 /web/workspace/remove）。
+     *
+     * @return {@code true} 表示目标存在且已成功持久化移除；否则返回 {@code false}
      */
-    public synchronized void removeFromHistory(String workspaceId) {
+    public synchronized boolean removeFromHistory(String workspaceId) {
         workspaceId = normalizeWorkspaceKey(workspaceId);
-        if (workspaceId == null || ID_DEFAULT.equals(workspaceId)) {
-            return;
+        if (workspaceId == null || ID_DEFAULT.equals(workspaceId) || !workspaceId.startsWith("ws-")) {
+            return false;
         }
         try {
-            // 必须先关内存 context：否则后续任何 getOrCreate 内存命中会重新同步写盘，
-            // 把刚删的条目写回文件——删除被静默回滚
-            closeWorkspace(workspaceId);
-
             Path file = Paths.get(WORKSPACES_FILE_PATH);
             if (!Files.exists(file)) {
-                return;
+                return false;
             }
+
+            // 删除属于持久化操作，必须严格读取：历史文件损坏时禁止拿空集合覆盖原文件。
             Map<String, WorkspaceMeta> map = new LinkedHashMap<>();
-            for (WorkspaceMeta w : readWorkspaceEntries()) {
-                if (!workspaceId.equals(w.getId())) {
+            boolean removed = false;
+            for (WorkspaceMeta w : readWorkspaceEntriesStrict(file)) {
+                if (workspaceId.equals(w.getId())) {
+                    removed = true;
+                } else {
                     map.put(w.getId(), w);
                 }
             }
+            if (!removed) {
+                return false;
+            }
+
+            // 先成功落盘，再关闭内存 context。整个方法持有同一把锁，期间 getOrCreate
+            // 无法把条目写回；同时避免写盘失败却先断开活跃工作区的半成功状态。
             writeHistoryFile(file, map);
-        } catch (Throwable e) {
+            closeWorkspace(workspaceId);
+            return true;
+        } catch (Exception e) {
             LOG.warn("Failed to remove workspace from history: " + workspaceId, e);
+            return false;
         }
     }
 
@@ -910,36 +922,52 @@ public class WorkspaceManager {
      * 存储格式为 object/map：{ "ws-xxx": { name, path, lastAccessed }, ... }，key 即工作区 id。
      */
     private Collection<WorkspaceMeta> readWorkspaceEntries() {
-        List<WorkspaceMeta> list = new ArrayList<>();
         try {
-            Path file = Paths.get(WORKSPACES_FILE_PATH);
-            if (!Files.exists(file)) {
-                return list;
-            }
-            String json = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
-            ONode node = ONode.ofJson(json);
-            if (node.isObject()) {
-                for (Map.Entry<String, ONode> entry : node.getObject().entrySet()) {
-                    String id = entry.getKey();
-                    ONode item = entry.getValue();
-                    // default 是虚拟工作区，持久化文件中不允许存在（存量脏数据自动清洗）
-                    if (item == null || id == null || "default".equals(id)) {
-                        continue;
-                    }
-                    WorkspaceMeta w = new WorkspaceMeta();
-                    w.setId(id);
-                    w.setName(item.get("name").getString());
-                    w.setPath(item.get("path").getString());
-                    w.setLastAccessed(item.get("lastAccessed").getLong());
-                    if (w.getPath() != null) {
-                        list.add(w);
-                    }
-                }
-            }
+            return readWorkspaceEntriesStrict(Paths.get(WORKSPACES_FILE_PATH));
         } catch (Exception e) {
             LOG.warn("Failed to read workspaces", e);
+            return new ArrayList<>();
         }
-        return list;
+    }
+
+    /**
+     * 严格读取工作区历史。供删除等写操作使用，读取或解析失败必须中止写回，
+     * 防止损坏的历史文件被误判为空列表后整体覆盖。
+     */
+    static Collection<WorkspaceMeta> readWorkspaceEntriesStrict(Path file) throws IOException {
+        List<WorkspaceMeta> list = new ArrayList<>();
+        if (!Files.exists(file)) {
+            return list;
+        }
+
+        try {
+            String json = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+            ONode node = ONode.ofJson(json);
+            if (!node.isObject()) {
+                throw new IOException("Workspace history root must be a JSON object");
+            }
+            for (Map.Entry<String, ONode> entry : node.getObject().entrySet()) {
+                String id = entry.getKey();
+                ONode item = entry.getValue();
+                // default 是虚拟工作区，持久化文件中不允许存在（存量脏数据自动清洗）
+                if (item == null || id == null || "default".equals(id)) {
+                    continue;
+                }
+                WorkspaceMeta w = new WorkspaceMeta();
+                w.setId(id);
+                w.setName(item.get("name").getString());
+                w.setPath(item.get("path").getString());
+                w.setLastAccessed(item.get("lastAccessed").getLong());
+                if (w.getPath() != null) {
+                    list.add(w);
+                }
+            }
+            return list;
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Failed to parse workspace history", e);
+        }
     }
 
     /**

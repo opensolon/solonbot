@@ -2718,6 +2718,20 @@
 
         function matches(kw, text) { return !kw || String(text || '').toLowerCase().indexOf(kw) >= 0; }
 
+        // 兼容点击 SVG/path 等子节点以及缺少 Element.closest() 的浏览器。
+        // stopAt 自身也参与匹配，但不会越过当前事件委托容器。
+        function closestWithin(node, selector, stopAt) {
+            while (node) {
+                if (node.nodeType === 1) {
+                    var matchesSelector = node.matches || node.msMatchesSelector || node.webkitMatchesSelector;
+                    if (matchesSelector && matchesSelector.call(node, selector)) return node;
+                }
+                if (node === stopAt) break;
+                node = node.parentNode;
+            }
+            return null;
+        }
+
         // 判断输入是否疑似绝对路径（用于跳过列表过滤）
         function looksLikePath(s) { return s.charAt(0) === '/' || /^[A-Za-z]:[\\/]/.test(s); }
 
@@ -2731,10 +2745,11 @@
             var ws = cache.workspaces.filter(function (item) { return matches(kw, item.name) || matches(kw, item.path); });
             var html = '';
             ws.forEach(function (item) {
+                var removeLabel = t('sidebar.wsRemove', '移除');
                 html += '<div class="ws-home-card" data-id="' + esc(item.id) + '">' +
                     '<div class="ws-home-card-name">' + esc(item.name || item.path) + '</div>' +
                     '<div class="ws-home-card-path" title="' + esc(item.path) + '">' + esc(item.path) + '</div>' +
-                    '<button class="ws-home-card-remove" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">' + SVG_TRASH + '</button></div>';
+                    '<button type="button" class="ws-home-card-remove" data-remove="' + esc(item.id) + '" aria-label="' + esc(removeLabel) + '" title="' + esc(removeLabel) + '">' + SVG_TRASH + '</button></div>';
             });
             recentGrid.innerHTML = html || '<div class="ws-home-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
 
@@ -2798,23 +2813,49 @@
 
         // 点击最近工作区卡片：新 tab 打开；点击移除按钮：从列表移除
         recentGrid.addEventListener('click', function (e) {
-            var rmBtn = e.target.closest ? e.target.closest('[data-remove]') : null;
+            var rmBtn = closestWithin(e.target, '[data-remove]', recentGrid);
             if (rmBtn) {
                 var rm = rmBtn.getAttribute('data-remove');
+                e.preventDefault();
                 e.stopPropagation();
                 var doRemove = function () {
+                    if (rmBtn.disabled) return;
+                    rmBtn.disabled = true;
                     fetch('/web/workspace/remove', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'id=' + encodeURIComponent(rm) })
-                        .then(function (r) { return r.json(); })
-                        .then(function (res) { if (res.code === 200) load(); else showToast(res.description || 'remove failed', 'error'); });
+                        .then(function (r) {
+                            return r.json().catch(function () { throw new Error('Invalid server response'); }).then(function (res) {
+                                if (!r.ok || !res || res.code !== 200) {
+                                    throw new Error((res && (res.description || res.message)) || ('HTTP ' + r.status));
+                                }
+                                return res;
+                            });
+                        })
+                        .then(function () {
+                            // 删除当前页面所属工作区后，旧 workspaceId 已失效；直接回首页，
+                            // 不再发起一个必然 404 的列表请求，也避免页面表现为突然断线。
+                            if (rm === window.__wsExplicitId) {
+                                window.location.replace('/');
+                                return;
+                            }
+                            load();
+                        })
+                        .catch(function (err) {
+                            rmBtn.disabled = false;
+                            showToast((err && err.message) || 'remove failed', 'error');
+                        });
                 };
                 if (typeof layer !== 'undefined' && layer.confirm) {
-                    layer.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'), { btn: [t('common.delete', '删除'), t('common.cancel', '取消')], icon: 3, offset: '120px' }, function (index) { layer.close(index); doRemove(); });
+                    layer.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'), { btn: [t('common.delete', '删除'), t('common.cancel', '取消')], icon: 3, offset: '120px' }, function (index) {
+                        // 必须先启动删除请求，再关闭确认层；即使第三方弹层关闭异常也不能吞掉提交。
+                        doRemove();
+                        layer.close(index);
+                    });
                 } else if (window.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'))) {
                     doRemove();
                 }
                 return;
             }
-            var item = e.target.closest ? e.target.closest('.ws-home-card') : null;
+            var item = closestWithin(e.target, '.ws-home-card', recentGrid);
             if (item && item.getAttribute('data-id')) {
                 window.open('/?workspaceId=' + encodeURIComponent(item.getAttribute('data-id')), '_blank');
                 closeHome();

@@ -102,8 +102,10 @@
 .ws-home-close:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .ws-home-body { flex: 1; overflow-y: auto; padding: 24px 32px; }
-/* 锁定模式（主目录裸启动）：只保留工作区面板，不显露背后的对话界面 */
-body.ws-home-locked > *:not(#wsHomeOverlay) { visibility: hidden; }
+/* 锁定模式（主目录裸启动）：只保留工作区面板，不显露背后的对话界面。
+   Layui 的确认框与遮罩会动态挂到 body 下，必须保持可见，否则点击“移除”后
+   实际在等待一个不可见的确认框，表现为按钮完全无响应。 */
+body.ws-home-locked > *:not(#wsHomeOverlay):not(.layui-layer):not(.layui-layer-shade):not(.layui-layer-move) { visibility: hidden; }
 .ws-home-section { margin-bottom: 28px; }
 .ws-home-section-title {
     font-size: var(--fs-sm);
@@ -168,8 +170,13 @@ body.ws-home-locked > *:not(#wsHomeOverlay) { visibility: hidden; }
     justify-content: center;
 }
 .ws-home-card-remove svg { width: 14px; height: 14px; display: block; }
-.ws-home-card:hover .ws-home-card-remove { opacity: 1; }
+.ws-home-card:hover .ws-home-card-remove,
+.ws-home-card-remove:focus-visible { opacity: 1; }
 .ws-home-card-remove:hover { color: var(--color-danger); }
+.ws-home-card-remove:disabled { opacity: 0.45; cursor: default; }
+@media (hover: none) {
+    .ws-home-card-remove { opacity: 1; }
+}
 .ws-home-empty {
     grid-column: 1 / -1;
     font-size: var(--fs-sm);
