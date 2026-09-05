@@ -311,6 +311,11 @@
   "history.effortLabelMedium": "medium",
   "history.effortLabelOff": "off",
   "history.emptyHistory": "Aucun historique de saisie",
+  "history.clearConfirm": "Clear",
+  "history.clearConfirmMessage": "Clear {count} unpinned conversations? Running conversations will be kept. This cannot be undone.",
+  "history.clearFailed": "Failed to clear conversations, please retry",
+  "history.clearSuccess": "Cleared {count} conversations",
+  "history.clearTitle": "Clear unpinned conversations",
   "history.forkConfirmMessage": "Cette action créera une copie complète de la conversation actuelle comme nouvelle conversation.\nLa conversation d'origine reste inchangée ; vous pouvez continuer à poser des questions sur la copie.",
   "history.forkFailed": "Échec de la copie de la conversation, veuillez réessayer",
   "history.forkSuccess": "Conversation copiée avec succès",
@@ -1270,5 +1275,9 @@
   "backup.importFailed": "Échec de l'importation de la sauvegarde",
   "backup.assetFiles": "{n} fichiers ({added} nouveaux / {overwritten} remplacés)",
   "general.features.loopName": "Prise en charge des tâches Loop",
-  "general.features.loopDesc": "Permet à l'IA de gérer les tâches planifiées/récurrentes (lister, mettre en pause, arrêter, exécuter à une heure donnée) ; désactiver pour réduire le contexte"
+  "general.features.loopDesc": "Permet à l'IA de gérer les tâches planifiées/récurrentes (lister, mettre en pause, arrêter, exécuter à une heure donnée) ; désactiver pour réduire le contexte",
+  "sidebar.wsPickFolder": "Parcourir un dossier local",
+  "sidebar.wsPickHeadless": "Aucun environnement graphique disponible ; veuillez saisir le chemin manuellement",
+  "sidebar.wsPickBusy": "Une boîte de sélection de dossier est déjà ouverte ; terminez ou annulez-la d'abord",
+  "sidebar.wsPickTimeout": "La sélection du dossier a expiré ou échoué ; veuillez réessayer"
 }

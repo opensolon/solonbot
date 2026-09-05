@@ -1270,5 +1270,9 @@
   "backup.importFailed": "Không thể nhập sao lưu",
   "backup.assetFiles": "{n} tệp (mới {added} / ghi đè {overwritten})",
   "general.features.loopName": "Hỗ trợ tác vụ Loop",
-  "general.features.loopDesc": "Bật để cho phép AI quản lý tác vụ đã lên lịch/lặp lại (xem danh sách, tạm dừng, dừng, chạy vào thời điểm cho trước); tắt để giảm tiêu thụ ngữ cảnh"
+  "general.features.loopDesc": "Bật để cho phép AI quản lý tác vụ đã lên lịch/lặp lại (xem danh sách, tạm dừng, dừng, chạy vào thời điểm cho trước); tắt để giảm tiêu thụ ngữ cảnh",
+  "sidebar.wsPickFolder": "Duyệt thư mục cục bộ",
+  "sidebar.wsPickHeadless": "Không có môi trường desktop; vui lòng nhập đường dẫn thủ công",
+  "sidebar.wsPickBusy": "Hộp chọn thư mục đã mở; hãy hoàn tất hoặc hủy trước",
+  "sidebar.wsPickTimeout": "Chọn thư mục đã quá thời gian hoặc thất bại; vui lòng thử lại"
 }

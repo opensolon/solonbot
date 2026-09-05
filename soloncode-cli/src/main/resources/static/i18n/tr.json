@@ -1270,5 +1270,9 @@
   "backup.importFailed": "Yedekleme içe aktarılamadı",
   "backup.assetFiles": "{n} dosya ({added} yeni / {overwritten} üzerine yazıldı)",
   "general.features.loopName": "Loop görev desteği",
-  "general.features.loopDesc": "Yapay zekanın zamanlanmış/döngüsel görevleri yönetmesine olanak tanır (listeleme, duraklatma, durdurma, belirlenen zamanda çalıştırma); kapatmak bağlam tüketimini azaltır"
+  "general.features.loopDesc": "Yapay zekanın zamanlanmış/döngüsel görevleri yönetmesine olanak tanır (listeleme, duraklatma, durdurma, belirlenen zamanda çalıştırma); kapatmak bağlam tüketimini azaltır",
+  "sidebar.wsPickFolder": "Yerel klasöre göz at",
+  "sidebar.wsPickHeadless": "Masaüstü ortamı yok; lütfen yolu elle girin",
+  "sidebar.wsPickBusy": "Bir klasör seçme iletişim kutusu zaten açık; önce tamamlayın veya iptal edin",
+  "sidebar.wsPickTimeout": "Klasör seçimi zaman aşımına uğradı veya başarısız oldu; lütfen tekrar deneyin"
 }

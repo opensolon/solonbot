@@ -1270,5 +1270,9 @@
   "backup.importFailed": "匯入備份失敗",
   "backup.assetFiles": "{n} 個檔案（新增 {added} / 覆寫 {overwritten}）",
   "general.features.loopName": "Loop 定時任務支援",
-  "general.features.loopDesc": "開啓後允許 AI 管理定時/循環任務（查詢、暫停、停止、指定時刻執行等）；關閉可減少上下文消耗"
+  "general.features.loopDesc": "開啓後允許 AI 管理定時/循環任務（查詢、暫停、停止、指定時刻執行等）；關閉可減少上下文消耗",
+  "sidebar.wsPickFolder": "瀏覽本機目錄",
+  "sidebar.wsPickHeadless": "目前執行環境無桌面，無法彈出目錄選擇框，請手動輸入路徑",
+  "sidebar.wsPickBusy": "目錄選擇框已開啟，請先完成目前選擇",
+  "sidebar.wsPickTimeout": "目錄選擇逾時或失敗，請重試"
 }

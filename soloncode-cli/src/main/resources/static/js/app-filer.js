@@ -349,103 +349,49 @@
     // ---- 展开状态：收集 / 排序 / 串行恢复 ----
 
     /** 路径按深度从浅到深排序，保证父目录先于子目录恢复 */
-    function sortPathsByDepth(paths) {
-        return (paths || []).slice().sort(function(a, b) {
-            var da = a ? a.split('/').length : 0;
-            var db = b ? b.split('/').length : 0;
-            if (da !== db) return da - db;
-            if (a === b) return 0;
-            return a < b ? -1 : 1;
-        });
-    }
+    /* collectExpandedState / sortPathsByDepth 已删：整树刷新改为原地 diff，
+     * 不再需要「先拍快照再恢复展开态」那套机制。 */
 
-    /**
-     * 收集当前展开状态，按工作区分组。
-     * 返回: { [wsId]: { root: boolean, dirs: string[] } }
-     * 无工作区节点的 fallback 树使用 wsId = '__flat__'
-     */
-    function collectExpandedState() {
-        var state = {};
-        if (!$treeEl.length) return state;
-
-        var $wsNodes = $treeEl.children('.file-node[data-workspace-id]');
-        if ($wsNodes.length) {
-            $wsNodes.each(function() {
-                var $ws = $(this);
-                var wsId = $ws.attr('data-workspace-id') || 'workspace';
-                var entry = {
-                    root: $ws.children('.file-node-children').hasClass('open'),
-                    dirs: []
-                };
-                var dirMap = {};
-                $ws.find('.file-node > .file-node-children.open').each(function() {
-                    var $parent = $(this).parent();
-                    if ($parent[0] === $ws[0]) return;
-                    var dataPath = $parent.attr('data-path');
-                    if (dataPath && !dirMap[dataPath]) {
-                        dirMap[dataPath] = true;
-                        entry.dirs.push(dataPath);
-                    }
-                });
-                state[wsId] = entry;
-            });
-            return state;
+    /** 用服务端数据原地更新某个已展开目录的子列表（diff 后若目录仍在且已展开，递归处理其子层） */
+    function diffDir(wsId, dirPath, done) {
+        var $wsRoot = getWorkspaceRoot(wsId);
+        var $children, indent;
+        if (!dirPath) {
+            if ($wsRoot.is($treeEl)) { if (done) done(); return; } // 扁平树无根节点，由调用方直接 diff $treeEl
+            $children = $wsRoot.children('.file-node-children');
+            indent = 1;
+        } else {
+            var $node = findNodeInWorkspace($wsRoot, dirPath);
+            if (!$node.length) { if (done) done(); return; } // 目录已被删除，上层的 diff 会移除其节点
+            $children = $node.children('.file-node-children');
+            indent = parseInt($node.attr('data-indent') || '0', 10) + 1;
         }
+        if (!$children.length || !$children.hasClass('open')) { if (done) done(); return; }
 
-        // fallback：扁平树（无工作区根节点）
-        var dirs = [];
-        var dirMap = {};
-        $treeEl.find('.file-node > .file-node-children.open').each(function() {
-            var dataPath = $(this).parent().attr('data-path');
-            if (dataPath && !dirMap[dataPath]) {
-                dirMap[dataPath] = true;
-                dirs.push(dataPath);
-            }
-        });
-        state['__flat__'] = { root: true, dirs: dirs };
-        return state;
-    }
-
-    /** 在指定作用域内，按深度串行恢复展开目录 */
-    function restoreExpandedPathsSequential($scope, paths, wsId, index, done) {
-        if (!$scope || !$scope.length || !paths || index >= paths.length) {
-            if (done) done();
-            return;
-        }
-
-        var path = paths[index];
-        var selector = '.file-node[data-path="' + CSS.escape(path) + '"]';
-        var $nodeEl = $scope.find(selector).first();
-        if (!$nodeEl.length) {
-            // 目录可能已被删除，跳过
-            restoreExpandedPathsSequential($scope, paths, wsId, index + 1, done);
-            return;
-        }
-
-        var $childrenEl = $nodeEl.children('.file-node-children');
-        var $arrow = $nodeEl.children('.file-node-row').find('.file-arrow');
-        if (!$childrenEl.length) {
-            restoreExpandedPathsSequential($scope, paths, wsId, index + 1, done);
-            return;
-        }
-
-        var indent = parseInt($nodeEl.attr('data-indent') || '0', 10);
-        $childrenEl.addClass('open');
-        $arrow.addClass('open');
-        $nodeEl.removeAttr('data-dirty');
-
-        var url = '/web/chat/filer/tree?path=' + encodeURIComponent(path) + '&depth=1';
+        var url = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1';
         if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
             url += '&mount=' + encodeURIComponent(wsId);
         }
 
         filerGet(url, function(res) {
-            var subData = (res && res.data) ? res.data : [];
-            renderTree(subData, $childrenEl, indent + 1);
-            restoreExpandedPathsSequential($scope, paths, wsId, index + 1, done);
+            var data = (res && res.data) ? res.data : [];
+            diffChildren($children, data, indent);
+            // 本层 diff 后，对「仍在 DOM 且已展开」的子目录递归 diff；其余交由展开时加载
+            var openSubs = [];
+            $children.children('.file-node').each(function() {
+                var $c = $(this);
+                if ($c.attr('data-type') !== 'directory') return;
+                var $cc = $c.children('.file-node-children');
+                if ($cc.length && $cc.hasClass('open')) openSubs.push($c.attr('data-path'));
+            });
+            var idx = 0;
+            (function next() {
+                if (idx >= openSubs.length) { if (done) done(); return; }
+                diffDir(wsId, openSubs[idx++], next);
+            })();
         }).fail(function() {
-            console.error('[filer] restore expand error', path);
-            restoreExpandedPathsSequential($scope, paths, wsId, index + 1, done);
+            console.error('[filer] diff dir error', wsId, dirPath);
+            if (done) done();
         });
     }
 
@@ -979,45 +925,9 @@
         }, 300);
     }
 
-    /** 局部重载某个已展开目录的子列表，保留其内部已展开的层级（dirPath 为空表示工作区根） */
-    function refreshDirNode(wsId, dirPath) {
-        var $wsRoot = getWorkspaceRoot(wsId);
-        if (!$wsRoot.length) return;
-
-        var $scope, $children, indent;
-        if (!dirPath) {
-            if ($wsRoot.is($treeEl)) return;
-            $scope = $wsRoot;
-            $children = $wsRoot.children('.file-node-children');
-            indent = 1;
-        } else {
-            $scope = findNodeInWorkspace($wsRoot, dirPath);
-            if (!$scope.length) return;
-            $children = $scope.children('.file-node-children');
-            indent = parseInt($scope.attr('data-indent') || '0', 10) + 1;
-        }
-        if (!$children.length || !$children.hasClass('open')) return;
-
-        var expandedDirs = collectExpandedDirsUnder($scope);
-        var url = dirPath
-            ? '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1'
-            : '/web/chat/filer/tree?depth=1';
-        if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
-            url += '&mount=' + encodeURIComponent(wsId);
-        }
-
-        filerGet(url, function(res) {
-            var data = (res && res.data) ? res.data : [];
-            // 同整树刷新：离屏建好再一次性换入，否则这棵子树会先塌掉再逐级弹出
-            var $staging = $('<div>').addClass('file-node-children open');
-            renderTree(data, $staging, indent);
-            restoreExpandedPathsSequential($staging, expandedDirs, wsId, 0, function() {
-                commitStaging($children, $staging);
-                $scope.removeAttr('data-dirty');
-            });
-        }).fail(function() {
-            console.error('[filer] resync dir error', wsId, dirPath);
-        });
+    /** 局部重载某个已展开目录（WS 丢事件后的自愈入口）：与整树刷新同一套 diff */
+    function refreshDirNode(wsId, dirPath, done) {
+        diffDir(wsId, dirPath, done);
     }
 
     function ensureTreeNode(wsId, relPath, nodeType) {
@@ -1078,27 +988,8 @@
         insertNodeSorted($childrenEl, node, indent);
     }
 
-    function loadChildrenInto($childrenEl, dirPath, wsId, indent) {
-        if (!$childrenEl || !$childrenEl.length) return;
-        var url = '/web/chat/filer/tree?depth=1';
-        if (dirPath) {
-            url = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1';
-        }
-        if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
-            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'mount=' + encodeURIComponent(wsId);
-        }
-        filerGet(url, function(res) {
-            var data = (res && res.data) ? res.data : [];
-            // 仅当容器仍为空时填充，避免覆盖用户后续展开
-            if (!$childrenEl.children().length) {
-                renderTree(data, $childrenEl, indent);
-            }
-        }).fail(function(jqXHR, textStatus, error) {
-            console.error('[filer] load children error', dirPath, error);
-        });
-    }
-
-    /** 按目录优先、名称字典序插入节点，不触碰其他节点 */
+    /* 按目录优先、名称字典序插入节点，不触碰其他节点（WS 增量 create 事件专用；
+     * 刷新链路已改走 diffChildren，但单事件插入仍需要它，避免为一个节点拉整层） */
     function insertNodeSorted($container, node, indent) {
         if (!$container || !$container.length || !node) return;
 
@@ -1128,10 +1019,7 @@
             }
         });
 
-        // appendNode 总是 append；这里先 append 再移动，或临时容器
-        var $tmp = $('<div>');
-        appendNode(node, $tmp, indent);
-        var $newNode = $tmp.children().first();
+        var $newNode = buildNodeEl(node, indent);
         if (!$newNode.length) return;
         if (insertBefore && insertBefore.length) {
             $newNode.insertBefore(insertBefore);
@@ -1140,65 +1028,136 @@
         }
     }
 
-    /** 收集某个节点子树内已展开的目录路径（不含自身） */
-    function collectExpandedDirsUnder($scope) {
-        var expandedDirs = [];
-        var dirMap = {};
-        if (!$scope || !$scope.length) return expandedDirs;
-        $scope.find('.file-node > .file-node-children.open').each(function() {
-            var $parent = $(this).parent();
-            // 排除 $scope 自身：工作区根的 data-path 是显示名而非相对路径，回填会请求到错误路径
-            if ($parent[0] === $scope[0]) return;
-            var dataPath = $parent.attr('data-path');
-            if (dataPath && !dirMap[dataPath]) {
-                dirMap[dataPath] = true;
-                expandedDirs.push(dataPath);
+    function loadChildrenInto($childrenEl, dirPath, wsId, indent) {
+        if (!$childrenEl || !$childrenEl.length) return;
+        var url = '/web/chat/filer/tree?depth=1';
+        if (dirPath) {
+            url = '/web/chat/filer/tree?path=' + encodeURIComponent(dirPath) + '&depth=1';
+        }
+        if (wsId && wsId !== 'workspace' && wsId !== '__flat__') {
+            url += (url.indexOf('?') >= 0 ? '&' : '?') + 'mount=' + encodeURIComponent(wsId);
+        }
+        filerGet(url, function(res) {
+            var data = (res && res.data) ? res.data : [];
+            // 仅当容器仍为空时填充，避免覆盖用户后续展开
+            if (!$childrenEl.children().length) {
+                renderTree(data, $childrenEl, indent);
             }
+        }).fail(function(jqXHR, textStatus, error) {
+            console.error('[filer] load children error', dirPath, error);
         });
-        return sortPathsByDepth(expandedDirs);
     }
 
-    /* ---- 无闪烁提交：离屏构建 + 一次性换入 ----
-     * 刷新一棵树需要 1 + 工作区数 + 展开目录数 次请求。过去是先把 $treeEl 清空、
-     * 再逐级串行回填，于是整个过程全程可见：面板瞬间空白 → 根节点出现 → 一级列表出现
-     * → 展开目录一个个弹出，内容高度归零还会丢掉滚动位置 —— 这就是点一下「一闪」。
-     * 现在改为在离屏容器里把新树整棵建好，最后在同一个任务里换入（浏览器只重绘一次）；
-     * 结构与当前完全一致时（手动刷新最常见的情况）直接丢弃离屏结果，一个 DOM 都不动。 */
+    /* ===== 原地 keyed diff：刷新与局部重载统一走「对现有树做增删」 =====
+     * 背后的请求骨架不变（1 + 工作区数 + 展开目录数 次逐层请求），但每个响应落地时
+     * 不再清空容器重建，而是与服务端顺序做 key（wsId+path）比对：
+     *   - 未变的节点一个都不动（事件、hover、选中态、滚动全部原样保留）
+     *   - 前后缀剪枝后，新增走 insertBefore 锚点插入，消失的 remove，
+     *     类型漂移（文件↔目录）重建单个节点
+     * 这套 key 语义与 WS 增量事件（ensureTreeNode/removeTreeNode）完全一致，
+     * 刷新与实时推送从此收敛到同一条 patch 路径。 */
 
-    /** 结构指纹：顺序 + 路径 + 类型 + 缩进 + 展开态，一致即视觉一致（树不展示文件内容） */
-    function treeSignature($scope) {
-        if (!$scope || !$scope.length) return '';
-        var parts = [];
-        $scope.find('.file-node').each(function() {
-            parts.push([
-                this.getAttribute('data-workspace-id') || '',
-                this.getAttribute('data-path') || '',
-                this.getAttribute('data-type') || '',
-                this.getAttribute('data-indent') || '',
-                $(this).children('.file-node-children').hasClass('open') ? '1' : '0'
-            ].join('\u0001'));
-        });
-        return parts.join('\u0002');
+    /** 节点身份：工作区层用 wsId，目录层用 path */
+    function nodeKey(node) {
+        return node.id || node.path;
+    }
+
+    /** DOM 节点的身份：工作区根取 data-workspace-id，其余取 data-path */
+    function domKey($el) {
+        return $el.attr('data-workspace-id') || $el.attr('data-path') || '';
+    }
+
+    /** 在临时容器里建一个新节点（复用 appendNode 的渲染与事件绑定） */
+    function buildNodeEl(node, indent) {
+        var $tmp = $('<div>');
+        appendNode(node, $tmp, indent);
+        return $tmp.children('.file-node').first();
     }
 
     /**
-     * 把离屏容器的内容换入目标容器；结构未变则不动 DOM
+     * 用服务端列表原地更新 $container 的直接子节点。
      *
-     * @return 是否真的替换了 DOM
+     * <p>服务端顺序（目录优先 + 忽略大小写字典序，FileService.buildTree）是排序权威；
+     * 前后缀剪枝后按锚点插入，DOM 中残留的乱序（历史增量插入的 localeCompare 与服务端
+     * compareToIgnoreCase 在大小写边界上偶有分歧）会被顺带修正。新增目录默认折叠，
+     * 由上层（diffDir 或工作区层）决定要不要展开它。</p>
+     *
+     * @param $container 目标容器（.file-node-children 或 #fileTree 扁平根）
+     * @param nodes      服务端节点数组（name/path/type）
+     * @param indent     本层缩进
+     * @param expandedSet 可选，服务端数据中应保持展开的目录 path 集合
      */
-    function commitStaging($target, $staging) {
-        if (!$target || !$target.length) return false;
-        if (treeSignature($staging) === treeSignature($target)) return false;
+    function diffChildren($container, nodes, indent, expandedSet) {
+        if (!$container || !$container.length) return;
+        nodes = nodes || [];
 
-        // 滚动容器是 #fileTree 自身（overflow-y:auto）；替换会使内容高度短暂归零而丢失位置
-        var host = $treeEl.length ? $treeEl[0] : null;
-        var top = host ? host.scrollTop : 0;
-        var left = host ? host.scrollLeft : 0;
-        // jQuery 的 append 是移动节点，已绑定的事件处理器随节点一起过去
-        $target.empty().append($staging.children());
-        if (host) { host.scrollTop = top; host.scrollLeft = left; }
-        return true;
+        var $kids = $container.children('.file-node');
+        var serverKeys = {};
+        for (var si = 0; si < nodes.length; si++) {
+            serverKeys[nodeKey(nodes[si])] = si;
+        }
+
+        // 1) 删除：服务端已不存在的节点（目录被删时其整棵子树随节点一起移除）
+        $kids.each(function() {
+            var $n = $(this);
+            if (!(domKey($n) in serverKeys)) $n.remove();
+        });
+
+        // 2) 前后缀剪枝：两端未变的节点不动（最常见路径，一个 DOM 都不碰）
+        var $cur = $container.children('.file-node');
+        var lead = 0;
+        while (lead < nodes.length && lead < $cur.length && domKey($cur.eq(lead)) === nodeKey(nodes[lead])) lead++;
+        var tail = 0;
+        while (tail < nodes.length - lead && tail < $cur.length - lead
+                && domKey($cur.eq($cur.length - 1 - tail)) === nodeKey(nodes[nodes.length - 1 - tail])) tail++;
+        var changedMid = nodes.length - lead - tail;
+        var $midNodes = (changedMid > 0) ? $cur.slice(lead, lead + changedMid) : $();
+        var midKeys = {};
+        $midNodes.each(function(i) { midKeys[domKey($(this))] = i; });
+
+        // 3) 中段：新增插入锚点之前；既存节点修正类型漂移并归位；锚点逐步右移
+        var anchor = (lead < $cur.length) ? $cur.eq(lead) : null;
+        for (var i = lead; i < lead + changedMid; i++) {
+            var node = nodes[i];
+            var key = nodeKey(node);
+            var $existing = (key in midKeys) ? $midNodes.eq(midKeys[key]) : null;
+            if (!$existing || !$existing.length) {
+                var expanded = !!(expandedSet && node.type === 'directory' && expandedSet[node.path]);
+                var n2 = { name: node.name, path: node.path, type: node.type };
+                if (expanded) n2.expanded = true;
+                var $newEl = buildNodeEl(n2, indent);
+                if ($newEl.length) {
+                    if (anchor) $newEl.insertBefore(anchor);
+                    else $container.append($newEl);
+                }
+            } else {
+                if (($existing.attr('data-type') || '') !== node.type) {
+                    var n3 = { name: node.name, path: node.path, type: node.type };
+                    if (expandedSet && node.type === 'directory' && expandedSet[node.path]) n3.expanded = true;
+                    var $replaced = buildNodeEl(n3, parseInt($existing.attr('data-indent') || '0', 10));
+                    if ($replaced.length) {
+                        $existing.replaceWith($replaced);
+                        $existing = $replaced;
+                    }
+                }
+                if (anchor && anchor[0] === $existing[0]) {
+                    anchor = $existing.next('.file-node');
+                    if (!anchor.length) anchor = null;
+                } else {
+                    if (anchor) $existing.insertBefore(anchor);
+                    else $container.append($existing);
+                }
+            }
+            if (anchor && !anchor.closest($container).length) anchor = null;
+        }
     }
+
+    /* ============================== 工作区层 diff ==============================
+     * 工作区根与普通目录节点不同（data-workspace-id 优先于 data-path），
+     * 用同一套 keyed 思路单独处理。diffChildren 里直接判 data-workspace-id，
+     * 所以这里只是把容器与 key 描述清楚，保持语义集中。 */
+
+    /* ================================ 整树刷新 ================================ */
 
     /* 整树刷新的重入保护：进行中的重复请求合并为「结束后再跑一次」，
      * 避免多路并发（WS 事件 / 手动刷新 / 重连对账）的串行恢复互相覆盖。 */
@@ -1212,6 +1171,13 @@
 
     /** 整树刷新的兜底上限：超过则强制释放重入标记，不让面板陷入永久不可刷新 */
     var REFRESH_WATCHDOG_MS = 30000;
+
+    /** 把服务端工作区列表适配成 diffChildren 能吃的节点（key = wsId，详见 domKey） */
+    function wsNodesFor(wsList) {
+        return (wsList || []).map(function(ws) {
+            return { id: ws.id, name: ws.name, path: ws.name, type: 'directory', readonly: ws.readonly };
+        });
+    }
 
     /**
      * 整树智能刷新：保留展开状态重新拉取
@@ -1262,109 +1228,62 @@
             }
         }
 
-        var expandedState = collectExpandedState();
-
-        /* 离屏容器：新树先在这里整棵建好（含展开态恢复），期间旧树保持可见；
-         * 只有跑到成功终点才 commitStaging 换入。看门狗超时或任一环报错时直接弃置，
-         * 旧树原样保留 —— 比过去「清空后半途失败留下一棵残树」更安全。 */
-        var $staging = $('<div>');
-
-        // 重新加载工作区列表（可能有新增/删除的挂载）
+        /* 原地 diff：逐层拉服务端快照，对现有 DOM 做增/删/归位。
+         * 未变的节点一个都不动（事件、hover、选中、展开态全部保留）；
+         * 中间被删除的目录节点整棵子树随节点移除，无需单独处理。 */
         filerGet('/web/chat/filer/workspaces', function(res) {
             var wsList = (res && res.data) ? res.data : [];
             if (!$treeEl.length) { finish(); return; }
 
-            $staging.empty();
-            wsList.forEach(function(ws) {
-                appendWorkspaceNode(ws, $staging, 0);
-            });
+            // 工作区层 diff（key = wsId）：新增挂载建根节点，被移除的挂载整棵删除
+            diffChildren($treeEl, wsNodesFor(wsList), 0);
 
-            // 串行恢复每个已展开工作区及其深层目录，避免并发重绘互相覆盖
+            // 逐个 diff 已展开的工作区（串行，与旧链路一致，避免请求风暴）
             var wsIndex = 0;
-            function restoreNextWorkspace() {
-                if (wsIndex >= wsList.length) {
-                    commitStaging($treeEl, $staging);
-                    finish();
-                    return;
-                }
+            (function nextWs() {
+                if (wsIndex >= wsList.length) { finish(); return; }
                 var ws = wsList[wsIndex++];
-                var entry = expandedState[ws.id];
-                if (!entry || !entry.root) {
-                    restoreNextWorkspace();
+                var $wsRoot = getWorkspaceRoot(ws.id);
+                if (!$wsRoot.length || $wsRoot.is($treeEl)) { nextWs(); return; }
+                var $wsChildren = $wsRoot.children('.file-node-children');
+                if (!$wsChildren.length || !$wsChildren.hasClass('open')) {
+                    $wsRoot.removeAttr('data-dirty');
+                    nextWs();
                     return;
                 }
-
-                var $wn = $staging.children('.file-node[data-workspace-id="' + CSS.escape(ws.id) + '"]').first();
-                if (!$wn.length) {
-                    restoreNextWorkspace();
-                    return;
-                }
-
-                var $wc = $wn.children('.file-node-children');
-                var $wa = $wn.children('.file-node-row').find('.file-arrow');
-                if (!$wc.length) {
-                    restoreNextWorkspace();
-                    return;
-                }
-
-                $wc.addClass('open');
-                $wa.addClass('open');
-
                 var url = '/web/chat/filer/tree?depth=1';
                 if (ws.id !== 'workspace') {
                     url += '&mount=' + encodeURIComponent(ws.id);
                 }
-
                 filerGet(url, function(res2) {
                     var data2 = (res2 && res2.data) ? res2.data : [];
-                    renderTree(data2, $wc, 1);
-                    var dirs = sortPathsByDepth(entry.dirs || []);
-                    restoreExpandedPathsSequential($wn, dirs, ws.id, 0, restoreNextWorkspace);
+                    diffChildren($wsChildren, data2, 1);
+                    $wsRoot.removeAttr('data-dirty');
+                    // 递归 diff 该工作区里已展开的深层目录
+                    diffDir(ws.id, '', nextWs);
                 }).fail(function() {
                     console.error('[filer] smart refresh workspace error', ws.id);
-                    restoreNextWorkspace();
+                    nextWs();
                 });
-            }
-            restoreNextWorkspace();
+            })();
         }).fail(function() {
-            // fallback：扁平树恢复
-            var flatEntry = expandedState['__flat__'] || { dirs: [] };
-            var allDirs = sortPathsByDepth(flatEntry.dirs || []);
-            // 兼容：若此前是工作区模式，把各 ws 的 dirs 合并
-            Object.keys(expandedState).forEach(function(key) {
-                if (key === '__flat__') return;
-                var entry = expandedState[key];
-                if (entry && entry.dirs) {
-                    entry.dirs.forEach(function(p) {
-                        if (allDirs.indexOf(p) < 0) allDirs.push(p);
-                    });
-                }
-            });
-            allDirs = sortPathsByDepth(allDirs);
-
+            // fallback：无工作区列表（扁平树）—— 直接 diff 根级，再递归已展开目录
             filerGet('/web/chat/filer/tree?depth=1', function(res) {
-                var newData = (res && res.data) ? res.data : [];
+                var data = (res && res.data) ? res.data : [];
                 if (!$treeEl.length) { finish(); return; }
-                $staging.empty();
-
-                // 根级目录若在展开列表中，先标 expanded 以便 appendNode 打开容器
-                var rootExpanded = {};
-                allDirs.forEach(function(p) {
-                    if (p && p.indexOf('/') < 0) rootExpanded[p] = true;
+                diffChildren($treeEl, data, 0);
+                var openRoots = [];
+                $treeEl.children('.file-node').each(function() {
+                    var $c = $(this);
+                    if ($c.attr('data-type') !== 'directory') return;
+                    var $cc = $c.children('.file-node-children');
+                    if ($cc.length && $cc.hasClass('open')) openRoots.push($c.attr('data-path'));
                 });
-                newData.forEach(function(node) {
-                    if (node.type === 'directory' && rootExpanded[node.path]) {
-                        node.expanded = true;
-                    }
-                    appendNode(node, $staging, 0);
-                });
-
-                // 根级 expanded 只打开了容器，子节点需按 depth=1 拉数据；
-                // 统一走串行恢复（含根级与深层）
-                restoreExpandedPathsSequential($staging, allDirs, 'workspace', 0, function() {
-                    commitStaging($treeEl, $staging);
-                    finish();
-                });
+                var idx = 0;
+                (function next() {
+                    if (idx >= openRoots.length) { finish(); return; }
+                    diffDir('workspace', openRoots[idx++], next);
+                })();
             }).fail(function() {
                 console.error('[filer] smart refresh fallback error');
                 finish();

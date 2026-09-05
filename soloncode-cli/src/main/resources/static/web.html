@@ -58,7 +58,12 @@
             <span class="sidebar-nav-label" data-i18n="sidebar.workspace">工作区</span>
         </button>
     </div>
-    <div class="sidebar-title" data-i18n="sidebar.recentChats">最近对话</div>
+    <div class="sidebar-title-row">
+        <div class="sidebar-title" data-i18n="sidebar.recentChats">最近对话</div>
+        <button type="button" class="sidebar-clear-history-btn" id="clearHistoryBtn" title="清空未置顶对话" data-i18n-title="history.clearTitle" data-i18n-aria="history.clearTitle" aria-label="清空未置顶对话">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+    </div>
     <div class="sidebar-list" id="historyList"></div>
     <div class="sidebar-footer">
         <button class="settings-btn" id="settingsBtn" title="设置" data-i18n-title="sidebar.settings">
@@ -550,6 +555,9 @@
             <div class="ws-home-brand" data-i18n="sidebar.workspace">工作区</div>
             <div class="ws-home-omni">
                 <input type="text" class="ws-home-search" id="wsHomeSearch" placeholder="搜索工作区，或输入绝对路径打开…" data-i18n-placeholder="sidebar.wsOmniPlaceholder" autocomplete="off">
+                <button class="ws-home-omni-pick" id="wsHomePickBtn" type="button" data-i18n-title="sidebar.wsPickFolder" aria-label="浏览本地目录" data-i18n-aria-label="sidebar.wsPickFolder" disabled>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5h4l1.5 2h7.5v7a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-9Z"/><path d="M6 10.5h4"/></svg>
+                </button>
                 <button class="ws-home-omni-go" id="wsHomeGoBtn" data-i18n="sidebar.open">打开</button>
             </div>
             <button class="ws-home-close" id="wsHomeCloseBtn" title="关闭" data-i18n-title="common.close" aria-label="关闭" data-i18n-aria-label="common.close">✕</button>
@@ -2695,6 +2703,7 @@
         var mountGrid = document.getElementById('wsHomeMountGrid');
         var mountSection = document.getElementById('wsHomeMountSection');
         var goBtn = document.getElementById('wsHomeGoBtn');
+        var pickBtn = document.getElementById('wsHomePickBtn');
 
         // 内存缓存，供搜索过滤复用
         var cache = { launch: null, workspaces: [], mounts: [] };
@@ -2838,10 +2847,41 @@
                 .catch(function () { goBtn.disabled = false; showToast('open failed', 'error'); });
         }
 
+        // 点系统目录选择按钮：后端弹原生对话框，选中后回填输入框并自动触发打开
+        function pickFolder() {
+            if (pickBtn.disabled) return;
+            pickBtn.disabled = true;
+            pickBtn.classList.add('spin');
+            // 超时兑底：服务端默认 300s 销毁对话框，前端略放寬20s，保证按钮永不死转
+            var abortCtl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            var abortTimer = abortCtl ? setTimeout(function () { abortCtl.abort(); }, 320000) : null;
+            var opts = { method: 'POST' };
+            if (abortCtl) opts.signal = abortCtl.signal;
+            function done() { pickBtn.disabled = false; pickBtn.classList.remove('spin'); if (abortTimer) clearTimeout(abortTimer); }
+            fetch('/web/workspace/pick-directory', opts)
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    done();
+                    if (res.code !== 200) { showToast(res.description || res.message || 'pick failed', 'error'); return; }
+                    if (res.data && res.data.headless) { showToast(t('sidebar.wsPickHeadless', '当前运行环境无桌面，无法弹出目录选择框，请手动输入路径'), 'error'); return; }
+                    var p = res.data && res.data.path;
+                    if (!p) return; // 用户取消，静默返回
+                    searchInput.value = p;
+                    render();
+                    openNew();
+                })
+                .catch(function () { done(); showToast(t('sidebar.wsPickTimeout', '目录选择超时或失败，请重试'), 'error'); });
+        }
+
         openBtn.addEventListener('click', openHome);
         closeBtn.addEventListener('click', closeHome);
         searchInput.addEventListener('input', render);
         goBtn.addEventListener('click', openNew);
+        pickBtn.addEventListener('click', pickFolder);
+        // 初始化时探测一次能力（GET 无副作用）：headless/远程访问时按钮置灰
+        fetch('/web/workspace/pick-directory').then(function (r) { return r.json(); }).then(function (res) {
+            if (res.code === 200 && res.data && res.data.available) pickBtn.disabled = false;
+        }).catch(function () { });
         searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') openNew(); });
 
         // ESC 退回：仅当 Home 可见时处理，且不影响更上层弹层

@@ -68,6 +68,26 @@
 }
 .ws-home-omni-go:hover { filter: brightness(1.05); }
 .ws-home-omni-go:disabled { opacity: 0.5; cursor: default; }
+/* 目录选择按钮（后端弹原生对话框） */
+.ws-home-omni-pick {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+}
+.ws-home-omni-pick:hover { border-color: var(--accent); color: var(--accent); }
+.ws-home-omni-pick:disabled { opacity: 0.45; cursor: default; }
+/* 等待选择结果时图标旋转（打开的文件夹样式） */
+.ws-home-omni-pick.spin svg { animation: ws-pick-spin 1.2s linear infinite; }
+@keyframes ws-pick-spin { to { transform: rotate(360deg); } }
 .ws-home-close {
     width: 40px;
     height: 40px;

@@ -292,6 +292,11 @@
   "header.wechat": "微信绑定",
   "history.confirmDelete": "确认删除",
   "history.conversationActions": "对话操作",
+  "history.clearConfirm": "清空",
+  "history.clearConfirmMessage": "确定清空 {count} 个未置顶对话吗？正在运行的对话会保留，此操作不可恢复。",
+  "history.clearFailed": "清空对话失败，请重试",
+  "history.clearSuccess": "已清空 {count} 个对话",
+  "history.clearTitle": "清空未置顶对话",
   "history.conversationInProgress": "对话进行中...",
   "history.forkConversation": "复刻对话",
   "history.defaultModel": "默认模型",
@@ -1270,5 +1275,9 @@
   "backup.importFailed": "导入备份失败",
   "backup.assetFiles": "{n} 个文件（新增 {added} / 覆盖 {overwritten}）",
   "general.features.loopName": "Loop 定时任务支持",
-  "general.features.loopDesc": "开启后允许 AI 管理定时/循环任务（查询、暂停、停止、指定时刻执行等）；关闭可减少上下文消耗"
+  "general.features.loopDesc": "开启后允许 AI 管理定时/循环任务（查询、暂停、停止、指定时刻执行等）；关闭可减少上下文消耗",
+  "sidebar.wsPickFolder": "浏览本地目录",
+  "sidebar.wsPickHeadless": "当前运行环境无桌面，无法弹出目录选择框，请手动输入路径",
+  "sidebar.wsPickBusy": "目录选择框已打开，请先完成当前选择",
+  "sidebar.wsPickTimeout": "目录选择超时或失败，请重试"
 }

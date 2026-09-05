@@ -46,6 +46,7 @@ import org.noear.solon.codecli.session.SessionJanitor;
 import org.noear.solon.codecli.session.MessageLineUtil;
 import org.noear.solon.codecli.session.SessionMeta;
 import org.noear.solon.codecli.session.SessionRewindService;
+import org.noear.solon.codecli.util.DirectoryPickerUtil;
 import org.noear.solon.codecli.util.ReasoningSupportUtil;
 import org.noear.solon.codecli.workspace.WorkspaceMeta;
 import org.noear.solon.core.handle.Context;
@@ -73,6 +74,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Web 门户控制器 —— SolonCode Web UI 的核心 HTTP 入口。
@@ -272,6 +274,92 @@ public class WebController {
         }
     }
 
+    /**
+     * 目录选择对话框并发锁：同一时刻只允许一个原生对话框（避免多个请求叠加弹框）
+     */
+    private static final AtomicBoolean PICK_DIR_LOCK = new AtomicBoolean(false);
+
+    /**
+     * 目录选择能力探测（无副作用）：返回当前环境能否弹原生目录框。
+     *
+     * <p>前端初始化时探测一次，据此决定按钮可用态；真正的弹框由 POST /web/workspace/pick-directory 触发。</p>
+     */
+    @Get
+    @Mapping("/web/workspace/pick-directory")
+    public Result<Map<String, Object>> pickDirectoryCapability() {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("available", DirectoryPickerUtil.isAvailable() && isLoopbackRequest(Context.current()));
+        return Result.succeed(data);
+    }
+
+    /**
+     * 调起宿主机的系统目录选择框，返回用户选中的绝对路径。
+     *
+     * <p>soloncode web 运行在用户桌面，CLI 进程可直接弹原生对话框，从根本上绕开浏览器
+     * “拿不到本地绝对路径”的安全限制；返回的路径由前端回填后走既有 /web/workspace/open 链路。</p>
+     *
+     * <h3>安全约束</h3>
+     * <ul>
+     *   <li><b>仅限本机调用</b>：非 loopback 来源直接拒绝（弹框出现在服务器屏幕而非访问者屏幕，毫无意义且危险）</li>
+     *   <li><b>单对话框并发锁</b>：第二个请求直接拒绝，避免叠加弹框</li>
+     *   <li><b>headless 拒绝</b>：无桌面环境时返回明确错误，前端提示手输路径</li>
+     *   <li><b>超时自动关闭</b>：见 {@link DirectoryPickerUtil#DEFAULT_TIMEOUT_MS}</li>
+     * </ul>
+     *
+     * @param ctx Solon 请求上下文（用于来源 IP 校验）
+     * @return 选中结果：{path}；用户取消时 path 为 null（code=200）
+     */
+    @Post
+    @Mapping("/web/workspace/pick-directory")
+    public Result<Map<String, Object>> pickDirectory(Context ctx) {
+        // 1. 仅限本机：非 loopback 来源拒绝（服务未做 host 绑定且开了跨域，弹框不能出现在陌生访问者的请求里）
+        if (isLoopbackRequest(ctx) == false) {
+            return Result.failure("仅限本机调用（loopback）");
+        }
+
+        // 2. headless 拒绝：给前端可读提示
+        if (DirectoryPickerUtil.isAvailable() == false) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("path", null);
+            data.put("headless", true);
+            return Result.succeed(data);
+        }
+
+        // 3. 并发锁：同一时刻只允许一个对话框
+        if (PICK_DIR_LOCK.compareAndSet(false, true) == false) {
+            return Result.failure("目录选择框已打开，请先完成或取消当前选择");
+        }
+
+        try {
+            String path = DirectoryPickerUtil.pick("选择工作区目录");
+
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("path", path);
+            data.put("headless", false);
+            return Result.succeed(data);
+        } catch (Exception e) {
+            LOG.warn("[Workspace] Directory picker failed", e);
+            return Result.failure("目录选择失败: " + e.getMessage());
+        } finally {
+            PICK_DIR_LOCK.set(false);
+        }
+    }
+
+    /**
+     * 判断请求是否来自本机（loopback）
+     */
+    private boolean isLoopbackRequest(Context ctx) {
+        try {
+            String ip = ctx.realIp();
+            if (ip == null) {
+                return false;
+            }
+            return "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip) || "localhost".equals(ip);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Post
     @Mapping("/web/workspace/remove")
     public Result<Void> removeWorkspace(String id) {
@@ -457,6 +545,52 @@ public class WebController {
             }
         }
 
+        return Result.succeed(data);
+    }
+
+    /**
+     * 清空当前工作区中所有未置顶且未运行的 Web 会话。
+     * 置顶会话和正在运行的会话始终保留，避免误删重要内容或打断任务。
+     */
+    @Post
+    @Mapping("/web/chat/sessions/clear")
+    public Result<Map<String, Object>> clearUnpinnedSessions() throws Exception {
+        Path sessionsPath = currentContext().getSessionsRoot();
+        String userId = getCurrentUserId();
+        List<String> deletedSessionIds = new ArrayList<>();
+        int skippedBusy = 0;
+        File sessionsDir = sessionsPath.toFile();
+        File[] dirs = sessionsDir.listFiles(f -> f.isDirectory() && f.getName().startsWith("web-"));
+        if (dirs != null) {
+            for (File dir : dirs) {
+                String sessionId = dir.getName();
+                SessionMeta meta = SessionMeta.load(dir);
+                String ownerId = meta.getOwnerUserId();
+                if (userId != null && ownerId != null && !ownerId.isEmpty() && !userId.equals(ownerId)) {
+                    continue;
+                }
+                if (meta.isPinned()) {
+                    continue;
+                }
+                if (webGate().isSessionBusy(engine(), sessionId)) {
+                    skippedBusy++;
+                    continue;
+                }
+                if (loopScheduler() != null) {
+                    loopScheduler().stopAll(sessionId);
+                }
+                sessionManager().removeSession(sessionId);
+                try {
+                    deleteDirectory(dir.toPath());
+                    deletedSessionIds.add(sessionId);
+                } catch (IOException e) {
+                    LOG.error("Session clear failed for {}: {}", sessionId, e.getMessage());
+                }
+            }
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("deletedSessionIds", deletedSessionIds);
+        data.put("skippedBusy", skippedBusy);
         return Result.succeed(data);
     }
 

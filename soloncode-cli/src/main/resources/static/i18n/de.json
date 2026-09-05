@@ -311,6 +311,11 @@
   "history.effortLabelMedium": "medium",
   "history.effortLabelOff": "off",
   "history.emptyHistory": "Keine Eingabehistorie",
+  "history.clearConfirm": "Clear",
+  "history.clearConfirmMessage": "Clear {count} unpinned conversations? Running conversations will be kept. This cannot be undone.",
+  "history.clearFailed": "Failed to clear conversations, please retry",
+  "history.clearSuccess": "Cleared {count} conversations",
+  "history.clearTitle": "Clear unpinned conversations",
   "history.forkConfirmMessage": "Dadurch wird eine vollständige Kopie des aktuellen Gesprächs als neues Gespräch erstellt.\nDas ursprüngliche Gespräch bleibt unberührt; Sie können auf der neuen Kopie weiterfragen.",
   "history.forkFailed": "Gespräch konnte nicht kopiert werden, bitte erneut versuchen",
   "history.forkSuccess": "Gespräch erfolgreich kopiert",
@@ -1270,5 +1275,9 @@
   "backup.importFailed": "Backup-Import fehlgeschlagen",
   "backup.assetFiles": "{n} Dateien ({added} neu / {overwritten} überschrieben)",
   "general.features.loopName": "Loop-Aufgaben-Unterstützung",
-  "general.features.loopDesc": "Ermöglicht der KI, geplante/Loop-Aufgaben zu verwalten (auflisten, pausieren, stoppen, zu fester Zeit ausführen); deaktivieren, um Kontext zu sparen"
+  "general.features.loopDesc": "Ermöglicht der KI, geplante/Loop-Aufgaben zu verwalten (auflisten, pausieren, stoppen, zu fester Zeit ausführen); deaktivieren, um Kontext zu sparen",
+  "sidebar.wsPickFolder": "Lokalen Ordner durchsuchen",
+  "sidebar.wsPickHeadless": "Keine Desktop-Umgebung verfügbar; bitte Pfad manuell eingeben",
+  "sidebar.wsPickBusy": "Es ist bereits ein Ordnerauswahl-Dialog geöffnet; bitte zuerst abschließen oder abbrechen",
+  "sidebar.wsPickTimeout": "Verzeichnisauswahl abgebrochen oder fehlgeschlagen; bitte erneut versuchen"
 }

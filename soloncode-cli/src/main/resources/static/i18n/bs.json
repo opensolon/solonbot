@@ -1270,5 +1270,9 @@
   "backup.importFailed": "Uvoz sigurnosne kopije nije uspio",
   "backup.assetFiles": "{n} datoteka ({added} novih / {overwritten} prepisano)",
   "general.features.loopName": "Podrška za Loop zadatke",
-  "general.features.loopDesc": "Omogućava AI-ju upravljanje zakazanim/cikličnim zadacima (prikaz, pauza, zaustavljanje, izvršavanje u zadato vrijeme); isključivanjem se smanjuje potrošnja konteksta"
+  "general.features.loopDesc": "Omogućava AI-ju upravljanje zakazanim/cikličnim zadacima (prikaz, pauza, zaustavljanje, izvršavanje u zadato vrijeme); isključivanjem se smanjuje potrošnja konteksta",
+  "sidebar.wsPickFolder": "Pregledaj lokalni folder",
+  "sidebar.wsPickHeadless": "Nije dostupno radno okruženje; unesite putanju ručno",
+  "sidebar.wsPickBusy": "Dijalog za odabir fascikle je već otvoren; prvo ga završite ili otkažite",
+  "sidebar.wsPickTimeout": "Odabir fascikle je istekao ili nije uspio; pokušajte ponovo"
 }

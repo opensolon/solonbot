@@ -208,6 +208,7 @@ function updateHistoryUI() {
                 + '</span></span></div>';
         }
         var $list = $(historyList);
+        $('#clearHistoryBtn').prop('disabled', !chatHistory.some(function(entry) { return !entry.isPinned; }));
         // 仅当 HTML 真正变化时才写入 DOM，避免无效重排
         if ($list.html() !== html) {
             $list.html(html);
@@ -301,6 +302,62 @@ function forkSession(idx) {
     });
 }
 
+function cleanupSessionState(sessionId) {
+    var sess = sessionMap[sessionId];
+    if (!sess) return;
+    if (sess.eventSource) sess.eventSource.close();
+    if (sess.silenceTimer) clearTimeout(sess.silenceTimer);
+    if (sess.contentRafId) cancelAnimationFrame(sess.contentRafId);
+    if (sess.reasonRafId) cancelAnimationFrame(sess.reasonRafId);
+    $(sess.container).remove();
+    delete sessionMap[sessionId];
+}
+
+function clearUnpinnedSessions() {
+    var removable = chatHistory.filter(function(entry) { return !entry.isPinned; });
+    if (!removable.length) return;
+
+    layer.confirm(I18n.t('history.clearConfirmMessage', { count: removable.length }), {
+        title: I18n.t('history.clearTitle'),
+        btn: [I18n.t('history.clearConfirm'), I18n.t('common.cancel')],
+        icon: 3,
+        offset: '120px'
+    }, function(index) {
+        layer.close(index);
+        var $button = $('#clearHistoryBtn').prop('disabled', true);
+        $.post('/web/chat/sessions/clear', function(resp) {
+            if (!resp || resp.code !== 200) {
+                $button.prop('disabled', false);
+                showToast(I18n.t('history.clearFailed'), 'error');
+                return;
+            }
+            var deleted = (resp.data && resp.data.deletedSessionIds) || [];
+            var deletedSet = {};
+            for (var i = 0; i < deleted.length; i++) deletedSet[deleted[i]] = true;
+            var oldActive = activeSessionId;
+            for (var d = 0; d < deleted.length; d++) cleanupSessionState(deleted[d]);
+            chatHistory = chatHistory.filter(function(entry) { return !deletedSet[entry.sessionId]; });
+            currentChatIndex = -1;
+            for (var ci = 0; ci < chatHistory.length; ci++) {
+                if (chatHistory[ci].sessionId === oldActive) { currentChatIndex = ci; break; }
+            }
+            if (deletedSet[oldActive]) switchToWelcomeMode();
+            if (deletedSet[SESSION_ID]) forgetActiveSession();
+            updateHistoryUI();
+            showToast(I18n.t('history.clearSuccess', { count: deleted.length }), 'success');
+        }).fail(function() {
+            $button.prop('disabled', false);
+            showToast(I18n.t('history.clearFailed'), 'error');
+        });
+    });
+}
+
+$('#clearHistoryBtn').on('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    clearUnpinnedSessions();
+});
+
 function deleteSession(idx) {
     var entry = chatHistory[idx];
     if (!entry) return;
@@ -309,15 +366,7 @@ function deleteSession(idx) {
         layer.close(index);
         $.post('/web/chat/sessions/delete?sessionId=' + encodeURIComponent(entry.sessionId), function() {
         /* Clean up session state after server confirms */
-        var sess = sessionMap[entry.sessionId];
-        if (sess) {
-            if (sess.eventSource) sess.eventSource.close();
-            if (sess.silenceTimer) clearTimeout(sess.silenceTimer);
-            if (sess.contentRafId) cancelAnimationFrame(sess.contentRafId);
-            if (sess.reasonRafId) cancelAnimationFrame(sess.reasonRafId);
-            $(sess.container).remove();
-            delete sessionMap[entry.sessionId];
-        }
+        cleanupSessionState(entry.sessionId);
 
         chatHistory.splice(idx, 1);
 

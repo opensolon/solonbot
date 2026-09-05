@@ -1270,5 +1270,9 @@
   "backup.importFailed": "Backup-import mislykkedes",
   "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)",
   "general.features.loopName": "Loop-opgavestøtte",
-  "general.features.loopDesc": "Giver AI mulighed for at styre planlagte/cykliske opgaver (liste, sæt på pause, stop, kør på angivet tidspunkt); deaktiver for at reducere kontekstforbrug"
+  "general.features.loopDesc": "Giver AI mulighed for at styre planlagte/cykliske opgaver (liste, sæt på pause, stop, kør på angivet tidspunkt); deaktiver for at reducere kontekstforbrug",
+  "sidebar.wsPickFolder": "Gennemse lokal mappe",
+  "sidebar.wsPickHeadless": "Intet skrivebordsmiljø tilgængeligt; indtast stien manuelt",
+  "sidebar.wsPickBusy": "En mappevælger er allerede åben; afslut eller annullér den først",
+  "sidebar.wsPickTimeout": "Mappevalget fik timeout eller fejlede; prøv igen"
 }

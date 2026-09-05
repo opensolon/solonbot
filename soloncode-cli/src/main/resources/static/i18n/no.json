@@ -1270,5 +1270,9 @@
   "backup.importFailed": "Import av sikkerhetskopi mislyktes",
   "backup.assetFiles": "{n} filer ({added} nye / {overwritten} overskrevet)",
   "general.features.loopName": "Loop-oppgavestøtte",
-  "general.features.loopDesc": "Lar AI administrere planlagte/gjentakende oppgaver (liste, pause, stopp, kjør til angitt tid); deaktiver for å redusere kontekstforbruk"
+  "general.features.loopDesc": "Lar AI administrere planlagte/gjentakende oppgaver (liste, pause, stopp, kjør til angitt tid); deaktiver for å redusere kontekstforbruk",
+  "sidebar.wsPickFolder": "Bla gjennom lokal mappe",
+  "sidebar.wsPickHeadless": "Ingen skrivebordsmiljø tilgjengelig; skriv inn banen manuelt",
+  "sidebar.wsPickBusy": "En mappevelger er allerede åpen; fullfør eller avbryt den først",
+  "sidebar.wsPickTimeout": "Mappevalget fikk tidsavbrudd eller feilet; prøv igjen"
 }

@@ -4,7 +4,10 @@
 
 * 添加 soloncode web 设置「配置备份」
 * 添加 soloncode web loop llm 自动管理支持
-* 修复 soloncode web IM 通道会收到 delta 数据
+* 添加 soloncode web 文件树手动刷新功能
+* 优化 soloncode-sdk-java 模块
+* 优化 soloncode 适配 solon-ai ChatEvent 新机制，增加 "thought.done" 新事件
+* 修复 soloncode web IM 通道会收到 delta 数据的问题
 * 修复 soloncode web IM 通道（微信、钉钉、飞书）二维码显示失败
 * 细节优化 
 
