@@ -304,9 +304,11 @@ public class WebEventMapper {
                 .build());
     }
 
+    /**
+     * 专门向 im 推行执行过程（其它地方不用发了）
+     */
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
         //如果流已取消，则不输出
-
 
         String sessionId = session.getSessionId();
         String resultContent = event.getText();
@@ -385,12 +387,6 @@ public class WebEventMapper {
         String finalAnswer = trace.getFinalAnswer();
         if (Assert.isEmpty(finalAnswer)) {
             finalAnswer = event.getText();
-        }
-
-        // RunEndEvent 是整轮唯一的最终答复出口：Web 的 system.trace 与所有 IM 通道
-        // 由同一个终态触发，避免 ReasonEnd 先发微信、RunEnd 异常收尾时再重复发送。
-        if (Assert.isNotEmpty(finalAnswer)) {
-            streamBuilder.replyToBoundChannel(wsContext, session.getSessionId(), finalAnswer, true);
         }
 
         return WebEvent.ofTrace(model, totalTokens, elapsedSeconds, finalAnswer);

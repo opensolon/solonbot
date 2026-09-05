@@ -1226,7 +1226,6 @@
   "login.loginBtn": "تسجيل الدخول",
   "login.footer": "SolonCode - مساعد البرمجة بالذكاء الاصطناعي",
   "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
-  "streaming.steerTag": "مداخلة",
   "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
   "streaming.steerTurnChanged": "Task changed; message moved to the queue",
   "streaming.steerNotRunning": "Task ended; sending directly instead",

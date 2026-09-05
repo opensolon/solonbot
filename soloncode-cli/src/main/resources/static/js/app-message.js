@@ -39,8 +39,15 @@ function updateUserRerunButtons(container) {
 }
 
 /* ===== Message Rendering (Session-Aware) ===== */
-/* 后端 WebEvent.toSourceLabel("steer") 的固定返回值，用作历史加载路径的插话识别键 */
-var STEER_SOURCE_LABEL = '插话';
+/* 来源徽标一律原样展示服务端下发的 sourceLabel（WebEvent.toSourceLabel 直通 source，仅空值归一为 "Web"），
+ * 前端不做任何映射或 i18n 转换：文案归服务端一处决定，换语言不影响渠道名。
+ * STEER_SOURCE 仅用于识别（判断该行是不是插话），比较前统一转小写，
+ * 从而一次覆盖「历史走 sourceLabel」与「实时兜底走 source」两条路。 */
+var STEER_SOURCE = 'steer';
+/* 纯前端产生的插话（appendSteerNote / 无 AI 气泡时的回落行）没有服务端标签，用此兜底 */
+var STEER_SOURCE_LABEL = 'Steer';
+/* Web 端直接输入不展示来源徽标（对应后端 WebEvent.SOURCE_LABEL_WEB） */
+var WEB_SOURCE = 'web';
 
 /* isSteer 为真表示这是运行中插话（steer）：仅用于打 data-steer 标记（隐藏重发/继续按钮）。
  * 插话标识本身走 sourceLabel 通道渲染。
@@ -50,10 +57,13 @@ var STEER_SOURCE_LABEL = '插话';
  *      且仍需计入 calcServerCount（它有对应的服务端记录），否则 rewind 会少删导致尾部残留；
  *   b) 实时路径下 appendSteerNote 返回 false（无 AI 气泡可挂）时的上屏兼底。 */
 function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt, sourceLabel, agentName, isSteer) {
-    // 插话归一：历史加载走后端 sourceLabel（WebEvent.toSourceLabel 硬编码中文），实时推送走 isSteer；
-    // 两路在此汇聚为同一种表达（本地化文案 + 相同样式 + 相同 data-steer 行为）
-    if (sourceLabel === STEER_SOURCE_LABEL) isSteer = true;
-    if (isSteer) sourceLabel = (window.I18n ? I18n.t('streaming.steerTag') : STEER_SOURCE_LABEL);
+    // 来源键：历史加载传后端 sourceLabel（"WeChat"/"steer"…），实时推送传 sourceLabel 或原始 source。
+    // 仅用于判定（是否插话、是否 Web 自家输入），展示始终用未加工的 sourceLabel
+    var sourceKey = sourceLabel ? String(sourceLabel).toLowerCase() : '';
+    // 插话归一：两路（sourceKey 命中 / 实时的 isSteer）在此汇聚为同一种 data-steer 行为与样式
+    if (sourceKey === STEER_SOURCE) isSteer = true;
+    // 服务端给了标签就照原样显示；仅前端自造的插话行（无标签可用）才回落到常量
+    if (isSteer && !sourceLabel) sourceLabel = STEER_SOURCE_LABEL;
     var row = $('<div>').addClass('msg-row user' + (isSteer ? ' steer' : ''))[0];
     row.setAttribute('data-user-msg-idx', sess.userMsgCounter++);
     row.setAttribute('data-session-id', sess.sessionId);
@@ -213,8 +223,8 @@ function appendUserMessage(sess, text, imageDataUrls, fileAttachments, createdAt
     // 时间戳（实时发送不传 createdAt 时兜底为当前时间，与历史加载行为一致）
     var msgTime = createdAt || Date.now();
     var timeEl = $('<div>').addClass('msg-time')[0];
-    // 来源标签放在时间左侧，同样浅色
-    if (sourceLabel && sourceLabel !== 'Web') {
+    // 来源标签放在时间左侧，同样浅色；Web 端自家输入不标注（大小写不敏感，兼容原始 source 直传）
+    if (sourceLabel && sourceKey !== WEB_SOURCE) {
         var srcSpan = $('<span>').addClass('msg-source-label').text(sourceLabel)[0];
         $(timeEl).append(srcSpan);
     }
@@ -901,7 +911,8 @@ function appendSteerNote(sess, text) {
     var el = $('<div>').addClass('steer-note')[0];
     el.setAttribute('data-steer', '1');
     if (sess.currentRunId) el.setAttribute('data-run-id', sess.currentRunId);
-    var label = (window.I18n ? I18n.t('streaming.steerTag') : STEER_SOURCE_LABEL);
+    // 运行中插话是纯前端渲染（后端不写 ndjson、也无 sourceLabel 下发），用与来源徽标一致的英文标签
+    var label = STEER_SOURCE_LABEL;
     el.innerHTML = '<span class="steer-note-badge">' + escapeHtml(label) + '</span>'
         + '<span class="steer-note-text">' + escapeHtml(text) + '</span>';
 

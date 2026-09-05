@@ -1226,7 +1226,6 @@
   "login.loginBtn": "Увійти",
   "login.footer": "SolonCode - ШІ-помічник з програмування",
   "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
-  "streaming.steerTag": "Вставка",
   "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
   "streaming.steerTurnChanged": "Task changed; message moved to the queue",
   "streaming.steerNotRunning": "Task ended; sending directly instead",

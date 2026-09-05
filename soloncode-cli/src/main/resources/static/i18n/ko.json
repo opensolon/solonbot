@@ -1226,7 +1226,6 @@
   "login.loginBtn": "로그인",
   "login.footer": "SolonCode - AI 코딩 어시스턴트",
   "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
-  "streaming.steerTag": "끼어들기",
   "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
   "streaming.steerTurnChanged": "Task changed; message moved to the queue",
   "streaming.steerNotRunning": "Task ended; sending directly instead",

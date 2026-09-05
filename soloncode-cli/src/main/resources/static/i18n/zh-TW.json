@@ -1226,7 +1226,6 @@
   "login.loginBtn": "登 入",
   "login.footer": "SolonCode - AI 程式設計助手",
   "streaming.steerPlaceholder": "Task running: Enter to steer now / Tab to queue…",
-  "streaming.steerTag": "插話",
   "streaming.steerDropped": "This turn has ended; the steered message was moved to the queue",
   "streaming.steerTurnChanged": "Task changed; message moved to the queue",
   "streaming.steerNotRunning": "Task ended; sending directly instead",
