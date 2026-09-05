@@ -486,7 +486,7 @@ body {
     gap: 6px;
     padding: 6px 10px;
     border-left: 2px solid var(--accent);
-    border-radius: 0 4px 4px 0;
+    border-radius: 0;
     /* 用 --accent-rgb 而非 --accent-fill：后者是强调色实心填充（contrast 皮肤为不透明 #3a3a3a），
        此处需要与竖线同色系的淡底，且要随皮肤走 */
     background: rgba(var(--accent-rgb, 79, 110, 247), 0.07);

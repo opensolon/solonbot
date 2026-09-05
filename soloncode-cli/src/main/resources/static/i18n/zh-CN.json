@@ -1238,6 +1238,7 @@
   "streaming.steerFailed": "插话失败，已恢复到输入框",
   "streaming.steerBadgePending": "待生效",
   "streaming.steerBadgeApplied": "已生效",
+  "streaming.steerLabel": "插话",
   "streaming.steerAttachDemote": "带附件的消息已改为排队",
   "update.bannerText": "发现新版本 {version}（当前 {current}）",
   "update.viewHow": "查看升级方式",

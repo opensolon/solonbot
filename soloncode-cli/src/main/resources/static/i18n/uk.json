@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Втручання",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "Доступна нова версія {version} (поточна {current})",
   "update.viewHow": "Як оновити",

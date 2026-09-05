@@ -1238,6 +1238,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "割り込み",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "新しいバージョン {version} が利用可能です（現在 {current}）",
   "update.viewHow": "アップグレード方法",

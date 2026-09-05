@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "끼어들기",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "새 버전 {version} 사용 가능 (현재 {current})",
   "update.viewHow": "업그레이드 방법 보기",

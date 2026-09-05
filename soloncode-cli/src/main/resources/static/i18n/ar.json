@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "توجيه",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "تتوفر نسخة جديدة {version} (الحالية {current})",
   "update.viewHow": "طريقة الترقية",

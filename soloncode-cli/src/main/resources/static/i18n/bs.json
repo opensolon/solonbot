@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Upravljanje",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "Dostupna je nova verzija {version} (trenutna {current})",
   "update.viewHow": "Kako nadograditi",

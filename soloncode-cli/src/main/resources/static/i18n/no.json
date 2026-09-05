@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Innspill",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "Ny versjon {version} tilgjengelig (nåværende {current})",
   "update.viewHow": "Slik oppgraderer du",

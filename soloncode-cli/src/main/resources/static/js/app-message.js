@@ -911,8 +911,8 @@ function appendSteerNote(sess, text) {
     var el = $('<div>').addClass('steer-note')[0];
     el.setAttribute('data-steer', '1');
     if (sess.currentRunId) el.setAttribute('data-run-id', sess.currentRunId);
-    // 运行中插话是纯前端渲染（后端不写 ndjson、也无 sourceLabel 下发），用与来源徽标一致的英文标签
-    var label = STEER_SOURCE_LABEL;
+    // 运行中插话是纯前端渲染（后端不写 ndjson、也无 sourceLabel 下发），使用流式消息专用 i18n 文案
+    var label = I18n.t('streaming.steerLabel');
     el.innerHTML = '<span class="steer-note-badge">' + escapeHtml(label) + '</span>'
         + '<span class="steer-note-text">' + escapeHtml(text) + '</span>';
 

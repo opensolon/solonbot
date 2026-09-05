@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "แทรกข้อความ",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "มีเวอร์ชันใหม่ {version} (ปัจจุบัน {current})",
   "update.viewHow": "วิธีอัปเกรด",

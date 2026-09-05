@@ -1238,6 +1238,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Steer",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "New version {version} available (current {current})",
   "update.viewHow": "How to upgrade",

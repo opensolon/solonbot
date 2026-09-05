@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Araya girme",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "Yeni sürüm {version} mevcut (geçerli {current})",
   "update.viewHow": "Nasıl yükseltilir",

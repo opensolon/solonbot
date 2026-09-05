@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "বার্তা নির্দেশ",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "নতুন সংস্করণ {version} উপলব্ধ (বর্তমান {current})",
   "update.viewHow": "কীভাবে আপগ্রেড করবেন",

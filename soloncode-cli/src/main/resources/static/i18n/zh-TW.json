@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "插話",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "發現新版本 {version}（目前 {current}）",
   "update.viewHow": "查看升級方式",

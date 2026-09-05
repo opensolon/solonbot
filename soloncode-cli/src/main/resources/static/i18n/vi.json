@@ -1233,6 +1233,7 @@
   "streaming.steerFailed": "Steer failed; text restored to the input box",
   "streaming.steerBadgePending": "Pending",
   "streaming.steerBadgeApplied": "Applied",
+  "streaming.steerLabel": "Chèn lời nhắc",
   "streaming.steerAttachDemote": "Message with attachments was queued instead",
   "update.bannerText": "Đã có phiên bản mới {version} (hiện tại {current})",
   "update.viewHow": "Cách nâng cấp",
