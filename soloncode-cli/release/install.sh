@@ -5,6 +5,15 @@
 #  兼容 bash, zsh, sh 等多种 shell
 # =============================================
 
+# 有些用户会用 `sh install.sh` 启动；脚本后续使用了 Bash 数组等语法，先切换到 Bash。
+if [ -z "${BASH_VERSION:-}" ]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+    echo "[Error] Bash is required to run this installer"
+    exit 1
+fi
+
 set -e
 
 # Colors
@@ -142,7 +151,11 @@ fi
 # 复制 commands 目录（仅替换安装包自带的同名命令文件，保留用户自建命令）
 if [ -d "$SOURCE_COMMANDS_DIR" ]; then
     mkdir -p "$TARGET_COMMANDS_DIR"
-    while IFS= read -r -d '' COMMAND_PATH; do
+    # 使用普通重定向而非 Bash 专属的进程替换，避免通过 sh 执行时出现语法错误
+    COMMAND_LIST=$(mktemp)
+    find "$SOURCE_COMMANDS_DIR" -type f -print > "$COMMAND_LIST"
+    while IFS= read -r COMMAND_PATH; do
+        [ -n "$COMMAND_PATH" ] || continue
         COMMAND_RELATIVE_PATH=${COMMAND_PATH#"$SOURCE_COMMANDS_DIR"/}
         TARGET_COMMAND_PATH="$TARGET_COMMANDS_DIR/$COMMAND_RELATIVE_PATH"
         TARGET_COMMAND_PARENT=$(dirname "$TARGET_COMMAND_PATH")
@@ -150,21 +163,23 @@ if [ -d "$SOURCE_COMMANDS_DIR" ]; then
         mkdir -p "$TARGET_COMMAND_PARENT"
         if [ -d "$TARGET_COMMAND_PATH" ]; then
             echo "[Error] Command target is a directory: $TARGET_COMMAND_PATH"
+            rm -f "$COMMAND_LIST"
             exit 1
         fi
 
         # 先复制到同目录临时文件，再替换目标，避免复制中断破坏已有命令
         COMMAND_TEMP_PATH=$(mktemp "$TARGET_COMMAND_PARENT/.soloncode-command.XXXXXX")
         if ! cp "$COMMAND_PATH" "$COMMAND_TEMP_PATH"; then
-            rm -f "$COMMAND_TEMP_PATH"
+            rm -f "$COMMAND_TEMP_PATH" "$COMMAND_LIST"
             exit 1
         fi
         if ! mv -f "$COMMAND_TEMP_PATH" "$TARGET_COMMAND_PATH"; then
-            rm -f "$COMMAND_TEMP_PATH"
+            rm -f "$COMMAND_TEMP_PATH" "$COMMAND_LIST"
             exit 1
         fi
         echo "      Updated command: $COMMAND_RELATIVE_PATH"
-    done < <(find "$SOURCE_COMMANDS_DIR" -type f -print0)
+    done < "$COMMAND_LIST"
+    rm -f "$COMMAND_LIST"
 else
     echo "      No commands/ directory to copy"
 fi
