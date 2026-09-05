@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,6 +38,32 @@ public class DirectoryPickerUtilTest {
     @Test
     void isAvailable_noThrow() {
         DirectoryPickerUtil.isAvailable();
+    }
+
+    @Test
+    void isAvailable_detectsHeadlessAndRemoteSessions() {
+        Map<String, String> env = new HashMap<String, String>();
+        assertFalse(DirectoryPickerUtil.isAvailable("Linux", env, null));
+
+        env.put("DISPLAY", ":0");
+        assertTrue(DirectoryPickerUtil.isAvailable("Linux", env, null));
+
+        env.put("SSH_CONNECTION", "client server");
+        assertFalse(DirectoryPickerUtil.isAvailable("Linux", env, null));
+        assertFalse(DirectoryPickerUtil.isAvailable("Mac OS X", env, null));
+
+        env.clear();
+        env.put("SESSIONNAME", "Services");
+        assertFalse(DirectoryPickerUtil.isAvailable("Windows Server 2022", env, null));
+    }
+
+    @Test
+    void isAvailable_allowsExplicitOverride() {
+        Map<String, String> env = new HashMap<String, String>();
+        assertTrue(DirectoryPickerUtil.isAvailable("Linux", env, "true"));
+
+        env.put("DISPLAY", ":0");
+        assertFalse(DirectoryPickerUtil.isAvailable("Linux", env, "false"));
     }
 
     @Test

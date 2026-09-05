@@ -553,7 +553,7 @@
             <div class="ws-home-brand" data-i18n="sidebar.workspace">工作区</div>
             <div class="ws-home-omni">
                 <input type="text" class="ws-home-search" id="wsHomeSearch" placeholder="搜索工作区，或输入绝对路径打开…" data-i18n-placeholder="sidebar.wsOmniPlaceholder" autocomplete="off">
-                <button class="ws-home-omni-pick" id="wsHomePickBtn" type="button" data-i18n-title="sidebar.wsPickFolder" aria-label="浏览本地目录" data-i18n-aria-label="sidebar.wsPickFolder" disabled>
+                <button class="ws-home-omni-pick" id="wsHomePickBtn" type="button" data-i18n-title="sidebar.wsPickFolder" aria-label="浏览本地目录" data-i18n-aria-label="sidebar.wsPickFolder" disabled style="display:none">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 3.5h4l1.5 2h7.5v7a1.5 1.5 0 0 1-1.5 1.5H3a1.5 1.5 0 0 1-1.5-1.5v-9Z"/><path d="M6 10.5h4"/></svg>
                 </button>
                 <button class="ws-home-omni-go" id="wsHomeGoBtn" data-i18n="sidebar.open">打开</button>
@@ -2852,7 +2852,7 @@
                 .catch(function () { goBtn.disabled = false; showToast('open failed', 'error'); });
         }
 
-        // 点系统目录选择按钮：后端弹原生对话框，选中后回填输入框并自动触发打开
+        // 点系统目录选择按钮：后端弹原生对话框，选中后只回填输入框；统一由“打开”按钮提交
         function pickFolder() {
             if (pickBtn.disabled) return;
             pickBtn.disabled = true;
@@ -2868,12 +2868,16 @@
                 .then(function (res) {
                     done();
                     if (res.code !== 200) { showToast(res.description || res.message || 'pick failed', 'error'); return; }
-                    if (res.data && res.data.headless) { showToast(t('sidebar.wsPickHeadless', '当前运行环境无桌面，无法弹出目录选择框，请手动输入路径'), 'error'); return; }
+                    if (res.data && res.data.headless) {
+                        // 桌面会话可能在页面加载后消失；静默降级为手工输入，不暴露系统错误。
+                        pickBtn.style.display = 'none';
+                        return;
+                    }
                     var p = res.data && res.data.path;
                     if (!p) return; // 用户取消，静默返回
                     searchInput.value = p;
                     render();
-                    openNew();
+                    searchInput.focus();
                 })
                 .catch(function () { done(); showToast(t('sidebar.wsPickTimeout', '目录选择超时或失败，请重试'), 'error'); });
         }
@@ -2883,9 +2887,13 @@
         searchInput.addEventListener('input', render);
         goBtn.addEventListener('click', openNew);
         pickBtn.addEventListener('click', pickFolder);
-        // 初始化时探测一次能力（GET 无副作用）：headless/远程访问时按钮置灰
+        // 初始化时探测一次能力（GET 无副作用）：仅在明确支持本机 GUI 时显示按钮。
+        // 探测失败保持隐藏，Linux 无桌面服务器不会出现一个注定失败的入口。
         fetch('/web/workspace/pick-directory').then(function (r) { return r.json(); }).then(function (res) {
-            if (res.code === 200 && res.data && res.data.available) pickBtn.disabled = false;
+            if (res.code === 200 && res.data && res.data.available) {
+                pickBtn.style.display = '';
+                pickBtn.disabled = false;
+            }
         }).catch(function () { });
         searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') openNew(); });
 

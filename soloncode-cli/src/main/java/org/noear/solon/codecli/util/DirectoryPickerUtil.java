@@ -457,21 +457,53 @@ public class DirectoryPickerUtil {
     }
 
     /**
-     * 判断当前运行环境是否可能弹框（宿主 JVM 自身 headless 不可信，用环境启发式判断）：
-     * Windows/macOS 视为有桌面；Linux 需 DISPLAY 或 WAYLAND_DISPLAY。
-     * 误报（如 SSH 无 GUI 的 mac）会在真正弹框时以子进程错误暴露。
+     * 判断当前宿主是否具备可交互桌面。
+     * <p>
+     * 不能使用 {@code GraphicsEnvironment.isHeadless()}：Solon 会将宿主 JVM 标为 headless，
+     * 而真正的选择器运行在系统进程或独立 Java 子进程中。这里采用保守策略：
+     * Linux/Unix 必须有 DISPLAY 或 WAYLAND_DISPLAY；SSH 会话与 Windows Service 会话直接禁用。
+     * 可用 {@code -Dsoloncode.directoryPicker.enabled=true|false} 显式覆盖自动判断。
      */
     public static boolean isAvailable() {
-        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (isWindows(os) || isMac(os)) {
+        return isAvailable(System.getProperty("os.name", ""), System.getenv(),
+                System.getProperty("soloncode.directoryPicker.enabled"));
+    }
+
+    /**
+     * 可测试的桌面能力判断实现。
+     */
+    static boolean isAvailable(String osName, java.util.Map<String, String> env, String enabledOverride) {
+        if (enabledOverride != null && !enabledOverride.trim().isEmpty()) {
+            return Boolean.parseBoolean(enabledOverride.trim());
+        }
+
+        if (env == null) {
+            return false;
+        }
+
+        // Web 可能经 SSH 端口转发访问；此时弹窗会出现在服务器端，必须禁用。
+        if (hasEnv(env, "SSH_CONNECTION") || hasEnv(env, "SSH_CLIENT") || hasEnv(env, "SSH_TTY")) {
+            return false;
+        }
+
+        String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
+        if (isWindows(os)) {
+            // Windows 服务运行在隔离桌面，不能向登录用户显示交互窗口。
+            String sessionName = env.get("SESSIONNAME");
+            return sessionName == null || !"services".equalsIgnoreCase(sessionName.trim());
+        }
+        if (isMac(os)) {
+            // macOS 没有 DISPLAY；非 SSH 的用户会话交给 osascript 做最终确认。
             return true;
         }
-        String display = System.getenv("DISPLAY");
-        if (display != null && !display.isEmpty()) {
-            return true;
-        }
-        String wayland = System.getenv("WAYLAND_DISPLAY");
-        return wayland != null && !wayland.isEmpty();
+
+        // Linux/其它 Unix 的本地图形会话至少应暴露一种显示协议。
+        return hasEnv(env, "DISPLAY") || hasEnv(env, "WAYLAND_DISPLAY");
+    }
+
+    private static boolean hasEnv(java.util.Map<String, String> env, String name) {
+        String value = env.get(name);
+        return value != null && !value.trim().isEmpty();
     }
 
     /**

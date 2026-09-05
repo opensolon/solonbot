@@ -288,7 +288,9 @@ public class WebController {
     @Mapping("/web/workspace/pick-directory")
     public Result<Map<String, Object>> pickDirectoryCapability() {
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("available", DirectoryPickerUtil.isAvailable() && isLoopbackRequest(Context.current()));
+        boolean available = DirectoryPickerUtil.isAvailable() && isLoopbackRequest(Context.current());
+        data.put("available", available);
+        data.put("headless", !available);
         return Result.succeed(data);
     }
 
@@ -302,7 +304,7 @@ public class WebController {
      * <ul>
      *   <li><b>仅限本机调用</b>：非 loopback 来源直接拒绝（弹框出现在服务器屏幕而非访问者屏幕，毫无意义且危险）</li>
      *   <li><b>单对话框并发锁</b>：第二个请求直接拒绝，避免叠加弹框</li>
-     *   <li><b>headless 拒绝</b>：无桌面环境时返回明确错误，前端提示手输路径</li>
+     *   <li><b>headless 拒绝</b>：无桌面环境时静默降级，前端隐藏目录选择入口</li>
      *   <li><b>超时自动关闭</b>：见 {@link DirectoryPickerUtil#DEFAULT_TIMEOUT_MS}</li>
      * </ul>
      *
@@ -317,11 +319,12 @@ public class WebController {
             return Result.failure("仅限本机调用（loopback）");
         }
 
-        // 2. headless 拒绝：给前端可读提示
+        // 2. 无交互桌面时静默降级，前端隐藏入口并继续支持手工输入
         if (DirectoryPickerUtil.isAvailable() == false) {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("path", null);
             data.put("headless", true);
+            data.put("available", false);
             return Result.succeed(data);
         }
 
@@ -336,10 +339,17 @@ public class WebController {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("path", path);
             data.put("headless", false);
+            data.put("available", true);
             return Result.succeed(data);
         } catch (Exception e) {
-            LOG.warn("[Workspace] Directory picker failed", e);
-            return Result.failure("目录选择失败: " + e.getMessage());
+            // 显示服务可能在启动后消失（容器、SSH 转发、桌面注销等）。这属于能力降级，
+            // 不向前端抛系统错误；记录日志并让前端隐藏入口、继续支持手工输入路径。
+            LOG.warn("[Workspace] Directory picker unavailable", e);
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("path", null);
+            data.put("headless", true);
+            data.put("available", false);
+            return Result.succeed(data);
         } finally {
             PICK_DIR_LOCK.set(false);
         }
