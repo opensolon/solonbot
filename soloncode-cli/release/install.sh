@@ -52,10 +52,12 @@ SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 TARGET_DIR="$HOME/.soloncode"
 TARGET_BIN_DIR="$TARGET_DIR/bin"
 TARGET_SKILLS_DIR="$TARGET_DIR/skills"
+TARGET_COMMANDS_DIR="$TARGET_DIR/commands"
 
 # 源目录
 SOURCE_BIN_DIR="$SOURCE_DIR/bin"
 SOURCE_SKILLS_DIR="$SOURCE_DIR/skills"
+SOURCE_COMMANDS_DIR="$SOURCE_DIR/commands"
 SOURCE_AGENTS="$SOURCE_DIR/AGENTS.md"
 
 # =============================================
@@ -98,6 +100,7 @@ echo "[2/5] Preparing target directory: $TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 mkdir -p "$TARGET_BIN_DIR"
 mkdir -p "$TARGET_SKILLS_DIR"
+mkdir -p "$TARGET_COMMANDS_DIR"
 
 echo "      Created directory structure"
 
@@ -134,6 +137,36 @@ if [ -d "$SOURCE_SKILLS_DIR" ]; then
     done
 else
     echo "      No skills/ directory to copy"
+fi
+
+# 复制 commands 目录（仅替换安装包自带的同名命令文件，保留用户自建命令）
+if [ -d "$SOURCE_COMMANDS_DIR" ]; then
+    mkdir -p "$TARGET_COMMANDS_DIR"
+    while IFS= read -r -d '' COMMAND_PATH; do
+        COMMAND_RELATIVE_PATH=${COMMAND_PATH#"$SOURCE_COMMANDS_DIR"/}
+        TARGET_COMMAND_PATH="$TARGET_COMMANDS_DIR/$COMMAND_RELATIVE_PATH"
+        TARGET_COMMAND_PARENT=$(dirname "$TARGET_COMMAND_PATH")
+
+        mkdir -p "$TARGET_COMMAND_PARENT"
+        if [ -d "$TARGET_COMMAND_PATH" ]; then
+            echo "[Error] Command target is a directory: $TARGET_COMMAND_PATH"
+            exit 1
+        fi
+
+        # 先复制到同目录临时文件，再替换目标，避免复制中断破坏已有命令
+        COMMAND_TEMP_PATH=$(mktemp "$TARGET_COMMAND_PARENT/.soloncode-command.XXXXXX")
+        if ! cp "$COMMAND_PATH" "$COMMAND_TEMP_PATH"; then
+            rm -f "$COMMAND_TEMP_PATH"
+            exit 1
+        fi
+        if ! mv -f "$COMMAND_TEMP_PATH" "$TARGET_COMMAND_PATH"; then
+            rm -f "$COMMAND_TEMP_PATH"
+            exit 1
+        fi
+        echo "      Updated command: $COMMAND_RELATIVE_PATH"
+    done < <(find "$SOURCE_COMMANDS_DIR" -type f -print0)
+else
+    echo "      No commands/ directory to copy"
 fi
 
 # =============================================
@@ -340,7 +373,8 @@ echo "    ├── bin/            (executables)"
 echo "    │   ├── soloncode-cli.jar"
 echo "    │   ├── soloncode       (launcher)"
 echo "    │   └── uninstall.sh    (uninstall script)"
-echo "    └── skills/        (skill modules)"
+echo "    ├── skills/         (skill modules)"
+echo "    └── commands/       (custom commands)"
 echo ""
 echo -e "  ${YELLOW}[Tip]${NC} To use soloncode immediately in current terminal:"
 echo "    source ~/.${USER_SHELL}rc"
