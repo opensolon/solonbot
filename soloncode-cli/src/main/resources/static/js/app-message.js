@@ -8,8 +8,8 @@ var OK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke
 /* 重新运行（循环箭头）与继续运行（快进）图标 */
 var RERUN_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
 var CONTINUE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>';
-/* 删除图标 */
-var DELETE_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+/* 删除图标：全局统一常量（app-base.js），此处仅保留旧名兼容 */
+var DELETE_SVG = SVG_TRASH;
 
 /* 更新用户消息的「重做/继续」按钮：重做仅最后一条用户消息显示；
    继续运行仅在最后一条用户消息同时是整个消息列表末尾（其后无 AI 回复）、

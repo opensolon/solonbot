@@ -2948,6 +2948,41 @@ pre:hover .code-copy-btn { opacity: 1; }
     font-weight: 400;
     color: var(--text-tertiary, var(--text-secondary));
 }
+/* ===== 删除类图标按钮统一规约（与 app-base.js 的 SVG_TRASH / SVG_TRASH_PLAIN 配套） ===== */
+/* .icon-btn-clear：批量清空（Clear）专用。常态低调，hover 强警示红。 */
+.icon-btn-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+.icon-btn-clear:hover {
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.08);
+}
+/* .icon-btn-delete：单个删除（Delete）行内纯图标钮。与 clear 的区别：不亮红底，仅变红字，警示弱一级。 */
+.icon-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 2px;
+    transition: background 0.15s, color 0.15s;
+}
+.icon-btn-delete:hover {
+    color: var(--color-danger);
+}
+
 .queue-strip-actions {
     display: flex;
     align-items: center;
@@ -3267,6 +3302,7 @@ pre:hover .code-copy-btn { opacity: 1; }
 /* ===== 心智记忆管理面板 ===== */
 .git-viewer-content .memory-panel { white-space: normal; display: flex; flex-direction: column; height: 100%; font-size: var(--fs-md); }
 .memory-btn { height: 32px; padding: 0 16px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: var(--fs-base); transition: all 0.15s; }
+.memory-btn-danger { color: var(--color-danger); display: inline-flex; align-items: center; gap: 4px; }
 .memory-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 /* 保存：唯一强调点，实心主色无边框 */
  .memory-btn-primary { background: var(--accent-fill, var(--accent)); color: #fff; font-weight: 500; }

@@ -162,11 +162,14 @@ body.ws-home-locked > *:not(#wsHomeOverlay) { visibility: hidden; }
     padding: 4px;
     border-radius: 6px;
     opacity: 0;
-    transition: opacity 0.15s;
-    line-height: 1;
+    transition: opacity 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+.ws-home-card-remove svg { width: 14px; height: 14px; display: block; }
 .ws-home-card:hover .ws-home-card-remove { opacity: 1; }
-.ws-home-card-remove:hover { color: #e55; background: rgba(229,85,85,0.12); }
+.ws-home-card-remove:hover { color: var(--color-danger); }
 .ws-home-empty {
     grid-column: 1 / -1;
     font-size: var(--fs-sm);

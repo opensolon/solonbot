@@ -60,7 +60,7 @@
     </div>
     <div class="sidebar-title-row">
         <div class="sidebar-title" data-i18n="sidebar.recentChats">最近对话</div>
-        <button type="button" class="sidebar-clear-history-btn" id="clearHistoryBtn" title="清空未置顶对话" data-i18n-title="history.clearTitle" data-i18n-aria="history.clearTitle" aria-label="清空未置顶对话">
+        <button type="button" class="sidebar-clear-history-btn icon-btn-clear" id="clearHistoryBtn" title="清空未置顶对话" data-i18n-title="history.clearTitle" data-i18n-aria="history.clearTitle" aria-label="清空未置顶对话">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
     </div>
@@ -340,7 +340,7 @@
                 <button class="git-viewer-action-btn" id="gitViewerMemOrganize" title="整理记忆" data-i18n-title="toolbar.organizeMemory" style="display:none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5A2.5 2.5 0 0 1 7 19.5V17H5a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5V17h2a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2"/></svg>
                 </button>
-                <button class="git-viewer-action-btn" id="gitViewerMemClear" title="清空记忆" data-i18n-title="gitViewer.clearMemory" style="display:none">
+                <button class="git-viewer-action-btn icon-btn-clear" id="gitViewerMemClear" title="清空记忆" data-i18n-title="gitViewer.clearMemory" style="display:none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
                 <button class="git-viewer-action-btn" id="gitViewerFullscreen" title="全屏" data-i18n-title="gitViewer.fullscreen">
@@ -401,8 +401,6 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                <line x1="10" y1="11" x2="10" y2="17"/>
-                                <line x1="14" y1="11" x2="14" y2="17"/>
                             </svg>
                         </button>
                     </div>
@@ -1183,7 +1181,7 @@
                                 </div>
                                 <div class="settings-form-actions" id="agentsFormActions" style="display:none">
                                     <button class="settings-form-action-btn" id="agentsFormCopyBtn" title="复制为新定义" data-i18n-title="agents.copyTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> <span data-i18n="agents.copy">复制</span></button>
-                                     <button class="settings-form-action-btn danger" id="agentsFormDeleteBtn" title="删除" data-i18n-title="agents.deleteTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> <span data-i18n="agents.delete">删除</span></button>
+                                     <button class="settings-form-action-btn danger" id="agentsFormDeleteBtn" title="删除" data-i18n-title="agents.deleteTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> <span data-i18n="agents.delete">删除</span></button>
                                 </div>
                             </div>
                             <div class="agents-form">
@@ -1275,7 +1273,7 @@
                                          <span data-i18n="llm.copy">复制</span>
                                     </button>
                                     <button class="settings-form-action-btn danger" id="llmFormDeleteBtn" title="删除" data-i18n-title="common.delete">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                          <span data-i18n="llm.delete">删除</span>
                                     </button>
                                 </div>
@@ -1460,7 +1458,7 @@
                                     <span class="settings-section-title" id="mountsFormTitle">添加挂载</span>
                                 </div>
                                 <div class="settings-form-actions" id="mountsFormActions" style="display:none">
-                                    <button class="settings-form-action-btn danger" id="mountsFormDeleteBtn" title="删除" data-i18n-title="common.delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> <span data-i18n="common.delete">删除</span></button>
+                                    <button class="settings-form-action-btn danger" id="mountsFormDeleteBtn" title="删除" data-i18n-title="common.delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> <span data-i18n="common.delete">删除</span></button>
                                 </div>
                             </div>
                             <div class="mounts-add-form">
@@ -1578,7 +1576,7 @@
                                          <span data-i18n="mcp.copyBtn">复制</span>
                                      </button>
                                      <button class="settings-form-action-btn danger" id="mcpFormDeleteBtn" title="删除" data-i18n-title="mcp.deleteTitle">
-                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                          <span data-i18n="mcp.deleteBtn">删除</span>
                                      </button>
                                 </div>
@@ -1705,7 +1703,7 @@
                                          <span data-i18n="openapi.edit">复制</span>
                                      </button>
                                      <button class="settings-form-action-btn danger" id="openapiFormDeleteBtn" title="删除" data-i18n-title="openapi.deleteTitle">
-                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                          <span data-i18n="openapi.deleteBtn">删除</span>
                                      </button>
                                 </div>
@@ -1803,7 +1801,7 @@
                                 </div>
                                 <div class="settings-form-actions" id="lspFormActions" style="display:none">
                                     <button class="settings-form-action-btn danger" id="lspFormDeleteBtn" title="删除" data-i18n-title="lsp.deleteTitle">
-                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                          <span data-i18n="lsp.deleteBtn">删除</span>
                                      </button>
                                 </div>
@@ -2090,7 +2088,7 @@
                                 </div>
                                 <div class="settings-form-actions" id="providerFormActions" style="display:none">
                                     <button class="settings-form-action-btn danger" id="providerFormDeleteBtn" title="删除" data-i18n-title="provider.deleteTitle">
-                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                          <span data-i18n="provider.deleteBtn">删除</span>
                                      </button>
                                 </div>
@@ -2142,8 +2140,8 @@
                                             <button class="provider-model-icon-btn" id="providerFetchModelsBtn" title="从 API 拉取模型列表" data-i18n-title="provider.models.fetchTitle">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                                             </button>
-                                            <button class="provider-model-icon-btn" id="providerClearModelsBtn" title="清空模型列表" data-i18n-title="provider.models.clearTitle">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-1 2h14l-1 14H4L3 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><line x1="18" y1="11" x2="18" y2="17"/></svg>
+                                            <button class="provider-model-icon-btn icon-btn-clear" id="providerClearModelsBtn" title="清空模型列表" data-i18n-title="provider.models.clearTitle">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                             </button>
                                         </div>
                                     </div>
@@ -2736,7 +2734,7 @@
                 html += '<div class="ws-home-card" data-id="' + esc(item.id) + '">' +
                     '<div class="ws-home-card-name">' + esc(item.name || item.path) + '</div>' +
                     '<div class="ws-home-card-path" title="' + esc(item.path) + '">' + esc(item.path) + '</div>' +
-                    '<button class="ws-home-card-remove" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">✕</button></div>';
+                    '<button class="ws-home-card-remove" data-remove="' + esc(item.id) + '" title="' + t('sidebar.wsRemove', '移除') + '">' + SVG_TRASH + '</button></div>';
             });
             recentGrid.innerHTML = html || '<div class="ws-home-empty">' + t('sidebar.wsEmpty', '暂无其他工作区') + '</div>';
 
@@ -2800,13 +2798,20 @@
 
         // 点击最近工作区卡片：新 tab 打开；点击移除按钮：从列表移除
         recentGrid.addEventListener('click', function (e) {
-            var rm = e.target.getAttribute && e.target.getAttribute('data-remove');
-            if (rm) {
+            var rmBtn = e.target.closest ? e.target.closest('[data-remove]') : null;
+            if (rmBtn) {
+                var rm = rmBtn.getAttribute('data-remove');
                 e.stopPropagation();
-                if (!window.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'))) return;
-                fetch('/web/workspace/remove', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'id=' + encodeURIComponent(rm) })
-                    .then(function (r) { return r.json(); })
-                    .then(function (res) { if (res.code === 200) load(); else showToast(res.description || 'remove failed', 'error'); });
+                var doRemove = function () {
+                    fetch('/web/workspace/remove', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'id=' + encodeURIComponent(rm) })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) { if (res.code === 200) load(); else showToast(res.description || 'remove failed', 'error'); });
+                };
+                if (typeof layer !== 'undefined' && layer.confirm) {
+                    layer.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'), { btn: [t('common.delete', '删除'), t('common.cancel', '取消')], icon: 3, offset: '120px' }, function (index) { layer.close(index); doRemove(); });
+                } else if (window.confirm(t('sidebar.wsRemoveConfirm', '确定从列表移除该工作区？（不会删除目录）'))) {
+                    doRemove();
+                }
                 return;
             }
             var item = e.target.closest ? e.target.closest('.ws-home-card') : null;

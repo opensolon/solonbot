@@ -27,26 +27,28 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 系统级“选择目录”工具：在宿主机桌面弹出原生目录选择框，返回用户选中的绝对路径。
+ * 系统级“选择目录”工具：在宿主机桌面弹出系统原生目录选择框，返回用户选中的绝对路径。
  * <p>
- * 与 {@link OsOpenUtil} 同属“CLI 进程直接调宿主 GUI 能力”的场景（soloncode web 本就运行在用户桌面）。
+ * 优先使用操作系统提供的选择器：macOS 使用 Finder（osascript choose folder），Windows 使用
+ * Shell.Application 的系统目录对话框，Linux 依次使用 Zenity、KDialog；原生能力不可用或执行失败时，
+ * 再回退到 {@link DirectoryPickerSubprocess} 中的 Swing {@code JFileChooser}。
  * <p>
- * <b>为何用子进程：</b>Solon 框架类初始化时会把 {@code java.awt.headless} 默认置为 true，
- * CLI 宿主 JVM 内 AWT 因此永远是 headless、无法直接弹框；且该状态在 Toolkit 首次加载后不可逆。
- * 故在子 JVM 中以 {@code -Djava.awt.headless=false} 运行 {@link DirectoryPickerSubprocess}，
- * 由它弹 {@code JFileChooser(DIRECTORIES_ONLY)}，把结果按协议写 stdout 后退出：
+ * <b>为何 Swing 兜底要用子进程：</b>Solon 框架类初始化时会把 {@code java.awt.headless}
+ * 默认置为 true，CLI 宿主 JVM 内 AWT 因此永远是 headless、无法直接弹框；且该状态在 Toolkit
+ * 首次加载后不可逆。故在子 JVM 中以 {@code -Djava.awt.headless=false} 运行 Swing 兜底选择器。
+ * 子进程结果按协议写 stdout 后退出：
  * <ul>
  *     <li>{@code PICK <abs-path>}：用户选中目录</li>
  *     <li>{@code PICK_NONE}：用户取消</li>
  * </ul>
- * 子进程异常（无显示器、AWT 初始化失败等）时以非 0 退出码结束并输出错误信息。
  * <p>
- * <b>类路径定位：</b>优先系统属性 {@code soloncode.pick.jar}（显式指定）；
+ * <b>类路径定位：</b>只用于 Swing 兜底。优先系统属性 {@code soloncode.pick.jar}（显式指定）；
  * 开发模式（classes 目录）直接用该目录；fat jar 模式下 classpath 不含 BOOT-INF，
  * 故将子进程类从自身 jar 抽取到临时目录后再启动。
  *
@@ -104,6 +106,102 @@ public class DirectoryPickerUtil {
      * @throws IOException 子进程启动或通信失败
      */
     public static String pick(String title, long timeoutMs, File startDir) throws IOException {
+        try {
+            NativePickResult nativeResult = pickNative(
+                    System.getProperty("os.name", ""), title, timeoutMs, startDir);
+            if (nativeResult.supported) {
+                return nativeResult.path;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (IOException e) {
+            warn("native picker failed, falling back to Swing: " + e);
+        }
+
+        return pickWithSwing(title, timeoutMs, startDir);
+    }
+
+    /**
+     * 尝试系统原生选择器。返回 supported=false 时由调用方回退 Swing。
+     */
+    static NativePickResult pickNative(String osName, String title, long timeoutMs, File startDir)
+            throws IOException, InterruptedException {
+        String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
+        File effectiveStartDir = effectiveStartDir(startDir);
+        if (isMac(os)) {
+            List<String> cmd = macCommand(title, effectiveStartDir);
+            CommandResult result = runCommand(cmd, timeoutMs);
+            if (result.timedOut || isMacCancel(result)) {
+                return NativePickResult.handled(null);
+            }
+            if (result.exitCode != 0) {
+                throw commandFailure("macOS", result);
+            }
+            return NativePickResult.handled(outputPath(result.output));
+        }
+
+        if (isWindows(os)) {
+            List<String> cmd = windowsCommand(title);
+            CommandResult result = runCommand(cmd, timeoutMs);
+            if (result.timedOut) {
+                return NativePickResult.handled(null);
+            }
+            if (result.exitCode != 0) {
+                throw commandFailure("Windows", result);
+            }
+            return NativePickResult.handled(protocolPath(result.output));
+        }
+
+        if (os.contains("linux")) {
+            List<String> zenity = new ArrayList<String>();
+            zenity.add("zenity");
+            zenity.add("--file-selection");
+            zenity.add("--directory");
+            zenity.add("--title=" + safeTitle(title));
+            zenity.add("--filename=" + effectiveStartDir.getAbsolutePath() + File.separator);
+            try {
+                CommandResult result = runCommand(zenity, timeoutMs);
+                if (result.timedOut || result.exitCode == 1) {
+                    return NativePickResult.handled(null);
+                }
+                if (result.exitCode != 0) {
+                    throw commandFailure("Zenity", result);
+                }
+                return NativePickResult.handled(outputPath(result.output));
+            } catch (IOException e) {
+                if (!isCommandMissing(e)) {
+                    throw e;
+                }
+            }
+
+            List<String> kdialog = new ArrayList<String>();
+            kdialog.add("kdialog");
+            kdialog.add("--getexistingdirectory");
+            kdialog.add(effectiveStartDir.getAbsolutePath());
+            kdialog.add("--title");
+            kdialog.add(safeTitle(title));
+            try {
+                CommandResult result = runCommand(kdialog, timeoutMs);
+                if (result.timedOut || result.exitCode == 1) {
+                    return NativePickResult.handled(null);
+                }
+                if (result.exitCode != 0) {
+                    throw commandFailure("KDialog", result);
+                }
+                return NativePickResult.handled(outputPath(result.output));
+            } catch (IOException e) {
+                if (isCommandMissing(e)) {
+                    return NativePickResult.unsupported();
+                }
+                throw e;
+            }
+        }
+
+        return NativePickResult.unsupported();
+    }
+
+    private static String pickWithSwing(String title, long timeoutMs, File startDir) throws IOException {
         String cp = resolveClasspath();
         if (cp == null) {
             throw new IOException("Cannot locate directory-picker classpath (try -Dsoloncode.pick.jar=<path>)");
@@ -158,7 +256,11 @@ public class DirectoryPickerUtil {
             }
             for (String line : text.split("\n")) {
                 if (line.startsWith("PICK ")) {
-                    return line.substring("PICK ".length()).trim();
+                    String path = line.substring("PICK ".length());
+                    if (path.isEmpty()) {
+                        throw new IOException("Directory picker subprocess returned an empty path");
+                    }
+                    return path;
                 }
                 if (line.equals("PICK_NONE")) {
                     return null;
@@ -173,14 +275,195 @@ public class DirectoryPickerUtil {
         }
     }
 
+    static List<String> macCommand(String title, File startDir) {
+        List<String> cmd = new ArrayList<String>();
+        cmd.add("osascript");
+        cmd.add("-e");
+        cmd.add("set selectedFolder to choose folder with prompt \"" + escapeAppleScript(title)
+                + "\" default location (POSIX file \"" + escapeAppleScript(startDir.getAbsolutePath()) + "\")");
+        cmd.add("-e");
+        cmd.add("POSIX path of selectedFolder");
+        return cmd;
+    }
+
+    static List<String> windowsCommand(String title) {
+        String escapedTitle = safeTitle(title).replace("'", "''");
+        String script = "[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false);"
+                + "$OutputEncoding=[Console]::OutputEncoding;"
+                + "$shell=New-Object -ComObject Shell.Application;"
+                + "$folder=$shell.BrowseForFolder(0,'" + escapedTitle + "',0,0);"
+                + "if($null -eq $folder){Write-Output 'PICK_NONE'}"
+                + "else{$path=$folder.Self.Path;if([string]::IsNullOrEmpty($path)){Write-Output 'PICK_NONE'}"
+                + "else{Write-Output ('PICK '+$path)}}";
+        List<String> cmd = new ArrayList<String>();
+        cmd.add("powershell.exe");
+        cmd.add("-NoProfile");
+        cmd.add("-NonInteractive");
+        cmd.add("-STA");
+        cmd.add("-Command");
+        cmd.add(script);
+        return cmd;
+    }
+
+    private static File effectiveStartDir(File startDir) {
+        if (startDir != null && startDir.isDirectory()) {
+            return startDir;
+        }
+        File home = new File(System.getProperty("user.home", "."));
+        return home.isDirectory() ? home : new File(".");
+    }
+
+    private static boolean isMac(String os) {
+        return os.contains("mac") || os.contains("darwin");
+    }
+
+    private static boolean isWindows(String os) {
+        return os.startsWith("windows");
+    }
+
+    private static String safeTitle(String title) {
+        return title == null || title.isEmpty() ? "Select Workspace Directory" : title;
+    }
+
+    private static String escapeAppleScript(String value) {
+        return safeTitle(value).replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static boolean isMacCancel(CommandResult result) {
+        return result.exitCode == 1
+                && (result.output.toLowerCase(Locale.ROOT).contains("user canceled") || result.output.contains("-128"));
+    }
+
+    private static boolean isCommandMissing(IOException e) {
+        String message = e.getMessage();
+        return message != null && (message.contains("error=2") || message.contains("No such file"));
+    }
+
+    private static IOException commandFailure(String picker, CommandResult result) {
+        return new IOException(picker + " directory picker failed (exit=" + result.exitCode + "): "
+                + stripTrailingLineBreaks(result.output));
+    }
+
+    static String outputPath(String output) {
+        String path = stripTrailingLineBreaks(output);
+        return path.isEmpty() ? null : path;
+    }
+
+    static String protocolPath(String output) throws IOException {
+        for (String line : output.split("\\r?\\n")) {
+            if (line.startsWith("PICK ")) {
+                String path = line.substring("PICK ".length());
+                if (path.isEmpty()) {
+                    throw new IOException("Native directory picker returned an empty path");
+                }
+                return path;
+            }
+            if (line.equals("PICK_NONE")) {
+                return null;
+            }
+        }
+        throw new IOException("Native directory picker returned no protocol result: "
+                + stripTrailingLineBreaks(output));
+    }
+
+    private static String stripTrailingLineBreaks(String value) {
+        int end = value.length();
+        while (end > 0) {
+            char c = value.charAt(end - 1);
+            if (c != '\r' && c != '\n') {
+                break;
+            }
+            end--;
+        }
+        return value.substring(0, end);
+    }
+
+    private static CommandResult runCommand(List<String> command, long timeoutMs)
+            throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.redirectErrorStream(true);
+        final Process process = pb.start();
+        final StringBuilder output = new StringBuilder();
+        Thread reader = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    BufferedReader r = new BufferedReader(
+                            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        synchronized (output) {
+                            output.append(line).append('\n');
+                        }
+                    }
+                } catch (IOException ignored) {
+                    // 超时销毁进程时流关闭，正常
+                }
+            }
+        }, "soloncode-native-pick-reader");
+        reader.setDaemon(true);
+        reader.start();
+
+        boolean finished;
+        try {
+            finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            process.destroyForcibly();
+            throw e;
+        }
+        if (!finished) {
+            process.destroyForcibly();
+            reader.join(3000L);
+            return new CommandResult(-1, snapshot(output), true);
+        }
+        reader.join(3000L);
+        return new CommandResult(process.exitValue(), snapshot(output), false);
+    }
+
+    private static String snapshot(StringBuilder output) {
+        synchronized (output) {
+            return output.toString();
+        }
+    }
+
+    static final class NativePickResult {
+        final boolean supported;
+        final String path;
+
+        private NativePickResult(boolean supported, String path) {
+            this.supported = supported;
+            this.path = path;
+        }
+
+        static NativePickResult handled(String path) {
+            return new NativePickResult(true, path);
+        }
+
+        static NativePickResult unsupported() {
+            return new NativePickResult(false, null);
+        }
+    }
+
+    private static final class CommandResult {
+        final int exitCode;
+        final String output;
+        final boolean timedOut;
+
+        private CommandResult(int exitCode, String output, boolean timedOut) {
+            this.exitCode = exitCode;
+            this.output = output;
+            this.timedOut = timedOut;
+        }
+    }
+
     /**
      * 判断当前运行环境是否可能弹框（宿主 JVM 自身 headless 不可信，用环境启发式判断）：
      * Windows/macOS 视为有桌面；Linux 需 DISPLAY 或 WAYLAND_DISPLAY。
      * 误报（如 SSH 无 GUI 的 mac）会在真正弹框时以子进程错误暴露。
      */
     public static boolean isAvailable() {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if (os.contains("win") || os.contains("mac")) {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (isWindows(os) || isMac(os)) {
             return true;
         }
         String display = System.getenv("DISPLAY");
@@ -196,7 +479,7 @@ public class DirectoryPickerUtil {
      */
     private static String javaBin() throws IOException {
         File javaHome = new File(System.getProperty("java.home"));
-        String name = System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";
+        String name = isWindows(System.getProperty("os.name", "").toLowerCase(Locale.ROOT)) ? "java.exe" : "java";
         File bin = new File(javaHome, "bin" + File.separator + name);
         if (bin.isFile()) {
             return bin.getAbsolutePath();

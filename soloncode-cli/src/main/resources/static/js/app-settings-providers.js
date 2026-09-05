@@ -563,7 +563,7 @@
 
             var manualTag = model.manual ? '<span class="provider-model-manual-tag">' + I18n.t('provider.manualTag') + '</span>' : '';
             var removeBtn = model.manual
-                ? '<button class="provider-model-remove-btn" title="' + I18n.t('provider.remove') + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+                ? '<button class="provider-model-remove-btn icon-btn-delete" title="' + I18n.t('provider.remove') + '">' + SVG_TRASH + '</button>'
                 : '';
             // 上下文长度：只读显示（info 区的模型属性字段），有值显示如 1m/256k，无值显示占位
             var contextView = (model.maxInputTokens && model.maxInputTokens > 0)

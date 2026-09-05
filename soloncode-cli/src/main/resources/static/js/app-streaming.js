@@ -789,10 +789,24 @@ window.updateStreamingPlaceholder = updateStreamingPlaceholder;
             e.stopPropagation();
             var sess = activeSessionId && sessionMap[activeSessionId];
             if (!sess || !sess.messageQueue || !sess.messageQueue.length) return;
+            var doClear = function () { clearMessageQueue(sess); };
             if (sess.messageQueue.length >= 3) {
-                if (!window.confirm(I18n.t('streaming.clearQueueConfirm', {n: sess.messageQueue.length}))) return;
+                var confirmMsg = I18n.t('streaming.clearQueueConfirm', {n: sess.messageQueue.length});
+                if (typeof layer !== 'undefined' && layer.confirm) {
+                    layer.confirm(confirmMsg, {
+                        title: I18n.t('common.confirm'),
+                        btn: [I18n.t('common.confirm'), I18n.t('common.cancel')],
+                        icon: 3,
+                        offset: '120px'
+                    }, function (index) {
+                        layer.close(index);
+                        doClear();
+                    });
+                    return;
+                }
+                if (!window.confirm(String(confirmMsg).replace(/<br>/g, '\n'))) return;
             }
-            clearMessageQueue(sess);
+            doClear();
         });
         $(dock).on('click', '.queue-item-actions button', function(e) {
             e.stopPropagation();

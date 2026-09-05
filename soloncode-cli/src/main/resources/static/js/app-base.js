@@ -25,6 +25,14 @@ var dingtalkHeaderBtn = document.getElementById('dingtalkHeaderBtn');
 /* ===== Constants ===== */
 var DOTS_HTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
 
+/* ===== 统一删除图标规约 ===== */
+/* 全站删除类按钮只允许两种语义、两种图标，禁止再各处内联 SVG 副本：
+ * SVG_TRASH      —— 单个删除（Delete）：带两条内竖线的垃圾桶，14px，识别度最高；
+ * SVG_TRASH_PLAIN —— 批量清空（Clear）：无内线的垃圾桶，16px，与单删拉开视觉层级。
+ * 清除输入/过滤（× 字符类）不属于删除数据，不在此列。 */
+var SVG_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+var SVG_TRASH_PLAIN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
 /* ===== Per-Session State ===== */
 function SessionState(sessionId) {
     this.sessionId = sessionId;

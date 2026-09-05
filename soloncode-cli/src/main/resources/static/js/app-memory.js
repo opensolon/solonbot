@@ -213,7 +213,7 @@
             '      <textarea class="mem-content" placeholder="' + I18n.t('memory.contentPlaceholder') + '">' + escapeHtml(content) + '</textarea></label>' +
             '    <div class="mem-actions">' +
             '      <button class="memory-btn memory-btn-primary memory-save">' + I18n.t('common.save') + '</button>' +
-            (isNew ? '      <button class="memory-btn memory-cancel">' + I18n.t('common.cancel') + '</button>' : '      <button class="memory-btn memory-btn-danger memory-del">' + I18n.t('common.delete') + '</button>') +
+            (isNew ? '      <button class="memory-btn memory-cancel">' + I18n.t('common.cancel') + '</button>' : '      <button class="memory-btn memory-btn-danger memory-del">' + SVG_TRASH + ' ' + I18n.t('common.delete') + '</button>') +
             '' +
             '    </div>' +
             '  </div>' +

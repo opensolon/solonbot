@@ -16,6 +16,9 @@
 package org.noear.solon.codecli.util;
 
 import java.io.File;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 目录选择子进程主类：在以 {@code -Djava.awt.headless=false} 启动的子 JVM 中运行，
@@ -55,7 +58,9 @@ public final class DirectoryPickerSubprocess {
         System.exit(exit);
     }
 
-    private static int run(String title, File startDir) {
+    private static int run(String title, File startDir) throws Exception {
+        PrintWriter protocol = new PrintWriter(
+                new OutputStreamWriter(System.out, StandardCharsets.UTF_8), true);
         try {
             javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
         } catch (Throwable ignored) {
@@ -76,10 +81,10 @@ public final class DirectoryPickerSubprocess {
 
         int rc = chooser.showOpenDialog(null);
         if (rc == javax.swing.JFileChooser.APPROVE_OPTION && chooser.getSelectedFile() != null) {
-            System.out.println("PICK " + chooser.getSelectedFile().getAbsolutePath());
+            protocol.println("PICK " + chooser.getSelectedFile().getAbsolutePath());
             return 0;
         }
-        System.out.println("PICK_NONE");
+        protocol.println("PICK_NONE");
         return 0;
     }
 }
