@@ -62,11 +62,25 @@
         if (oldActions) oldActions.remove();
     }
 
-    // ---- 关闭：移除状态类，恢复顶部条与右侧任务面板，避免残留影响 git diff 内嵌视图 ----
+    // ---- 关闭：完整隐藏共享 Viewer，并恢复打开前的主视图 ----
     function closeOverlay() {
         if (!gitViewer) return;
+
+        // 「整理记忆」和 Esc 不会触发 app-git.js 绑定在关闭按钮上的处理，
+        // 因此这里不能只移除状态类，否则 gitViewer 仍以 display:flex 占据主区。
+        if (document.fullscreenElement === gitViewer && document.exitFullscreen) {
+            document.exitFullscreen().catch(function () {});
+        }
+        gitViewer.style.display = 'none';
         document.body.classList.remove('memory-active');
         gitViewer.classList.remove('mem-overlay');
+
+        // showViewer() 写入了内联 display:none；关闭时必须清除，交还给原有 CSS 状态控制。
+        if (chatView) chatView.style.display = '';
+        if (newChatView) newChatView.style.display = '';
+        if (chatView && chatView.classList.contains('active') && newChatView) {
+            newChatView.style.display = 'none';
+        }
     }
 
     // ---- 打开面板 ----
