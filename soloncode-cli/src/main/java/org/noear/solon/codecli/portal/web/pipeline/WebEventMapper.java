@@ -305,6 +305,9 @@ public class WebEventMapper {
     }
 
     private WebEvent<?> onReasonEndEvent(AgentSession session, ReasonEndEvent event, String taskAgentName, boolean isMultitask) {
+        //如果流已取消，则不输出
+
+
         String sessionId = session.getSessionId();
         String resultContent = event.getText();
 

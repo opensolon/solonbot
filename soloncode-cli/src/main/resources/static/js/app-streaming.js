@@ -2234,7 +2234,7 @@ function handleWebGateChunk(raw) {
         if (typeof ensureChatInHistory === 'function') {
             ensureChatInHistory(sid, p.text, true);
         }
-        appendUserMessage(userSess, p.text, null, null, p.createdAt, p.sourceLabel);
+        appendUserMessage(userSess, p.text, null, null, p.createdAt, p.sourceLabel || p.source);
         if (userSess.sessionId === activeSessionId) {
             if (!inChatMode) switchToChatMode();
             scrollToBottom(true);

@@ -1,6 +1,7 @@
 package org.noear.solon.codecli.portal.web;
 
 import lombok.extern.slf4j.Slf4j;
+import org.noear.solon.ai.agent.AgentEvent;
 import org.noear.solon.ai.agent.AgentSession;
 import org.noear.solon.ai.agent.react.ReActAgent;
 import org.noear.solon.ai.chat.ChatConfig;
@@ -146,7 +147,7 @@ public class WebStreamBuilder {
         // 运行中插话（steer）拦截器：请求级挂载，LinkedHashMap 插入序保证排在默认拦截器（含上下文压缩）之后
         SteerInterceptor steerInterceptor = new SteerInterceptor(webGate, wsContext);
 
-        return agent.prompt(prompt)
+        final Flux<AgentEvent> stream = agent.prompt(prompt)
                 .session(session)
                 .options(o -> {
                     o.chatModel(chatModel);
@@ -157,7 +158,9 @@ public class WebStreamBuilder {
                         o.toolContextPut(HarnessEngine.ATTR_CWD, sessionCwd);
                     }
                 })
-                .stream()
+                .stream();
+
+        return   stream
                 .flatMap(event -> Flux.fromIterable(mapper.mapEvent(event)))
                 .filter(WebEvent::isNotEmpty)
                 .map(toolFilter::apply)

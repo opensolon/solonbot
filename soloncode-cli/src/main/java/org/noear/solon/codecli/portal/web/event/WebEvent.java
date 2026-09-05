@@ -172,6 +172,7 @@ public class WebEvent<T> implements Serializable {
         return of(WebEventNames.SYSTEM_USER_INPUT, SystemUserInputPayload.builder()
                 .text(text)
                 .source(source)
+                .sourceLabel(toSourceLabel(source))
                 .build());
     }
 
