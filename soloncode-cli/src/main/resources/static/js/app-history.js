@@ -802,8 +802,16 @@ function hideCmdComplete() {
 
 function applyCmdSelection(inputEl, completeEl) {
     if (cmdActiveIndex >= 0 && cmdActiveIndex < cmdVisibleItems.length && cmdTokenContext) {
+        // 鼠标/方向键移动光标不会触发 input 事件，选择时必须重新定位 token，避免使用旧上下文。
+        var currentContext = findCompletionToken(inputEl.value, inputEl.selectionStart);
+        if (!currentContext || currentContext.trigger !== cmdTokenContext.trigger
+                || currentContext.start !== cmdTokenContext.start) {
+            hideCmdComplete();
+            return;
+        }
+
         var cmd = cmdVisibleItems[cmdActiveIndex];
-        var result = replaceCompletionToken(inputEl.value, cmdTokenContext, cmd.name);
+        var result = replaceCompletionToken(inputEl.value, currentContext, cmd.name);
         if (result) {
             inputEl.value = result.value;
             inputEl.setSelectionRange(result.cursor, result.cursor);
