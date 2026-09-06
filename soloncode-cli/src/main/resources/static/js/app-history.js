@@ -627,9 +627,61 @@ var $newChatCmdComplete = $('#newChatCmdComplete');
 var $chatCmdComplete = $('#chatCmdComplete');
 var cmdActiveIndex = -1;
 var cmdVisibleItems = [];
+var cmdTokenContext = null;
 
 function getActiveCmdComplete() {
     return inChatMode ? $chatCmdComplete[0] : $newChatCmdComplete[0];
+}
+
+function isCompletionNameChar(ch) {
+    return !!ch && /[A-Za-z0-9._-]/.test(ch);
+}
+
+/**
+ * 定位光标所在的补全 token。
+ * / 只允许位于整条输入开头；@agent 与 $skill 可在正文 token 边界重复出现。
+ */
+function findCompletionToken(value, cursorPos) {
+    var val = value || '';
+    var cursor = (typeof cursorPos === 'number') ? cursorPos : val.length;
+    cursor = Math.max(0, Math.min(cursor, val.length));
+    var beforeCursor = val.substring(0, cursor);
+    var trigger = '';
+    var start = -1;
+
+    if (val.charAt(0) === '/' && beforeCursor.charAt(0) === '/' && !/\s/.test(beforeCursor)) {
+        trigger = '/';
+        start = 0;
+    } else {
+        // 空白及常见中英文标点均可作为行内提及边界；邮箱、变量名等不会误触发。
+        var match = beforeCursor.match(/(^|[\s,，。；;:：、(\[{'"“‘])([@$])([A-Za-z0-9._-]*)$/);
+        if (!match) return null;
+        trigger = match[2];
+        start = cursor - match[2].length - match[3].length;
+    }
+
+    var end = cursor;
+    while (end < val.length && isCompletionNameChar(val.charAt(end))) end++;
+    return {
+        trigger: trigger,
+        start: start,
+        end: end,
+        prefix: val.substring(start, cursor)
+    };
+}
+
+function replaceCompletionToken(value, context, name) {
+    if (!context || context.start < 0 || context.end < context.start) return null;
+    var val = value || '';
+    var replacement = context.trigger + name;
+    var before = val.substring(0, context.start);
+    var after = val.substring(context.end);
+    // 末尾补全后留一个空格便于继续输入；已有空白或结束标点时不制造双空格。
+    var separator = (!after || !/^[\s,，。；;:：、!?！？)\]}”’]/.test(after)) ? ' ' : '';
+    return {
+        value: before + replacement + separator + after,
+        cursor: before.length + replacement.length + separator.length
+    };
 }
 
 /**
@@ -652,10 +704,12 @@ function closeAllToolbarPanels() {
 }
 window.closeAllToolbarPanels = closeAllToolbarPanels;
 
-function showCmdComplete(inputEl, completeEl, prefix) {
-    if (!commandsLoaded || commandList.length === 0) return;
+function showCmdComplete(inputEl, completeEl, tokenContext) {
+    if (!commandsLoaded || commandList.length === 0 || !tokenContext) return;
     closeAllToolbarPanels();
-    var trigger = prefix.charAt(0);
+    cmdTokenContext = tokenContext;
+    var prefix = tokenContext.prefix;
+    var trigger = tokenContext.trigger;
     var query = prefix.substring(1).toLowerCase();
     var filterType = (trigger === '@') ? 'subagent' : (trigger === '$') ? 'skill' : 'command';
     cmdVisibleItems = [];
@@ -675,7 +729,7 @@ function showCmdComplete(inputEl, completeEl, prefix) {
         if (cmd.name.toLowerCase().indexOf(query) === 0 || query.length === 0) {
             cmdVisibleItems.push(cmd);
             var nameClass = (trigger === '@') ? 'cmd-name subagent' : (trigger === '$') ? 'cmd-name skill' : 'cmd-name';
-            html += '<div class="cmd-complete-item" data-index="' + (cmdVisibleItems.length - 1) + '">'
+            html += '<div class="cmd-complete-item" data-index="' + (cmdVisibleItems.length - 1) + '" data-base-index="' + (cmdVisibleItems.length - 1) + '">'
                 + '<span class="' + nameClass + '">' + escapeHtml(trigger + cmd.name) + '</span>'
                 + '<span class="cmd-desc">' + escapeHtml(cmd.description || '') + '</span>'
                 + '</div>';
@@ -693,6 +747,7 @@ function showCmdComplete(inputEl, completeEl, prefix) {
 
     // Bind search for skills
     if (filterType === 'skill') {
+        var allSkillItems = cmdVisibleItems.slice();
         var $searchInput = $(completeEl).find('.cmd-search-input');
         if ($searchInput.length) {
             $searchInput.on('input', function() {
@@ -704,7 +759,7 @@ function showCmdComplete(inputEl, completeEl, prefix) {
                     var name = $item.find('.cmd-name').text().toLowerCase().replace(/^\$/, '');
                     if (!q || name.indexOf(q) >= 0) {
                         $item.show();
-                        newVisible.push(cmdVisibleItems[parseInt($item.attr('data-index'))]);
+                        newVisible.push(allSkillItems[parseInt($item.attr('data-base-index'))]);
                     } else {
                         $item.hide();
                     }
@@ -742,51 +797,18 @@ function hideCmdComplete() {
     cmdActiveIndex = -1;
     cmdVisibleItems = [];
     cmdTrigger = null;
+    cmdTokenContext = null;
 }
 
 function applyCmdSelection(inputEl, completeEl) {
-    if (cmdActiveIndex >= 0 && cmdActiveIndex < cmdVisibleItems.length) {
+    if (cmdActiveIndex >= 0 && cmdActiveIndex < cmdVisibleItems.length && cmdTokenContext) {
         var cmd = cmdVisibleItems[cmdActiveIndex];
-        var trigger = cmdTrigger || '/';
-
-        // 找到当前输入框中的命令前缀位置
-        var val = inputEl.value;
-        var prefixPos = -1;
-
-        // 查找最近的命令前缀（/、@ 或 $）
-        for (var i = val.length - 1; i >= 0; i--) {
-            var ch = val.charAt(i);
-            if (ch === '/' || ch === '@' || ch === '$') {
-                prefixPos = i;
-                break;
-            }
+        var result = replaceCompletionToken(inputEl.value, cmdTokenContext, cmd.name);
+        if (result) {
+            inputEl.value = result.value;
+            inputEl.setSelectionRange(result.cursor, result.cursor);
+            autoResize(inputEl);
         }
-
-        if (prefixPos >= 0) {
-            // 替换前缀及其后面的内容
-            var textBefore = val.substring(0, prefixPos);
-            var textAfter = val.substring(prefixPos);
-
-            // 找到前缀后面的空格位置（如果有）
-            var spaceIndex = textAfter.indexOf(' ');
-            var argsStr = '';
-            if (spaceIndex >= 0) {
-                argsStr = textAfter.substring(spaceIndex);
-            }
-
-            // 构建新的值（命令/技能/子代理名称后追加空格）
-            inputEl.value = textBefore + trigger + cmd.name + ' ' + argsStr;
-
-            // 更新光标位置到命令和空格后面
-            var newCursorPos = textBefore.length + trigger.length + cmd.name.length + 1;
-            inputEl.setSelectionRange(newCursorPos, newCursorPos);
-        } else {
-            // 如果没有找到前缀，直接在开头插入
-            inputEl.value = trigger + cmd.name + ' ' + val;
-            inputEl.setSelectionRange(trigger.length + cmd.name.length + 1, trigger.length + cmd.name.length + 1);
-        }
-
-        autoResize(inputEl);
     }
     hideCmdComplete();
 }
@@ -799,7 +821,7 @@ function navigateCmdComplete(e, inputEl, completeEl) {
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        var $items = $completeEl.find('.cmd-complete-item');
+        var $items = $completeEl.find('.cmd-complete-item:visible');
         if ($items.length === 0) return true;
 
         // Remove old active
@@ -835,18 +857,10 @@ function navigateCmdComplete(e, inputEl, completeEl) {
 function handleInputForCommands(e) {
     var inputEl = e.target;
     var completeEl = (inputEl === newChatInput) ? $newChatCmdComplete[0] : $chatCmdComplete[0];
-    var val = inputEl.value;
+    var tokenContext = findCompletionToken(inputEl.value, inputEl.selectionStart);
 
-    if (val.indexOf('/') === 0 || val.indexOf('@') === 0 || val.indexOf('$') === 0) {
-        // Only show completion when cursor is at the command/agent/skill name part (no spaces yet)
-        var cursorPos = inputEl.selectionStart;
-        var textBeforeCursor = val.substring(0, cursorPos);
-        var spaceIndex = textBeforeCursor.indexOf(' ');
-        if (spaceIndex === -1) {
-            showCmdComplete(inputEl, completeEl, textBeforeCursor);
-        } else {
-            hideCmdComplete();
-        }
+    if (tokenContext) {
+        showCmdComplete(inputEl, completeEl, tokenContext);
     } else {
         hideCmdComplete();
         if ($chatHistoryPanel.hasClass('show')) {
@@ -865,22 +879,32 @@ $('#chatHistoryBtn').on('click', function(e) {
     }
 });
 
-// Command & Agent button handlers
+// Command, Agent & Skill button handlers
 function triggerCmdComplete(inputEl, completeEl, prefix) {
-    // 保存当前光标位置
-    var cursorPos = inputEl.selectionStart;
-    var textBefore = inputEl.value.substring(0, cursorPos);
-    var textAfter = inputEl.value.substring(cursorPos);
+    var val = inputEl.value || '';
+    var selectionStart = (typeof inputEl.selectionStart === 'number') ? inputEl.selectionStart : val.length;
+    var selectionEnd = (typeof inputEl.selectionEnd === 'number') ? inputEl.selectionEnd : selectionStart;
 
-    // 在光标位置插入前缀（命令/子代理/技能符号后追加空格）
-    inputEl.value = textBefore + prefix + ' ' + textAfter;
-
-    // 更新光标位置到前缀和空格后面
-    var newCursorPos = cursorPos + prefix.length + 1;
-    inputEl.setSelectionRange(newCursorPos, newCursorPos);
+    if (prefix === '/') {
+        // 斜杠命令只在空输入中成立，避免把正文改造成不可执行的“行内命令”。
+        if (val.trim()) {
+            inputEl.focus();
+            return;
+        }
+        inputEl.value = '/';
+        inputEl.setSelectionRange(1, 1);
+    } else {
+        var before = val.substring(0, selectionStart);
+        var after = val.substring(selectionEnd);
+        var boundary = before && !/[\s,，。；;:：、(\[{'"“‘]$/.test(before) ? ' ' : '';
+        inputEl.value = before + boundary + prefix + after;
+        var cursorPos = before.length + boundary.length + prefix.length;
+        inputEl.setSelectionRange(cursorPos, cursorPos);
+    }
 
     inputEl.focus();
-    showCmdComplete(inputEl, completeEl, prefix);
+    var tokenContext = findCompletionToken(inputEl.value, inputEl.selectionStart);
+    showCmdComplete(inputEl, completeEl, tokenContext);
 }
 $('#newChatCmdBtn, #chatCmdBtn').on('click', function() {
     var isWelcome = this.id.indexOf('newChat') === 0;
