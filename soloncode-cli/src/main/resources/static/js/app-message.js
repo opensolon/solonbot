@@ -2193,3 +2193,127 @@ function openLightbox(src) {
     });
     $(document.body).append(overlay);
 }
+
+/* ===== 消息区选中文本右键菜单：复制 / 在对话中引用 =====
+ * 仅当右键点击落在 .msg-area 内且有选中文本时拦截默认菜单；
+ * 未选中或点在输入框/代码块时不拦截，交回浏览器原生菜单。
+ * 「在对话中引用」把选中内容以 markdown 引用块插入当前输入框（跟随 inChatMode），
+ * 多行逐行加 > 前缀，发送后可被 AI 正确还原为上下文。 */
+var selectionMenuEl = null;
+var selectionMenuRange = null;
+
+function getSelectionMenuTarget() {
+    var input = (typeof inChatMode !== 'undefined' && inChatMode) ? chatInput : newChatInput;
+    if (!input) input = document.getElementById('chatInput') || document.getElementById('newChatInput');
+    return input;
+}
+
+function buildQuoteBlock(text) {
+    var lines = String(text).replace(/\r\n/g, '\n').split('\n');
+    var quoted = [];
+    for (var i = 0; i < lines.length; i++) {
+        quoted.push('> ' + lines[i]);
+    }
+    return quoted.join('\n');
+}
+
+function insertQuoteToInput(text) {
+    var input = getSelectionMenuTarget();
+    if (!input) return;
+    var quote = buildQuoteBlock(text);
+    var currentVal = input.value || '';
+    var cursorPos = input.selectionStart != null ? input.selectionStart : currentVal.length;
+    var before = currentVal.substring(0, cursorPos);
+    var after = currentVal.substring(cursorPos);
+    var sep = '';
+    if (before.length > 0 && !before.endsWith('\n')) sep = '\n\n';
+    var insert = sep + quote + '\n\n';
+    input.value = before + insert + after;
+    input.focus();
+    var newPos = (before + insert).length;
+    input.setSelectionRange(newPos, newPos);
+    if (typeof autoResize === 'function') autoResize(input);
+}
+
+function closeSelectionMenu() {
+    if (selectionMenuEl) {
+        $(selectionMenuEl).remove();
+        selectionMenuEl = null;
+    }
+    selectionMenuRange = null;
+}
+
+function showSelectionMenu(x, y, selectedText) {
+    closeSelectionMenu();
+    var menu = $('<div>').addClass('selection-menu')[0];
+    menu.setAttribute('role', 'menu');
+    menu.innerHTML = ''
+        + '<button type="button" class="selection-menu-item" data-act="copy">'
+        + '<svg class="more-menu-icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+        + '<span data-i18n="common.copy">复制</span></button>'
+        + '<button type="button" class="selection-menu-item" data-act="quote">'
+        + '<svg class="more-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+        + '<span data-i18n="msg.addToChat">加入对话</span></button>';
+    if (window.I18n) window.I18n.apply(menu);
+    $(document.body).append(menu);
+    selectionMenuEl = menu;
+    selectionMenuRange = selectedText;
+
+    // 边界翻转：右/下溢出时反向展开，避免被视口裁切
+    var $menu = $(menu);
+    var mw = $menu.outerWidth();
+    var mh = $menu.outerHeight();
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var left = x + 2, top = y + 2;
+    if (left + mw > vw - 8) left = Math.max(8, x - mw - 2);
+    if (top + mh > vh - 8) top = Math.max(8, y - mh - 2);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+
+    $menu.on('mousedown', function(e) { e.preventDefault(); });
+    $menu.find('.selection-menu-item').on('click', function() {
+        var act = this.getAttribute('data-act');
+        var text = selectionMenuRange;
+        closeSelectionMenu();
+        if (act === 'copy') {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast(I18n.t('msg.copied'), 'success');
+                }, function() {
+                    showToast(I18n.t('msg.copyFailed'), 'error');
+                });
+            }
+        } else if (act === 'quote') {
+            insertQuoteToInput(text);
+        }
+    });
+}
+
+(function initSelectionContextMenu() {
+    var msgArea = document.getElementById('msgArea') || document.querySelector('.msg-area');
+    if (!msgArea) return;
+    $(msgArea).on('contextmenu', function(e) {
+        // 输入框、代码块内的右键交回原生菜单（代码区有复制按钮，且原生菜单更符合直觉）
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || $(e.target).closest('pre, code, .code-block').length > 0)) return;
+        var sel = window.getSelection ? window.getSelection() : null;
+        var text = sel ? String(sel.toString()) : '';
+        if (!text || !text.trim()) return; // 未选中文字：保持原生菜单
+        var range = sel.getRangeAt ? sel.getRangeAt(0) : null;
+        // 选区必须落在消息区内，才弹自定义菜单
+        if (range && msgArea.contains(range.commonAncestorContainer)) {
+            e.preventDefault();
+            showSelectionMenu(e.clientX, e.clientY, text);
+        }
+    });
+    $(document).on('mousedown', function(e) {
+        if (!selectionMenuEl) return;
+        if (e.target === selectionMenuEl || $(e.target).closest(selectionMenuEl).length > 0) return;
+        closeSelectionMenu();
+    });
+    $(document).on('keydown', function(e) {
+        if (!selectionMenuEl) return;
+        if (e.key === 'Escape') closeSelectionMenu();
+    });
+    $(window).on('resize scroll blur', closeSelectionMenu);
+})();

@@ -12,20 +12,44 @@ function isInputComposing(event) {
     return composing || !!(event && (event.isComposing || event.keyCode === 229));
 }
 
-var ACTIVE_SESSION_KEY = 'soloncode-active-session';
+/* 多工作区隔离：每个工作区有独立的会话恢复 key */
+function getActiveSessionKey() {
+    var ws = (window.wsId && typeof window.wsId === 'function') ? window.wsId() : '';
+    return 'soloncode-active-session' + (ws && ws !== 'workspace' ? '-' + ws : '');
+}
+
+/* 兼容迁移：旧版本无工作区隔离，升级后自动迁移 */
+function _migrateActiveSessionIfNeeded() {
+    var newKey = getActiveSessionKey();
+    var oldKey = 'soloncode-active-session';
+    if (newKey === oldKey) return; // 默认工作区无需迁移
+    try {
+        var oldVal = localStorage.getItem(oldKey);
+        var newVal = localStorage.getItem(newKey);
+        if (oldVal && !newVal) {
+            localStorage.setItem(newKey, oldVal);
+            localStorage.removeItem(oldKey);
+        }
+    } catch (e) {}
+}
+_migrateActiveSessionIfNeeded();
+
 function rememberActiveSession(sessionId) {
-    try { if (sessionId) localStorage.setItem(ACTIVE_SESSION_KEY, sessionId); } catch (e) {}
+    var key = getActiveSessionKey();
+    try { if (sessionId) localStorage.setItem(key, sessionId); } catch (e) {}
 }
 function forgetActiveSession() {
-    try { localStorage.removeItem(ACTIVE_SESSION_KEY); } catch (e) {}
+    var key = getActiveSessionKey();
+    try { localStorage.removeItem(key); } catch (e) {}
 }
 window.rememberActiveSession = rememberActiveSession;
 window.forgetActiveSession = forgetActiveSession;
 
 /* 历史列表加载完成后，尝试恢复上次的活动会话 */
 function restoreActiveSession() {
+    var key = getActiveSessionKey();
     var saved = null;
-    try { saved = localStorage.getItem(ACTIVE_SESSION_KEY); } catch (e) {}
+    try { saved = localStorage.getItem(key); } catch (e) {}
     if (!saved) return;
     for (var i = 0; i < chatHistory.length; i++) {
         if (chatHistory[i].sessionId === saved) {

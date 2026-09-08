@@ -826,6 +826,12 @@ body {
 .more-menu-dropdown .more-menu-icon text { fill: currentColor; stroke: none; }
 .more-menu-separator { height: 1px; background: var(--border-color); margin: 3px 0; }
 
+/* 消息区选中文本右键菜单（复制 / 在对话中引用）：视觉对齐 more-menu-dropdown */
+.selection-menu { position: fixed; min-width: 180px; background: var(--bg-input-box); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; z-index: 10005; overflow: hidden; animation: drop-up 0.15s ease-out; }
+.selection-menu-item { width: 100%; border: 0; background: transparent; color: var(--text-primary); text-align: left; cursor: pointer; font: inherit; font-size: var(--fs-base); padding: 9px 14px; display: flex; align-items: center; gap: 9px; }
+.selection-menu-item:hover { background: var(--bg-hover); }
+.selection-menu .more-menu-icon { width: 18px; height: 18px; flex: 0 0 18px; color: var(--text-secondary); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 .more-menu-hint {
   margin-left: auto;
   font-size: var(--fs-xs);

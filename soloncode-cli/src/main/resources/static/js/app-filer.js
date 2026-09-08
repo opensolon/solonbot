@@ -125,8 +125,8 @@
             }
         });
 
-        // 2. 在对话中引用（与双击行为一致，不替代双击）
-        addItem('filer.ctxQuote', '在对话中引用', function() {
+        // 2. 加入对话（与双击行为一致，不替代双击）
+        addItem('msg.addToChat', '加入对话', function() {
             insertToChat(info.quoteText);
         });
 
