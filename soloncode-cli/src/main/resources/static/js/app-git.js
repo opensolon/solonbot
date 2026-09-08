@@ -1918,6 +1918,32 @@
         }
     });
 
+    // ---- Git Viewer 右键菜单（复制 + 加入对话）----
+    if (gitViewerContent) {
+        $(gitViewerContent).on('contextmenu', function(e) {
+            // 忽略工具栏按钮区域
+            if ($(e.target).closest('.git-viewer-header-actions').length > 0) return;
+            var sel = window.getSelection ? window.getSelection() : null;
+            var text = sel ? String(sel.toString()) : '';
+            if (!text || !text.trim()) return; // 未选中文字：保持原生菜单
+            var range = sel.getRangeAt ? sel.getRangeAt(0) : null;
+            if (range && gitViewerContent.contains(range.commonAncestorContainer)) {
+                e.preventDefault();
+                showSelectionMenu(e.clientX, e.clientY, text);
+            }
+        });
+        $(document).on('mousedown', function(e) {
+            if (!selectionMenuEl) return;
+            if (e.target === selectionMenuEl || $(e.target).closest(selectionMenuEl).length > 0) return;
+            closeSelectionMenu();
+        });
+        $(document).on('keydown', function(e) {
+            if (!selectionMenuEl) return;
+            if (e.key === 'Escape') closeSelectionMenu();
+        });
+        $(window).on('resize scroll blur', closeSelectionMenu);
+    }
+
     // 暴露全局（供 app-filer.js / app-message.js 调用）
     window.loadGitStatus = loadGitStatus;
     window.loadGitWorkspaces = loadGitWorkspaces;
