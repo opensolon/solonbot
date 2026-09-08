@@ -1,7 +1,7 @@
 
 ### v2026.9.8
 
-* 添加 soloncode web 文本
+* 添加 soloncode web 选中文本右键菜单功能
 * 细节优化
 
 ### v2026.9.5
